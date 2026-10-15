@@ -1,58 +1,92 @@
 # DevSecOps Management Portal
 
-Projekt zarządzania DevSecOps wydzielony z projektu `DSOMgmtPortal`.
-Stanowi ujednolicony projekt Gradle z dwoma modułami:
-- **`backend`**: Serwis Spring Boot (Java 21) łączący logikę domenową portalu oraz moduł współdzielony (wcześniejszy `common-backend` + `dso-backend`).
-- **`frontend`**: Interfejs Angular łączący komponenty interfejsu (wcześniejszy `common-gui` + `dso-gui`).
+A centralized management platform for DevSecOps workflows, pipeline automation, security keys, product catalogs, and metrics monitoring.
+
+The application is structured as a unified multi-module Gradle project consisting of:
+- **`backend`**: A Spring Boot service (Java 21) handling domain logic, persistence, security configurations, and API endpoints.
+- **`frontend`**: An Angular single-page application providing user interfaces for pipeline self-service, product management, administration, and metrics visualization.
 
 ---
 
-## Struktura projektu
+## Architecture Overview
 
 ```
 DevSecOpsManagementPortal/
-├── backend/                  # Moduł backendu w Javie (Spring Boot)
-│   ├── src/main/java/        # Kod aplikacji (połączony common + dso)
-│   ├── src/main/resources/   # Konfiguracja (application.yml, changelogi Liquibase)
-│   ├── src/test/             # Testy jednostkowe i integracyjne
-│   └── build.gradle
-├── frontend/                 # Moduł frontendu w Angularze
-│   ├── src/                  # Kod aplikacji Angular
-│   │   ├── app/              # Główne widoki i trasy portalu
-│   │   └── common/           # Współdzielone komponenty UI, style, modele
-│   ├── angular.json
-│   ├── package.json
-│   └── build.gradle
-├── gradle/                   # Konfiguracja wersji i wrapper Gradle
-├── build.gradle              # Główny skrypt budowania
-└── settings.gradle           # Definicja modułów (backend, frontend)
+├── backend/                  # Spring Boot application (Java 21)
+│   ├── src/main/java/        # Domain model, use cases, REST controllers, adapters
+│   ├── src/main/resources/   # Configuration files, Liquibase database migrations
+│   ├── src/test/             # Unit and integration tests (Spock, JUnit 5)
+│   ├── src/regressionTest/   # End-to-end API regression tests
+│   ├── Dockerfile            # Container image specification
+│   └── build.gradle          # Backend build script with frontend asset bundling
+├── frontend/                 # Angular single-page application
+│   ├── src/
+│   │   ├── app/              # Portal application routes, components, and services
+│   │   ├── common/           # Shared UI components, dialogs, styles, and core models
+│   │   ├── testFixtures/     # Test utilities and mock API fixtures
+│   │   └── regressionTest/   # Browser-based regression tests (Playwright)
+│   ├── angular.json          # Angular CLI workspace configuration
+│   ├── package.json          # Frontend dependencies and npm scripts
+│   ├── tsconfig.json         # TypeScript configuration with @common/* path mapping
+│   └── build.gradle          # Frontend Gradle integration tasks (build, test, verify)
+├── gradle/                   # Gradle wrapper and version catalog (libs.versions.toml)
+├── build.gradle              # Root build script
+├── settings.gradle           # Module definitions and repository management
+└── README.md
 ```
 
 ---
 
-## Uruchamianie i budowanie
+## Getting Started
 
-### Całość (Gradle):
-- Budowanie projektu:
-  ```bash
-  ./gradlew build
-  ```
-- Uruchomienie backendu (zintegrowanego z frontendem):
-  ```bash
-  ./gradlew :backend:bootRun
-  ```
+### Prerequisites
+- **Java**: OpenJDK 21
+- **Node.js**: Node 20.x (LTS) or higher
+- **npm**: npm 10.x or higher
 
-### Moduł Frontend (Angular):
+---
+
+## Building and Running
+
+### Full Build (Gradle)
+To compile, run all tests, and package both backend and frontend:
+```bash
+./gradlew build
+```
+
+### Running Backend (Integrated)
+Starts the Spring Boot server with the compiled Angular static assets served directly:
+```bash
+./gradlew :backend:bootRun
+```
+The application will be available at: `http://localhost:8080`.
+
+---
+
+## Development
+
+### Frontend Development
+To run the Angular application standalone with hot reloading and proxy to the backend API:
 ```bash
 cd frontend
 npm ci
 npm start
 ```
-Aplikacja uruchomi się pod adresem: `http://localhost:4200` (z proxy na backend pod `http://localhost:8080`).
+The UI dev server runs on `http://localhost:4200` and proxies API calls to `http://localhost:8080`.
 
-### Moduł Backend (Spring Boot):
+To run frontend unit tests:
 ```bash
-cd backend
-../gradlew bootRun
+cd frontend
+npm test
 ```
-Serwis nasłuchuje na porcie `8080`.
+
+### Backend Development
+To run backend unit tests:
+```bash
+./gradlew :backend:test
+```
+
+To run end-to-end regression suites:
+```bash
+./gradlew :backend:regressionTest
+```
