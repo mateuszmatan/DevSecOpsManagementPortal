@@ -1,0 +1,202 @@
+pipeline:
+  type: full
+  entryPoint: devSecOpsPipeline
+  product: PAYHUB
+  projectNames: notifications
+  agentNames:
+  - linux-agent
+platform:
+  jenkinsUrl: https://jenkins.bbh.com
+  jenkinsLibrary: DevSecOpsJenkinsLibrary
+  environment:
+    APPSCAN_SERVER_URL: https://bbh.cloud.appscan.com
+    APPSCAN_HOST: bbh.cloud.appscan.com
+    SA_LINUX_URL: https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Linux/SAClientUtil-8.0.1646_Linux-SAClientUtil_8.0.1646_Linux.zip
+    SA_WIN_URL: https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Win/SAClientUtil-8.0.1646_Win-SAClientUtil_8.0.1646_Win.zip
+    PROXY_HOST: tstproxy.bbh.com
+    PROXY_PORT: '9090'
+    PROXY_USER: PROXY_ASOCJenk
+  oisHost: oisapi.bbh.com
+  nexusSnapshotRepositoryUrl: http://tools.bbh.com/nexus/content/repositories/snapshots/
+  nexusSnapshotRepositoryId: bbh-snapshots
+  iosBuildAgent: mac002.bbh.com
+defaults:
+  buildTool: gradle
+  deployTarget: vm
+  sourceDir: .
+  coverage:
+    minLine: 60
+  tools:
+    sonar:
+      qualityGate:
+        waitForQualityGate: true
+        timeoutMinutes: 5
+    nexusIq:
+      maxCritical: 0
+      maxHigh: 0
+      maxMedium: 0
+  sast:
+    prepareTimeoutMin: 120
+    pollTimeoutMin: 50
+    pollIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  sca:
+    enabled: true
+    pollTimeoutMin: 40
+    pollIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  dast:
+    pollTimeoutMin: 60
+    pollIntervalSec: 60
+    reportTimeoutMin: 30
+    reportIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  tests:
+    maxParallel: 20
+  releaseGate:
+    scanners:
+    - sast
+    - sca
+    - niq
+    - dast
+    requireCoverage: true
+    stateFile: release-gate.json
+  goldenFix:
+    enabled: true
+    onlyDirectDependencies: true
+    minThreatLevel: 2
+    ecosystems:
+    - maven
+    - npm
+    - pypi
+    goldenVersionTypes:
+    - recommended-non-breaking-with-dependencies
+    - recommended-non-breaking
+    verify:
+      enabled: true
+      maxAttempts: 3
+      timeoutMinutes: 20
+    commitAuthorName: DevSecOps GoldenFix
+    commitAuthorEmail: devsecops-goldenfix@noreply.local
+projects:
+  notifications:
+    appId: 3a1b2c3d-3333-4a5b-8c9d-0e1f2a3b4c5d
+    buildTool: gradle
+    deployTarget: vm
+    sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    excludedDirs: node_modules
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: PAYHUB-notifications
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        projectName: PAYHUB-NOTIFICATIONS
+        projectKey: payhub-notifications
+        gradle:
+          tasks:
+          - sonarqube
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+        application: payhub-notifications
+        scanPatterns:
+        - '**/build/libs/*.jar'
+        stage: build
+        failOnNetworkError: false
+    sast:
+      scanName: payhub-notifications-sast
+    dast:
+      enabled: false
+    build:
+      buildPath: build/libs/*.jar
+      gradle:
+        tasks:
+        - clean
+        - build
+        - bootJar
+        flags:
+        - --refresh-dependencies
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-notifications
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    tests:
+      unitTests:
+        gradle:
+          tasks:
+          - test
+          - jacocoTestReport
+        unitTestResult: build/test-results/test/*.xml
+      smoke:
+        maxParallel: 10
+        jobs:
+        - name: PAYHUB-NOTIFICATIONS - smoke
+          type: local
+          job: payhub-notifications/smoke-tests
+          timeoutMin: 15
+        - name: PAYHUB-NOTIFICATIONS - login smoke
+          url: https://jenkins-a.bbh.com/job/smoke/job/payhub-notifications-login
+          credentialsId: remote-jenkins-api-token
+      regression:
+        maxParallel: 5
+        jobs:
+        - name: PAYHUB-NOTIFICATIONS - regression
+          type: local
+          job: payhub-notifications/regression-tests
+          timeoutMin: 60
+          parameters: ENV=rd
+      performance:
+        jobs:
+        - name: PAYHUB-NOTIFICATIONS - performance
+          type: local
+          job: payhub-notifications/performance-tests
+          timeoutMin: 120
+    deploy:
+      vm:
+        dod:
+          skipWait: false
+          deployWithSnapshot: true
+          updateSnapshotComp: false
+          includeOnlyDeployVersions: true
+          deployOnlyChanged: false
+          applications:
+          - applicationName: PAYHUB-NOTIFICATIONS
+            order: 1
+            environments:
+            - DV
+            - RD
+            components:
+            - componentName: PAYHUB-NOTIFICATIONS-app
+              baseDir: build/libs
+              fileIncludePatterns: '*.jar'
+              incrementalVersion: true
+          siteName: deploy.bbh.com
+          deployProcess: tomcat-app-process
+        rd:
+          deployDir: /opt/pay/PayHub/notifications/deployment
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          host: rdltaapps1.testbbh.com
+          user: taadmin
+          versionFile: scripts/deployment/version.properties
+        qc:
+          deployDir: /opt/pay/PayHub/notifications/deployment
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          host: qcltaapps1.testbbh.com
+          user: taadmin
+          versionFile: scripts/deployment/version.properties

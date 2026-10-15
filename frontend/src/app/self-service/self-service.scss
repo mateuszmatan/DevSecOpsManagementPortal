@@ -1,0 +1,107 @@
+.required-note {
+  margin: -6px 0 0;
+  color: var(--dso-muted);
+  font-size: 12px;
+}
+
+.prepare {
+  padding: 8px 12px;
+  border-left: 3px solid var(--dso-navy);
+  background: var(--dso-info-bg);
+}
+
+.today {
+  font-size: 12.5px;
+}
+
+.prepare,
+.today {
+  ul {
+    margin: 0;
+    padding-left: 16px;
+    list-style: square;
+  }
+}
+
+.no-services {
+  h3 {
+    margin: 0;
+  }
+
+  p {
+    margin: 0;
+    color: var(--dso-muted);
+  }
+}
+
+.review-heading {
+  margin-top: 6px;
+}
+
+.review-list {
+  padding: 0;
+  border-top: 1px solid var(--dso-border);
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+    gap: 2px 16px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--dso-border);
+    font-size: 12.5px;
+  }
+
+  .removed .review-text {
+    color: var(--dso-danger);
+  }
+
+  .tag {
+    margin-left: 0;
+  }
+}
+
+.review-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+}
+
+.next-steps h3 {
+  font-size: 15px;
+}
+
+.jenkinsfile-head .muted,
+.job-names code {
+  overflow-wrap: anywhere;
+}
+
+.jenkinsfile-missing {
+  margin: 0;
+  padding: 0 10px 8px;
+  color: var(--dso-muted);
+}
+
+.job-names {
+  margin: 0;
+  padding-left: 16px;
+  list-style: square;
+}
+
+@media (max-width: 700px) {
+  .review-list li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.template-problem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+
+  .choice-error {
+    flex: 1 1 320px;
+  }
+}

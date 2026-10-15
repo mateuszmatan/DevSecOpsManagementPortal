@@ -1,0 +1,25 @@
+plugins {
+    alias(libs.plugins.spring.boot) apply false
+    alias(libs.plugins.spring.dependency.management) apply false
+    alias(libs.plugins.sonarqube) apply false
+}
+
+allprojects {
+    group = 'com.bbh.itss.dso'
+    version = findProperty('artifactVersion') ?: '0.1.0-SNAPSHOT'
+}
+
+subprojects {
+    apply plugin: 'base'
+
+    plugins.withType(JavaBasePlugin).configureEach {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(21)
+            }
+        }
+        tasks.withType(JavaCompile).configureEach {
+            options.compilerArgs << '-parameters'
+        }
+    }
+}

@@ -1,0 +1,74 @@
+@let f = form();
+<div class="form-fields">
+  <dso-fields [group]="f.controls.tests" [fields]="parallelFields()" />
+</div>
+
+@if (f.controls.testJobs.errors?.['server']; as message) {
+  <div class="banner list-error" role="alert">{{ message }}</div>
+}
+
+@for (stage of stages; track stage.value) {
+  <section class="list-section">
+    <header class="list-header">
+      <h4>
+        {{ stage.label }} <span class="count">{{ jobsOf(stage.value).length }}</span>
+      </h4>
+      <div class="stage-options">
+        <dso-fields [group]="f.controls.tests" [fields]="stageFields(stage)" />
+      </div>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-outline-primary" (click)="add(stage.value)">
+        Add {{ stage.noun }} job
+      </button>
+    </header>
+
+    @for (job of jobsOf(stage.value); track job; let i = $index) {
+      <div class="list-item" [class.invalid]="job.invalid && job.touched">
+        <div class="list-item-head">
+          <span class="index">{{ i + 1 }}</span>
+          <strong class="mono">{{ jobName(job) }}</strong>
+          <span class="spacer"></span>
+          <button
+            type="button"
+            class="btn btn-link"
+            (click)="move(job, -1)"
+            [disabled]="$first"
+            [attr.aria-label]="'Start ' + jobName(job) + ' earlier'"
+          >
+            Up
+          </button>
+          <button
+            type="button"
+            class="btn btn-link"
+            (click)="move(job, 1)"
+            [disabled]="$last"
+            [attr.aria-label]="'Start ' + jobName(job) + ' later'"
+          >
+            Down
+          </button>
+          <button
+            type="button"
+            class="btn btn-link danger"
+            (click)="remove(job)"
+            [attr.aria-label]="'Remove ' + jobName(job)"
+          >
+            Remove
+          </button>
+        </div>
+        <div class="form-fields">
+          <dso-fields [group]="job" [fields]="jobFields(job, stage)" />
+        </div>
+      </div>
+    } @empty {
+      @if (required(stage)) {
+        <p class="list-empty">No {{ stage.noun }} test jobs.</p>
+      }
+    }
+    @if (!required(stage)) {
+      <p class="list-empty">
+        Not required: the pipeline runs none of these jobs and reports the stage as covered
+        elsewhere.
+      </p>
+    }
+  </section>
+}

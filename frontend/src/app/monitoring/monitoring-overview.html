@@ -1,0 +1,158 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
+    </div>
+    <div class="actions">
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        (click)="refresh()"
+        [disabled]="overview.isLoading() || departments.isLoading()"
+      >
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <dso-metrics-banner
+    [status]="status.hasValue() ? status.value() : undefined"
+    [metricsError]="overview.hasValue() ? overview.value().metricsError : null"
+  />
+
+  <section class="card results">
+    <header class="card-header">
+      <h2>Latest results</h2>
+    </header>
+    <p class="section-help">
+      The result of the latest run of every pipeline: the automated build, test and security checks
+      Jenkins runs for a service.
+    </p>
+    <div class="results-body">
+      <div class="stats">
+        @for (tile of tiles(); track tile.label) {
+          <div class="stat" [class]="tile.tone">
+            <strong>{{ tile.value }}</strong
+            ><span>{{ tile.label }}</span>
+          </div>
+        }
+      </div>
+      @if (departmentStatus().length) {
+        <div class="by-department">
+          <h3>By department</h3>
+          <dso-bar-chart [rows]="departmentStatus()" />
+          <div class="legend" aria-label="What the colours mean">
+            @for (entry of statusOrder; track entry.status) {
+              <span
+                ><i class="swatch" [class]="entry.status.toLowerCase()"></i>{{ entry.label }}</span
+              >
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="card products">
+    <header class="card-header">
+      <h2>Products</h2>
+      @if (overview.hasValue()) {
+        <span class="muted">{{ products().length | counted: 'product' }}</span>
+      }
+      <dso-form-field class="search">
+        <input
+          dsoInput
+          [formControl]="search"
+          placeholder="Filter by name, code or team"
+          aria-label="Filter products"
+        />
+      </dso-form-field>
+    </header>
+    <p class="section-help">Open a product to see each of its pipelines and their latest runs.</p>
+
+    @if (overview.isLoading() || departments.isLoading()) {
+      <dso-loading />
+    }
+
+    @if (overview.error() ?? departments.error(); as error) {
+      <div class="banner">
+        <span>The products could not be loaded. {{ errorMessage(error) }}</span>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-link" (click)="refresh()">Try again</button>
+      </div>
+    } @else if (overview.hasValue() && departments.hasValue()) {
+      @if (products().length === 0) {
+        <div class="empty-state">
+          @if (search.value) {
+            <h3>No product matches "{{ search.value }}"</h3>
+          } @else {
+            <h3>No products yet</h3>
+            <p>
+              Products added in DevSecOps Admin appear here with the results of their pipelines.
+            </p>
+            <a class="btn btn-primary" routerLink="/admin/products/new">Add product</a>
+          }
+        </div>
+      } @else {
+        @for (group of groups(); track group.name) {
+          <section class="department">
+            <header class="department-title">
+              <h3>{{ group.name }}</h3>
+              <span class="muted">{{ group.products.length | counted: 'product' }}</span>
+            </header>
+            @for (product of group.products; track product.productId) {
+              <a
+                class="product"
+                [routerLink]="['/monitoring/products', product.productId]"
+                [class]="'overall-' + product.overall.toLowerCase()"
+              >
+                <span class="names">
+                  <strong>{{ product.name }}</strong>
+                  <span class="mono muted">{{ product.code }}</span>
+                </span>
+                <span class="muted team">{{ product.ownerTeam ?? 'No owner team' }}</span>
+                <span class="status"><dso-status-chip [status]="product.overall" /></span>
+                <dso-status-bar [counts]="product.statusCounts" />
+                <span class="sizes"
+                  >{{ product.pipelineCount | counted: 'pipeline' }} ·
+                  {{ product.serviceCount | counted: 'service' }}</span
+                >
+                <span class="muted last-run">{{
+                  product.lastRunAt ? 'Last run ' + (product.lastRunAt | relative) : 'No runs yet'
+                }}</span>
+              </a>
+            }
+          </section>
+        }
+      }
+    }
+  </section>
+
+  @if (activityProblem(); as problem) {
+    <section class="card dora-unavailable">
+      <header class="card-header">
+        <h2>Delivery performance (DORA)</h2>
+      </header>
+      <div class="banner">
+        <span>Delivery performance and runs per day could not be loaded. {{ problem }}</span>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-link" (click)="activity.reload()">Try again</button>
+      </div>
+    </section>
+  } @else if (activity.hasValue() && activity.value().dora.runs > 0) {
+    @let dora = activity.value().dora;
+    <dso-dora-tiles [dora]="dora">
+      <section class="portfolio">
+        <header class="card-header">
+          <h3>Runs per day</h3>
+          <span class="muted"
+            >{{ dora.runs | counted: 'run' }} of all pipelines in the last
+            {{ dora.rangeDays | counted: 'day' }}</span
+          >
+        </header>
+        <dso-activity-chart [daily]="dora.daily" />
+      </section>
+    </dso-dora-tiles>
+  }
+</div>

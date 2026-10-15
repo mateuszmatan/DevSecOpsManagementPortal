@@ -1,0 +1,38 @@
+<div class="modal-header">
+  <h2 dsoDialogTitle>{{ title }}</h2>
+</div>
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <div class="modal-body">
+    <p class="intro">
+      @if (editing) {
+        Where and how Jenkins runs this pipeline of
+        <strong class="mono">{{ data.service.serviceName }}</strong
+        >. Its type cannot be changed.
+      } @else {
+        The new pipeline of <strong class="mono">{{ data.service.serviceName }}</strong> gets its
+        own pipeline key: {{ keyMeaning }}.
+      }
+    </p>
+
+    @if (types.length === 0) {
+      <div class="banner info">The service already has a pipeline of every type.</div>
+    } @else {
+      <div class="form-fields">
+        <dso-fields [group]="form" [fields]="fields()" />
+      </div>
+    }
+
+    @if (error(); as message) {
+      <div class="banner" role="alert">{{ message }}</div>
+    }
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
+    <button type="submit" class="btn btn-primary" [disabled]="saving() || types.length === 0">
+      @if (saving()) {
+        <dso-spinner />
+      }
+      {{ editing ? 'Save settings' : 'Add pipeline' }}
+    </button>
+  </div>
+</form>

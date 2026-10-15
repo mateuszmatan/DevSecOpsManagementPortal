@@ -1,0 +1,77 @@
+{
+  "code": "TRADEARCHIVE",
+  "name": "Trade Archive",
+  "description": "Keeps the trade records of custody clients for the retention period.",
+  "ownerTeam": "Custody Technology",
+  "contactEmail": "custody-technology@bbh.com",
+  "departmentId": 4,
+  "appScan": {
+    "keyId": "bbh_6b0d4f2e-3c1a-4e8b-9f7d-2a5c8e1b0d93",
+    "secretCredentialsId": null
+  },
+  "version": null,
+  "services": [
+    {
+      "id": null,
+      "name": "archive-api",
+      "description": "REST API of the archive",
+      "build": {
+        "tool": "MAVEN",
+        "sourceDir": ".",
+        "autoSetup": true,
+        "buildPath": "target/*.jar",
+        "command": { "tasks": ["clean", "verify"] }
+      },
+      "deployment": {
+        "target": "OPENSHIFT",
+        "appName": "archive-api",
+        "artifactName": "archive-api.jar"
+      },
+      "openShiftTargets": {
+        "RD": {
+          "projectBuild": "cus-archive-build",
+          "buildConfigPath": "openshift/buildconfig.yaml",
+          "dockerFilePath": "openshift/Dockerfile",
+          "buildContext": "target/docker",
+          "dockerRepoPush": "docker-qc.tools.bbh.com/cus-archive/archive-api",
+          "dockerRepoPull": "docker-qc.tools.bbh.com/cus-archive/archive-api",
+          "certDir": "/etc/pki/openshift",
+          "nexusAuthFile": "/home/jenkins/.docker/nexus-auth.json",
+          "projectDeployment": "cus-archive-rd",
+          "deployConfigPath": "openshift/deployment.yaml",
+          "configPath": "openshift/config-rd.yaml",
+          "healthCheckUrl": "/actuator/health"
+        },
+        "QC": {
+          "dockerRepoPull": "docker-qc.tools.bbh.com/cus-archive/archive-api",
+          "projectDeployment": "cus-archive-qc",
+          "deployConfigPath": "openshift/deployment.yaml",
+          "configPath": "openshift/config-qc.yaml",
+          "healthCheckUrl": "/actuator/health"
+        }
+      },
+      "appScan": {
+        "applicationId": "4a7e2b19-6c3d-4f80-9e15-b2d8c0a47f61",
+        "compile": true
+      },
+      "metrics": { "enabled": true, "influxEnv": "test" }
+    },
+    {
+      "id": null,
+      "name": "archive-gui",
+      "description": "Search screens for custody operations",
+      "build": {
+        "tool": "GRADLE",
+        "sourceDir": ".",
+        "autoSetup": true,
+        "command": { "tasks": ["clean", "build"] }
+      },
+      "deployment": { "target": "VM" },
+      "appScan": {
+        "applicationId": "9c25d0e7-1b84-4a3f-a6c9-7e0f3d5b2a18",
+        "compile": true
+      },
+      "metrics": { "enabled": true, "influxEnv": "test" }
+    }
+  ]
+}

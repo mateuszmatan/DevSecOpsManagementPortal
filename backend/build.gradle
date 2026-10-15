@@ -1,0 +1,147 @@
+import org.springframework.boot.gradle.plugin.SpringBootPlugin
+
+description = 'DevSecOps Management Portal Backend Service'
+
+apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: 'jacoco'
+apply plugin: 'java-test-fixtures'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+dependencyManagement {
+    imports {
+        mavenBom SpringBootPlugin.BOM_COORDINATES
+    }
+}
+
+base {
+    archivesName = 'dso-portal'
+}
+
+configurations {
+    testFixturesApi.extendsFrom implementation
+}
+
+dependencies {
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // Spring Boot Starters
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-liquibase'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
+
+    // Core Utilities & Parsing
+    implementation 'org.apache.commons:commons-lang3'
+    implementation libs.commons.collections4
+    implementation 'org.yaml:snakeyaml'
+
+    // Databases
+    runtimeOnly 'com.h2database:h2'
+    runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+    testImplementation platform(libs.groovy.bom)
+    testImplementation libs.groovy
+    testImplementation libs.groovy.json
+    testImplementation platform(libs.spock.bom)
+    testImplementation libs.spock.core
+    testImplementation libs.spock.spring
+    testImplementation libs.archunit.junit5
+
+    // Test Fixtures
+    testFixturesApi 'org.springframework.boot:spring-boot-starter-test'
+    testFixturesApi 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testFixturesApi libs.groovy
+    testFixturesApi libs.groovy.json
+    testFixturesApi platform(libs.spock.bom)
+    testFixturesApi libs.spock.core
+    testFixturesApi libs.spock.spring
+    testFixturesApi libs.archunit.junit5
+}
+
+def skipGui = providers.gradleProperty('skipGui').map { it != 'false' }.getOrElse(false)
+if (!skipGui) {
+    tasks.named('processResources', ProcessResources) {
+        from(project(':frontend').tasks.named('buildAngular')) {
+            into 'static'
+        }
+    }
+}
+
+tasks.named('bootRun') {
+    workingDir = rootDir
+}
+
+testing {
+    suites {
+        configureEach {
+            useJUnitJupiter()
+            targets.configureEach {
+                testTask.configure {
+                    jvmArgs '-XX:+EnableDynamicAgentLoading'
+                    testLogging {
+                        events 'failed'
+                        exceptionFormat = 'full'
+                    }
+                }
+            }
+        }
+
+        test {
+            targets.configureEach {
+                testTask.configure {
+                    finalizedBy tasks.named('jacocoTestReport')
+                }
+            }
+        }
+
+        [regressionTest : 'Runs the API end to end on H2 in Oracle mode.',
+         smokeTest      : 'Starts the application and checks health, the API and the UI.',
+         performanceTest: 'Measures the p95 latencies of the main calls.'].each { suiteName, text ->
+            if (file("src/$suiteName").isDirectory()) {
+                register(suiteName, JvmTestSuite) {
+                    dependencies {
+                        implementation project()
+                        implementation testFixtures(project())
+                    }
+                    targets.configureEach {
+                        testTask.configure {
+                            description = text
+                            shouldRunAfter tasks.named('test')
+                            extensions.getByType(JacocoTaskExtension).enabled = false
+                            systemProperty 'regression.expectedDir', file('src/regressionTest/resources/regression').absolutePath
+                            systemProperty 'performance.report', layout.buildDirectory.file("reports/performance/backend-performance-report.md").get().asFile.absolutePath
+                            if (suiteName != 'regressionTest') {
+                                outputs.upToDateWhen { false }
+                                outputs.cacheIf { false }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+def coveredClasses = sourceSets.main.output.classesDirs.asFileTree.matching {
+    exclude '**/*Application.class'
+}
+
+tasks.named('jacocoTestReport') {
+    classDirectories.setFrom(coveredClasses)
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}

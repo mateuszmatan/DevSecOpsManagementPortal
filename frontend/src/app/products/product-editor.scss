@@ -1,0 +1,67 @@
+.product-fields {
+  padding: 2px 16px;
+  margin-bottom: 16px;
+}
+
+.section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+
+  > div {
+    flex: 1 1 420px;
+    min-width: 0;
+  }
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  p {
+    max-width: 900px;
+    margin: 2px 0 0;
+  }
+}
+
+.service-name {
+  font-weight: 600;
+}
+
+.tag {
+  margin-left: 6px;
+
+  &.error {
+    margin-left: 0;
+  }
+}
+
+.panel-description {
+  gap: 6px;
+
+  .dot {
+    color: var(--dso-border);
+  }
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 8px -14px -10px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--dso-border);
+}
+
+.required-note {
+  margin: 0 0 8px;
+  font-size: 12px;
+}

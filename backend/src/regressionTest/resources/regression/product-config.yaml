@@ -1,0 +1,380 @@
+projects:
+  gateway:
+    appId: 3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d
+    buildTool: maven
+    deployTarget: openshift
+    sourceDir: gateway
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    appName: payhub-gateway
+    artifactName: payhub-gateway.jar
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
+      token: hcl-app-scan-account
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: payhub-gateway
+      env: uat
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        projectName: PayHub Gateway
+        projectKey: payhub-gateway
+        maven:
+          goals:
+          - sonar:sonar
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+        application:
+          payhub-gateway:
+            scanPatterns:
+            - '**/target/*.jar'
+            - '**/target/*.war'
+            serverUrl: https://tools.bbh.com/IQ
+            credentialsId: nexusiqP
+            stage: build
+            failOnNetworkError: false
+          payhub-gateway-batch:
+            scanPatterns:
+            - '**/batch/*.jar'
+            serverUrl: https://tools.bbh.com/IQ
+            credentialsId: nexusiqP
+            stage: release
+            failOnNetworkError: true
+    sast:
+      scanName: payhub-gateway
+    dast:
+      enabled: true
+      targetUrl: https://payhub-uat.testbbh.com
+      presenceId: presence-7
+    build:
+      maven:
+        goals:
+        - clean
+        - verify
+        flags:
+        - -B
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-gateway
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    tests:
+      regression:
+        jobs:
+        - name: PayHub regression
+          type: local
+          job: payhub/regression-tests
+          timeoutMin: 60
+    deploy:
+      openshift:
+        rd:
+          projectBuildR: payhub-rd-build
+          buildConfigPath: openshift/build.yaml
+          dockerFilePath: Dockerfile
+          buildContext: .
+          addFile: target/app.jar
+          qcDockerRepoPush: registry.bbh.com/payhub-rd
+          qcDockerRepoPull: registry.bbh.com/payhub-rd
+          openshiftCertDir: /etc/certs
+          nexus:
+            authfile: /etc/nexus/auth.json
+          projectDeploymentR: payhub-rd
+          deployConfigPath: openshift/deploy.yaml
+          configPathR: openshift/config
+          healthCheckUrl: /actuator/health
+          routeHostnameR: payhub-rd.apps.bbh.com
+          deploymentPath: k8s
+          deploymentRepo:
+            url: https://bitbucket.bbh.com/scm/deploy/payhub-rd.git
+            branch: main
+            credentials: bitbucket-http-credentials
+          buildTag: 2.3.1
+          internalDockerUrl: image-registry.openshift-image-registry.svc:5000/payhub-rd
+          skipConfigDeploy: true
+        qc:
+          projectBuildR: payhub-qc-build
+          buildConfigPath: openshift/build.yaml
+          dockerFilePath: Dockerfile
+          buildContext: .
+          addFile: target/app.jar
+          qcDockerRepoPush: registry.bbh.com/payhub-qc
+          qcDockerRepoPull: registry.bbh.com/payhub-qc
+          openshiftCertDir: /etc/certs
+          nexus:
+            authfile: /etc/nexus/auth.json
+          projectDeploymentR: payhub-qc
+          deployConfigPath: openshift/deploy.yaml
+          configPathR: openshift/config
+          healthCheckUrl: /actuator/health
+          routeHostnameR: payhub-qc.apps.bbh.com
+          deploymentPath: k8s
+          deploymentRepo:
+            url: https://bitbucket.bbh.com/scm/deploy/payhub-qc.git
+            branch: main
+            credentials: bitbucket-http-credentials
+          buildTag: 2.3.0
+          skipConfigDeploy: true
+  ledger:
+    appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+    buildTool: maven
+    deployTarget: vm
+    sourceDir: ledger
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    includedDirs: ledger/src/main
+    excludedDirs: ledger/src/test
+    appscanPath: /opt/saclient
+    appName: ledger
+    artifactName: ledger.war
+    baseArtifactName: ledger
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      token: ledger-appscan-secret
+      maven:
+        goals:
+        - compile
+        flags:
+        - -q
+      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
+    influx:
+      url: https://influx-ledger.bbh.com/api/v2/write
+      credentialsId: ledger-influx
+      enabled: true
+      project: ledger
+      env: uat
+    coverage:
+      reportPath: target/site/jacoco/jacoco.xml
+    tools:
+      sonar:
+        serverUrl: https://sonar-ledger.bbh.com
+        installationName: SonarQube
+        projectName: Ledger
+        projectKey: ledger
+        credentialsId: sonar-user
+        authToken: sonar-token
+        badgeToken: sqb_1a2b3c
+        addBadges: true
+        maven:
+          goals:
+          - sonar:sonar
+          flags:
+          - -Dsonar.branch.name=develop
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: ledger-iq
+        application: ledger
+        scanPatterns:
+        - '**/target/*.war'
+        stage: stage-release
+        failOnNetworkError: true
+    sast:
+      scanName: ledger-sast
+    sca:
+      scanName: ledger-sca
+    dast:
+      enabled: true
+      scanName: ledger-dast
+      targetUrl: https://ledger-uat.testbbh.com
+      presenceId: presence-1
+    build:
+      buildPath: /opt/maven/bin
+      maven:
+        goals:
+        - clean
+        - verify
+        flags:
+        - -B
+        - -DskipITs
+        dir: ledger
+        mvnPath: /opt/maven
+        env:
+          MAVEN_OPTS: -Xmx1g
+        label: Ledger build
+    delivery:
+      maven:
+        goals:
+        - deploy:deploy-file
+        flags:
+        - -DrepositoryId=bbh-snapshots
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/LED/repos/ledger
+        credentialsId: bitbucket-http-credentials
+        authType: bearer
+        type: server
+        targetBranch: develop
+        cloneUrl: https://bitbucket.bbh.com/scm/led/ledger.git
+        reviewers:
+        - jdoe
+        - asmith
+    goldenFix:
+      enabled: true
+      onlyDirectDependencies: false
+      minThreatLevel: 4
+      ecosystems:
+      - maven
+      goldenVersionTypes:
+      - recommended-non-breaking
+      excludeDirs:
+      - legacy
+      verify:
+        enabled: true
+        maxAttempts: 2
+        timeoutMinutes: 30
+        commands:
+          maven: mvn -B verify
+      commitAuthorName: Ledger Team
+      commitAuthorEmail: ledger-team@bbh.com
+      timeZone: America/New_York
+    tests:
+      unitTests:
+        maven:
+          goals:
+          - test
+          flags:
+          - -Pcoverage
+        unitTestResult: '**/surefire-reports/*.xml'
+        rootDir: ledger
+        reportOutDir: target/unit-reports
+        allowEmptyResults: true
+      maxParallel: 4
+      smoke:
+        maxParallel: 2
+        jobs:
+        - name: Ledger smoke
+          type: local
+          job: ledger/smoke-tests
+          timeoutMin: 15
+          parameters: TARGET_ENV=uat
+      regression:
+        maxParallel: 3
+        pollIntervalSec: 30
+      performance:
+        required: false
+        maxParallel: 1
+        jobs:
+        - name: Ledger load
+          type: remote
+          job: performance/ledger-load
+          timeoutMin: 120
+          remoteJenkins: perf-jenkins
+          remoteJenkinsUrl: https://perf-jenkins.bbh.com
+          credentialsId: perf-jenkins-token
+          pollIntervalSec: 20
+          tokenCredentialsId: perf-jenkins-trigger
+          trustAllCertificates: true
+          useCrumbCache: true
+    deploy:
+      vm:
+        dod:
+          siteName: deploy.bbh.com
+          deployProcess: tomcat-app-process
+          skipWait: true
+          deployWithSnapshot: false
+          updateSnapshotComp: true
+          includeOnlyDeployVersions: false
+          deployOnlyChanged: true
+          deployDescription: Ledger release
+          requestProperties: restart=true
+          applications:
+          - applicationName: LEDGER
+            order: 1
+            environments:
+            - RD-UAT
+            - QC-UAT
+            snapshotName: ledger-snapshot
+            deployProcess: ledger-process
+            skipWait: false
+            deployDescription: Ledger to UAT
+            components:
+            - componentName: ledger-war
+              baseDir: target
+              fileIncludePatterns: '*.war'
+              fileExcludePatterns: '*-sources.war'
+              versionPrefix: 1.4.
+              incrementalVersion: true
+              extensions: war
+              charset: UTF-8
+              versionDescription: Ledger build
+        rd:
+          host: rdltaapps1.testbbh.com
+          user: taadmin
+          deployDir: /opt/ledger
+          deployScript: scripts/deploy.sh
+          versionFile: version.properties
+        qc:
+          host: qcltaapps1.testbbh.com
+          user: taadmin
+          deployDir: /opt/ledger
+          deployScript: scripts/deploy.sh
+          versionFile: version.properties
+  mobile-app:
+    appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+    buildTool: flutter
+    deployTarget: vm
+    sourceDir: mobile
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
+      token: hcl-app-scan-account
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: CONTRACT-mobile-app
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        sources: lib
+        tests: test
+        dartAnalyzeCommand: dart analyze --fatal-infos
+        sonarScannerVersion: 5.0.1.3006
+        flutterPlugin: true
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+      flutter:
+        flutterModules:
+        - app
+    dast:
+      enabled: false
+    build:
+      credentialsId:
+      - flutter-signing
+      - flutter-prod-license
+      - flutter-test-license
+    delivery:
+      group: com.bbh.ledger
+      artifact: ledger-mobile
+      plugin: ledger-plugin
+    goldenFix:
+      enabled: false
+    tests:
+      modules:
+      - app
+      - core
+      submodules:
+      - core/model
+      subplugins:
+      - plugins/camera
+    deploy:
+      vm:
+        rd:
+          host: rdltaapps1.testbbh.com
+          user: taadmin
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          versionFile: scripts/deployment/version.properties
+        qc:
+          host: qcltaapps1.testbbh.com
+          user: taadmin
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          versionFile: scripts/deployment/version.properties
+    flutter:
+      platform: apk

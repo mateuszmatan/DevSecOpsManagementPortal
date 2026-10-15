@@ -1,0 +1,79 @@
+platform:
+  jenkinsUrl: https://jenkins.bbh.com
+  jenkinsLibrary: DevSecOpsJenkinsLibrary
+  environment:
+    APPSCAN_SERVER_URL: https://bbh.cloud.appscan.com
+    APPSCAN_HOST: bbh.cloud.appscan.com
+    SA_LINUX_URL: https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Linux/SAClientUtil-8.0.1646_Linux-SAClientUtil_8.0.1646_Linux.zip
+    SA_WIN_URL: https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Win/SAClientUtil-8.0.1646_Win-SAClientUtil_8.0.1646_Win.zip
+    PROXY_HOST: tstproxy.bbh.com
+    PROXY_PORT: '9090'
+    PROXY_USER: PROXY_ASOCJenk
+  oisHost: oisapi.bbh.com
+  nexusSnapshotRepositoryUrl: http://tools.bbh.com/nexus/content/repositories/snapshots/
+  nexusSnapshotRepositoryId: bbh-snapshots
+  iosBuildAgent: mac002.bbh.com
+defaults:
+  buildTool: gradle
+  deployTarget: vm
+  sourceDir: .
+  coverage:
+    minLine: 60
+  tools:
+    sonar:
+      qualityGate:
+        waitForQualityGate: true
+        timeoutMinutes: 5
+    nexusIq:
+      maxCritical: 0
+      maxHigh: 0
+      maxMedium: 0
+  sast:
+    prepareTimeoutMin: 120
+    pollTimeoutMin: 50
+    pollIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  sca:
+    enabled: true
+    pollTimeoutMin: 40
+    pollIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  dast:
+    pollTimeoutMin: 60
+    pollIntervalSec: 60
+    reportTimeoutMin: 30
+    reportIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  tests:
+    maxParallel: 20
+  releaseGate:
+    scanners:
+    - sast
+    - sca
+    - niq
+    - dast
+    requireCoverage: true
+    stateFile: release-gate.json
+  goldenFix:
+    enabled: true
+    onlyDirectDependencies: true
+    minThreatLevel: 2
+    ecosystems:
+    - maven
+    - npm
+    - pypi
+    goldenVersionTypes:
+    - recommended-non-breaking-with-dependencies
+    - recommended-non-breaking
+    verify:
+      enabled: true
+      maxAttempts: 3
+      timeoutMinutes: 20
+    commitAuthorName: DevSecOps GoldenFix
+    commitAuthorEmail: devsecops-goldenfix@noreply.local

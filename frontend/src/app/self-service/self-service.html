@@ -1,0 +1,542 @@
+<div class="page wizard">
+  <header class="page-header">
+    <div>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
+    </div>
+  </header>
+
+  <ol class="step-bar" aria-label="Steps">
+    @for (label of steps; track label; let index = $index) {
+      <li [class.done]="index < step()" [class.current]="index === step()">
+        <button
+          type="button"
+          [disabled]="!canRevisit(index)"
+          [attr.aria-current]="index === step() ? 'step' : null"
+          (click)="goTo(index)"
+        >
+          <span class="number">{{ index + 1 }}</span>
+          <span class="step-label">{{ label }}</span>
+        </button>
+      </li>
+    }
+  </ol>
+
+  <section class="card step">
+    @switch (step()) {
+      @case (0) {
+        <h2>Which product is it?</h2>
+        <p class="lead">
+          Choose its department, then start a new product or pick one that is already in the portal.
+        </p>
+        <p class="required-note">Fields marked * are required.</p>
+        <div class="fields">
+          <dso-form-field>
+            <dso-label>Department</dso-label>
+            <select dsoInput [formControl]="productForm.controls.departmentId">
+              @for (department of departments(); track department.id) {
+                <option [ngValue]="department.id">{{ department.name }}</option>
+              }
+            </select>
+            @if (needsDepartment()) {
+              <dso-hint>Saving moves the product into this department</dso-hint>
+            }
+            <dso-error>{{ errorText(productForm.controls.departmentId) }}</dso-error>
+          </dso-form-field>
+        </div>
+        @if (departmentsError(); as error) {
+          <p class="choice-error">{{ notLoaded('The departments', error) }}</p>
+        }
+        @if (catalogue.error(); as error) {
+          <p class="choice-error">{{ notLoaded('The products', errorMessage(error)) }}</p>
+        }
+        <dso-choice-tiles
+          label="Product"
+          [options]="modes"
+          [value]="mode()"
+          (valueChange)="chooseMode($event!)"
+        />
+        @if (mode() === 'new') {
+          <form class="fields" [formGroup]="productForm" novalidate>
+            <dso-form-field>
+              <dso-label>Product name</dso-label>
+              <input
+                dsoInput
+                formControlName="name"
+                placeholder="CertScanner"
+                autocomplete="off"
+                required
+              />
+              <dso-hint>{{
+                code()
+                  ? 'Its product code will be ' + code() + ', the short name used in job names'
+                  : 'The portal makes a short product code from it for job names and reports'
+              }}</dso-hint>
+              <dso-error>{{ errorText(productForm.controls.name) }}</dso-error>
+            </dso-form-field>
+            <ng-container *ngTemplateOutlet="appScanKey" />
+            <dso-form-field>
+              <dso-label>Owner team</dso-label>
+              <input dsoInput formControlName="ownerTeam" placeholder="Technology Architecture" />
+              <dso-hint>The team that looks after the product</dso-hint>
+              <dso-error>{{ errorText(productForm.controls.ownerTeam) }}</dso-error>
+            </dso-form-field>
+            <dso-form-field>
+              <dso-label>Contact e-mail</dso-label>
+              <input
+                dsoInput
+                type="email"
+                formControlName="contactEmail"
+                placeholder="team@bbh.com"
+              />
+              <dso-hint>Where the DevSecOps team can reach the product's owners</dso-hint>
+              <dso-error>{{ errorText(productForm.controls.contactEmail) }}</dso-error>
+            </dso-form-field>
+          </form>
+        } @else {
+          <div class="fields">
+            <dso-form-field>
+              <dso-label>Product</dso-label>
+              <select dsoInput [formControl]="productId">
+                @for (group of productGroups(); track group.name) {
+                  <optgroup [label]="group.name">
+                    @for (product of group.products; track product.id) {
+                      <option [ngValue]="product.id">
+                        {{ product.name }} ({{ product.code }})
+                      </option>
+                    }
+                  </optgroup>
+                }
+              </select>
+              <dso-hint>{{ choosable() }} to choose from</dso-hint>
+            </dso-form-field>
+          </div>
+          @if (productError(); as error) {
+            <p class="choice-error">{{ notLoaded('The product', error) }}</p>
+          } @else if (existing(); as product) {
+            <dl class="rows">
+              <dt>Owner team</dt>
+              <dd>{{ product.ownerTeam ?? 'not set' }}</dd>
+              <dt>Services</dt>
+              <dd>{{ product.services.length }}</dd>
+            </dl>
+            @if (needsAppScanKey()) {
+              <div class="fields">
+                <ng-container *ngTemplateOutlet="appScanKey" />
+              </div>
+            }
+          } @else if (productId.value !== null) {
+            <dso-loading />
+            @if (checked()) {
+              <p class="choice-error">Wait until the product is loaded</p>
+            }
+          } @else if (checked()) {
+            <p class="choice-error">Choose the product</p>
+          }
+        }
+        <ng-template #appScanKey>
+          <dso-form-field>
+            <dso-label>AppScan API key ID</dso-label>
+            <input
+              dsoInput
+              class="mono"
+              [formControl]="productForm.controls.appScanKeyId"
+              placeholder="bbh_..."
+              autocomplete="off"
+              required
+            />
+            <dso-hint
+              >The key the pipelines use to send the code to HCL AppScan, the security scanner. The
+              Application Security team gives it to you.</dso-hint
+            >
+            <dso-error>{{ errorText(productForm.controls.appScanKeyId) }}</dso-error>
+          </dso-form-field>
+        </ng-template>
+      }
+      @case (1) {
+        <h2>Which pipeline does {{ productName() }} need?</h2>
+        <p class="lead">
+          A pipeline is the automated build, test and security checks Jenkins runs on a service's
+          code;
+          @if (existing()) {
+            the one you choose is added to every service that does not have it yet, and their other
+            pipelines stay as they are.
+          } @else {
+            every service of {{ productName() }} gets the one you choose.
+          }
+        </p>
+        @if (existing()) {
+          @if (current.isLoading()) {
+            <dso-loading />
+          }
+          @if (current.error(); as error) {
+            <p class="choice-error">{{ notLoaded('Its pipelines', errorMessage(error)) }}</p>
+          } @else if (current.hasValue()) {
+            <div class="today">
+              <h3>The pipelines of {{ productName() }} today</h3>
+              <ul>
+                @for (service of current.value(); track service.serviceId) {
+                  <li>
+                    <strong>{{ service.serviceName }}</strong> ·
+                    {{ pipelineNames(service) || 'no pipeline yet' }}
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        }
+        <dso-choice-tiles label="Pipeline" [options]="pipelines()" [(value)]="pipeline" />
+        @if (checked() && !pipeline()) {
+          <p class="choice-error">Choose a pipeline to continue</p>
+        }
+        @if (pipeline(); as chosen) {
+          <div class="prepare">
+            <h3>Have these at hand for the next step</h3>
+            <ul>
+              @for (need of preparation(chosen); track need) {
+                <li>{{ need }}</li>
+              }
+            </ul>
+          </div>
+        } @else {
+          <p class="hint">Not sure? Start with Security. You can add another pipeline later.</p>
+        }
+      }
+      @case (2) {
+        <h2>Which services does {{ productName() }} have?</h2>
+        <p class="lead">
+          A service is one part of the product that is built and deployed on its own, for example
+          its API or its web front end; each one gets its own {{ pipelineLabel() }} pipeline.
+        </p>
+        @if (serviceTemplate.error(); as error) {
+          <div class="template-problem">
+            <p class="choice-error">
+              {{ notLoaded('The service template', errorMessage(error), true) }} New services, and
+              services that change how they are built or where they run, get their build settings
+              from it.
+            </p>
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              (click)="serviceTemplate.reload()"
+            >
+              Try again
+            </button>
+          </div>
+        } @else if (serviceTemplate.isLoading()) {
+          <dso-loading />
+        }
+        @if (services().length) {
+          <ol class="service-list">
+            @for (service of services(); track $index; let index = $index) {
+              <li [class.removed]="isRemoved(service)">
+                <span class="index">{{ index + 1 }}</span>
+                <div class="service-text">
+                  <div class="row-wrap">
+                    <strong>{{ service.name }}</strong>
+                    <ng-container
+                      *ngTemplateOutlet="tag; context: { $implicit: review()[index].tag }"
+                    />
+                  </div>
+                  @if (service.description) {
+                    <span>{{ service.description }}</span>
+                  }
+                  <span class="muted">{{ serviceSummary(service) }}</span>
+                  @if (isRemoved(service)) {
+                    <span class="removal">{{ removalText(service) }}</span>
+                  }
+                </div>
+                @if (isRemoved(service)) {
+                  <button
+                    type="button"
+                    class="btn btn-link"
+                    [attr.aria-label]="'Undo removing ' + service.name"
+                    (click)="keepService(service)"
+                  >
+                    Undo
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn btn-link"
+                    [attr.aria-label]="'Change ' + service.name"
+                    (click)="openService(index)"
+                  >
+                    Change
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-link danger"
+                    [attr.aria-label]="'Remove ' + service.name"
+                    (click)="removeService(index)"
+                  >
+                    Remove
+                  </button>
+                }
+              </li>
+            }
+          </ol>
+        } @else {
+          <div class="no-services">
+            <h3>No services yet</h3>
+            <p>Add each part of {{ productName() }} that is built on its own.</p>
+          </div>
+        }
+        <button type="button" class="btn btn-outline-primary" (click)="openService(null)">
+          Add a service
+        </button>
+        @if (checked() && !kept().length) {
+          <p class="choice-error">
+            {{ services().length ? 'Keep at least one service' : 'Add at least one service' }}
+          </p>
+        }
+        @if (checked() && unplaced().length) {
+          <p class="choice-error">
+            Use Change to say where these services run: {{ unplaced().join(', ') }}
+          </p>
+        }
+        @if (checked() && duplicated().length) {
+          <p class="choice-error">
+            Use Change to rename these services, as another service of {{ productName() }} has the
+            same name: {{ duplicated().join(', ') }}
+          </p>
+        }
+        @if (checked() && untemplated().length) {
+          <p class="choice-error">
+            These services get their build settings from the service template, which has to load
+            first: {{ untemplated().join(', ') }}
+          </p>
+        }
+        @if (checked() && unscanned().length) {
+          <p class="choice-error">
+            Use Change to add the Nexus IQ application and Bitbucket repository of these services:
+            {{ unscanned().join(', ') }}
+          </p>
+        }
+      }
+      @case (3) {
+        <h2>Is everything right?</h2>
+        <p class="lead">
+          Nothing is saved until you press {{ nextLabel() }}; use Back or the numbered steps above
+          to change an answer.
+        </p>
+        <dl class="rows">
+          <dt>Product</dt>
+          <dd>{{ productName() }} ({{ existing()?.code ?? code() }})</dd>
+          <dt>Department</dt>
+          <dd>{{ departmentName() }}</dd>
+          @if (!existing()) {
+            <dt>Owner team</dt>
+            <dd>{{ productForm.controls.ownerTeam.value || 'not set' }}</dd>
+            <dt>Contact e-mail</dt>
+            <dd>{{ productForm.controls.contactEmail.value || 'not set' }}</dd>
+          }
+          <dt>Pipeline</dt>
+          <dd>{{ pipelineLabel() }}</dd>
+        </dl>
+        <h3 class="review-heading">What happens to each service</h3>
+        <ul class="review-list">
+          @for (entry of review(); track $index) {
+            <li [class.removed]="entry.tag === 'Removed'">
+              <span class="review-name">
+                <strong>{{ entry.name }}</strong>
+                <ng-container *ngTemplateOutlet="tag; context: { $implicit: entry.tag }" />
+              </span>
+              <span class="review-text">{{ entry.text }}</span>
+            </li>
+          }
+        </ul>
+        @if (doomed().length) {
+          <div class="banner danger removal-warning" role="alert">
+            <div>
+              <strong
+                >Saving deletes these pipelines and their keys. Jenkins jobs that use these keys
+                stop working.</strong
+              >
+              <ul class="problems">
+                @for (line of doomed(); track line) {
+                  <li>{{ line }}</li>
+                }
+              </ul>
+            </div>
+          </div>
+        }
+        <p class="note">
+          Everything else, such as build commands and test settings, comes from the BBH defaults;
+          the DevSecOps team can fine-tune it later in {{ admin }}.
+        </p>
+        @if (saving()) {
+          <dso-loading />
+        }
+        @if (saveError(); as error) {
+          <div class="banner danger save-problem" role="alert">
+            <div>
+              <strong>{{ error }}</strong>
+              @if (saveProblems().length) {
+                <ul class="problems">
+                  @for (problem of saveProblems(); track problem) {
+                    <li>{{ problem }}</li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        }
+      }
+      @case (4) {
+        @if (result(); as done) {
+          <h2>{{ done.product.name }} is saved. Now do these steps in order</h2>
+          <p class="lead">
+            Its pipelines are ready in the portal, and Jenkins starts running them once these steps
+            are done.
+          </p>
+          <ol class="next-steps">
+            <li>
+              <h3>Put the Jenkinsfile in each service's repository</h3>
+              <p>
+                The Jenkinsfile is the file that tells Jenkins to run the pipeline. Copy the text of
+                each service below into a file named <code>Jenkinsfile</code> in the top folder of
+                the service's Bitbucket repository and merge it, or send it to a developer of the
+                service to do so.
+              </p>
+              @for (start of done.starts; track start.serviceName) {
+                <div class="jenkinsfile">
+                  <div class="jenkinsfile-head">
+                    <div>
+                      <strong>{{ start.serviceName }}</strong>
+                      @if (start.repository) {
+                        <span class="muted"> · goes into {{ start.repository }}</span>
+                      }
+                    </div>
+                    @if (start.pipeline?.activeKey) {
+                      <button
+                        type="button"
+                        class="btn btn-link"
+                        [attr.aria-label]="'Copy the Jenkinsfile of ' + start.serviceName"
+                        [cdkCopyToClipboard]="jenkinsfileOf(start)"
+                        (cdkCopyToClipboardCopied)="copied()"
+                      >
+                        Copy
+                      </button>
+                    }
+                  </div>
+                  @if (start.pipeline; as started) {
+                    @if (started.activeKey) {
+                      <pre class="code-block">{{ jenkinsfileOf(start) }}</pre>
+                    } @else {
+                      <p class="jenkinsfile-missing">
+                        Its key is invalidated, so the pipeline is refused its settings and stops.
+                        Issue a new key on
+                        <a [routerLink]="pipelinePage(started.id)">its pipeline page</a> and copy
+                        the Jenkinsfile from there.
+                      </p>
+                    }
+                  } @else {
+                    <p class="jenkinsfile-missing">
+                      Its pipeline is not listed yet. Find its Jenkinsfile on
+                      <a [routerLink]="adminProduct(done.product.id)">the product page</a>.
+                    </p>
+                  }
+                </div>
+              } @empty {
+                <p class="muted">
+                  The pipelines could not be listed here. Find their Jenkinsfiles on
+                  <a [routerLink]="adminProduct(done.product.id)">the product page</a>.
+                </p>
+              }
+            </li>
+            <li>
+              <h3>Ask your Jenkins administrator for a job for each service</h3>
+              <p>
+                Ask for a Pipeline job per service that reads the Jenkinsfile from the service's
+                repository (Pipeline script from SCM), with these names:
+              </p>
+              <ul class="job-names">
+                @for (start of done.starts; track start.serviceName) {
+                  @if (start.pipeline; as started) {
+                    <li>
+                      {{ start.serviceName }}: <code>{{ jobName(started) }}</code>
+                    </li>
+                  }
+                }
+              </ul>
+            </li>
+            <li>
+              <h3>Run each job once</h3>
+              <p>
+                In Jenkins, open the job, choose Build with Parameters, pick an agent (the machine
+                the pipeline runs on) and start it. The pipeline fetches all its settings from this
+                portal with its key, so there is nothing else to fill in.
+              </p>
+            </li>
+            @if (pipeline() === 'FULL') {
+              <li>
+                <h3>Connect the tests and the deployment</h3>
+                <p>
+                  Add the smoke, regression and performance test jobs and the deployment details of
+                  each service in
+                  <a [routerLink]="adminProduct(done.product.id)">{{ admin }}</a
+                  >, or ask the DevSecOps team to do it.
+                </p>
+              </li>
+            }
+            @if (pipeline() === 'NEXUS_IQ') {
+              <li>
+                <h3>Review the golden pull requests</h3>
+                <p>
+                  When Nexus IQ finds an open-source library with a known risk, GoldenFix opens a
+                  pull request in the service's Bitbucket repository that moves it to a safe
+                  version. Ask a developer of the service to review and merge it.
+                </p>
+              </li>
+            }
+            <li>
+              <h3>Follow the results</h3>
+              <p>
+                <a [routerLink]="['/monitoring/products', done.product.id]">Pipeline Monitoring</a>
+                shows whether each run passed and how often changes reach production.
+              </p>
+            </li>
+          </ol>
+        }
+      }
+    }
+
+    <ng-template #tag let-tag>
+      @if (tag) {
+        <span class="tag" [class.new]="tag === 'New'" [class.error]="tag === 'Removed'">{{
+          tag
+        }}</span>
+      }
+    </ng-template>
+
+    <div class="step-actions">
+      @if (step() === 4) {
+        @if (result(); as done) {
+          <a class="btn btn-link" [routerLink]="adminProduct(done.product.id)"
+            >Open {{ done.product.name }} in {{ admin }}</a
+          >
+        }
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-outline-primary" (click)="restart()">
+          Set up another product
+        </button>
+      } @else {
+        @if (step() > 0) {
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            [disabled]="saving()"
+            (click)="back()"
+          >
+            Back
+          </button>
+        }
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="next()">
+          {{ nextLabel() }}
+        </button>
+      }
+    </div>
+  </section>
+</div>

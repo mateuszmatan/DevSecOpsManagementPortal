@@ -1,0 +1,186 @@
+<div class="settings">
+  <header class="tab-header">
+    <div class="intro">
+      <p class="lead">
+        Only change these settings if the DevSecOps team asks you to. They apply to every pipeline
+        from its next run.
+      </p>
+      <p class="meta">
+        The BBH tools every pipeline uses, the security limits it must meet and the defaults a new
+        service starts with. A service can set its own SonarQube, Nexus IQ, InfluxDB, deployment,
+        service and GoldenFix values in the product editor. Fields marked * are required.
+      </p>
+    </div>
+    <button
+      type="button"
+      class="btn btn-outline-primary"
+      (click)="showConfig()"
+      [disabled]="!settings() || loadingConfig()"
+    >
+      Show settings sent to Jenkins
+    </button>
+  </header>
+
+  @if (loading()) {
+    <dso-loading />
+  }
+
+  @if (loadError(); as error) {
+    <div class="banner" role="alert">
+      <span class="banner-text">The library defaults could not be loaded: {{ error }}</span>
+      <button type="button" class="btn btn-outline-primary" (click)="load()">Try again</button>
+    </div>
+  } @else if (settings()) {
+    @if (conflict()) {
+      <div class="banner danger conflict" role="alert">
+        <div class="banner-text">
+          <strong>Someone else saved the settings after you opened this page.</strong>
+          Your changes were not saved, so nothing was overwritten. Reload to get the current values,
+          then make your changes again.
+        </div>
+        <button type="button" class="btn btn-primary" (click)="load()">Reload</button>
+      </div>
+    }
+
+    <div class="layout">
+      <aside class="toc">
+        <nav class="side-nav" aria-label="Sections">
+          @for (section of sections(); track section.id) {
+            <button
+              type="button"
+              class="toc-item side-nav-item"
+              [class.problem]="section.problem"
+              (click)="scrollTo(section.id)"
+            >
+              <span>{{ section.label }}</span>
+              @if (section.problem) {
+                <span class="problem-mark" role="img" aria-label="Has problems"></span>
+              }
+            </button>
+          }
+        </nav>
+      </aside>
+
+      <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+        @if (unmatchedProblems().length) {
+          <div class="banner" role="alert">
+            <ul class="problems">
+              @for (problem of unmatchedProblems(); track problem.field + problem.message) {
+                <li>
+                  <span class="mono">{{ problem.field }}</span
+                  >: {{ problem.message }}
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        @for (section of sections(); track section.id) {
+          @let group = groupOf(section.id);
+          <section class="card section" [id]="'settings-' + section.id">
+            <header class="section-head">
+              <h2>{{ section.label }}</h2>
+              <p class="section-help">{{ section.note }}</p>
+            </header>
+
+            @if (section.fields; as fields) {
+              <div class="form-fields">
+                <dso-fields [group]="group" [fields]="fields" />
+              </div>
+            }
+
+            @for (block of section.blocks; track block.heading) {
+              <div class="form-block">
+                <header>
+                  <h3>{{ block.heading }}</h3>
+                  <p>{{ block.note }}</p>
+                </header>
+                <div class="form-fields">
+                  <dso-fields [group]="group" [fields]="block.fields" />
+                </div>
+              </div>
+            }
+
+            @switch (section.id) {
+              @case ('limits') {
+                <div class="limits">
+                  @for (scanner of scanners; track scanner) {
+                    <div class="limits-row">
+                      <div class="scanner">
+                        <strong>{{ scannerInfo[scanner].label }}</strong>
+                        <span class="muted">{{ scannerInfo[scanner].tool }}</span>
+                        <code
+                          >{{ scannerInfo[scanner].path }}.maxCritical | maxHigh | maxMedium</code
+                        >
+                      </div>
+                      <dso-fields
+                        [group]="form.controls.limits.controls[scanner]"
+                        [fields]="limitFields"
+                      />
+                    </div>
+                  }
+                </div>
+              }
+              @case ('releaseGate') {
+                <div class="form-fields gate">
+                  <div class="span-12">
+                    <span class="field-label">Scans the gate checks</span>
+                    <dso-toggle-group
+                      [formControl]="form.controls.releaseGate.controls.scanners"
+                      multiple
+                      aria-label="Scans the release gate checks"
+                    >
+                      @for (scanner of scanners; track scanner) {
+                        <button [dsoToggle]="scanner">{{ scannerInfo[scanner].label }}</button>
+                      }
+                    </dso-toggle-group>
+                    <span class="field-hint" [innerHTML]="gateHint()"></span>
+                    @if (form.controls.releaseGate.controls.scanners.invalid) {
+                      <span class="field-error">{{
+                        errorText(form.controls.releaseGate.controls.scanners)
+                      }}</span>
+                    }
+                  </div>
+                  <dso-fields [group]="group" [fields]="releaseGateFields" />
+                </div>
+              }
+              @case ('goldenFix') {
+                <div class="form-fields">
+                  <dso-fields [group]="group" [fields]="goldenFixEnabled" />
+                  <dso-golden-fix-fields [group]="form.controls.goldenFix" [complete]="true" />
+                </div>
+              }
+            }
+          </section>
+        }
+
+        <div class="save-bar">
+          @if (saveError(); as error) {
+            <span class="save-error" role="alert">{{ error }}</span>
+          } @else if (form.dirty) {
+            <span class="muted">Unsaved changes</span>
+          } @else if (settings(); as s) {
+            <span class="muted saved"
+              >Last saved {{ s.updatedAt | relative }} (version {{ s.version }})</span
+            >
+          }
+          <span class="spacer"></span>
+          <button
+            type="button"
+            class="btn btn-link"
+            (click)="discard()"
+            [disabled]="!form.dirty || saving()"
+          >
+            Discard changes
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="saving() || conflict()">
+            @if (saving()) {
+              <dso-spinner />
+            }
+            Save settings
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>

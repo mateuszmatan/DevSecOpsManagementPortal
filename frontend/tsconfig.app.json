@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/common/types/*.d.ts"
+  ],
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/testFixtures/**",
+    "src/regressionTest/**",
+    "src/smokeTest/**",
+    "src/performanceTest/**"
+  ]
+}

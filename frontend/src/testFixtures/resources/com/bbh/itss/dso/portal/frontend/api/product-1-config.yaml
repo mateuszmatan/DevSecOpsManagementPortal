@@ -1,0 +1,233 @@
+projects:
+  gui:
+    appId: 209f44ac-dd06-4ca0-884e-d944904f8020
+    buildTool: gradle
+    deployTarget: vm
+    sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    excludedDirs: node_modules
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_b81fbc9f-39c1-8eb4-38b5-b702268969b9
+      token: hcl-app-scan-acount
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: CERTSCANNER-gui
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        projectName: CERT-SCANNER-GUI
+        projectKey: cert-scanner-gui
+        gradle:
+          tasks:
+          - sonarqube
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+        application: cert-scanner-gui
+        scanPatterns:
+        - '**/build/libs/*.jar'
+        stage: build
+        failOnNetworkError: false
+    sast:
+      scanName: cert-scanner-gui-sast
+    dast:
+      enabled: true
+      scanName: cert-scanner-gui-dast
+      targetUrl: http://rdltaapps1.testbbh.com
+    build:
+      buildPath: build/libs/*.jar
+      gradle:
+        tasks:
+        - clean
+        - build
+        - bootJar
+        flags:
+        - --refresh-dependencies
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/TA/repos/cert-scanner
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+        apiUrl: https://bitbucket.bbh.com
+        projectKey: TA
+        repoSlug: cert-scanner
+    tests:
+      unitTests:
+        gradle:
+          tasks:
+          - test
+          - jacocoTestReport
+        unitTestResult: build/test-results/test/*.xml
+      smoke:
+        maxParallel: 10
+        jobs:
+        - name: CERT-SCANNER-GUI - smoke
+          type: local
+          job: cert-scanner/smoke-tests
+          timeoutMin: 15
+        - name: CERT-SCANNER-GUI - login smoke
+          url: https://jenkins-a.bbh.com/job/smoke/job/cert-scanner-login
+          credentialsId: remote-jenkins-api-token
+      regression:
+        maxParallel: 5
+        jobs:
+        - name: CERT-SCANNER-GUI - regression
+          type: local
+          job: cert-scanner/regression-tests
+          timeoutMin: 60
+          parameters: ENV=rd
+      performance:
+        jobs:
+        - name: CERT-SCANNER-GUI - performance
+          type: local
+          job: cert-scanner/performance-tests
+          timeoutMin: 120
+    deploy:
+      vm:
+        dod:
+          skipWait: false
+          deployWithSnapshot: true
+          updateSnapshotComp: false
+          includeOnlyDeployVersions: true
+          deployOnlyChanged: false
+          applications:
+          - applicationName: CERT-SCANNER-GUI
+            order: 1
+            environments:
+            - DV
+            - RD
+            components:
+            - componentName: CERT-SCANNER-GUI-app
+              baseDir: build/libs
+              fileIncludePatterns: '*.jar'
+              incrementalVersion: true
+          siteName: deploy.bbh.com
+          deployProcess: tomcat-app-process
+        rd:
+          deployDir: /opt/ta/CertScanner/gui/deployment
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          host: rdltaapps1.testbbh.com
+          user: taadmin
+          versionFile: scripts/deployment/version.properties
+        qc:
+          deployDir: /opt/ta/CertScanner/gui/deployment
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          host: qcltaapps1.testbbh.com
+          user: taadmin
+          versionFile: scripts/deployment/version.properties
+  backend-api:
+    appId: 209f44ac-dd06-4ca0-884e-d944904f8021
+    buildTool: maven
+    deployTarget: openshift
+    sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    excludedDirs: node_modules
+    appName: cert-scanner-backend
+    artifactName: cert-scanner-backend.jar
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_b81fbc9f-39c1-8eb4-38b5-b702268969b9
+      token: hcl-app-scan-acount
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: CERTSCANNER-backend-api
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        projectName: CERT-SCANNER-BACKEND
+        projectKey: cert-scanner-backend
+        maven:
+          goals:
+          - sonar:sonar
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+        application: cert-scanner-backend
+        scanPatterns:
+        - '**/target/*.jar'
+        stage: build
+        failOnNetworkError: false
+    sast:
+      scanName: cert-scanner-backend-sast
+    dast:
+      enabled: true
+      scanName: cert-scanner-backend-dast
+      targetUrl: http://rdltaapps1.testbbh.com
+    build:
+      buildPath: target/*.jar
+      maven:
+        goals:
+        - clean
+        - verify
+        flags:
+        - -B
+        - -U
+        env:
+          MAVEN_OPTS: -Xms512m -Xmx1g
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/TA/repos/cert-scanner
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    tests:
+      unitTests:
+        maven:
+          goals:
+          - test
+          - jacoco:report
+        unitTestResult: target/surefire-reports/*.xml
+      smoke:
+        jobs:
+        - name: CERT-SCANNER-BACKEND - smoke
+          type: local
+          job: cert-scanner/smoke-tests
+          timeoutMin: 15
+        - name: CERT-SCANNER-BACKEND - login smoke
+          url: https://jenkins-a.bbh.com/job/smoke/job/cert-scanner-login
+          credentialsId: remote-jenkins-api-token
+      regression:
+        jobs:
+        - name: CERT-SCANNER-BACKEND - regression
+          type: local
+          job: cert-scanner/regression-tests
+          timeoutMin: 60
+          parameters: ENV=rd
+      performance:
+        jobs:
+        - name: CERT-SCANNER-BACKEND - performance
+          type: local
+          job: cert-scanner/performance-tests
+          timeoutMin: 120
+    deploy:
+      openshift:
+        rd:
+          projectBuildR: ta-certscanner-build
+          buildConfigPath: openshift/buildconfig.yaml
+          dockerFilePath: openshift/Dockerfile
+          buildContext: target/docker
+          qcDockerRepoPush: docker-qc.tools.bbh.com/ta-certscanner/backend-api
+          qcDockerRepoPull: docker-qc.tools.bbh.com/ta-certscanner/backend-api
+          openshiftCertDir: /etc/pki/openshift
+          nexus:
+            authfile: /home/jenkins/.docker/nexus-auth.json
+          projectDeploymentR: ta-certscanner-rd
+          deployConfigPath: openshift/deployment.yaml
+          configPathR: openshift/config-rd.yaml
+          healthCheckUrl: /actuator/health
+          routeHostnameR: cert-scanner-backend-rd.apps.ocp-rd.testbbh.com
+        qc:
+          qcDockerRepoPull: docker-qc.tools.bbh.com/ta-certscanner/backend-api
+          projectDeploymentR: ta-certscanner-qc
+          deployConfigPath: openshift/deployment.yaml
+          configPathR: openshift/config-qc.yaml
+          healthCheckUrl: /actuator/health
+          routeHostnameR: cert-scanner-backend-qc.apps.ocp-qc.testbbh.com

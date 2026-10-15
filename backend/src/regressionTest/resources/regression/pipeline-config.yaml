@@ -1,0 +1,207 @@
+pipeline:
+  type: security
+  entryPoint: devSecOpsSecurityPipeline
+  product: CONTRACT
+  projectNames: gateway
+  agentNames:
+  - linux-agent
+  - docker
+platform:
+  jenkinsLibrary: DevSecOpsJenkinsLibrary
+  environment:
+    APPSCAN_SERVER_URL: https://bbh.cloud.appscan.com
+    APPSCAN_HOST: bbh.cloud.appscan.com
+    SA_LINUX_URL: https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Linux/SAClientUtil-8.0.1646_Linux-SAClientUtil_8.0.1646_Linux.zip
+    SA_WIN_URL: https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Win/SAClientUtil-8.0.1646_Win-SAClientUtil_8.0.1646_Win.zip
+    PROXY_HOST: tstproxy.bbh.com
+    PROXY_PORT: '9090'
+    PROXY_USER: PROXY_ASOCJenk
+  oisHost: oisapi.bbh.com
+  nexusSnapshotRepositoryUrl: http://tools.bbh.com/nexus/content/repositories/snapshots/
+  nexusSnapshotRepositoryId: bbh-snapshots
+  iosBuildAgent: mac002.bbh.com
+defaults:
+  buildTool: gradle
+  deployTarget: vm
+  sourceDir: .
+  coverage:
+    minLine: 60
+  tools:
+    sonar:
+      qualityGate:
+        waitForQualityGate: true
+        timeoutMinutes: 5
+    nexusIq:
+      maxCritical: 0
+      maxHigh: 0
+      maxMedium: 0
+  sast:
+    prepareTimeoutMin: 120
+    pollTimeoutMin: 50
+    pollIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  sca:
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  dast:
+    pollTimeoutMin: 60
+    pollIntervalSec: 60
+    reportTimeoutMin: 30
+    reportIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  tests:
+    maxParallel: 20
+  releaseGate:
+    scanners:
+    - sast
+    - sca
+    - niq
+    - dast
+    requireCoverage: true
+    stateFile: release-gate.json
+  goldenFix:
+    enabled: true
+    onlyDirectDependencies: true
+    minThreatLevel: 2
+    ecosystems:
+    - maven
+    - npm
+    - pypi
+    goldenVersionTypes:
+    - recommended-non-breaking-with-dependencies
+    - recommended-non-breaking
+    verify:
+      enabled: true
+      maxAttempts: 3
+      timeoutMinutes: 20
+    commitAuthorName: DevSecOps GoldenFix
+    commitAuthorEmail: devsecops-goldenfix@noreply.local
+projects:
+  gateway:
+    appId: 3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d
+    buildTool: maven
+    deployTarget: openshift
+    sourceDir: gateway
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    appName: payhub-gateway
+    artifactName: payhub-gateway.jar
+    jenkins:
+      pipeline:
+        extendedPipeline: PAYHUB/gateway-extended
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
+      token: hcl-app-scan-account
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: payhub-gateway
+      env: uat
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        projectName: PayHub Gateway
+        projectKey: payhub-gateway
+        maven:
+          goals:
+          - sonar:sonar
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+        application:
+          payhub-gateway:
+            scanPatterns:
+            - '**/target/*.jar'
+            - '**/target/*.war'
+            serverUrl: https://tools.bbh.com/IQ
+            credentialsId: nexusiqP
+            stage: build
+            failOnNetworkError: false
+          payhub-gateway-batch:
+            scanPatterns:
+            - '**/batch/*.jar'
+            serverUrl: https://tools.bbh.com/IQ
+            credentialsId: nexusiqP
+            stage: release
+            failOnNetworkError: true
+    sast:
+      scanName: payhub-gateway
+    dast:
+      enabled: true
+      targetUrl: https://payhub-uat.testbbh.com
+      presenceId: presence-7
+    build:
+      maven:
+        goals:
+        - clean
+        - verify
+        flags:
+        - -B
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-gateway
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    tests:
+      regression:
+        jobs:
+        - name: PayHub regression
+          type: local
+          job: payhub/regression-tests
+          timeoutMin: 60
+    deploy:
+      openshift:
+        rd:
+          projectBuildR: payhub-rd-build
+          buildConfigPath: openshift/build.yaml
+          dockerFilePath: Dockerfile
+          buildContext: .
+          addFile: target/app.jar
+          qcDockerRepoPush: registry.bbh.com/payhub-rd
+          qcDockerRepoPull: registry.bbh.com/payhub-rd
+          openshiftCertDir: /etc/certs
+          nexus:
+            authfile: /etc/nexus/auth.json
+          projectDeploymentR: payhub-rd
+          deployConfigPath: openshift/deploy.yaml
+          configPathR: openshift/config
+          healthCheckUrl: /actuator/health
+          routeHostnameR: payhub-rd.apps.bbh.com
+          deploymentPath: k8s
+          deploymentRepo:
+            url: https://bitbucket.bbh.com/scm/deploy/payhub-rd.git
+            branch: main
+            credentials: bitbucket-http-credentials
+          buildTag: 2.3.1
+          internalDockerUrl: image-registry.openshift-image-registry.svc:5000/payhub-rd
+          skipConfigDeploy: true
+        qc:
+          projectBuildR: payhub-qc-build
+          buildConfigPath: openshift/build.yaml
+          dockerFilePath: Dockerfile
+          buildContext: .
+          addFile: target/app.jar
+          qcDockerRepoPush: registry.bbh.com/payhub-qc
+          qcDockerRepoPull: registry.bbh.com/payhub-qc
+          openshiftCertDir: /etc/certs
+          nexus:
+            authfile: /etc/nexus/auth.json
+          projectDeploymentR: payhub-qc
+          deployConfigPath: openshift/deploy.yaml
+          configPathR: openshift/config
+          healthCheckUrl: /actuator/health
+          routeHostnameR: payhub-qc.apps.bbh.com
+          deploymentPath: k8s
+          deploymentRepo:
+            url: https://bitbucket.bbh.com/scm/deploy/payhub-qc.git
+            branch: main
+            credentials: bitbucket-http-credentials
+          buildTag: 2.3.0
+          skipConfigDeploy: true

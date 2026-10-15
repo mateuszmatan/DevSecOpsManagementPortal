@@ -1,0 +1,164 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "packageManager": "npm"
+  },
+  "newProjectRoot": ".",
+  "projects": {
+    "frontend": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "dso",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": {
+              "base": "dist",
+              "browser": ""
+            },
+            "browser": "src/main.ts",
+            "index": "src/index.html",
+            "tsConfig": "tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public"
+              },
+              {
+                "glob": "**/*.svg",
+                "input": "node_modules/@v6/v6-icons/assets/icons",
+                "output": "./@v6/v6-icons/assets/icons"
+              },
+              {
+                "glob": "**/*.svg",
+                "input": "node_modules/@v6/v6-icons/assets/icons",
+                "output": "./~@v6/v6-icons/assets/icons"
+              }
+            ],
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/highcharts/css/highcharts.css",
+              "node_modules/ag-grid-community/styles/ag-grid.css",
+              "node_modules/ag-grid-community/styles/ag-theme-balham.css",
+              "node_modules/@v6/v6-table/assets/v6-table-theme--bbh.min.css",
+              "node_modules/@v6/v6-themes/styled-elements/main.min.css",
+              "node_modules/@v6/v6-themes/jersey-theme.min.css",
+              "node_modules/@angular/cdk/overlay-prebuilt.css",
+              "node_modules/@angular/cdk/a11y-prebuilt.css",
+              "src/common/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "highcharts/js/highcharts"
+            ],
+            "define": {
+              "AG_GRID_LICENSE_KEY": "''"
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1MB",
+                  "maximumError": "2MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6kB",
+                  "maximumError": "12kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            },
+            "public": {
+              "styles": [
+                "node_modules/bootstrap/dist/css/bootstrap.min.css",
+                "node_modules/highcharts/css/highcharts.css",
+                "node_modules/ag-grid-community/styles/ag-grid.css",
+                "node_modules/ag-grid-community/styles/ag-theme-balham.css",
+                "node_modules/@angular/cdk/overlay-prebuilt.css",
+                "node_modules/@angular/cdk/a11y-prebuilt.css",
+                "src/common/styles/public-theme.scss",
+                "src/common/styles.scss"
+              ],
+              "assets": [
+                {
+                  "glob": "**/*",
+                  "input": "public"
+                }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "src/common/ui/design-system.ts",
+                  "with": "src/common/ui/design-system.public.ts"
+                }
+              ]
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "frontend:build:production"
+            },
+            "development": {
+              "buildTarget": "frontend:build:development"
+            },
+            "public": {
+              "buildTarget": "frontend:build:development,public"
+            }
+          },
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "proxy.conf.json",
+            "port": 4200
+          }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "tsconfig.spec.json",
+            "coverageReporters": [
+              "text-summary",
+              "html",
+              "lcov"
+            ],
+            "coverageExclude": [
+              "src/**/*.spec.ts",
+              "src/**/*.d.ts",
+              "src/app/testing/**",
+              "src/common/testing/**",
+              "src/common/test-providers.ts"
+            ],
+            "coverageThresholds": {
+              "statements": 60,
+              "lines": 60
+            },
+            "coverageInclude": [
+              "src/app/**",
+              "src/common/**"
+            ],
+            "buildTarget": "frontend:build:development,public",
+            "providersFile": "src/common/test-providers.ts"
+          }
+        }
+      }
+    }
+  }
+}

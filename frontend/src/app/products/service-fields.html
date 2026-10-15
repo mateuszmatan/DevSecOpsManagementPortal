@@ -1,0 +1,338 @@
+@let f = form();
+<div class="service">
+  <nav class="rail side-nav" aria-label="Service settings">
+    @for (section of sections(); track section.id) {
+      <button
+        type="button"
+        class="rail-item side-nav-item"
+        [class.active]="section.id === current()"
+        [class.problem]="section.problem"
+        [attr.aria-current]="section.id === current() ? 'true' : null"
+        (click)="select(section.id)"
+      >
+        <svg-icon aria-hidden="true" [name]="section.icon" />
+        <span>{{ section.label }}</span>
+        @if (section.problem) {
+          <span class="problem-mark" role="img" aria-label="Needs your attention"></span>
+        }
+      </button>
+    }
+  </nav>
+
+  <div class="pane">
+    <header class="pane-header">
+      <h3>{{ pane().label }}</h3>
+      <p [innerHTML]="pane().note"></p>
+    </header>
+    @switch (current()) {
+      @case ('general') {
+        <div class="form-fields">
+          <dso-fields [group]="f" [fields]="general" />
+        </div>
+      }
+
+      @case ('build') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
+          @if (flutter()) {
+            <p class="note span-12">
+              A Flutter build runs no Gradle or Maven command and needs the JDK path, since
+              automatic setup cannot pick a JDK for Flutter; its modules and credentials are in the
+              Flutter section.
+            </p>
+          } @else {
+            <dso-tool-command-fields
+              [group]="f.controls.build.controls.command"
+              [tool]="tool()"
+              path="build"
+              part="tasks"
+              gradleExample="clean build"
+              mavenExample="clean verify"
+            />
+          }
+          <dso-advanced-settings
+            [summary]="flutter() ? 'Source folder' : 'Source folder and build command options'"
+            [controls]="advanced().build"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.build" [fields]="buildOptions()" />
+            @if (!flutter()) {
+              <dso-tool-command-fields
+                [group]="f.controls.build.controls.command"
+                [tool]="tool()"
+                path="build"
+                part="options"
+              />
+            }
+          </dso-advanced-settings>
+        </div>
+      }
+
+      @case ('unitTests') {
+        <div class="form-fields">
+          @if (!flutter()) {
+            <dso-tool-command-fields
+              [group]="f.controls.unitTests.controls.command"
+              [tool]="tool()"
+              path="tests.unitTests"
+              part="tasks"
+              gradleExample="test jacocoTestReport"
+              mavenExample="test jacoco:report"
+            />
+          }
+          <dso-fields [group]="f.controls.unitTests" [fields]="unitTestFields()" />
+          <dso-advanced-settings
+            summary="Folders, empty results and test command options"
+            [controls]="advanced().unitTests"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.unitTests" [fields]="unitTestOptions" />
+            @if (!flutter()) {
+              <dso-tool-command-fields
+                [group]="f.controls.unitTests.controls.command"
+                [tool]="tool()"
+                path="tests.unitTests"
+                part="options"
+              />
+            }
+          </dso-advanced-settings>
+        </div>
+      }
+
+      @case ('testJobs') {
+        <dso-test-jobs-fields [form]="f" [defaults]="defaults()" />
+      }
+
+      @case ('deployment') {
+        <div class="form-fields">
+          <dso-toggle-group
+            class="span-12"
+            [formControl]="f.controls.deployment.controls.target"
+            aria-label="Deployment target"
+          >
+            <button dsoToggle="VM">Virtual machine</button>
+            <button dsoToggle="OPENSHIFT">OpenShift</button>
+          </dso-toggle-group>
+          <dso-fields [group]="f.controls.deployment" [fields]="deploymentFields()" />
+        </div>
+        @if (isVm() && tool() === 'MAVEN') {
+          <div class="form-fields block">
+            <h4 class="sub-heading span-12">Delivery</h4>
+            <p class="note span-12">
+              The Maven goals that upload the snapshot the VM deployment installs; required for a
+              Maven service deployed to virtual machines.
+            </p>
+            <dso-tool-command-fields
+              [group]="f.controls.delivery"
+              [tool]="tool()"
+              path="delivery"
+              mavenExample="deploy:deploy-file"
+            />
+          </div>
+        }
+      }
+
+      @case ('urbanCode') {
+        <dso-urban-code-fields [form]="f" [defaults]="defaults()" />
+      }
+
+      @case ('ssh') {
+        @for (region of regions; track region) {
+          <div class="form-fields block">
+            <h4 class="sub-heading span-12">
+              {{ regionNames[region] }} <code>deploy.vm.{{ region.toLowerCase() }}</code>
+            </h4>
+            <dso-fields
+              [group]="f.controls.sshTargets.controls[region]"
+              [fields]="sshFields(region)"
+            />
+          </div>
+        }
+      }
+
+      @case ('openShift') {
+        <dso-openshift-target-fields [form]="f" />
+      }
+
+      @case ('appScan') {
+        @let scan = f.controls.appScan;
+        <div class="form-fields">
+          <dso-fields [group]="scan" [fields]="appScan" />
+          <h4 class="sub-heading span-12">Dynamic scan (DAST)</h4>
+          <dso-fields [group]="scan" [fields]="dastEnabled" />
+          @if (scan.controls.dastEnabled.value) {
+            <dso-fields [group]="scan" [fields]="dast" />
+          }
+          <dso-advanced-settings
+            summary="The service's own secret and the options of the static scan"
+            [controls]="advanced().appScan"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="scan" [fields]="appScanSecret" />
+            <h4 class="sub-heading span-12">Static scan (SAST)</h4>
+            <dso-fields [group]="scan" [fields]="appScanStatic" />
+            <span class="span-6"></span>
+            <dso-fields [group]="scan" [fields]="appScanFlags" />
+            @if (!flutter() && scan.controls.compile.value) {
+              <h4 class="sub-heading span-12">Compile command</h4>
+              <dso-tool-command-fields
+                [group]="scan.controls.compileCommand"
+                [tool]="tool()"
+                path="asoc"
+                gradleExample="compileJava"
+                mavenExample="compile"
+              />
+            }
+          </dso-advanced-settings>
+        </div>
+      }
+
+      @case ('sonar') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.sonar" [fields]="sonarFields()" />
+          @if (!flutter()) {
+            <dso-tool-command-fields
+              [group]="f.controls.sonar.controls.command"
+              [tool]="tool()"
+              path="tools.sonar"
+              part="tasks"
+              gradleExample="sonarqube"
+              mavenExample="sonar:sonar"
+            />
+          }
+          <dso-advanced-settings
+            summary="Server, credentials, badges and analysis command options"
+            [controls]="advanced().sonar"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.sonar" [fields]="sonarOptions()" />
+            @if (!flutter()) {
+              <dso-tool-command-fields
+                [group]="f.controls.sonar.controls.command"
+                [tool]="tool()"
+                path="tools.sonar"
+                part="options"
+              />
+            }
+          </dso-advanced-settings>
+        </div>
+      }
+
+      @case ('nexusIq') {
+        <section class="list-section">
+          <header class="list-header">
+            <h4>
+              Applications <span class="count">{{ nexusIqApplications().length }}</span>
+            </h4>
+            <span class="hint"><code>tools.nexusIq.application</code></span>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn-outline-primary" (click)="addNexusIqApplication()">
+              Add application
+            </button>
+          </header>
+          @if (f.controls.nexusIqApplications.errors?.['server']; as message) {
+            <div class="banner list-error" role="alert">{{ message }}</div>
+          }
+          @for (application of nexusIqApplications(); track application; let i = $index) {
+            <div class="list-item" [class.invalid]="application.invalid && application.touched">
+              <div class="list-item-head">
+                <span class="index">{{ i + 1 }}</span>
+                <strong class="mono">{{
+                  application.controls.application.value || 'New application'
+                }}</strong>
+                <span class="spacer"></span>
+                <button
+                  type="button"
+                  class="btn btn-link danger"
+                  (click)="removeNexusIqApplication(i)"
+                  [attr.aria-label]="
+                    'Remove ' + (application.controls.application.value || 'the new application')
+                  "
+                >
+                  Remove
+                </button>
+              </div>
+              <div class="form-fields">
+                <dso-fields [group]="application" [fields]="nexusIqApplication" />
+              </div>
+            </div>
+          } @empty {
+            <p class="list-empty">No application: the pipeline skips the Nexus IQ scan.</p>
+          }
+        </section>
+        <dso-advanced-settings
+          summary="Server, credentials and scan name"
+          [controls]="advanced().nexusIq"
+          [submitted]="submitted()"
+        >
+          <dso-fields [group]="f.controls.nexusIq" [fields]="nexusIqFields()" />
+        </dso-advanced-settings>
+      }
+
+      @case ('scm') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.scm" [fields]="scm" />
+          <dso-advanced-settings
+            summary="Sign-in, clone URL and where GoldenFix finds the repository"
+            [controls]="advanced().scm"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.scm" [fields]="scmOptions" />
+            <h4 class="sub-heading span-12">Repository for GoldenFix pull requests</h4>
+            <p class="note span-12">Optional; left empty, they are read from the repository URL.</p>
+            <dso-fields [group]="f.controls.scm" [fields]="bitbucketRepository" />
+          </dso-advanced-settings>
+        </div>
+      }
+
+      @case ('goldenFix') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.goldenFix" [fields]="goldenFixField()" />
+          <dso-toggle-group
+            class="span-8"
+            [formControl]="f.controls.goldenFix.controls.inherit"
+            aria-label="GoldenFix policy"
+          >
+            <button [dsoToggle]="true">Inherit the library defaults</button>
+            <button [dsoToggle]="false">Override for this service</button>
+          </dso-toggle-group>
+          @if (f.controls.goldenFix.controls.inherit.value) {
+            <p class="note span-12">{{ inheritedGoldenFix() }}</p>
+          } @else {
+            <dso-golden-fix-fields
+              [group]="f.controls.goldenFix"
+              [inherited]="defaults()?.goldenFix ?? null"
+            />
+          }
+        </div>
+      }
+
+      @case ('metrics') {
+        <div class="form-fields">
+          <dso-fields [group]="f.controls.metrics" [fields]="metricsFields()" />
+          <dso-advanced-settings
+            summary="Where the results are written"
+            [controls]="advanced().metrics"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.metrics" [fields]="metricsOptions()" />
+          </dso-advanced-settings>
+        </div>
+      }
+
+      @case ('flutter') {
+        @let flutterGroup = f.controls.flutter;
+        <div class="form-fields">
+          <dso-fields [group]="flutterGroup" [fields]="flutterPlatform" />
+          <dso-fields [group]="flutterGroup" [fields]="flutterModules" />
+          <h4 class="sub-heading span-12">Credentials <code>build.credentialsId</code></h4>
+          <dso-fields [group]="flutterGroup" [fields]="flutterCredentials" />
+          <h4 class="sub-heading span-12">Delivery</h4>
+          <dso-fields [group]="flutterGroup" [fields]="flutterDelivery()" />
+          <h4 class="sub-heading span-12">SonarQube analysis of Dart code</h4>
+          <dso-fields [group]="flutterGroup" [fields]="flutterSonar" />
+        </div>
+      }
+    }
+  </div>
+</div>

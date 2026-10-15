@@ -1,0 +1,35 @@
+<dso-departments-admin [usage]="usage" [cells]="cells()" (loaded)="departments.set($event)" />
+
+<ng-template dsoCell="pipelines" let-department>
+  @if (department.pipelineCount === 0) {
+    <span class="muted">None yet</span>
+  } @else {
+    <span class="pipelines"
+      ><strong>{{ department.pipelineCount }}</strong
+      >,
+      @if (keysInvalidated(department); as invalidated) {
+        <span class="revoked">{{ invalidated }}</span>
+      } @else {
+        <span class="muted">all active</span>
+      }
+    </span>
+  }
+</ng-template>
+
+@if (chart().length) {
+  <section class="card chart">
+    <header class="card-header">
+      <h2>Pipelines per department</h2>
+      <div class="legend">
+        <span><i class="swatch active"></i>Active</span>
+        <span><i class="swatch disabled"></i>Key invalidated</span>
+      </div>
+    </header>
+    <p class="section-help">
+      Pipelines are the automated build, test and security checks Jenkins runs for each service of a
+      product. A pipeline whose key was invalidated is refused its settings and stops until a new
+      key is issued.
+    </p>
+    <dso-bar-chart [rows]="chart()" />
+  </section>
+}

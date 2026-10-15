@@ -1,0 +1,153 @@
+<div class="page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/monitoring">DevSecOps Pipeline Monitoring</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span>{{ product.hasValue() ? product.value().name : 'Product' }}</span>
+  </nav>
+
+  @if (product.error(); as error) {
+    <div class="banner">
+      <span>The product could not be loaded. {{ errorMessage(error) }}</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-link" (click)="product.reload()">Try again</button>
+    </div>
+    <a class="btn btn-outline-primary" routerLink="/monitoring">Back to monitoring</a>
+  } @else {
+    @if (product.hasValue()) {
+      @let p = product.value();
+      <header class="page-header">
+        <div>
+          <div class="title row-wrap">
+            <h1>{{ p.name }}</h1>
+            <span class="code mono">{{ p.code }}</span>
+            <dso-status-chip [status]="p.overall" />
+          </div>
+          <p>{{ p.description ?? 'Status of the latest run of each pipeline.' }}</p>
+        </div>
+        <div class="actions">
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            (click)="product.reload()"
+            [disabled]="product.isLoading()"
+          >
+            Refresh
+          </button>
+          <a class="btn btn-outline-primary" [routerLink]="['/admin/products', p.productId]"
+            >Manage product</a
+          >
+        </div>
+      </header>
+
+      <dso-metrics-banner [metricsError]="p.metricsError" />
+
+      <section class="card">
+        <header class="card-header">
+          <h2>Pipelines</h2>
+        </header>
+        <p class="section-help">
+          The latest run of each pipeline: the automated build, test and security checks Jenkins
+          runs for a service. Open a pipeline to see its runs over time.
+        </p>
+        <div class="summary">
+          <span
+            ><strong>{{ p.pipelines.length | counted: 'pipeline' }}</strong
+            >{{ p.pipelines.length ? ': ' + summary() : '' }}</span
+          >
+          <dso-status-bar [counts]="counts()" />
+        </div>
+
+        @if (product.isLoading()) {
+          <dso-loading />
+        }
+
+        @if (p.pipelines.length === 0) {
+          <div class="empty-state">
+            <h3>No pipelines yet</h3>
+            <p>Add pipelines to the services of {{ p.name }} to see their results here.</p>
+            <a class="btn btn-primary" [routerLink]="['/admin/products', p.productId]"
+              >Add pipelines</a
+            >
+          </div>
+        } @else {
+          <dso-grid
+            label="Pipelines"
+            [rows]="p.pipelines"
+            [columns]="columns"
+            [rowId]="pipelineId"
+            [rowClass]="clickable"
+            (rowClick)="open($event)"
+          >
+            <ng-template dsoCell="service" let-health>
+              <span class="mono service">{{ health.pipeline.serviceName }}</span>
+            </ng-template>
+            <ng-template dsoCell="type" let-health>
+              <div>
+                <a
+                  class="pipeline-link quiet-link"
+                  [routerLink]="['/monitoring/pipelines', health.pipeline.id]"
+                  >{{ typeLabel(health.pipeline.type) }}</a
+                >
+                <div class="muted small mono">
+                  {{ health.pipeline.influxProjectTag }} · {{ health.pipeline.influxEnv }}
+                </div>
+              </div>
+            </ng-template>
+            <ng-template dsoCell="status" let-health>
+              <dso-status-chip [status]="health.status" />
+            </ng-template>
+            <ng-template dsoCell="lastRun" let-health>
+              @if (health.lastRun; as run) {
+                <div>
+                  <div>{{ run.time | relative }}</div>
+                  <div class="muted small">
+                    <dso-build-link [run]="run" empty="" />
+                    @if (run.branch) {
+                      on <span class="mono">{{ run.branch }}</span>
+                    }
+                  </div>
+                </div>
+              } @else {
+                <span class="muted">–</span>
+              }
+            </ng-template>
+            <ng-template dsoCell="stages" let-health>
+              @if (health.lastRun?.stagesTotal; as total) {
+                <div class="stages">
+                  <div>{{ health.lastRun.passed ?? 0 }} of {{ total }} passed</div>
+                  @if (stageProblems(health.lastRun); as problems) {
+                    <div
+                      class="stage-problems small"
+                      [class.failing]="health.lastRun.failed || health.lastRun.blocked"
+                    >
+                      {{ problems }}
+                    </div>
+                  }
+                </div>
+              } @else {
+                <span class="muted">–</span>
+              }
+            </ng-template>
+            <ng-template dsoCell="jenkins" let-health>
+              @if (health.pipeline.jenkinsJobUrl; as job) {
+                <a
+                  class="text-link"
+                  [href]="job"
+                  target="_blank"
+                  rel="noopener"
+                  [attr.title]="health.pipeline.jenkinsJob"
+                  [attr.aria-label]="'Open the Jenkins job of ' + health.pipeline.serviceName"
+                  >Open in Jenkins</a
+                >
+              } @else {
+                <span class="muted" title="No Jenkins job set for this pipeline">–</span>
+              }
+            </ng-template>
+          </dso-grid>
+        }
+      </section>
+    } @else {
+      <dso-loading />
+    }
+  }
+</div>

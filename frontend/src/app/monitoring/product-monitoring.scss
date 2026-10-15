@@ -1,0 +1,36 @@
+.card {
+  padding: 10px 14px 4px;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+}
+
+.service {
+  font-weight: 600;
+}
+
+.stages {
+  font-size: 12.5px;
+  line-height: 1.35;
+
+  .stage-problems {
+    color: var(--dso-warning);
+    font-weight: 600;
+
+    &.failing {
+      color: var(--dso-danger);
+    }
+  }
+}
+
+@media (max-width: 760px) {
+  .summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

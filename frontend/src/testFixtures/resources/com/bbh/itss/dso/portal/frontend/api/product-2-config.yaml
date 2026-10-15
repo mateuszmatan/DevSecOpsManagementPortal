@@ -1,0 +1,398 @@
+projects:
+  gateway:
+    appId: 3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d
+    buildTool: maven
+    deployTarget: openshift
+    sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    excludedDirs: node_modules
+    appName: payhub-gateway
+    artifactName: payhub-gateway.jar
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: PAYHUB-gateway
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        projectName: PAYHUB-GATEWAY
+        projectKey: payhub-gateway
+        maven:
+          goals:
+          - sonar:sonar
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+        application: payhub-gateway
+        scanPatterns:
+        - '**/target/*.jar'
+        stage: build
+        failOnNetworkError: false
+    sast:
+      scanName: payhub-gateway-sast
+    dast:
+      enabled: true
+      scanName: payhub-gateway-dast
+      targetUrl: http://rdltaapps1.testbbh.com
+    build:
+      buildPath: target/*.jar
+      maven:
+        goals:
+        - clean
+        - verify
+        flags:
+        - -B
+        - -U
+        env:
+          MAVEN_OPTS: -Xms512m -Xmx1g
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-gateway
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    tests:
+      unitTests:
+        maven:
+          goals:
+          - test
+          - jacoco:report
+        unitTestResult: target/surefire-reports/*.xml
+      smoke:
+        jobs:
+        - name: PAYHUB-GATEWAY - smoke
+          type: local
+          job: payhub-gateway/smoke-tests
+          timeoutMin: 15
+        - name: PAYHUB-GATEWAY - login smoke
+          url: https://jenkins-a.bbh.com/job/smoke/job/payhub-gateway-login
+          credentialsId: remote-jenkins-api-token
+      regression:
+        jobs:
+        - name: PAYHUB-GATEWAY - regression
+          type: local
+          job: payhub-gateway/regression-tests
+          timeoutMin: 60
+          parameters: ENV=rd
+      performance:
+        jobs:
+        - name: PAYHUB-GATEWAY - performance
+          type: local
+          job: payhub-gateway/performance-tests
+          timeoutMin: 120
+    deploy:
+      openshift:
+        rd:
+          projectBuildR: pay-payhub-build
+          buildConfigPath: openshift/buildconfig.yaml
+          dockerFilePath: openshift/Dockerfile
+          buildContext: target/docker
+          qcDockerRepoPush: docker-qc.tools.bbh.com/pay-payhub/gateway
+          qcDockerRepoPull: docker-qc.tools.bbh.com/pay-payhub/gateway
+          openshiftCertDir: /etc/pki/openshift
+          nexus:
+            authfile: /home/jenkins/.docker/nexus-auth.json
+          projectDeploymentR: pay-payhub-rd
+          deployConfigPath: openshift/deployment.yaml
+          configPathR: openshift/config-rd.yaml
+          healthCheckUrl: /actuator/health
+          routeHostnameR: payhub-gateway-rd.apps.ocp-rd.testbbh.com
+        qc:
+          qcDockerRepoPull: docker-qc.tools.bbh.com/pay-payhub/gateway
+          projectDeploymentR: pay-payhub-qc
+          deployConfigPath: openshift/deployment.yaml
+          configPathR: openshift/config-qc.yaml
+          healthCheckUrl: /actuator/health
+          routeHostnameR: payhub-gateway-qc.apps.ocp-qc.testbbh.com
+  ledger:
+    appId: 3a1b2c3d-2222-4a5b-8c9d-0e1f2a3b4c5d
+    buildTool: gradle
+    deployTarget: vm
+    sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    excludedDirs: node_modules
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: PAYHUB-ledger
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        projectName: PAYHUB-LEDGER
+        projectKey: payhub-ledger
+        gradle:
+          tasks:
+          - sonarqube
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+        application: payhub-ledger
+        scanPatterns:
+        - '**/build/libs/*.jar'
+        stage: build
+        failOnNetworkError: false
+    sast:
+      scanName: payhub-ledger-sast
+    dast:
+      enabled: false
+    build:
+      buildPath: build/libs/*.jar
+      gradle:
+        tasks:
+        - clean
+        - build
+        - bootJar
+        flags:
+        - --refresh-dependencies
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-ledger
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    tests:
+      unitTests:
+        gradle:
+          tasks:
+          - test
+          - jacocoTestReport
+        unitTestResult: build/test-results/test/*.xml
+      smoke:
+        maxParallel: 10
+        jobs:
+        - name: PAYHUB-LEDGER - smoke
+          type: local
+          job: payhub-ledger/smoke-tests
+          timeoutMin: 15
+        - name: PAYHUB-LEDGER - login smoke
+          url: https://jenkins-a.bbh.com/job/smoke/job/payhub-ledger-login
+          credentialsId: remote-jenkins-api-token
+      regression:
+        maxParallel: 5
+        jobs:
+        - name: PAYHUB-LEDGER - regression
+          type: local
+          job: payhub-ledger/regression-tests
+          timeoutMin: 60
+          parameters: ENV=rd
+      performance:
+        jobs:
+        - name: PAYHUB-LEDGER - performance
+          type: local
+          job: payhub-ledger/performance-tests
+          timeoutMin: 120
+    deploy:
+      vm:
+        dod:
+          skipWait: false
+          deployWithSnapshot: true
+          updateSnapshotComp: false
+          includeOnlyDeployVersions: true
+          deployOnlyChanged: false
+          applications:
+          - applicationName: PAYHUB-LEDGER
+            order: 1
+            environments:
+            - DV
+            - RD
+            components:
+            - componentName: PAYHUB-LEDGER-app
+              baseDir: build/libs
+              fileIncludePatterns: '*.jar'
+              incrementalVersion: true
+          siteName: deploy.bbh.com
+          deployProcess: tomcat-app-process
+        rd:
+          deployDir: /opt/pay/PayHub/ledger/deployment
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          host: rdltaapps1.testbbh.com
+          user: taadmin
+          versionFile: scripts/deployment/version.properties
+        qc:
+          deployDir: /opt/pay/PayHub/ledger/deployment
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          host: qcltaapps1.testbbh.com
+          user: taadmin
+          versionFile: scripts/deployment/version.properties
+  notifications:
+    appId: 3a1b2c3d-3333-4a5b-8c9d-0e1f2a3b4c5d
+    buildTool: gradle
+    deployTarget: vm
+    sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    excludedDirs: node_modules
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: PAYHUB-notifications
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        projectName: PAYHUB-NOTIFICATIONS
+        projectKey: payhub-notifications
+        gradle:
+          tasks:
+          - sonarqube
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+        application: payhub-notifications
+        scanPatterns:
+        - '**/build/libs/*.jar'
+        stage: build
+        failOnNetworkError: false
+    sast:
+      scanName: payhub-notifications-sast
+    dast:
+      enabled: false
+    build:
+      buildPath: build/libs/*.jar
+      gradle:
+        tasks:
+        - clean
+        - build
+        - bootJar
+        flags:
+        - --refresh-dependencies
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-notifications
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    tests:
+      unitTests:
+        gradle:
+          tasks:
+          - test
+          - jacocoTestReport
+        unitTestResult: build/test-results/test/*.xml
+      smoke:
+        maxParallel: 10
+        jobs:
+        - name: PAYHUB-NOTIFICATIONS - smoke
+          type: local
+          job: payhub-notifications/smoke-tests
+          timeoutMin: 15
+        - name: PAYHUB-NOTIFICATIONS - login smoke
+          url: https://jenkins-a.bbh.com/job/smoke/job/payhub-notifications-login
+          credentialsId: remote-jenkins-api-token
+      regression:
+        maxParallel: 5
+        jobs:
+        - name: PAYHUB-NOTIFICATIONS - regression
+          type: local
+          job: payhub-notifications/regression-tests
+          timeoutMin: 60
+          parameters: ENV=rd
+      performance:
+        jobs:
+        - name: PAYHUB-NOTIFICATIONS - performance
+          type: local
+          job: payhub-notifications/performance-tests
+          timeoutMin: 120
+    deploy:
+      vm:
+        dod:
+          skipWait: false
+          deployWithSnapshot: true
+          updateSnapshotComp: false
+          includeOnlyDeployVersions: true
+          deployOnlyChanged: false
+          applications:
+          - applicationName: PAYHUB-NOTIFICATIONS
+            order: 1
+            environments:
+            - DV
+            - RD
+            components:
+            - componentName: PAYHUB-NOTIFICATIONS-app
+              baseDir: build/libs
+              fileIncludePatterns: '*.jar'
+              incrementalVersion: true
+          siteName: deploy.bbh.com
+          deployProcess: tomcat-app-process
+        rd:
+          deployDir: /opt/pay/PayHub/notifications/deployment
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          host: rdltaapps1.testbbh.com
+          user: taadmin
+          versionFile: scripts/deployment/version.properties
+        qc:
+          deployDir: /opt/pay/PayHub/notifications/deployment
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          host: qcltaapps1.testbbh.com
+          user: taadmin
+          versionFile: scripts/deployment/version.properties
+  mobile-app:
+    appId: 3a1b2c3d-4444-4a5b-8c9d-0e1f2a3b4c5d
+    buildTool: flutter
+    deployTarget: vm
+    sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: PAYHUB-mobile-app
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        sources: lib
+        tests: test
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+      flutter:
+        flutterModules:
+        - core
+        - payments
+    dast:
+      enabled: false
+    build:
+      credentialsId:
+      - payhub-mobile-signing-password
+      - payhub-mobile-prod-licence
+      - payhub-mobile-test-licence
+    delivery:
+      group: com.bbh.payhub
+      artifact: payhub-mobile
+      plugin: org.apache.maven.plugins:maven-deploy-plugin:3.1.2:deploy-file
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-mobile
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    goldenFix:
+      enabled: false
+    tests:
+      modules:
+      - core
+      - payments
+      submodules:
+      - core
+      - payments
+      subplugins:
+      - secure_storage
+    flutter:
+      platform: apk

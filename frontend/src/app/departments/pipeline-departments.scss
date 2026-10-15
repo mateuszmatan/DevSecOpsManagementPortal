@@ -1,0 +1,17 @@
+.chart {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+
+  .section-help {
+    margin: 0;
+  }
+}
+
+.pipelines {
+  white-space: nowrap;
+}
+
+.revoked {
+  color: var(--dso-danger);
+  font-size: 12px;
+}

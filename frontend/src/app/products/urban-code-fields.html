@@ -1,0 +1,81 @@
+@let f = form();
+<div class="form-fields">
+  <dso-fields [group]="f.controls.urbanCode" [fields]="settingsFields()" />
+</div>
+
+<section class="list-section">
+  <header class="list-header">
+    <h4>
+      Applications <span class="count">{{ applications().length }}</span>
+    </h4>
+    <span class="hint"><code>deploy.vm.dod.applications</code></span>
+    <span class="spacer"></span>
+    <button type="button" class="btn btn-outline-primary" (click)="addApplication()">
+      Add application
+    </button>
+  </header>
+
+  @if (f.controls.urbanCodeApplications.errors?.['server']; as message) {
+    <div class="banner list-error" role="alert">{{ message }}</div>
+  }
+
+  @for (application of applications(); track application; let i = $index) {
+    <div class="list-item" [class.invalid]="application.invalid && application.touched">
+      <div class="list-item-head">
+        <span class="index">{{ i + 1 }}</span>
+        <strong class="mono">{{
+          application.controls.applicationName.value || 'New application'
+        }}</strong>
+        <span class="spacer"></span>
+        <button
+          type="button"
+          class="btn btn-link danger"
+          (click)="removeApplication(i)"
+          [attr.aria-label]="
+            'Remove ' + (application.controls.applicationName.value || 'the new application')
+          "
+        >
+          Remove
+        </button>
+      </div>
+      <div class="form-fields">
+        <dso-fields [group]="application" [fields]="applicationFields" />
+      </div>
+
+      <h5 class="sub-heading">Components <code>components</code></h5>
+      @for (
+        component of application.controls.components.controls;
+        track component;
+        let j = $index
+      ) {
+        <div class="component">
+          <button
+            type="button"
+            class="btn btn-link danger remove"
+            (click)="removeComponent(application, j)"
+            [attr.aria-label]="
+              'Remove ' + (component.controls.componentName.value || 'the new component')
+            "
+          >
+            Remove
+          </button>
+          <div class="form-fields">
+            <dso-fields [group]="component" [fields]="componentFields" />
+          </div>
+        </div>
+      } @empty {
+        <p class="list-empty" [class.missing]="application.touched">
+          No component yet. Add at least one.
+        </p>
+      }
+      <button type="button" class="btn btn-link add-component" (click)="addComponent(application)">
+        Add component
+      </button>
+    </div>
+  } @empty {
+    <p class="list-empty">
+      No application: the full pipeline does not deploy this service with UrbanCode Deploy, and the
+      options above are not written.
+    </p>
+  }
+</section>

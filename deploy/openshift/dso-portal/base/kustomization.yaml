@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: dso-portal
+      app.kubernetes.io/part-of: bbh-devsecops
+resources:
+  - deployment.yaml
+  - storage.yaml
+  - service.yaml
+  - route.yaml
+configMapGenerator:
+  - name: dso-portal-config
+    literals:
+      - SPRING_PROFILES_ACTIVE=rd
+      - INFLUX_URL=
+      - INFLUX_ORG=DevSecOps
+      - INFLUX_BUCKET=DORA-metrics
+      - GRAFANA_NAME=Grafana
+      - GRAFANA_DASHBOARD_URL=
+      - GRAFANA_SECURITY_DASHBOARD_URL=
+      - GRAFANA_2_NAME=Grafana 2
+      - GRAFANA_2_DASHBOARD_URL=
+      - GRAFANA_2_SECURITY_DASHBOARD_URL=
