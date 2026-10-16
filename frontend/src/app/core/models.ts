@@ -437,6 +437,16 @@ export interface PlatformSettings {
   influxWriteUrl: string | null;
   influxCredentialsId: string | null;
   iosBuildAgent: string | null;
+  influxUrl: string | null;
+  influxOrg: string | null;
+  influxBucket: string | null;
+  influxToken: string | null;
+  grafanaName: string | null;
+  grafanaDashboardUrl: string | null;
+  grafanaSecurityDashboardUrl: string | null;
+  grafana2Name: string | null;
+  grafana2DashboardUrl: string | null;
+  grafana2SecurityDashboardUrl: string | null;
 }
 
 export interface DeploymentDefaults {

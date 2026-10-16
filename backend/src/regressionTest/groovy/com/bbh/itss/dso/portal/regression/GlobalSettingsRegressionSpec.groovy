@@ -77,6 +77,41 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         api.get("/api/pipelines/$full.id").json.jenkinsJobUrl == "https://jenkins.bbh.com/job/DevSecOps/job/$code/job/gui-full/"
     }
 
+    def "InfluxDB and Grafana configured in the management panel drive the portal monitoring views"() {
+        given:
+        def code = uniqueCode('MONCFG')
+        def created = createProduct(product(code: code, name: "Product $code", services: [service(name: 'gui')]))
+        def full = pipelineFor(created.services[0].id as long)
+
+        when:
+        def changed = api.put('/api/settings', original + [
+                platform: original.platform + [
+                        influxUrl                  : influx.url,
+                        influxOrg                  : 'PanelOrg',
+                        influxBucket               : 'panel-bucket',
+                        influxToken                : 'panel-secret-token',
+                        grafanaName                : 'Panel Grafana',
+                        grafanaDashboardUrl        : 'https://grafana.panel.bbh.com/d/pipe/pipeline',
+                        grafanaSecurityDashboardUrl: 'https://grafana.panel.bbh.com/d/sec/security',
+                        grafana2Name               : 'Panel DR Grafana',
+                        grafana2DashboardUrl       : 'https://grafana-dr.panel.bbh.com/d/pipe/pipeline']])
+        def status = api.get('/api/monitoring/status').json
+        def details = api.get("/api/monitoring/pipelines/$full.id?range=30d").json
+
+        then:
+        changed.status == 200
+        status.influxConfigured == true
+        status.influxReachable == true
+        status.grafana == [
+                [name: 'Panel Grafana', dashboardUrl: 'https://grafana.panel.bbh.com/d/pipe/pipeline'],
+                [name: 'Panel DR Grafana', dashboardUrl: 'https://grafana-dr.panel.bbh.com/d/pipe/pipeline']]
+        influx.requests.last().query == 'org=PanelOrg'
+        influx.requests.last().authorization == 'Token panel-secret-token'
+        details.grafana == [
+                [name: 'Panel Grafana', dashboardUrl: "https://grafana.panel.bbh.com/d/pipe/pipeline?var-project=$code-gui&from=now-30d&to=now".toString()],
+                [name: 'Panel DR Grafana', dashboardUrl: "https://grafana-dr.panel.bbh.com/d/pipe/pipeline?var-project=$code-gui&from=now-30d&to=now".toString()]]
+    }
+
     def "the global RD and QC deployment values reach every VM service that does not set its own, also after a change"() {
         given:
         def code = uniqueCode('SSH')

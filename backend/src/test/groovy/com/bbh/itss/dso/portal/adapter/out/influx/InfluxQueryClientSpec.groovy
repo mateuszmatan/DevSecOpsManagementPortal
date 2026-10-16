@@ -128,7 +128,50 @@ class InfluxQueryClientSpec extends Specification {
         lookback << [null, '', '365', '-1d', '1d) |> drop()', '0d']
     }
 
+    def "settings saved in the management panel override the environment properties"() {
+        given:
+        influx.respondWith(',result,table,name\r\n,_result,0,custom-bucket\r\n')
+        def store = new com.bbh.itss.dso.portal.adapter.MonitoringSettingsStore()
+        def configured = new InfluxQueryClient(
+                new InfluxProperties(null, 'DevSecOps', 'DORA-metrics', null, '365d'),
+                RestClient.builder(), store)
+
+        expect:
+        !configured.configured()
+
+        when:
+        store.update(com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults().platform()
+                .withJenkinsUrl('https://jenkins.bbh.com')
+                .with {
+                    com.bbh.itss.dso.portal.domain.settings.PlatformSettings.builder()
+                            .jenkinsLibrary(it.jenkinsLibrary())
+                            .asocUrl(it.asocUrl())
+                            .appScanClientLinuxUrl(it.appScanClientLinuxUrl())
+                            .appScanClientWindowsUrl(it.appScanClientWindowsUrl())
+                            .sonarServerUrl(it.sonarServerUrl())
+                            .sonarInstallationName(it.sonarInstallationName())
+                            .nexusIqServerUrl(it.nexusIqServerUrl())
+                            .nexusIqCredentialsId(it.nexusIqCredentialsId())
+                            .influxUrl(influx.url)
+                            .influxOrg('CustomOrg')
+                            .influxBucket('custom-bucket')
+                            .influxToken('panel-token')
+                            .build()
+                })
+        def rows = configured.query('buckets() |> limit(n: 1)')
+
+        then:
+        configured.configured()
+        configured.bucket() == '"custom-bucket"'
+        rows == [[table: '0', name: 'custom-bucket']]
+        with(influx.requests.first()) {
+            query == 'org=CustomOrg'
+            authorization == 'Token panel-token'
+        }
+    }
+
     private static InfluxQueryClient client(String url, String token = null) {
         new InfluxQueryClient(new InfluxProperties(url, 'DevSecOps', 'DORA-metrics', token, '365d'), RestClient.builder())
     }
 }
+

@@ -17,7 +17,22 @@ public record PlatformSettings(@With String jenkinsUrl, String jenkinsLibrary, S
                                Integer proxyPort, String proxyUser, String oisHost, String sonarServerUrl,
                                String sonarInstallationName, String nexusIqServerUrl, String nexusIqCredentialsId,
                                String nexusSnapshotRepositoryUrl, String nexusSnapshotRepositoryId,
-                               String influxWriteUrl, String influxCredentialsId, String iosBuildAgent) {
+                               String influxWriteUrl, String influxCredentialsId, String iosBuildAgent,
+                               String influxUrl, String influxOrg, String influxBucket, String influxToken,
+                               String grafanaName, String grafanaDashboardUrl, String grafanaSecurityDashboardUrl,
+                               String grafana2Name, String grafana2DashboardUrl, String grafana2SecurityDashboardUrl) {
+
+    public PlatformSettings(String jenkinsUrl, String jenkinsLibrary, String asocUrl,
+                            String appScanClientLinuxUrl, String appScanClientWindowsUrl, String proxyHost,
+                            Integer proxyPort, String proxyUser, String oisHost, String sonarServerUrl,
+                            String sonarInstallationName, String nexusIqServerUrl, String nexusIqCredentialsId,
+                            String nexusSnapshotRepositoryUrl, String nexusSnapshotRepositoryId,
+                            String influxWriteUrl, String influxCredentialsId, String iosBuildAgent) {
+        this(jenkinsUrl, jenkinsLibrary, asocUrl, appScanClientLinuxUrl, appScanClientWindowsUrl, proxyHost, proxyPort,
+                proxyUser, oisHost, sonarServerUrl, sonarInstallationName, nexusIqServerUrl, nexusIqCredentialsId,
+                nexusSnapshotRepositoryUrl, nexusSnapshotRepositoryId, influxWriteUrl, influxCredentialsId,
+                iosBuildAgent, null, null, null, null, null, null, null, null, null, null);
+    }
 
     public PlatformSettings {
         jenkinsUrl = trimToNull(jenkinsUrl);
@@ -37,6 +52,16 @@ public record PlatformSettings(@With String jenkinsUrl, String jenkinsLibrary, S
         influxWriteUrl = trimToNull(influxWriteUrl);
         influxCredentialsId = trimToNull(influxCredentialsId);
         iosBuildAgent = trimToNull(iosBuildAgent);
+        influxUrl = trimToNull(influxUrl);
+        influxOrg = trimToNull(influxOrg);
+        influxBucket = trimToNull(influxBucket);
+        influxToken = trimToNull(influxToken);
+        grafanaName = trimToNull(grafanaName);
+        grafanaDashboardUrl = trimToNull(grafanaDashboardUrl);
+        grafanaSecurityDashboardUrl = trimToNull(grafanaSecurityDashboardUrl);
+        grafana2Name = trimToNull(grafana2Name);
+        grafana2DashboardUrl = trimToNull(grafana2DashboardUrl);
+        grafana2SecurityDashboardUrl = trimToNull(grafana2SecurityDashboardUrl);
     }
 
     public Map<String, Object> toConfig() {

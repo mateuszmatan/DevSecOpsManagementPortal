@@ -83,13 +83,17 @@ tasks.named('bootRun') {
     workingDir = rootDir
 }
 
+jacoco {
+    toolVersion = libs.versions.jacoco.get()
+}
+
 testing {
     suites {
         configureEach {
             useJUnitJupiter()
             targets.configureEach {
                 testTask.configure {
-                    jvmArgs '-XX:+EnableDynamicAgentLoading'
+                    jvmArgs '-XX:+EnableDynamicAgentLoading', '-Duser.language=en', '-Duser.country=US'
                     testLogging {
                         events 'failed'
                         exceptionFormat = 'full'
@@ -122,6 +126,8 @@ testing {
                             extensions.getByType(JacocoTaskExtension).enabled = false
                             systemProperty 'regression.expectedDir', file('src/regressionTest/resources/regression').absolutePath
                             systemProperty 'performance.report', layout.buildDirectory.file("reports/performance/backend-performance-report.md").get().asFile.absolutePath
+                            forward(it, 'regression.updateExpected', 'smoke.baseUrl', 'smoke.ui')
+                            systemProperty 'performance.factor', performanceFactor
                             if (suiteName != 'regressionTest') {
                                 outputs.upToDateWhen { false }
                                 outputs.cacheIf { false }
@@ -145,3 +151,22 @@ tasks.named('jacocoTestReport') {
         html.required = true
     }
 }
+
+tasks.named('jacocoTestCoverageVerification') {
+    classDirectories.setFrom(coveredClasses)
+    violationRules {
+        rule {
+            element = 'BUNDLE'
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = providers.gradleProperty('coverage.minimum').getOrElse('0.60') as BigDecimal
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('jacocoTestCoverageVerification')
+}
+

@@ -123,45 +123,12 @@ of the portal you run.
 
 ## Screenshots
 
-`screenshots/v1` to `screenshots/v18` hold screenshots of the GUIs, one folder per version, taken while Beadle and
-the DevSecOps Management Portal were still one portal with two menus; the pages look the same in the two applications
-of today, each under its own header. The screenshots of the Change Evidence page are gone from every version, as the
-page itself is. `screenshots/v1` to `screenshots/v13`: v7 shows the
-departments, v8 the ten demo integrations with the charts of Product Management and Pipeline Monitoring, v9 the
-ServiceNow production change raised from Beadle, v10 the Self-service wizard and the Admin tabs of DevSecOps
-Management, Beadle Admin with the ServiceNow defaults of a product, and the production change by FixVersion, v11
-the Nexus IQ GoldenFix pipeline: the Self-service wizard choosing it, the product and pipeline pages of DevSecOps Admin
-and Pipeline Monitoring, and two pages of the DSOEnhanced report of the new pipeline, v12 Beadle synchronised with ProTech: the Changes tab filtered and sorted in its headers, the
-ProTech workflow progress of a change, an update edited by its department, published to ProTech and applied, the New
-Change wizard and Beadle Admin with departments, products and the change template of a product, and v13 the
-guided New Change wizard step by step (generic request data with the magnifier lookups, Jira, approval and
-notification, the schedule with a downtime window, planning, privileged access, the risk assessment lists and secure
-coding, then review and raised), the change page with the new fields, its edit page and the Beadle Admin change
-template in the same sections.
+`screenshots/v1` to `screenshots/v18` hold screenshots of the DevSecOps Management Portal UI across versions:
+- `v7` shows the departments.
+- `v8` shows the demo integrations with the charts of Product Management and Pipeline Monitoring.
+- `v10` shows the Self-service wizard and the Admin tabs of DevSecOps Management.
+- `v11` shows the Nexus IQ GoldenFix pipeline: the Self-service wizard choosing it, the product and pipeline pages of DevSecOps Admin and Pipeline Monitoring, and two pages of the DSOEnhanced report of the new pipeline.
+- `v15` shows the Pipelines tab of a department filtered and sorted in its headers, the page of a pipeline with its key, settings, Jenkinsfile and recent runs, a pipeline with an invalidated key, the Self-service wizard with the defaults of the library and the service template, Pipeline Monitoring, and the Admin tabs with the pipeline form filled from the template and the Service template page itself.
+- `v16` shows step 2 of the Self-service wizard with the pipelines in their order and names: SAST (Static Application Security Tests) - HCL AppScan, OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull Request), Security and Full.
+- `v18` shows Pipeline Monitoring reading a real InfluxDB: the overview with the delivery performance, a product and a pipeline over 30 days, and the pipeline page with the dashboard cards of two Grafana instances.
 
-`screenshots/v14` shows every function of Beadle after its review: the Changes tab of a department filtered and
-sorted in its headers, a change read from ProTech with its workflow progress, an escalated approval, an update ProTech
-did not apply and a closed change, an open change edited in ProTech's sections, published and applied, the New Change
-wizard step by step with the short description and description written on the Jira step, the review and the raised
-change followed in Beadle, Beadle Admin with departments, products added without any DevSecOps setting, the change
-template of a product and the refusal to delete a product whose services live in DevSecOps Management, and the
-pages in a narrow window.
-
-`screenshots/v15` shows DevSecOps Management: the Pipelines tab of your department filtered and sorted in its
-headers, the page of a pipeline with its key, settings, Jenkinsfile and recent runs, a pipeline with an invalidated
-key, the Self-service wizard with the defaults of the library and the service template, Pipeline Monitoring, and the
-Admin tabs with the pipeline form filled from the template and the Service template page itself.
-
-`screenshots/v16` shows step 2 of the Self-service wizard with the pipelines in their new order and names: SAST
-(Static Application Security Tests) - HCL AppScan, OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull
-Request), Security and Full with what each one runs in smaller print, for a new product and for a product in the
-portal, and in a narrow window.
-
-`screenshots/v17` shows the New Change wizard with the template values as defaults everywhere: step 1 without a
-product description, a FixVersion released in the past and the Schedule planned on the next day at the template's
-times, the risk assessment with the template's answers and its option lists exactly as ProTech has them, with no "Not
-assessed" entry, the review, and in Beadle Admin the change template of a product without a product description, its
-risk assessment and a new product whose answers start at the first option of each list.
-
-`screenshots/v18` shows Pipeline Monitoring reading a real InfluxDB: the overview with the delivery performance, a
-product and a pipeline over 30 days, and the pipeline page with the dashboard cards of two Grafana instances.

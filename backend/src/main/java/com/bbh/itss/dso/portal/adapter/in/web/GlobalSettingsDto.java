@@ -74,7 +74,18 @@ public record GlobalSettingsDto(
             @Size(max = 200) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String nexusSnapshotRepositoryId,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String influxWriteUrl,
             @Size(max = 200) String influxCredentialsId,
-            @Size(max = 255) String iosBuildAgent) implements Mirrors<PlatformSettings> {
+            @Size(max = 255) String iosBuildAgent,
+            @Size(max = 500) @Pattern(regexp = URL, message = URL_MESSAGE) String influxUrl,
+            @Size(max = 200) String influxOrg,
+            @Size(max = 200) String influxBucket,
+            @Size(max = 500) String influxToken,
+            @Size(max = 100) String grafanaName,
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String grafanaDashboardUrl,
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String grafanaSecurityDashboardUrl,
+            @Size(max = 100) String grafana2Name,
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String grafana2DashboardUrl,
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String grafana2SecurityDashboardUrl)
+            implements Mirrors<PlatformSettings> {
     }
 
     public record DeploymentDefaultsDto(

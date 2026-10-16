@@ -9,6 +9,10 @@ allprojects {
     version = findProperty('artifactVersion') ?: '0.1.0-SNAPSHOT'
 }
 
+def performanceFactor = providers.systemProperty('performance.factor')
+        .orElse(providers.gradleProperty('performance.factor'))
+        .getOrElse('2.0')
+
 subprojects {
     apply plugin: 'base'
 
@@ -22,4 +26,15 @@ subprojects {
             options.compilerArgs << '-parameters'
         }
     }
+
+    ext.performanceFactor = performanceFactor
+    ext.forward = { Test task, String... names ->
+        names.each { name ->
+            def value = providers.systemProperty(name).orNull
+            if (value != null) {
+                task.systemProperty name, value
+            }
+        }
+    }
 }
+

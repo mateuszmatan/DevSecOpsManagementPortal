@@ -7,7 +7,6 @@ labels:
       app.kubernetes.io/part-of: bbh-devsecops
 resources:
   - deployment.yaml
-  - storage.yaml
   - service.yaml
   - route.yaml
 configMapGenerator:

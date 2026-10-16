@@ -49,10 +49,6 @@ pluginManagement {
   }
 
   repositories {
-    maven { url = 'https://tools.bbh.com/nexus/content/groups/public' }
-    maven { url = uri("https://tools.bbh.com/nexus/repository/gradle-plugins/") }
-    maven { url = uri("https://tools.bbh.com/nexus/repository/maven-public/") }
-    maven { url = uri("https://tools.bbh.com/nexus/repository/EXT_Cloudera") }
     gradle.ext.bbhRepositories(it, true)
   }
 

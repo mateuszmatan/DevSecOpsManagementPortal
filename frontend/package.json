@@ -4,16 +4,17 @@
   "private": true,
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "start:public": "ng serve --configuration=public",
+    "install:bbh": "npm install --no-save --no-audit --no-fund @v6/v6-themes@21 @v6/v6-table @v6/v6-icons",
+    "start": "ng serve --configuration=public",
+    "start:bbh": "ng serve --configuration=development",
     "build": "ng build --configuration=production,public",
-    "build:prod": "ng build --configuration=production",
+    "build:bbh": "ng build --configuration=production",
     "test": "ng test --watch=false"
   },
   "packageManager": "npm@10.8.2",
   "engines": {
-    "node": ">=20.19.4 <21.0.0",
-    "npm": ">=10.8.2 <11.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "dependencies": {
     "@angular/cdk": "21.2.14",

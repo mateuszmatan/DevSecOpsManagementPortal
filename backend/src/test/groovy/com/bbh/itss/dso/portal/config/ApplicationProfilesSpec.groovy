@@ -12,12 +12,13 @@ class ApplicationProfilesSpec extends Specification {
     static final Map ORACLE = [DB_URL     : 'jdbc:oracle:thin:@//oracle.bbh.test:1521/DSOPORTAL',
                                DB_USERNAME: 'DSO_PORTAL', DB_PASSWORD: 'secret']
 
-    def "the portal runs on port 8080 on a persistent H2 database in the home folder, with no profile and no demo data"() {
+    def "without a profile the portal runs locally on port 8080 on a persistent H2 database in the home folder"() {
         when:
         def env = environment([], [:])
 
         then:
         env.activeProfiles as List == []
+        env.defaultProfiles as List == ['local']
         env.getProperty('server.port') == '8080'
         env.getProperty('spring.datasource.url') == "jdbc:h2:file:${System.getProperty('user.home')}/bbh-devsecops/dso-portal/dso-portal;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE"
         env.getProperty('spring.jpa.hibernate.ddl-auto') == 'none'
@@ -26,15 +27,42 @@ class ApplicationProfilesSpec extends Specification {
         env.getProperty('management.endpoint.health.show-details') == 'always'
     }
 
-    def "DSO_DATA_DIR moves the database files, for example onto the volume of the container"() {
+    def "DSO_DATA_DIR moves the local H2 database files, for example onto a container volume"() {
         expect:
         environment([], [DSO_DATA_DIR: '/application/data']).getProperty('spring.datasource.url') ==
                 'jdbc:h2:file:/application/data/dso-portal;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE'
     }
 
-    def "the portal stays on its H2 file whatever profile is switched on: no profile connects it to Oracle"() {
-        expect:
-        environment([profile], ORACLE).getProperty('spring.datasource.url').startsWith('jdbc:h2:file:')
+    def "the #profile profile runs on the Oracle database given by the environment"() {
+        when:
+        def env = environment([profile], ORACLE + variables)
+
+        then:
+        env.activeProfiles as List == [profile, 'oracle']
+        env.getProperty('spring.datasource.url') == ORACLE.DB_URL
+        env.getProperty('spring.datasource.username') == 'DSO_PORTAL'
+        env.getProperty('spring.datasource.password') == 'secret'
+        env.getProperty('spring.jpa.hibernate.ddl-auto') == 'validate'
+        env.getProperty('spring.liquibase.analytics-enabled') == 'false'
+        env.getProperty('spring.datasource.hikari.maximum-pool-size') == poolSize
+        env.getProperty('management.endpoint.health.show-details') == healthDetails
+        env.getProperty('logging.level.com.bbh.itss.dso') == logLevel
+
+        where:
+        profile | variables            || poolSize | healthDetails | logLevel
+        'rd'    | [:]                  || '5'      | 'always'      | 'DEBUG'
+        'qc'    | [:]                  || '10'     | 'always'      | 'INFO'
+        'prod'  | [:]                  || '20'     | 'never'       | 'INFO'
+        'prod'  | [DB_POOL_SIZE: '40'] || '40'     | 'never'       | 'INFO'
+    }
+
+    def "the #profile profile does not start without the database address"() {
+        when:
+        environment([profile], [:]).getProperty('spring.datasource.url')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('DB_URL')
 
         where:
         profile << ['rd', 'qc', 'prod', 'oracle']

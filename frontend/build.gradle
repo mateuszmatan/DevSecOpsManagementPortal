@@ -12,7 +12,7 @@ def nodeCommand = { String name ->
 def npmCmd = nodeCommand('npm')
 def npxCmd = nodeCommand('npx')
 
-def bbhNetwork = (findProperty('bbhNetwork') ?: false) as boolean
+def bbhNetwork = gradle.ext.bbhNetwork as boolean
 def npmSettings = [
         'npm.registry'   : 'npm_config_registry',
         'npm.strictSsl'  : 'npm_config_strict_ssl',
@@ -52,7 +52,7 @@ tasks.register('installNpmCIDeps', Exec) {
     environment npmEnvironment
     inputs.files('package.json', 'package-lock.json', '.npmrc')
     inputs.property('registry', npmEnvironment.npm_config_registry ?: '')
-    commandLine = npmCmd + ['ci', '--no-audit', '--no-fund']
+    commandLine = npmCmd + ['ci', '--no-audit', '--no-fund', '--engine-strict=false']
     outputs.file(npmInstalled)
     outputs.upToDateWhen { file('node_modules').isDirectory() }
     doLast { npmInstalled.get().asFile.text = 'npm ci' }
@@ -131,6 +131,9 @@ testing {
                             inputs.dir(distDir).withPathSensitivity(PathSensitivity.RELATIVE)
                             systemProperty 'frontend.dist', distDir.asFile.absolutePath
                             systemProperty 'frontend.reports', layout.buildDirectory.dir('reports/frontend').get().asFile.absolutePath
+                            systemProperty 'performance.report', layout.buildDirectory.file('reports/performance/frontend-performance-report.md').get().asFile.absolutePath
+                            forward(it, 'frontend.browser', 'frontend.headed', 'smoke.baseUrl')
+                            systemProperty 'performance.factor', performanceFactor
                             testLogging {
                                 events 'failed'
                                 exceptionFormat = 'full'

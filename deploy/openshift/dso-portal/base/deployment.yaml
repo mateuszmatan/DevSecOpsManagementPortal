@@ -6,7 +6,7 @@ spec:
   replicas: 1
   revisionHistoryLimit: 5
   strategy:
-    type: Recreate
+    type: RollingUpdate
   template:
     spec:
       securityContext:
@@ -14,10 +14,6 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       terminationGracePeriodSeconds: 45
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: dso-portal-data
       containers:
         - name: dso-portal
           image: dso-portal
@@ -30,16 +26,13 @@ spec:
             - configMapRef:
                 name: dso-portal-config
             - secretRef:
+                name: dso-portal-db
+            - secretRef:
                 name: dso-portal-influx
                 optional: true
           env:
-            - name: DSO_DATA_DIR
-              value: /application/data
             - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
               value: "true"
-          volumeMounts:
-            - name: data
-              mountPath: /application/data
           resources:
             requests:
               cpu: 250m

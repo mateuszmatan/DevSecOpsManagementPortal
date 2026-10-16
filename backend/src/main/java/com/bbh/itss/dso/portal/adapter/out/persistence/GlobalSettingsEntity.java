@@ -91,7 +91,12 @@ public class GlobalSettingsEntity extends AuditedEntity implements Persistable<L
             String proxyHost, Integer proxyPort, String proxyUser, String oisHost, String sonarServerUrl,
             String sonarInstallationName, String nexusIqServerUrl, String nexusIqCredentialsId,
             @Column(name = "NEXUS_SNAPSHOT_URL") String nexusSnapshotRepositoryUrl, String nexusSnapshotRepositoryId,
-            String influxWriteUrl, String influxCredentialsId, String iosBuildAgent) {
+            String influxWriteUrl, String influxCredentialsId, String iosBuildAgent,
+            String influxUrl, String influxOrg, String influxBucket, String influxToken,
+            String grafanaName, String grafanaDashboardUrl, String grafanaSecurityDashboardUrl,
+            @Column(name = "GRAFANA2_NAME") String grafana2Name,
+            @Column(name = "GRAFANA2_DASHBOARD_URL") String grafana2DashboardUrl,
+            @Column(name = "GRAFANA2_SECURITY_DASHBOARD_URL") String grafana2SecurityDashboardUrl) {
     }
 
     @Embeddable

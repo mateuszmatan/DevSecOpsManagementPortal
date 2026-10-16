@@ -122,6 +122,67 @@ export const SETTINGS_PAGE: SettingsSection[] = [
           }),
         ],
       },
+      {
+        heading: 'Portal monitoring (InfluxDB & Grafana)',
+        note: 'Where the portal reads pipeline statistics and DORA metrics from InfluxDB, and the Grafana dashboards linked on the Pipeline Monitoring pages. Leave empty to use the server environment defaults.',
+        fields: [
+          mono('influxUrl', 'InfluxDB read URL', 'dso.influx.url', 6, {
+            placeholder: 'http://qcwsecopsmon1.testbbh.com:8086',
+            hint: 'The InfluxDB v2 address the portal queries for pipeline runs and DORA metrics',
+          }),
+          mono('influxOrg', 'InfluxDB organization', 'dso.influx.org', 3, {
+            placeholder: 'DevSecOps',
+          }),
+          mono('influxBucket', 'InfluxDB bucket', 'dso.influx.bucket', 3, {
+            placeholder: 'DORA-metrics',
+          }),
+          mono('influxToken', 'InfluxDB read token', 'dso.influx.token', 12, {
+            hint: 'Read token used by the portal to query InfluxDB `/api/v2/query`',
+          }),
+          mono('grafanaName', 'Grafana instance name', 'dso.grafana.instances[0].name', 4, {
+            placeholder: 'Grafana',
+          }),
+          mono(
+            'grafanaDashboardUrl',
+            'Grafana pipeline dashboard URL',
+            'dso.grafana.instances[0].dashboard-url',
+            4,
+            {
+              placeholder: 'https://grafana.bbh.com/d/adzfc54123/devsecops-pipeline-long',
+            },
+          ),
+          mono(
+            'grafanaSecurityDashboardUrl',
+            'Grafana security dashboard URL',
+            'dso.grafana.instances[0].security-dashboard-url',
+            4,
+            {
+              placeholder: 'https://grafana.bbh.com/d/ad2trcm/devsecops-security',
+            },
+          ),
+          mono(
+            'grafana2Name',
+            'Second Grafana instance name',
+            'dso.grafana.instances[1].name',
+            4,
+            {
+              placeholder: 'Grafana prod',
+            },
+          ),
+          mono(
+            'grafana2DashboardUrl',
+            'Second Grafana pipeline dashboard URL',
+            'dso.grafana.instances[1].dashboard-url',
+            4,
+          ),
+          mono(
+            'grafana2SecurityDashboardUrl',
+            'Second Grafana security dashboard URL',
+            'dso.grafana.instances[1].security-dashboard-url',
+            4,
+          ),
+        ],
+      },
     ],
   },
   {

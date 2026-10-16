@@ -50,7 +50,26 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
         new GrafanaDashboardLinksAdapter(new GrafanaProperties([])).dashboards(tag, FULL, 30) == []
     }
 
+    def "Grafana instances configured in the management panel override the environment properties"() {
+        given:
+        def store = new com.bbh.itss.dso.portal.adapter.MonitoringSettingsStore()
+        def adapter = new GrafanaDashboardLinksAdapter(properties(['Env Grafana', PIPELINE, SECURITY]), store)
+
+        when:
+        store.update(com.bbh.itss.dso.portal.domain.settings.PlatformSettings.builder()
+                .grafanaName('Panel Grafana')
+                .grafanaDashboardUrl(PROD)
+                .grafanaSecurityDashboardUrl(SECURITY)
+                .build())
+
+        then:
+        adapter.instances() == [new DashboardLink('Panel Grafana', PROD)]
+        adapter.dashboards(tag, FULL, 30) == [new DashboardLink('Panel Grafana', "$PROD?var-project=CERT%20gui&from=now-30d&to=now")]
+        adapter.dashboards(tag, SAST, 30) == [new DashboardLink('Panel Grafana', "$SECURITY&var-project=CERT%20gui&from=now-30d&to=now")]
+    }
+
     static GrafanaProperties properties(List<String>... instances) {
         new GrafanaProperties(instances.collect { new GrafanaProperties.Instance(it[0], it[1], it[2]) })
     }
 }
+

@@ -3,13 +3,15 @@ spring:
     name: dso-portal
   config:
     import: classpath:bbh-devsecops-common.yml
-  datasource:
-    url: jdbc:h2:file:${DSO_DATA_DIR:${user.home}/bbh-devsecops/dso-portal}/dso-portal;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
+  profiles:
+    default: local
+    group:
+      rd: oracle
+      qc: oracle
+      prod: oracle
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
 
 server:
   port: ${PORT:8080}
@@ -17,7 +19,7 @@ server:
 management:
   endpoint:
     health:
-      show-details: always
+      show-details: never
 
 logging:
   level:
@@ -43,7 +45,58 @@ dso:
 spring:
   config:
     activate:
+      on-profile: local
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:${DSO_DATA_DIR:${user.home}/bbh-devsecops/dso-portal}/dso-portal;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: none
+management:
+  endpoint:
+    health:
+      show-details: always
+---
+spring:
+  config:
+    activate:
+      on-profile: oracle
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+---
+spring:
+  config:
+    activate:
       on-profile: rd
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+management:
+  endpoint:
+    health:
+      show-details: always
 logging:
   level:
     com.bbh.itss.dso: DEBUG
+---
+spring:
+  config:
+    activate:
+      on-profile: qc
+management:
+  endpoint:
+    health:
+      show-details: always
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
