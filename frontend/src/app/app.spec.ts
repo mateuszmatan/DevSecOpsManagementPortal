@@ -39,7 +39,7 @@ describe('App', () => {
       'Pipelines',
       'Self-service',
       'Pipeline Monitoring',
-      'Historia akcji',
+      'Action history',
       'Admin',
     ]);
     expect(links().map((link) => link.getAttribute('href'))).toEqual([
@@ -68,8 +68,8 @@ describe('App', () => {
         'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.',
       ],
       [
-        'Historia akcji DevSecOps',
-        'Historia i audyt wszystkich operacji w portalu: kto, kiedy, co zrobił i jaki był efekt.',
+        'DevSecOps Action History',
+        'History and audit log of all operations in the portal: who, when, what was done and the result.',
       ],
       [
         'DevSecOps Admin',
@@ -84,7 +84,7 @@ describe('App', () => {
     ['/admin/products/2/edit', 'Admin'],
     ['/pipelines/100', 'Pipelines'],
     ['/self-service', 'Self-service'],
-    ['/history', 'Historia akcji'],
+    ['/history', 'Action history'],
   ])('marks the section of %s', async (url, label) => {
     await TestBed.inject(Router).navigateByUrl(url);
     await fixture.whenStable();

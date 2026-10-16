@@ -26,10 +26,10 @@ export const MONITORING: PortalSection = {
 
 export const ACTION_HISTORY: PortalSection = {
   path: '/history',
-  label: 'Historia akcji',
-  heading: 'Historia akcji DevSecOps',
+  label: 'Action history',
+  heading: 'DevSecOps Action History',
   description:
-    'Historia i audyt wszystkich operacji w portalu: kto, kiedy, co zrobił i jaki był efekt.',
+    'History and audit log of all operations in the portal: who, when, what was done and the result.',
 };
 
 export const ADMIN: PortalSection = {

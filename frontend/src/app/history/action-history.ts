@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActionHistoryApi } from '../core/api';
@@ -11,31 +11,31 @@ import { GRID, GridColumn } from '@common/ui/grid';
 import { DsoLoading } from '@common/ui/loading';
 
 export const ACTION_OPTIONS: { value: string; label: string }[] = [
-  { value: 'ALL', label: 'Wszystkie akcje' },
-  { value: 'CREATE_PRODUCT', label: 'Utworzenie produktu' },
-  { value: 'UPDATE_PRODUCT', label: 'Aktualizacja produktu/serwisów' },
-  { value: 'DELETE_PRODUCT', label: 'Usunięcie produktu' },
-  { value: 'CREATE_PIPELINE', label: 'Utworzenie pipeline' },
-  { value: 'UPDATE_PIPELINE', label: 'Aktualizacja pipeline' },
-  { value: 'DELETE_PIPELINE', label: 'Usunięcie pipeline' },
-  { value: 'ROTATE_KEY', label: 'Rotacja / wydanie klucza' },
-  { value: 'REVOKE_KEY', label: 'Unieważnienie klucza' },
-  { value: 'INITIALIZE_PORTAL', label: 'Inicjalizacja portalu' },
+  { value: 'ALL', label: 'All actions' },
+  { value: 'CREATE_PRODUCT', label: 'Create product' },
+  { value: 'UPDATE_PRODUCT', label: 'Update product/services' },
+  { value: 'DELETE_PRODUCT', label: 'Delete product' },
+  { value: 'CREATE_PIPELINE', label: 'Create pipeline' },
+  { value: 'UPDATE_PIPELINE', label: 'Update pipeline' },
+  { value: 'DELETE_PIPELINE', label: 'Delete pipeline' },
+  { value: 'ROTATE_KEY', label: 'Rotate / issue key' },
+  { value: 'REVOKE_KEY', label: 'Revoke key' },
+  { value: 'INITIALIZE_PORTAL', label: 'Initialize portal' },
 ];
 
 export const RESOURCE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'ALL', label: 'Wszystkie zasoby' },
-  { value: 'PRODUCT', label: 'Produkt' },
-  { value: 'SERVICE', label: 'Serwis' },
+  { value: 'ALL', label: 'All resources' },
+  { value: 'PRODUCT', label: 'Product' },
+  { value: 'SERVICE', label: 'Service' },
   { value: 'PIPELINE', label: 'Pipeline' },
-  { value: 'PIPELINE_KEY', label: 'Klucz pipeline' },
+  { value: 'PIPELINE_KEY', label: 'Pipeline key' },
   { value: 'PORTAL', label: 'Portal' },
 ];
 
 export const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: 'ALL', label: 'Wszystkie statusy' },
-  { value: 'SUCCESS', label: 'Sukces' },
-  { value: 'FAILURE', label: 'Błąd' },
+  { value: 'ALL', label: 'All statuses' },
+  { value: 'SUCCESS', label: 'Success' },
+  { value: 'FAILURE', label: 'Failure' },
 ];
 
 @Component({
@@ -50,19 +50,19 @@ export const STATUS_OPTIONS: { value: string; label: string }[] = [
           <p class="page-description">{{ section.description }}</p>
         </div>
         <div class="actions">
-          <button type="button" class="btn btn-outline-primary" (click)="reload()">Odśwież</button>
+          <button type="button" class="btn btn-outline-primary" (click)="reload()">Refresh</button>
         </div>
       </header>
 
       <section class="card toolbar">
         <form [formGroup]="filters" class="filters-row">
           <dso-form-field class="search-field">
-            <dso-label>Szukaj</dso-label>
-            <input dsoInput formControlName="search" placeholder="Użytkownik, zasób, szczegóły..." autocomplete="off" />
+            <dso-label>Search</dso-label>
+            <input dsoInput formControlName="search" placeholder="User, resource, details..." autocomplete="off" />
           </dso-form-field>
 
           <dso-form-field class="select-field">
-            <dso-label>Akcja</dso-label>
+            <dso-label>Action</dso-label>
             <select dsoInput formControlName="actionType">
               @for (option of actionOptions; track option.value) {
                 <option [value]="option.value">{{ option.label }}</option>
@@ -71,7 +71,7 @@ export const STATUS_OPTIONS: { value: string; label: string }[] = [
           </dso-form-field>
 
           <dso-form-field class="select-field">
-            <dso-label>Zasób</dso-label>
+            <dso-label>Resource</dso-label>
             <select dsoInput formControlName="resourceType">
               @for (option of resourceOptions; track option.value) {
                 <option [value]="option.value">{{ option.label }}</option>
@@ -94,14 +94,14 @@ export const STATUS_OPTIONS: { value: string; label: string }[] = [
         <dso-loading />
       } @else if (logsResource.error(); as error) {
         <div class="banner danger" role="alert">
-          Nie udało się załadować historii akcji.
-          <button type="button" class="btn btn-outline-primary" (click)="reload()">Spróbuj ponownie</button>
+          Could not load action history.
+          <button type="button" class="btn btn-outline-primary" (click)="reload()">Try again</button>
         </div>
       } @else {
         @if (filteredRows().length) {
           <section class="card list">
             <header class="list-head">
-              <span class="shown">Liczba operacji: {{ filteredRows().length }}</span>
+              <span class="shown">Operations: {{ filteredRows().length }}</span>
             </header>
             <dso-grid
               [rows]="filteredRows()"
@@ -125,17 +125,17 @@ export const STATUS_OPTIONS: { value: string; label: string }[] = [
               </ng-template>
               <ng-template dsoCell="status" let-row>
                 @if (row.status === 'SUCCESS') {
-                  <span class="chip success">Sukces</span>
+                  <span class="chip success">Success</span>
                 } @else {
-                  <span class="chip danger">Błąd</span>
+                  <span class="chip danger">Failure</span>
                 }
               </ng-template>
             </dso-grid>
           </section>
         } @else {
           <div class="card empty-state">
-            <h3>Brak wpisów w historii akcji</h3>
-            <p>Wszystkie akcje użytkowników dotyczące produktów, serwisów, pipelineów i kluczy będą rejestrowane tutaj.</p>
+            <h3>No action history entries</h3>
+            <p>All user actions on products, services, pipelines and keys will be recorded here.</p>
           </div>
         }
       }
@@ -252,47 +252,47 @@ export class ActionHistoryPage {
   protected readonly columns: GridColumn<ActionLog>[] = [
     {
       key: 'time',
-      header: 'Kiedy',
+      header: 'Time',
       sortValue: (row) => Date.parse(row.createdAt) || 0,
       width: 170,
     },
     {
       key: 'user',
-      header: 'Użytkownik',
+      header: 'User',
       value: (row) => row.userDisplayName || row.username,
       sortValue: (row) => (row.userDisplayName || row.username).toLowerCase(),
       width: 190,
     },
     {
       key: 'department',
-      header: 'Dział',
+      header: 'Department',
       value: (row) => row.departmentName || '—',
       sortValue: (row) => (row.departmentName || '').toLowerCase(),
       width: 150,
     },
     {
       key: 'action',
-      header: 'Akcja',
+      header: 'Action',
       value: (row) => row.actionType,
       sortValue: (row) => row.actionType,
       width: 160,
     },
     {
       key: 'resource',
-      header: 'Zasób',
+      header: 'Resource',
       value: (row) => `${row.resourceType}: ${row.resourceName || ''}`,
       sortValue: (row) => `${row.resourceType} ${row.resourceName || ''}`.toLowerCase(),
       width: 200,
     },
     {
       key: 'details',
-      header: 'Szczegóły operacji',
+      header: 'Details',
       value: (row) => row.details || '—',
       minWidth: 240,
     },
     {
       key: 'status',
-      header: 'Efekt',
+      header: 'Status',
       value: (row) => row.status,
       sortValue: (row) => row.status,
       width: 100,
