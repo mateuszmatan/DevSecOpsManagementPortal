@@ -1,8 +1,10 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
+import com.bbh.itss.dso.portal.application.actionlog.port.in.ActionLogUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
+import com.bbh.itss.dso.portal.domain.user.UserProfile;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,8 @@ import static org.springframework.web.servlet.support.ServletUriComponentsBuilde
 public class ProductController {
 
     private final ProductsUseCase products;
+    private final ActionLogUseCase actionLog;
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping
     public List<ProductSummaryView> list(@RequestParam(required = false) String search) {
@@ -49,18 +53,40 @@ public class ProductController {
     public ResponseEntity<ProductDto> create(@Valid @RequestBody ProductDto request,
                                              @RequestParam(required = false) PipelineType pipelineType) {
         ProductDto created = ProductDto.from(products.create(request.toCommand(pipelineType)));
+        recordLog("CREATE_PRODUCT", created.name(), "Created product " + created.code() + " with " + (created.services() != null ? created.services().size() : 0) + " service(s)");
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
     public ProductDto update(@PathVariable long id, @Valid @RequestBody ProductDto request,
                              @RequestParam(required = false) PipelineType pipelineType) {
-        return ProductDto.from(products.update(id, request.toCommand(pipelineType)));
+        ProductDto updated = ProductDto.from(products.update(id, request.toCommand(pipelineType)));
+        recordLog("UPDATE_PRODUCT", updated.name(), "Updated product " + updated.code());
+        return updated;
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
         products.delete(id);
+        recordLog("DELETE_PRODUCT", "Product #" + id, "Deleted product #" + id);
+    }
+
+    private void recordLog(String actionType, String resourceName, String details) {
+        try {
+            UserProfile user = currentUserProvider.getCurrentUser();
+            actionLog.log(
+                    user != null ? user.username() : "system",
+                    user != null ? user.displayName() : "System",
+                    user != null ? user.email() : null,
+                    user != null && !user.departmentNames().isEmpty() ? user.departmentNames().get(0) : null,
+                    actionType,
+                    "PRODUCT",
+                    resourceName,
+                    details,
+                    "SUCCESS"
+            );
+        } catch (Exception ignored) {
+        }
     }
 }

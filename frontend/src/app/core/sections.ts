@@ -24,6 +24,14 @@ export const MONITORING: PortalSection = {
     'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.',
 };
 
+export const ACTION_HISTORY: PortalSection = {
+  path: '/history',
+  label: 'Historia akcji',
+  heading: 'Historia akcji DevSecOps',
+  description:
+    'Historia i audyt wszystkich operacji w portalu: kto, kiedy, co zrobił i jaki był efekt.',
+};
+
 export const ADMIN: PortalSection = {
   path: '/admin',
   label: 'Admin',
@@ -32,7 +40,13 @@ export const ADMIN: PortalSection = {
     'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
 };
 
-export const SECTIONS: readonly PortalSection[] = [PIPELINES, SELF_SERVICE, MONITORING, ADMIN];
+export const SECTIONS: readonly PortalSection[] = [
+  PIPELINES,
+  SELF_SERVICE,
+  MONITORING,
+  ACTION_HISTORY,
+  ADMIN,
+];
 
 export const ADMIN_DEPARTMENTS: PortalTab = { path: '/admin/departments', label: 'Departments' };
 export const ADMIN_PRODUCTS: PortalTab = { path: '/admin/products', label: 'Products' };

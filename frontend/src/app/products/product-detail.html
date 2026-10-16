@@ -197,6 +197,13 @@
               </dl>
             </div>
             <div class="service-actions">
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                (click)="editServiceConfig(p, service)"
+              >
+                Configure service
+              </button>
               @if (canAddPipeline(service)) {
                 <button
                   type="button"

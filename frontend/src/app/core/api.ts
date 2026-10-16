@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
+  ActionLog,
   DepartmentPipelines,
   GlobalSettings,
   GlobalSettingsRequest,
@@ -19,6 +20,7 @@ import {
   ServicePipelines,
   ServiceTemplate,
   ServiceTemplateRequest,
+  UserProfile,
 } from './models';
 
 function typeParam(pipelineType?: PipelineType): HttpParams | undefined {
@@ -163,5 +165,35 @@ export class ServiceTemplateApi {
 
   update(request: ServiceTemplateRequest): Observable<ServiceTemplate> {
     return this.http.put<ServiceTemplate>('/api/service-template', request);
+  }
+}
+
+export interface ActionHistoryFilters {
+  search?: string;
+  actionType?: string;
+  resourceType?: string;
+  status?: string;
+}
+
+@Injectable({ providedIn: 'root' })
+export class ActionHistoryApi {
+  private readonly http = inject(HttpClient);
+
+  list(filters?: ActionHistoryFilters): Observable<ActionLog[]> {
+    let params = new HttpParams();
+    if (filters?.search) params = params.set('search', filters.search);
+    if (filters?.actionType && filters.actionType !== 'ALL') params = params.set('actionType', filters.actionType);
+    if (filters?.resourceType && filters.resourceType !== 'ALL') params = params.set('resourceType', filters.resourceType);
+    if (filters?.status && filters.status !== 'ALL') params = params.set('status', filters.status);
+    return this.http.get<ActionLog[]>('/api/action-history', { params });
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class UserApi {
+  private readonly http = inject(HttpClient);
+
+  me(): Observable<UserProfile> {
+    return this.http.get<UserProfile>('/api/user/me');
   }
 }

@@ -17,6 +17,7 @@ import {
   GoldenFixPolicy,
   NexusIqApplication,
   OpenShiftTarget,
+  PipelineType,
   Product,
   ProductRequest,
   REGIONS,
@@ -1041,6 +1042,46 @@ export function visibleSections(form: ServiceForm): ServiceSection[] {
   return SERVICE_SECTIONS.filter((section) => section.applies?.(tool, target) ?? true);
 }
 
+export function visibleSectionsForPipeline(
+  form: ServiceForm,
+  pipeline?: PipelineType | null,
+): ServiceSection[] {
+  const all = visibleSections(form);
+  if (!pipeline || pipeline === 'FULL') {
+    return all;
+  }
+  const allowed = new Set<ServiceSectionId>();
+  allowed.add('general');
+  allowed.add('build');
+  if (form.controls.build.controls.tool.value === 'FLUTTER') {
+    allowed.add('flutter');
+  }
+
+  switch (pipeline) {
+    case 'NEXUS_IQ':
+      allowed.add('nexusIq');
+      allowed.add('scm');
+      allowed.add('goldenFix');
+      break;
+    case 'SAST':
+      allowed.add('appScan');
+      allowed.add('scm');
+      break;
+    case 'SECURITY':
+      allowed.add('unitTests');
+      allowed.add('appScan');
+      allowed.add('sonar');
+      allowed.add('nexusIq');
+      allowed.add('scm');
+      allowed.add('goldenFix');
+      allowed.add('metrics');
+      break;
+    default:
+      return all;
+  }
+  return all.filter((s) => allowed.has(s.id));
+}
+
 export function sectionInvalid(form: ServiceForm, section: ServiceSection): boolean {
   return section.keys.some((key) => form.controls[key].invalid);
 }
@@ -1049,6 +1090,9 @@ export function sectionTouched(form: ServiceForm, section: ServiceSection): bool
   return section.keys.some((key) => form.controls[key].touched);
 }
 
-export function firstInvalidSection(form: ServiceForm): ServiceSectionId | null {
-  return visibleSections(form).find((section) => sectionInvalid(form, section))?.id ?? null;
+export function firstInvalidSection(
+  form: ServiceForm,
+  pipeline?: PipelineType | null,
+): ServiceSectionId | null {
+  return visibleSectionsForPipeline(form, pipeline).find((section) => sectionInvalid(form, section))?.id ?? null;
 }

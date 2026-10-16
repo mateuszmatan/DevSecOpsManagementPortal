@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.config
 
 import com.bbh.itss.dso.portal.application.UseCase
+import com.bbh.itss.dso.portal.application.actionlog.port.out.ActionLogRepositoryPort
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentRepositoryPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentUsagePort
@@ -64,6 +65,7 @@ class UseCaseConfigurationSpec extends Specification {
     PipelineRunsPort runs = Mock()
     DashboardLinksPort dashboards = Mock()
     ServiceTemplateRepositoryPort templates = Mock()
+    ActionLogRepositoryPort actionLogs = Mock()
 
     def runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(AopAutoConfiguration, TransactionAutoConfiguration))
@@ -78,6 +80,7 @@ class UseCaseConfigurationSpec extends Specification {
             .withBean(PipelineRunsPort, { runs } as Supplier<PipelineRunsPort>)
             .withBean(DashboardLinksPort, { dashboards } as Supplier<DashboardLinksPort>)
             .withBean(ServiceTemplateRepositoryPort, { templates } as Supplier<ServiceTemplateRepositoryPort>)
+            .withBean(ActionLogRepositoryPort, { actionLogs } as Supplier<ActionLogRepositoryPort>)
             .withBean(KeyGenerator, { { -> 'key' } as KeyGenerator } as Supplier<KeyGenerator>)
             .withBean(Clock, { systemUTC() } as Supplier<Clock>)
 
@@ -87,7 +90,7 @@ class UseCaseConfigurationSpec extends Specification {
             def useCases = context.getBeansWithAnnotation(UseCase)
             assert useCases.keySet() == ['globalSettingsService', 'productCatalogService', 'departmentService',
                                          'pipelineService', 'pipelineConfigService', 'pipelineMonitoringService',
-                                         'monitoringTargetsService', 'serviceTemplateService'] as Set
+                                         'monitoringTargetsService', 'serviceTemplateService', 'actionLogService'] as Set
             useCases.values().each { useCase ->
                 assert isAopProxy(useCase)
                 assert (useCase as Advised).advisors*.advice.any { it instanceof TransactionInterceptor }

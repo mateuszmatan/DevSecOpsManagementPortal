@@ -156,6 +156,7 @@ describe('PipelinePage', () => {
     expect(text(product)).toBe('Open CertScanner in Admin');
     expect(product.getAttribute('href')).toBe('/admin/products/1');
     expect([...document.querySelectorAll('.dso-menu button')].map(text)).toEqual([
+      'Edit service configuration',
       'Settings sent to Jenkins (config.yaml)',
       'Key history',
       'Replace key',
@@ -336,6 +337,15 @@ describe('PipelinePage', () => {
     await fixture.whenStable();
 
     expect(router.navigate).toHaveBeenCalledWith(['/pipelines']);
+  });
+
+  it('opens ServiceConfigDialog when clicking Edit service configuration', async () => {
+    await load();
+    open.mockReturnValueOnce(closed(false));
+    await menu('Edit service configuration');
+    await fixture.whenStable();
+
+    expect(open).toHaveBeenCalled();
   });
 
   it('says why the pipeline could not be read and leads back to the list', async () => {

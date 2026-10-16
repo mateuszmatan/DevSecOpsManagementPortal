@@ -158,10 +158,12 @@
         @let scan = f.controls.appScan;
         <div class="form-fields">
           <dso-fields [group]="scan" [fields]="appScan" />
-          <h4 class="sub-heading span-12">Dynamic scan (DAST)</h4>
-          <dso-fields [group]="scan" [fields]="dastEnabled" />
-          @if (scan.controls.dastEnabled.value) {
-            <dso-fields [group]="scan" [fields]="dast" />
+          @if (!pipeline() || pipeline() === 'FULL') {
+            <h4 class="sub-heading span-12">Dynamic scan (DAST)</h4>
+            <dso-fields [group]="scan" [fields]="dastEnabled" />
+            @if (scan.controls.dastEnabled.value) {
+              <dso-fields [group]="scan" [fields]="dast" />
+            }
           }
           <dso-advanced-settings
             summary="The service's own secret and the options of the static scan"

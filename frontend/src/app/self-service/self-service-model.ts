@@ -12,6 +12,7 @@ import {
   Service,
   ServiceDefaults,
   ServicePipelines,
+  ServiceRequest,
   ServiceTemplateValues,
   pipelineTypeLabel,
   pipelineTypeSlug,
@@ -171,6 +172,7 @@ export interface WizardService {
   openShiftProject: string;
   nexusIqApplication: string;
   repositoryUrl: string;
+  serviceRequest?: ServiceRequest;
 }
 
 export interface WizardDefaults {
@@ -210,7 +212,7 @@ export function fromService(service: Service): WizardService {
     appScanId: service.appScan.applicationId,
     tool: service.build.tool,
     target: service.deployment.target,
-    openShiftProject: '',
+    openShiftProject: service.openShiftTargets?.RD?.projectBuild?.replace(/-build$/, '') ?? '',
     nexusIqApplication: nexusIqApplicationOf(service),
     repositoryUrl: repositoryOf(service),
   };
@@ -395,6 +397,9 @@ export function serviceRequest(
   existing?: Service,
   defaults: ServiceDefaults | null = null,
 ) {
+  if (service.serviceRequest) {
+    return service.serviceRequest;
+  }
   const { target, retooled, moved } = resets(pipeline, service, existing);
   const openShift = target === 'OPENSHIFT';
   const build = buildDefaults(template, service.tool);

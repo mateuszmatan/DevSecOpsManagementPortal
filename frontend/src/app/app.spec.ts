@@ -39,12 +39,14 @@ describe('App', () => {
       'Pipelines',
       'Self-service',
       'Pipeline Monitoring',
+      'Historia akcji',
       'Admin',
     ]);
     expect(links().map((link) => link.getAttribute('href'))).toEqual([
       '/pipelines',
       '/self-service',
       '/monitoring',
+      '/history',
       '/admin',
     ]);
     expect(text(page())).not.toContain('Beadle');
@@ -66,6 +68,10 @@ describe('App', () => {
         'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.',
       ],
       [
+        'Historia akcji DevSecOps',
+        'Historia i audyt wszystkich operacji w portalu: kto, kiedy, co zrobił i jaki był efekt.',
+      ],
+      [
         'DevSecOps Admin',
         'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
       ],
@@ -78,6 +84,7 @@ describe('App', () => {
     ['/admin/products/2/edit', 'Admin'],
     ['/pipelines/100', 'Pipelines'],
     ['/self-service', 'Self-service'],
+    ['/history', 'Historia akcji'],
   ])('marks the section of %s', async (url, label) => {
     await TestBed.inject(Router).navigateByUrl(url);
     await fixture.whenStable();

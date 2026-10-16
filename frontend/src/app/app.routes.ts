@@ -49,6 +49,11 @@ export const routes: Routes = [
       import('./monitoring/pipeline-monitoring').then((m) => m.PipelineMonitoringPage),
   },
   {
+    path: 'history',
+    title: 'Historia akcji',
+    loadComponent: () => import('./history/action-history').then((m) => m.ActionHistoryPage),
+  },
+  {
     path: 'admin/products/new',
     title: 'Add product',
     canDeactivate: [unsavedChangesGuard],

@@ -109,6 +109,9 @@ const RECENT_RUNS = 5;
             </button>
             <ng-template #more>
               <div cdkMenu class="dropdown-menu dso-menu">
+                <button cdkMenuItem class="dropdown-item" (click)="editServiceConfig(p)">
+                  Edit service configuration
+                </button>
                 <a cdkMenuItem class="dropdown-item" [routerLink]="productLink(p.productId)"
                   >Open {{ p.productName }} in Admin</a
                 >
@@ -503,6 +506,14 @@ export class PipelinePage {
 
   protected edit(pipeline: Pipeline): void {
     this.actions.edit(pipeline).subscribe((updated) => this.changed(updated));
+  }
+
+  protected editServiceConfig(pipeline: Pipeline): void {
+    this.actions.editService(pipeline).subscribe((saved) => {
+      if (saved) {
+        this.pipeline.reload();
+      }
+    });
   }
 
   protected keyHistory(pipeline: Pipeline): void {

@@ -183,14 +183,24 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
                   <dso-status-chip [status]="row.status" />
                 </ng-template>
                 <ng-template dsoCell="actions" let-row>
-                  <button
-                    type="button"
-                    class="btn btn-link"
-                    [attr.aria-label]="'Edit the settings of ' + label(row.pipeline)"
-                    (click)="edit(row.pipeline)"
-                  >
-                    Edit
-                  </button>
+                  <div class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn-link"
+                      [attr.aria-label]="'Configure service of ' + label(row.pipeline)"
+                      (click)="editService(row.pipeline)"
+                    >
+                      Config
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-link"
+                      [attr.aria-label]="'Edit the settings of ' + label(row.pipeline)"
+                      (click)="edit(row.pipeline)"
+                    >
+                      Pipeline
+                    </button>
+                  </div>
                 </ng-template>
               </dso-grid>
             </section>
@@ -338,7 +348,7 @@ export class PipelineList {
       sortValue: (row) => Date.parse(row.lastRun?.time ?? '') || 0,
       width: 120,
     },
-    { key: 'actions', header: '', width: 80 },
+    { key: 'actions', header: '', width: 140 },
   ];
 
   protected readonly all = computed(() =>
@@ -364,6 +374,14 @@ export class PipelineList {
 
   protected open(pipeline: Pipeline): void {
     this.router.navigate(pipelinePage(pipeline.id));
+  }
+
+  protected editService(pipeline: Pipeline): void {
+    this.actions.editService(pipeline).subscribe((saved) => {
+      if (saved) {
+        this.pipelines.reload();
+      }
+    });
   }
 
   protected edit(pipeline: Pipeline): void {

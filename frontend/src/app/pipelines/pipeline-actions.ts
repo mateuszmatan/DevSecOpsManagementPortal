@@ -9,6 +9,7 @@ import { jenkinsfile } from '../products/jenkinsfile';
 import { KeyHistoryDialog } from '../products/key-history-dialog';
 import { PipelineDialog, PipelineDialogData } from '../products/pipeline-dialog';
 import { RevokeKeyDialog } from '../products/revoke-key-dialog';
+import { ServiceConfigDialog, ServiceConfigDialogData } from './service-config-dialog';
 import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
 import { ConfirmDialog, ConfirmDialogData } from '@common/shared/confirm-dialog';
 import { JENKINSFILE_HELP, pipelineName, typeName } from './pipeline-texts';
@@ -82,6 +83,14 @@ export class PipelineActions {
       },
       () => 'Pipeline settings saved. Jenkins uses them the next time the pipeline runs.',
     );
+  }
+
+  editService(pipeline: Pipeline): Observable<boolean> {
+    return this.dialog
+      .open<boolean, ServiceConfigDialogData, ServiceConfigDialog>(ServiceConfigDialog, {
+        data: { pipeline },
+      })
+      .closed.pipe(map((res) => !!res));
   }
 
   revokeKey(pipeline: Pipeline): Observable<Pipeline> {

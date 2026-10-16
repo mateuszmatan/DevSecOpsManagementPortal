@@ -686,3 +686,27 @@ export function pipelineTypeName(type: PipelineType): string {
 
 export const DEFAULT_JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';
 export const RELEASE_GATE_FILE = 'release-gate.json';
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  displayName: string;
+  email: string;
+  roles: string[];
+  departmentNames: string[];
+  admin: boolean;
+}
+
+export interface ActionLog {
+  id: number;
+  createdAt: string;
+  username: string;
+  userDisplayName: string;
+  userEmail?: string;
+  departmentName?: string;
+  actionType: string;
+  resourceType: string;
+  resourceName?: string;
+  details?: string;
+  status: 'SUCCESS' | 'FAILURE' | string;
+}

@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.adapter.in.web.MonitoringController.PipelineHealthResponse;
+import com.bbh.itss.dso.portal.application.actionlog.port.in.ActionLogUseCase;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.DepartmentPipelines;
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitorPipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
@@ -8,6 +9,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.ServicePipelinesView
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.user.UserProfile;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -34,6 +36,8 @@ public class PipelineController {
 
     private final PipelinesUseCase pipelines;
     private final MonitorPipelinesUseCase monitoring;
+    private final ActionLogUseCase actionLog;
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/pipelines")
     public DepartmentPipelinesResponse listForDepartment(@RequestParam long departmentId) {
@@ -50,7 +54,9 @@ public class PipelineController {
     @PostMapping("/services/{serviceId}/pipelines")
     @ResponseStatus(CREATED)
     public PipelineResponse create(@PathVariable long serviceId, @Valid @RequestBody PipelineRequest request) {
-        return withKeys(pipelines.create(serviceId, request.type(), request.toSettings()));
+        PipelineResponse response = withKeys(pipelines.create(serviceId, request.type(), request.toSettings()));
+        recordLog("CREATE_PIPELINE", "PIPELINE", response.serviceName() + " (" + response.type() + ")", "Created pipeline for service " + response.serviceName());
+        return response;
     }
 
     @GetMapping("/pipelines/{id}")
@@ -60,23 +66,48 @@ public class PipelineController {
 
     @PutMapping("/pipelines/{id}")
     public PipelineResponse update(@PathVariable long id, @Valid @RequestBody PipelineRequest request) {
-        return withKeys(pipelines.update(id, request.version(), request.type(), request.toSettings()));
+        PipelineResponse response = withKeys(pipelines.update(id, request.version(), request.type(), request.toSettings()));
+        recordLog("UPDATE_PIPELINE", "PIPELINE", response.serviceName() + " (" + response.type() + ")", "Updated pipeline " + id);
+        return response;
     }
 
     @DeleteMapping("/pipelines/{id}")
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
         pipelines.delete(id);
+        recordLog("DELETE_PIPELINE", "PIPELINE", "Pipeline #" + id, "Deleted pipeline #" + id);
     }
 
     @PostMapping("/pipelines/{id}/keys/revoke")
     public PipelineResponse revokeKey(@PathVariable long id, @Valid @RequestBody RevokeKeyRequest request) {
-        return withKeys(pipelines.revokeKey(id, request.reason()));
+        PipelineResponse response = withKeys(pipelines.revokeKey(id, request.reason()));
+        recordLog("REVOKE_KEY", "PIPELINE_KEY", response.serviceName() + " (" + response.type() + ")", "Invalidated active key. Reason: " + request.reason());
+        return response;
     }
 
     @PostMapping("/pipelines/{id}/keys")
     public PipelineResponse issueKey(@PathVariable long id) {
-        return withKeys(pipelines.issueKey(id));
+        PipelineResponse response = withKeys(pipelines.issueKey(id));
+        recordLog("ROTATE_KEY", "PIPELINE_KEY", response.serviceName() + " (" + response.type() + ")", "Rotated / generated new pipeline key");
+        return response;
+    }
+
+    private void recordLog(String actionType, String resourceType, String resourceName, String details) {
+        try {
+            UserProfile user = currentUserProvider.getCurrentUser();
+            actionLog.log(
+                    user != null ? user.username() : "system",
+                    user != null ? user.displayName() : "System",
+                    user != null ? user.email() : null,
+                    user != null && !user.departmentNames().isEmpty() ? user.departmentNames().get(0) : null,
+                    actionType,
+                    resourceType,
+                    resourceName,
+                    details,
+                    "SUCCESS"
+            );
+        } catch (Exception ignored) {
+        }
     }
 
     public record DepartmentPipelinesResponse(List<PipelineHealthResponse> pipelines, String metricsError) {

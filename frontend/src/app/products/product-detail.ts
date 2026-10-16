@@ -249,6 +249,20 @@ export class ProductDetail {
     this.revealed.update((ids) => withId(ids, pipeline.id));
   }
 
+  protected editServiceConfig(product: Product, service: ServicePipelines): void {
+    const pipeline = service.pipelines[0];
+    if (pipeline) {
+      this.actions.editService(pipeline).subscribe((saved) => {
+        if (saved) {
+          this.services.reload();
+          this.product.reload();
+        }
+      });
+    } else {
+      this.router.navigate(['/admin/products', product.id, 'edit']);
+    }
+  }
+
   private showGeneratedKeys(services: ServicePipelines[], newServices: readonly string[]): void {
     const names = new Set(newServices);
     const generated = services.filter(

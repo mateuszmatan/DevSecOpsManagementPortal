@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { AbstractControl, ReactiveFormsModule } from '@angular/forms';
 import { SvgIconComponent } from 'angular-svg-icon';
-import { FLUTTER_PLATFORMS, GlobalSettings, REGIONS, Region } from '../core/models';
+import { FLUTTER_PLATFORMS, GlobalSettings, PipelineType, REGIONS, Region } from '../core/models';
 import {
   Field,
   Fields,
@@ -37,6 +37,7 @@ import {
   sectionInvalid,
   sectionTouched,
   visibleSections,
+  visibleSectionsForPipeline,
 } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
 import { ToolCommandFields } from './tool-command-fields';
@@ -300,6 +301,7 @@ export class ServiceFields {
   readonly productCode = input('');
   readonly defaults = input<GlobalSettings | null>(null);
   readonly submitted = input(false);
+  readonly pipeline = input<PipelineType | null>(null);
 
   private readonly selected = signal<ServiceSectionId>('general');
   private readonly changes = formRevision(this.form);
@@ -326,7 +328,8 @@ export class ServiceFields {
   protected readonly sections = computed(() => {
     this.changes();
     const form = this.form();
-    return visibleSections(form).map((section) => ({
+    const pipeline = this.pipeline();
+    return visibleSectionsForPipeline(form, pipeline).map((section) => ({
       ...section,
       problem: sectionInvalid(form, section) && (this.submitted() || sectionTouched(form, section)),
     }));
@@ -391,12 +394,12 @@ export class ServiceFields {
     return { label: section?.label ?? '', note: chips(NOTES[id] + (extra[id] ?? '')) };
   });
 
-  protected select(id: ServiceSectionId): void {
+  select(id: ServiceSectionId): void {
     this.selected.set(id);
   }
 
   revealFirstProblem(): boolean {
-    const id = firstInvalidSection(this.form());
+    const id = firstInvalidSection(this.form(), this.pipeline());
     if (id) {
       this.selected.set(id);
     }
