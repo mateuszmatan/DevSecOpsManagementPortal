@@ -114,6 +114,24 @@ class GuiSmokeSpec extends DsoSpecification {
     }
 
     @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
+    def "a grid wider than its box scrolls horizontally with the bar ag-grid sizes"() {
+        given: 'the Action History in a window narrower than its columns'
+        page.setViewportSize(600, 900)
+        open('/history')
+        page.locator('dso-grid .ag-row').first().waitFor()
+
+        expect: 'the content is wider than the grid and no style shrinks the scrollbar below the height ag-grid gave it'
+        def bar = page.evaluate('''() => {
+            const viewport = document.querySelector('dso-grid .ag-body-horizontal-scroll-viewport');
+            return { wider: viewport.scrollWidth > viewport.clientWidth,
+                     height: getComputedStyle(viewport).height, sized: viewport.style.height };
+        }''') as Map
+        bar.wider
+        bar.height == bar.sized
+        ownErrors().isEmpty()
+    }
+
+    @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
     def "the service editor keeps icons only in its vertical section menu"() {
         when:
         open('/admin/products/1/edit')

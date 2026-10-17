@@ -4,11 +4,8 @@
   "private": true,
   "scripts": {
     "ng": "ng",
-    "install:bbh": "npm install --no-save --no-audit --no-fund @v6/v6-themes@21 @v6/v6-table @v6/v6-icons",
-    "start": "ng serve --configuration=public",
-    "start:bbh": "ng serve --configuration=development",
-    "build": "ng build --configuration=production,public",
-    "build:bbh": "ng build --configuration=production",
+    "start": "ng serve",
+    "build": "ng build",
     "test": "npx ng test --watch=false"
   },
   "packageManager": "npm@10.8.2",

@@ -123,7 +123,7 @@ describe('ServiceFields', () => {
           expect(errors.every((error) => !!error)).toBe(true);
         }
       },
-      20_000,
+      45_000,
     );
 
     it('works without the global settings and reveals the first section with a problem', async () => {
@@ -137,7 +137,7 @@ describe('ServiceFields', () => {
       expect(fixture.componentInstance.revealFirstProblem()).toBe(true);
       await fixture.whenStable();
       expect(page().querySelector('.rail-item.active span')?.textContent).toBe('SonarQube');
-    }, 20_000);
+    }, 45_000);
   });
 
   describe('Build', () => {

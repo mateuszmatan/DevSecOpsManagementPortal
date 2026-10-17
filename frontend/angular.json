@@ -84,30 +84,6 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
-            },
-            "public": {
-              "styles": [
-                "node_modules/bootstrap/dist/css/bootstrap.min.css",
-                "node_modules/highcharts/css/highcharts.css",
-                "node_modules/ag-grid-community/styles/ag-grid.css",
-                "node_modules/ag-grid-community/styles/ag-theme-balham.css",
-                "node_modules/@angular/cdk/overlay-prebuilt.css",
-                "node_modules/@angular/cdk/a11y-prebuilt.css",
-                "src/common/styles/public-theme.scss",
-                "src/common/styles.scss"
-              ],
-              "assets": [
-                {
-                  "glob": "**/*",
-                  "input": "public"
-                }
-              ],
-              "fileReplacements": [
-                {
-                  "replace": "src/common/ui/design-system.ts",
-                  "with": "src/common/ui/design-system.public.ts"
-                }
-              ]
             }
           },
           "defaultConfiguration": "production"
@@ -120,9 +96,6 @@
             },
             "development": {
               "buildTarget": "frontend:build:development"
-            },
-            "public": {
-              "buildTarget": "frontend:build:development,public"
             }
           },
           "defaultConfiguration": "development",
@@ -155,7 +128,7 @@
               "src/app/**",
               "src/common/**"
             ],
-            "buildTarget": "frontend:build:development,public",
+            "buildTarget": "frontend:build:development",
             "providersFile": "src/common/test-providers.ts"
           }
         }

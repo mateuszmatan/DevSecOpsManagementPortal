@@ -1218,22 +1218,15 @@ svg-icon svg {
 
   /* Horizontal Scrollbar - official BBH V6 aesthetics */
   .ag-body-horizontal-scroll {
-    display: block !important;
     position: sticky;
     bottom: 0;
     z-index: 10;
-    min-height: 10px !important;
-    height: 10px !important;
     background-color: #f8fafc;
     border-top: 1px solid var(--dso-border, #e2e8f0);
-    opacity: 1 !important;
-    visibility: visible !important;
   }
 
   .ag-body-horizontal-scroll-viewport {
-    overflow-x: auto !important;
-    min-height: 10px !important;
-    height: 10px !important;
+    overflow-x: auto;
   }
 
   /* BBH styled scrollbars */
@@ -1286,6 +1279,7 @@ svg-icon svg {
   .ag-cell {
     display: flex;
     align-items: center;
+    overflow: hidden;
     padding-left: 12px;
     padding-right: 12px;
     font-size: 13px;

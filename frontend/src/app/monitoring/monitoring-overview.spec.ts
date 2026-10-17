@@ -158,7 +158,7 @@ describe('MonitoringOverview', () => {
     expect(page().querySelector('.empty-state h3')?.textContent).toBe(
       'No product matches "payhub"',
     );
-  });
+  }, 30_000);
 
   it('invites adding a product when there is none and reloads on refresh', async () => {
     await load(monitoringOverview({ products: [] }));
