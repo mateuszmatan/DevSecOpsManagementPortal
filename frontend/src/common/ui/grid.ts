@@ -231,6 +231,16 @@ const INTERACTIVE = 'a, button, input, select, textarea, label';
   styles: `
     :host {
       display: block;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    ag-grid-angular {
+      display: block;
+      width: 100%;
+      min-width: 100%;
     }
   `,
 })
@@ -259,10 +269,14 @@ export class DsoGrid<T> {
   protected readonly options = computed<GridOptions<T>>(() => {
     const base = V6Table.defaultClientSideGridOptions() as GridOptions<T>;
     const custom = this.v6Config()?.options || this.gridOptions() || {};
+    const autoSizeStrategy = this.v6Config()?.autoSizeStrategy;
     return {
       ...base,
       suppressMovableColumns: true,
       suppressDragLeaveHidesColumns: true,
+      suppressHorizontalScroll: false,
+      alwaysShowHorizontalScroll: true,
+      ...(autoSizeStrategy ? { autoSizeStrategy } : {}),
       ...custom,
       defaultColDef: {
         ...base.defaultColDef,
@@ -299,13 +313,14 @@ function columnDef<T>(
   const value = column.value;
   const sortValue = column.sortValue ?? value;
   const classes = [column.cellClass, column.numeric ? 'number' : null].filter(Boolean).join(' ');
+  const minWidth = column.minWidth ?? (column.width ? column.width : 130);
   return {
     colId: column.key,
     headerName: column.header,
     headerClass: column.numeric ? 'number' : undefined,
     cellClass: classes || undefined,
     valueGetter: value ? ({ data }) => (data ? value(data) : null) : () => null,
-    sortable: !!sortValue,
+    sortable: (column as any).sortable !== false && !!sortValue,
     sort: column.sort ?? null,
     comparator: sortValue
       ? (_x, _y, a, b) => compare(sortKey(sortValue, a.data), sortKey(sortValue, b.data))
@@ -319,7 +334,7 @@ function columnDef<T>(
     wrapText: column.wrap,
     autoHeight: column.wrap,
     width: column.width,
-    minWidth: column.minWidth ?? 80,
+    minWidth: minWidth,
     flex: column.width ? undefined : (column.flex ?? 1),
   };
 }
