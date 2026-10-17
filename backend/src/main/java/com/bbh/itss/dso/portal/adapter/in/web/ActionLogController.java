@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 import com.bbh.itss.dso.portal.application.actionlog.port.in.ActionLogUseCase;
 import com.bbh.itss.dso.portal.domain.actionlog.ActionLog;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/action-history")
 @RequiredArgsConstructor
@@ -24,6 +26,8 @@ public class ActionLogController {
             @RequestParam(required = false) String resourceType,
             @RequestParam(required = false) String status
     ) {
+        log.info("Querying action logs (search='{}', actionType='{}', resourceType='{}', status='{}')",
+                search, actionType, resourceType, status);
         return actionLogUseCase.listLogs(search, actionType, resourceType, status);
     }
 }

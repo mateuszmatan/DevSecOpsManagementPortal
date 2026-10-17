@@ -12,6 +12,7 @@ import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.user.UserProfile;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,6 +30,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.PipelineResponse.withKeys;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 
+@Slf4j
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -41,6 +43,7 @@ public class PipelineController {
 
     @GetMapping("/pipelines")
     public DepartmentPipelinesResponse listForDepartment(@RequestParam long departmentId) {
+        log.info("Listing pipelines for departmentId={}", departmentId);
         DepartmentPipelines found = monitoring.department(departmentId);
         return new DepartmentPipelinesResponse(found.pipelines().stream().map(PipelineHealthResponse::of).toList(),
                 found.metricsError());
@@ -48,25 +51,31 @@ public class PipelineController {
 
     @GetMapping("/products/{productId}/pipelines")
     public List<ServicePipelinesResponse> listForProduct(@PathVariable long productId) {
+        log.info("Listing pipelines for productId={}", productId);
         return pipelines.listForProduct(productId).stream().map(ServicePipelinesResponse::of).toList();
     }
 
     @PostMapping("/services/{serviceId}/pipelines")
     @ResponseStatus(CREATED)
     public PipelineResponse create(@PathVariable long serviceId, @Valid @RequestBody PipelineRequest request) {
+        log.info("Creating pipeline for serviceId={}, type={}", serviceId, request.type());
         PipelineResponse response = withKeys(pipelines.create(serviceId, request.type(), request.toSettings()));
+        log.info("Successfully created pipeline id={} for service='{}' ({})", response.id(), response.serviceName(), response.type());
         recordLog("CREATE_PIPELINE", "PIPELINE", response.serviceName() + " (" + response.type() + ")", "Created pipeline for service " + response.serviceName());
         return response;
     }
 
     @GetMapping("/pipelines/{id}")
     public PipelineResponse get(@PathVariable long id) {
+        log.info("Fetching pipeline details for id={}", id);
         return withKeys(pipelines.get(id));
     }
 
     @PutMapping("/pipelines/{id}")
     public PipelineResponse update(@PathVariable long id, @Valid @RequestBody PipelineRequest request) {
+        log.info("Updating pipeline id={}, type={}", id, request.type());
         PipelineResponse response = withKeys(pipelines.update(id, request.version(), request.type(), request.toSettings()));
+        log.info("Successfully updated pipeline id={}", id);
         recordLog("UPDATE_PIPELINE", "PIPELINE", response.serviceName() + " (" + response.type() + ")", "Updated pipeline " + id);
         return response;
     }
@@ -74,20 +83,26 @@ public class PipelineController {
     @DeleteMapping("/pipelines/{id}")
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
+        log.info("Deleting pipeline id={}", id);
         pipelines.delete(id);
+        log.info("Successfully deleted pipeline id={}", id);
         recordLog("DELETE_PIPELINE", "PIPELINE", "Pipeline #" + id, "Deleted pipeline #" + id);
     }
 
     @PostMapping("/pipelines/{id}/keys/revoke")
     public PipelineResponse revokeKey(@PathVariable long id, @Valid @RequestBody RevokeKeyRequest request) {
+        log.info("Revoking active key for pipeline id={}, reason='{}'", id, request.reason());
         PipelineResponse response = withKeys(pipelines.revokeKey(id, request.reason()));
+        log.info("Successfully revoked key for pipeline id={}", id);
         recordLog("REVOKE_KEY", "PIPELINE_KEY", response.serviceName() + " (" + response.type() + ")", "Invalidated active key. Reason: " + request.reason());
         return response;
     }
 
     @PostMapping("/pipelines/{id}/keys")
     public PipelineResponse issueKey(@PathVariable long id) {
+        log.info("Rotating/issuing key for pipeline id={}", id);
         PipelineResponse response = withKeys(pipelines.issueKey(id));
+        log.info("Successfully issued new key for pipeline id={}", id);
         recordLog("ROTATE_KEY", "PIPELINE_KEY", response.serviceName() + " (" + response.type() + ")", "Rotated / generated new pipeline key");
         return response;
     }
@@ -106,7 +121,8 @@ public class PipelineController {
                     details,
                     "SUCCESS"
             );
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("Failed to record action log for actionType={}, resourceName={}: {}", actionType, resourceName, e.getMessage());
         }
     }
 

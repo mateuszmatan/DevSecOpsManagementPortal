@@ -7,6 +7,7 @@ import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.user.UserProfile;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,7 @@ import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.ResponseEntity.created;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequestUri;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
@@ -36,23 +38,28 @@ public class ProductController {
 
     @GetMapping
     public List<ProductSummaryView> list(@RequestParam(required = false) String search) {
+        log.info("Listing products with filter: '{}'", search != null ? search : "");
         return products.list(search);
     }
 
     @GetMapping("/code-suggestion")
     public CodeSuggestion suggestCode(@RequestParam String name) {
+        log.debug("Suggesting product code for name: '{}'", name);
         return new CodeSuggestion(products.suggestCode(name));
     }
 
     @GetMapping("/{id}")
     public ProductDto get(@PathVariable long id) {
+        log.info("Fetching product details for id={}", id);
         return ProductDto.from(products.get(id));
     }
 
     @PostMapping
     public ResponseEntity<ProductDto> create(@Valid @RequestBody ProductDto request,
                                              @RequestParam(required = false) PipelineType pipelineType) {
+        log.info("Creating product with code='{}', name='{}', pipelineType={}", request.code(), request.name(), pipelineType);
         ProductDto created = ProductDto.from(products.create(request.toCommand(pipelineType)));
+        log.info("Successfully created product id={}, code='{}'", created.id(), created.code());
         recordLog("CREATE_PRODUCT", created.name(), "Created product " + created.code() + " with " + (created.services() != null ? created.services().size() : 0) + " service(s)");
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
@@ -60,7 +67,9 @@ public class ProductController {
     @PutMapping("/{id}")
     public ProductDto update(@PathVariable long id, @Valid @RequestBody ProductDto request,
                              @RequestParam(required = false) PipelineType pipelineType) {
+        log.info("Updating product id={} (code='{}', pipelineType={})", id, request.code(), pipelineType);
         ProductDto updated = ProductDto.from(products.update(id, request.toCommand(pipelineType)));
+        log.info("Successfully updated product id={}, code='{}'", updated.id(), updated.code());
         recordLog("UPDATE_PRODUCT", updated.name(), "Updated product " + updated.code());
         return updated;
     }
@@ -68,7 +77,9 @@ public class ProductController {
     @DeleteMapping("/{id}")
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
+        log.info("Deleting product id={}", id);
         products.delete(id);
+        log.info("Successfully deleted product id={}", id);
         recordLog("DELETE_PRODUCT", "Product #" + id, "Deleted product #" + id);
     }
 
@@ -86,7 +97,8 @@ public class ProductController {
                     details,
                     "SUCCESS"
             );
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("Failed to record action log for actionType={}, resourceName={}: {}", actionType, resourceName, e.getMessage());
         }
     }
 }

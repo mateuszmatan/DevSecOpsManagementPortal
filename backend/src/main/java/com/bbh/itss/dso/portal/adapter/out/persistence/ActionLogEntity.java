@@ -8,6 +8,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -21,6 +23,8 @@ import static lombok.AccessLevel.PROTECTED;
 @Table(name = "DSO_ACTION_LOG")
 @Getter
 @Setter
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = PROTECTED)
 public class ActionLogEntity {
 
@@ -61,15 +65,7 @@ public class ActionLogEntity {
     public ActionLogEntity(String username, String userDisplayName, String userEmail,
                            String departmentName, String actionType, String resourceType,
                            String resourceName, String details, String status) {
-        this.username = username;
-        this.userDisplayName = userDisplayName;
-        this.userEmail = userEmail;
-        this.departmentName = departmentName;
-        this.actionType = actionType;
-        this.resourceType = resourceType;
-        this.resourceName = resourceName;
-        this.details = details;
-        this.status = status;
+        this(null, null, username, userDisplayName, userEmail, departmentName, actionType, resourceType, resourceName, details, status);
     }
 
     @PrePersist

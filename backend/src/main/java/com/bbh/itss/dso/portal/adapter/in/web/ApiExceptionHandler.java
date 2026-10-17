@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -30,43 +31,50 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.ProblemDetail.forStatusAndDetail;
 
+@Slf4j
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(NoSuchElementException.class)
     ProblemDetail notFound(NoSuchElementException e) {
+        log.warn("Resource not found: {}", e.getMessage());
         return problem(NOT_FOUND, "Not found", e.getMessage());
     }
 
     @ExceptionHandler(SecurityException.class)
     ProblemDetail forbidden(SecurityException e) {
+        log.warn("Forbidden access: {}", e.getMessage());
         return problem(FORBIDDEN, "Forbidden", e.getMessage());
     }
 
     @ExceptionHandler(IllegalStateException.class)
     ProblemDetail conflict(IllegalStateException e) {
+        log.warn("Illegal state conflict: {}", e.getMessage());
         return problem(CONFLICT, "Conflict", e.getMessage());
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ProblemDetail staleData(OptimisticLockingFailureException e) {
+        log.warn("Optimistic locking failure: {}", e.getMessage());
         return problem(CONFLICT, "Conflict", STALE_VERSION);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail integrity(DataIntegrityViolationException e) {
+        log.warn("Data integrity violation: {}", e.getMessage());
         return problem(CONFLICT, "Conflict",
                 "The change violates a database constraint, most likely a duplicate name or key.");
     }
 
     @ExceptionHandler(UncheckedIOException.class)
     ProblemDetail unavailable(UncheckedIOException e) {
-        logger.warn("A system the portal relies on could not be reached: " + e.getMessage());
+        log.warn("A system the portal relies on could not be reached: {}", e.getMessage());
         return problem(SERVICE_UNAVAILABLE, "Service Unavailable", e.getMessage());
     }
 
     @ExceptionHandler(InvalidRequestException.class)
     ProblemDetail invalid(InvalidRequestException e) {
+        log.warn("Validation failed: {}", e.getMessage());
         ProblemDetail detail = problem(BAD_REQUEST, "Validation failed", e.getMessage());
         detail.setProperty("errors", e.problems());
         return detail;
@@ -74,7 +82,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ProblemDetail unexpected(Exception e) {
-        logger.error("The portal could not serve a request", e);
+        log.error("The portal could not serve a request: {}", e.getMessage(), e);
         return problem(INTERNAL_SERVER_ERROR, "Request failed",
                 "The portal could not handle the request. The failure is in the portal's log.");
     }

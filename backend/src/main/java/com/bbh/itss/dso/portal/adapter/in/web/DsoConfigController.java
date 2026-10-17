@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.application.dsoconfig.port.in.RenderConfigUseCase;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.http.ResponseEntity.ok;
 import static org.yaml.snakeyaml.DumperOptions.FlowStyle.BLOCK;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class DsoConfigController {
@@ -34,28 +36,40 @@ public class DsoConfigController {
     @GetMapping("/api/dso/config/{key}")
     public ResponseEntity<?> pipelineConfig(@PathVariable String key,
                                             @RequestParam(defaultValue = "yaml") String format) {
+        log.info("Serving DSO pipeline config for key={} in format={}", maskKey(key), format);
         return render(configs.readByKey(key), format);
     }
 
     @GetMapping("/api/pipelines/{id}/config")
     public ResponseEntity<?> pipelineConfigPreview(@PathVariable long id,
                                                    @RequestParam(defaultValue = "yaml") String format) {
+        log.info("Generating preview DSO pipeline config for pipelineId={}, format={}", id, format);
         return render(configs.pipelineConfig(id), format);
     }
 
     @GetMapping("/api/products/{id}/config")
     public ResponseEntity<?> productConfig(@PathVariable long id, @RequestParam(defaultValue = "yaml") String format) {
+        log.info("Generating DSO product config for productId={}, format={}", id, format);
         return render(configs.productConfig(id), format);
     }
 
     @GetMapping("/api/settings/config")
     public ResponseEntity<?> globalConfig(@RequestParam(defaultValue = "yaml") String format) {
+        log.info("Generating global DSO settings config in format={}", format);
         return render(configs.settingsConfig(), format);
     }
 
     @ExceptionHandler(SecurityException.class)
     ProblemDetail revoked(SecurityException e) {
+        log.warn("Access denied for pipeline config: {}", e.getMessage());
         return problem(FORBIDDEN, "Pipeline key invalidated", e.getMessage());
+    }
+
+    private static String maskKey(String key) {
+        if (key == null) return "null";
+        int len = key.length();
+        if (len <= 8) return "***";
+        return key.substring(0, 4) + "..." + key.substring(len - 4);
     }
 
     private ResponseEntity<?> render(Map<String, Object> config, String format) {

@@ -3,10 +3,12 @@ package com.bbh.itss.dso.portal.adapter.out.persistence;
 import com.bbh.itss.dso.portal.application.actionlog.port.out.ActionLogRepositoryPort;
 import com.bbh.itss.dso.portal.domain.actionlog.ActionLog;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 class ActionLogPersistenceAdapter implements ActionLogRepositoryPort {
@@ -28,18 +30,19 @@ class ActionLogPersistenceAdapter implements ActionLogRepositoryPort {
     }
 
     @Override
-    public void save(ActionLog log) {
-        ActionLogEntity entity = new ActionLogEntity(
-                log.username(),
-                log.userDisplayName(),
-                log.userEmail(),
-                log.departmentName(),
-                log.actionType(),
-                log.resourceType(),
-                log.resourceName(),
-                log.details(),
-                log.status()
-        );
+    public void save(ActionLog logItem) {
+        log.debug("Persisting action log: {} on {}", logItem.actionType(), logItem.resourceName());
+        ActionLogEntity entity = ActionLogEntity.builder()
+                .username(logItem.username())
+                .userDisplayName(logItem.userDisplayName())
+                .userEmail(logItem.userEmail())
+                .departmentName(logItem.departmentName())
+                .actionType(logItem.actionType())
+                .resourceType(logItem.resourceType())
+                .resourceName(logItem.resourceName())
+                .details(logItem.details())
+                .status(logItem.status())
+                .build();
         repository.save(entity);
     }
 }

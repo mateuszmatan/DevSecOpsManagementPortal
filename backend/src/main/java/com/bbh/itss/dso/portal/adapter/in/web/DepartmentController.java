@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +21,7 @@ import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.ResponseEntity.created;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequestUri;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/departments")
 @RequiredArgsConstructor
@@ -29,23 +31,31 @@ public class DepartmentController {
 
     @GetMapping
     public List<DepartmentResponse> list() {
+        log.info("Listing all departments");
         return departments.list().stream().map(DepartmentResponse::of).toList();
     }
 
     @PostMapping
     public ResponseEntity<DepartmentResponse> create(@Valid @RequestBody DepartmentRequest request) {
+        log.info("Creating department with name='{}'", request.name());
         DepartmentResponse created = DepartmentResponse.of(departments.create(request.name()));
+        log.info("Successfully created department id={}, name='{}'", created.id(), created.name());
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
     public DepartmentResponse rename(@PathVariable long id, @Valid @RequestBody DepartmentRequest request) {
-        return DepartmentResponse.of(departments.rename(id, request.version(), request.name()));
+        log.info("Renaming department id={} to name='{}'", id, request.name());
+        DepartmentResponse response = DepartmentResponse.of(departments.rename(id, request.version(), request.name()));
+        log.info("Successfully renamed department id={} to name='{}'", id, response.name());
+        return response;
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
+        log.info("Deleting department id={}", id);
         departments.delete(id);
+        log.info("Successfully deleted department id={}", id);
     }
 }
