@@ -6,12 +6,14 @@ A concise guide to running the **DevSecOps Management Portal** locally and deplo
 
 ## 1. Running Locally (Developer Laptop)
 
+On a BBH developer laptop, the application runs directly as a standard Java / Gradle application without needing Docker. An embedded H2 database (in Oracle compatibility mode) is used.
+
 ### Prerequisites
 - **Java 21**
 - **Node.js 20.x** & **npm 10.x**
 
-### Option A: Gradle (Recommended for Local Development)
-Runs backend and Angular GUI together on port **8080** using embedded H2 database (in Oracle compatibility mode).
+### Option A: Direct Gradle Run (Recommended - No Docker Needed)
+Runs backend and Angular GUI together on port **8080** using embedded H2 database.
 
 ```bash
 # Start backend with bundled GUI
@@ -46,7 +48,9 @@ docker run --rm -p 8080:8080 -v dso-portal-data:/application/data dso-portal:lat
 
 ---
 
-## 2. Deploying to OpenShift (Multi-Pod on Oracle DB)
+## 2. Deploying to OpenShift (Single Instance on Oracle DB)
+
+The application runs as a single pod (`replicas: 1`) on test (`rd`, `qc`) and production (`prod`) OpenShift environments. Redundant instances are not needed because OpenShift automatically respawns the pod if it becomes unavailable.
 
 ### Step 1: Build and Push Image
 ```bash
@@ -76,13 +80,13 @@ cd deploy/openshift/dso-portal/overlays/rd
 # Update image tag
 kustomize edit set image dso-portal=<registry>/<project>/dso-portal:latest
 
-# Apply manifests (2 replicas with RollingUpdate)
+# Apply manifests (1 replica with RollingUpdate)
 oc apply -k .
 ```
 
 ### Step 4: Verify Deployment
 ```bash
-# Check pod rollout (2 pods running)
+# Check pod rollout (1 pod running)
 oc rollout status deployment/dso-portal
 oc get pods -l app=dso-portal
 

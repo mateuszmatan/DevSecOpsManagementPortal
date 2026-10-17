@@ -34,7 +34,7 @@ DevSecOpsManagementPortal/
 │   ├── src/common/ui/        # V6 Table helpers, toolbar components, V6 form directives
 │   ├── angular.json          # Angular CLI workspace configuration
 │   └── package.json          # Frontend dependencies and npm scripts
-├── deploy/openshift/         # Kustomize base & overlays (rd, qc, prod) for OpenShift (multi-pod replicas: 2)
+├── deploy/openshift/         # Kustomize base & overlays (rd, qc, prod) for OpenShift (replicas: 1)
 ├── gradle/                   # Gradle wrapper and version catalog (libs.versions.toml)
 ├── build.gradle              # Root build script
 ├── docs/                     # Deployment and architecture documentation
@@ -101,4 +101,4 @@ Run all backend suites:
 ## OpenShift & Oracle Database Deployment
 
 - **Test & Production Profiles**: OpenShift environments (`rd`, `qc`, `prod`) activate the `oracle` Spring profile group, connecting to Oracle database via HikariCP (`com.oracle.database.jdbc:ojdbc11`) with Liquibase automated migrations.
-- **Multi-Pod High Availability**: The base deployment (`deploy/openshift/dso-portal/base/deployment.yaml`) runs **2 replicas** with `RollingUpdate` strategy for seamless zero-downtime rollouts.
+- **Single-Instance Deployment**: The base deployment (`deploy/openshift/dso-portal/base/deployment.yaml`) runs **1 replica** (`replicas: 1`). No redundancy is needed; OpenShift automatically respawns the pod if it becomes unavailable.
