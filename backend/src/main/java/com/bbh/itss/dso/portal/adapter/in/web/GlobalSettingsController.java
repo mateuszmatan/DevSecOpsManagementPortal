@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class GlobalSettingsController {
 
     private final ManageGlobalSettingsUseCase settings;
+    private final com.bbh.itss.dso.portal.application.actionlog.port.in.ActionLogUseCase actionLog;
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping
     public GlobalSettingsDto get() {
@@ -29,6 +31,26 @@ public class GlobalSettingsController {
         log.info("Updating global settings (version={})", request.version());
         GlobalSettingsDto updated = GlobalSettingsDto.from(settings.update(request.version(), request.toValues()));
         log.info("Successfully updated global settings");
+        recordLog("UPDATE_GLOBAL_SETTINGS", "Global Settings", "Updated global library & server settings");
         return updated;
+    }
+
+    private void recordLog(String actionType, String resourceName, String details) {
+        try {
+            com.bbh.itss.dso.portal.domain.user.UserProfile user = currentUserProvider.getCurrentUser();
+            actionLog.log(
+                    user != null ? user.username() : "system",
+                    user != null ? user.displayName() : "System",
+                    user != null ? user.email() : null,
+                    user != null && !user.departmentNames().isEmpty() ? user.departmentNames().get(0) : null,
+                    actionType,
+                    "SETTINGS",
+                    resourceName,
+                    details,
+                    "SUCCESS"
+            );
+        } catch (Exception e) {
+            log.warn("Failed to record action log for actionType={}, resourceName={}: {}", actionType, resourceName, e.getMessage());
+        }
     }
 }

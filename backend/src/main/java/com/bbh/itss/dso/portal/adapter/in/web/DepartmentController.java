@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
+import com.bbh.itss.dso.portal.application.actionlog.port.in.ActionLogUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,8 @@ import static org.springframework.web.servlet.support.ServletUriComponentsBuilde
 public class DepartmentController {
 
     private final DepartmentsUseCase departments;
+    private final ActionLogUseCase actionLog;
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping
     public List<DepartmentResponse> list() {
@@ -40,6 +43,7 @@ public class DepartmentController {
         log.info("Creating department with name='{}'", request.name());
         DepartmentResponse created = DepartmentResponse.of(departments.create(request.name()));
         log.info("Successfully created department id={}, name='{}'", created.id(), created.name());
+        recordLog("CREATE_DEPARTMENT", created.name(), "Created department " + created.name());
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
@@ -48,6 +52,7 @@ public class DepartmentController {
         log.info("Renaming department id={} to name='{}'", id, request.name());
         DepartmentResponse response = DepartmentResponse.of(departments.rename(id, request.version(), request.name()));
         log.info("Successfully renamed department id={} to name='{}'", id, response.name());
+        recordLog("RENAME_DEPARTMENT", response.name(), "Renamed department #" + id + " to " + response.name());
         return response;
     }
 
@@ -57,5 +62,25 @@ public class DepartmentController {
         log.info("Deleting department id={}", id);
         departments.delete(id);
         log.info("Successfully deleted department id={}", id);
+        recordLog("DELETE_DEPARTMENT", "Department #" + id, "Deleted department #" + id);
+    }
+
+    private void recordLog(String actionType, String resourceName, String details) {
+        try {
+            com.bbh.itss.dso.portal.domain.user.UserProfile user = currentUserProvider.getCurrentUser();
+            actionLog.log(
+                    user != null ? user.username() : "system",
+                    user != null ? user.displayName() : "System",
+                    user != null ? user.email() : null,
+                    user != null && !user.departmentNames().isEmpty() ? user.departmentNames().get(0) : null,
+                    actionType,
+                    "DEPARTMENT",
+                    resourceName,
+                    details,
+                    "SUCCESS"
+            );
+        } catch (Exception e) {
+            log.warn("Failed to record action log for actionType={}, resourceName={}: {}", actionType, resourceName, e.getMessage());
+        }
     }
 }

@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ServiceTemplateController {
 
     private final ManageServiceTemplateUseCase template;
+    private final com.bbh.itss.dso.portal.application.actionlog.port.in.ActionLogUseCase actionLog;
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping
     public ServiceTemplateDto get() {
@@ -29,6 +31,26 @@ public class ServiceTemplateController {
         log.info("Updating service template (version={})", request.version());
         ServiceTemplateDto updated = ServiceTemplateDto.from(template.update(request.version(), request.toTemplate()));
         log.info("Successfully updated service template");
+        recordLog("UPDATE_SERVICE_TEMPLATE", "Service Template", "Updated default service template patterns and tools");
         return updated;
+    }
+
+    private void recordLog(String actionType, String resourceName, String details) {
+        try {
+            com.bbh.itss.dso.portal.domain.user.UserProfile user = currentUserProvider.getCurrentUser();
+            actionLog.log(
+                    user != null ? user.username() : "system",
+                    user != null ? user.displayName() : "System",
+                    user != null ? user.email() : null,
+                    user != null && !user.departmentNames().isEmpty() ? user.departmentNames().get(0) : null,
+                    actionType,
+                    "TEMPLATE",
+                    resourceName,
+                    details,
+                    "SUCCESS"
+            );
+        } catch (Exception e) {
+            log.warn("Failed to record action log for actionType={}, resourceName={}: {}", actionType, resourceName, e.getMessage());
+        }
     }
 }
