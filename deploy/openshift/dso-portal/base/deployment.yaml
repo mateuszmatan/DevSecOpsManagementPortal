@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: dso-portal
 spec:
-  replicas: 1
+  replicas: 2
   revisionHistoryLimit: 5
   strategy:
     type: RollingUpdate

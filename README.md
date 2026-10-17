@@ -3,111 +3,98 @@
 A centralized management platform for BBH DevSecOps workflows, pipeline automation, pipeline key management & invalidation, product catalogs, and InfluxDB/Grafana metrics monitoring, fully integrated with the **`DSOEnhanced`** Jenkins Shared Library.
 
 The application is structured as a unified multi-module Gradle project consisting of:
-- **`backend`**: A Spring Boot service (Java 21) handling domain logic, Liquibase persistence (H2 in Oracle mode locally, Oracle on OpenShift `rd`/`qc`/`prod`), pipeline key validation, InfluxDB v2 Flux queries, Grafana dashboard links, and REST API endpoints.
-- **`frontend`**: An Angular 21 single-page application providing user interfaces for pipeline self-service, product & pipeline key management, library & monitoring administration (`/admin/settings`), and DORA/pipeline metrics visualization.
+- **`backend`**: Spring Boot 3 service (Java 21) following Hexagonal and MVC architecture: domain logic, Liquibase persistence (H2 in Oracle mode locally, Oracle on OpenShift `rd`/`qc`/`prod`), pipeline key validation, InfluxDB v2 Flux queries, Grafana dashboard links, and REST API endpoints.
+- **`frontend`**: Angular single-page application built with the BBH V6 Design System (`@v6/v6-themes`, `@v6/v6-table`, `@v6/v6-icons`), providing user interfaces for pipeline self-service, product & pipeline key management, audit trail / action history grid, library & monitoring administration (`/admin/settings`), and DORA/pipeline metrics visualization.
 
 ---
 
 ## Architecture Overview
 
+Hexagonal and MVC layers:
+- `adapter/in/web`: REST controllers, request/response DTOs, global problem exception handler (`@RestControllerAdvice`).
+- `application/<feature>/port/in`: Primary ports implemented by `@UseCase` service components.
+- `application/<feature>/port/out`: Secondary ports for persistence, metrics and external adapters.
+- `domain/<feature>`: Pure domain entities and value objects (Lombok-annotated, framework-free).
+- `adapter/out/persistence`: Spring Data JPA repositories, JPA entities, Liquibase changelogs.
+- `adapter/out/influx`: InfluxDB Flux query and telemetry clients.
+
 ```
 DevSecOpsManagementPortal/
 ├── backend/                  # Spring Boot application (Java 21)
 │   ├── src/main/java/        # Domain model, use cases, REST controllers, adapters
-│   ├── src/main/resources/   # Profiles (local H2 / oracle rd,qc,prod) & Liquibase migrations
-│   ├── src/test/             # Unit, migration, and ArchUnit tests (Spock, JUnit 5)
-│   ├── src/regressionTest/   # End-to-end API regression tests
+│   ├── src/main/resources/   # Profiles (local H2 / oracle rd,qc,prod), logback-spring.xml
+│   ├── src/test/             # Spock unit specs with 60% JaCoCo line coverage gate
+│   ├── src/regressionTest/   # Spock API end-to-end regression tests
+│   ├── src/smokeTest/        # Health and endpoint smoke tests
+│   ├── src/performanceTest/  # p95 latency performance benchmark tests
 │   ├── Dockerfile            # Red Hat UBI 9 OpenJDK 21 container image specification
-│   └── build.gradle          # Backend build script with frontend asset bundling
-├── frontend/                 # Angular 21 single-page application
-│   ├── src/
-│   │   ├── app/              # Portal application routes, components, and services
-│   │   ├── common/           # Shared UI components, dialogs, styles, and core models
-│   │   ├── testFixtures/     # Test utilities and mock API fixtures
-│   │   └── regressionTest/   # Browser-based regression tests (Playwright)
-│   ├── angular.json          # Angular CLI workspace (BBH @v6 theme + public fallback)
-│   ├── package.json          # Frontend dependencies and npm scripts
-│   ├── tsconfig.json         # TypeScript configuration with @common/* path mapping
-│   └── build.gradle          # Frontend Gradle integration tasks (build, test, verify)
-├── deploy/openshift/         # Kustomize base & overlays (rd, qc, prod) for OpenShift + Oracle
-├── examples/                 # Example Jenkinsfiles, API scripts, and config payloads
+│   └── build.gradle          # Backend build script
+├── frontend/                 # Angular single-page application with BBH V6 styles
+│   ├── src/app/              # Application routes, components, and services
+│   ├── src/common/ui/        # V6 Table helpers, toolbar components, V6 form directives
+│   ├── angular.json          # Angular CLI workspace configuration
+│   └── package.json          # Frontend dependencies and npm scripts
+├── deploy/openshift/         # Kustomize base & overlays (rd, qc, prod) for OpenShift (multi-pod replicas: 2)
 ├── gradle/                   # Gradle wrapper and version catalog (libs.versions.toml)
 ├── build.gradle              # Root build script
-├── settings.gradle           # Module definitions and automatic BBH / public repository routing
+├── settings.gradle           # BBH Nexus repository configuration
 └── README.md
 ```
 
 ---
 
-## Running Locally (Outside & Inside the BBH Network)
+## Running Locally in BBH Network
 
-The build automatically detects whether `tools.bbh.com/nexus` is reachable (or you can force the mode with `-PbbhNetwork=false` or `-PbbhNetwork=true`):
-- **Outside the BBH network (`bbhNetwork=false`)**: Uses Gradle Plugin Portal, Maven Central, and `registry.npmjs.org`, and builds the Angular frontend with the `public` fallback stylesheet (`src/common/styles-public.scss`).
-- **Inside the BBH network (`bbhNetwork=true`)**: Uses BBH Nexus (`tools.bbh.com/nexus`), installs the BBH Design System packages (`@v6/v6-themes@21`, `@v6/v6-table`, `@v6/v6-icons`), and builds the Angular frontend with BBH v6 styles (`src/common/styles.scss`).
+The project is configured for BBH developer laptops using local H2 file database in Oracle compatibility mode (`~/bbh-devsecops/dso-portal/dso-portal`).
 
-### Option 1: Single Command (Backend + Bundled Frontend on Port 8080)
+### Single Command (Backend + Bundled Frontend on Port 8080)
 
-Outside the BBH network:
 ```bash
-./gradlew :backend:bootRun -PbbhNetwork=false
-```
-
-Inside the BBH network (with BBH `@v6` Angular styles):
-```bash
-./gradlew :backend:bootRun -PbbhNetwork=true
+./gradlew :backend:bootRun
 ```
 Open **`http://localhost:8080`**.
 
-### Option 2: Two Terminals (Backend on 8080 + Angular Dev Server with Hot Reload on 4200)
+### Independent Frontend Dev Server (Port 4200 with Hot Reload)
 
-**Terminal 1 — Backend only (skip frontend Gradle build):**
+**Terminal 1 — Backend:**
 ```bash
 ./gradlew :backend:bootRun -PskipGui=true
 ```
 
-**Terminal 2 — Frontend (Outside BBH network):**
+**Terminal 2 — Frontend:**
 ```bash
 cd frontend
-npm ci --registry=https://registry.npmjs.org/
 npm start
-```
-
-**Terminal 2 — Frontend (Inside BBH network with `@v6` styles):**
-```bash
-cd frontend
-npm ci
-npm run install:bbh
-npm run start:bbh
 ```
 Open **`http://localhost:4200`** (proxies `/api` to `http://localhost:8080`).
 
 ---
 
-## Configuring InfluxDB & Grafana via the Management Panel
+## Logging & Auditing
 
-Open **`http://localhost:8080/admin/settings`** (or click **Admin** -> **Library defaults**) and scroll to **Tools and servers**:
-1. **Repository, metrics and agents**:
-   - **InfluxDB write URL (`influx.url`)** and **InfluxDB credentials ID (`influx.credentialsId`)**: Sent to `DSOEnhanced` Jenkins pipelines so every pipeline run writes `pipeline_run`, `dora`, `stage_run`, `security_findings`, `sonarqube`, `coverage`, `deployment`, `artifact`, and `goldenfix_run` metrics to InfluxDB.
-2. **Portal monitoring (InfluxDB & Grafana)**:
-   - **InfluxDB read URL (`dso.influx.url`)**, **InfluxDB organization (`dso.influx.org`)**, **InfluxDB bucket (`dso.influx.bucket`)**, and **InfluxDB read token (`dso.influx.token`)**: Used directly by the Portal backend to query pipeline run history and DORA metrics for all Pipeline Monitoring views.
-   - **Grafana instance name / pipeline dashboard URL / security dashboard URL** (primary and optional second instance): Displayed on the Pipeline Monitoring pages with automatic `var-project=<tag>&from=now-<days>d&to=now` query parameters.
+- **Logback & SLF4J**: Configured in `backend/src/main/resources/logback-spring.xml` with `SizeAndTimeBasedRollingPolicy`.
+- **Rotation Policy**: Daily rollover (`%d{yyyy-MM-dd}.%i.log.gz`) or when log file reaches **10MB**, compressed as `.gz`, retaining 30 days of history up to 2GB total cap.
+- **Action History Audit Trail**: Every sensitive user action (pipeline key creation, key invalidation, service config updates, product changes) is logged and stored in `DSO_ACTION_LOG` table, viewable via the filterable and sortable **Action History** grid.
+
+---
+
+## Testing Suites (Groovy & Spock)
+
+| Suite | Description | Minimum Coverage |
+|-------|-------------|------------------|
+| `test` | Domain rules, use cases, controller MockMvc, architecture rules (ArchUnit) | **>= 60% line coverage** (JaCoCo gate) |
+| `regressionTest` | Full API end-to-end on H2 in Oracle mode | 30–40% |
+| `smokeTest` | Application startup, health liveness/readiness, key endpoints | 30–40% |
+| `performanceTest` | P95 latency measurements for product, service and pipeline operations | 30–40% |
+
+Run all backend suites:
+```bash
+./gradlew :backend:check
+```
 
 ---
 
 ## OpenShift & Oracle Database Deployment
 
-On OpenShift test and production environments (`rd`, `qc`, `prod`), the portal runs with the `oracle` Spring profile group (`ojdbc11`, `ddl-auto: validate`, Liquibase auto-migration, `RollingUpdate` strategy, and `dso-portal-db` Secret). See [`deploy/openshift/README.md`](deploy/openshift/README.md) for full container build and OpenShift deployment commands.
-
----
-
-## Testing
-
-Run all backend (Spock unit, Liquibase migration, ArchUnit, JaCoCo) and frontend (Vitest) unit tests:
-```bash
-./gradlew test
-```
-
-Run end-to-end backend API regression tests:
-```bash
-./gradlew :backend:regressionTest
-```
+- **Test & Production Profiles**: OpenShift environments (`rd`, `qc`, `prod`) activate the `oracle` Spring profile group, connecting to Oracle database via HikariCP (`com.oracle.database.jdbc:ojdbc11`) with Liquibase automated migrations.
+- **Multi-Pod High Availability**: The base deployment (`deploy/openshift/dso-portal/base/deployment.yaml`) runs **2 replicas** with `RollingUpdate` strategy for seamless zero-downtime rollouts.

@@ -9,7 +9,7 @@
     "start:bbh": "ng serve --configuration=development",
     "build": "ng build --configuration=production,public",
     "build:bbh": "ng build --configuration=production",
-    "test": "ng test --watch=false"
+    "test": "npx ng test --watch=false"
   },
   "packageManager": "npm@10.8.2",
   "engines": {
