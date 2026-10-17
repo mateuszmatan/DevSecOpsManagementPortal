@@ -33,10 +33,11 @@ import static com.bbh.itss.dso.portal.support.Fixtures.settings
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
-        'spring.datasource.url=jdbc:h2:mem:pipeline-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
+        'spring.datasource.url=jdbc:h2:mem:persistence-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = NONE)
-@Import([PipelinePersistenceAdapter, ProductPersistenceAdapter])
+@Import([DepartmentPersistenceAdapter, ProductPersistenceAdapter, PipelinePersistenceAdapter,
+        GlobalSettingsPersistenceAdapter, ServiceTemplatePersistenceAdapter])
 class PipelinePersistenceAdapterSpec extends Specification {
 
     static final Instant ISSUED = Instant.parse('2026-10-01T08:00:00Z')

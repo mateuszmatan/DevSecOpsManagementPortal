@@ -28,6 +28,7 @@ def hasV6 = file('node_modules/@v6/v6-themes').isDirectory()
 def angularConfiguration = hasV6 ? 'production' : 'production,public'
 def agGridLicenseKey = providers.gradleProperty('agGridLicenseKey').orElse(providers.environmentVariable('AG_GRID_LICENSE_KEY')).getOrElse('')
 def npmInstalled = layout.buildDirectory.file('npm/installed.txt')
+def designSystemInstalled = layout.buildDirectory.file('npm/design-system.txt')
 def distDir = layout.projectDirectory.dir('dist')
 def workspaceFiles = files('package.json', 'package-lock.json', '.npmrc', 'angular.json', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.spec.json')
 
@@ -53,6 +54,7 @@ tasks.register('installNpmCIDeps', Exec) {
     inputs.property('registry', npmEnvironment.npm_config_registry ?: '')
     commandLine = npmCmd + ['ci', '--no-audit', '--no-fund', '--engine-strict=false']
     outputs.file(npmInstalled)
+    onlyIf { !file('node_modules').isDirectory() }
     outputs.upToDateWhen { file('node_modules').isDirectory() }
     doLast { npmInstalled.get().asFile.text = 'npm ci' }
 }
@@ -65,10 +67,15 @@ tasks.register('installDesignSystem', Exec) {
     environment npmEnvironment
     inputs.files('package.json', 'package-lock.json', '.npmrc')
     inputs.property('packages', designSystemPackages)
-    commandLine = npmCmd + ['install', '--no-save', '--no-audit', '--no-fund'] + designSystemPackages
-    outputs.dir('node_modules/@v6/v6-themes')
-    outputs.upToDateWhen { file('node_modules/@v6/v6-themes').isDirectory() }
+    commandLine = npmCmd + ['install', '--no-save', '--no-audit', '--no-fund', '--fetch-retries=0', '--fetch-timeout=3000'] + designSystemPackages
+    outputs.file(designSystemInstalled)
+    onlyIf { !designSystemInstalled.get().asFile.isFile() }
+    outputs.upToDateWhen { designSystemInstalled.get().asFile.isFile() }
     ignoreExitValue = true
+    doLast {
+        designSystemInstalled.get().asFile.parentFile.mkdirs()
+        designSystemInstalled.get().asFile.text = 'checked'
+    }
 }
 
 tasks.register('buildAngular', Exec) {

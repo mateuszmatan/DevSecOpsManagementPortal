@@ -187,19 +187,23 @@ export class ServiceConfigDialog {
     const updatedServiceRequest = toServiceRequest(form);
     const productForm = createProductForm();
     patchProduct(productForm, prod);
+    const baseRequest = toProductRequest(productForm, prod.version);
 
-    const currentServices = productForm.controls.services.controls;
-    const targetIdx = currentServices.findIndex(
-      (ctrl) => ctrl.controls.id.value === updatedServiceRequest.id || ctrl.controls.name.value === updatedServiceRequest.name,
+    const targetIdx = baseRequest.services.findIndex(
+      (s) =>
+        (updatedServiceRequest.id !== null && s.id === updatedServiceRequest.id) ||
+        s.name.toLowerCase() === this.data.pipeline.serviceName.toLowerCase() ||
+        s.name.toLowerCase() === updatedServiceRequest.name.toLowerCase(),
     );
 
+    const services = [...baseRequest.services];
     if (targetIdx >= 0) {
-      currentServices[targetIdx].patchValue(updatedServiceRequest as any);
+      services[targetIdx] = updatedServiceRequest;
     } else {
-      currentServices.push(createServiceForm(updatedServiceRequest as any));
+      services.push(updatedServiceRequest);
     }
 
-    const request = toProductRequest(productForm, prod.version);
+    const request = { ...baseRequest, services };
 
     this.productsApi.update(prod.id, request, this.data.pipeline.type).subscribe({
       next: () => {

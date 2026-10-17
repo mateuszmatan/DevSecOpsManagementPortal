@@ -381,7 +381,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
         const field = document.querySelector(
           '.product-fields .dso-form-field.has-error, .dso-panel.expanded .dso-form-field.has-error',
         );
-        field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        field?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       },
       { injector: this.injector },
     );

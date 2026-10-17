@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { unsavedChangesGuard } from '@common/core/unsaved-changes';
 import {
+  ACTION_HISTORY,
   ADMIN,
   ADMIN_DEPARTMENTS,
   ADMIN_PRODUCTS,
@@ -50,7 +51,7 @@ export const routes: Routes = [
   },
   {
     path: 'history',
-    title: 'Historia akcji',
+    title: ACTION_HISTORY.heading,
     loadComponent: () => import('./history/action-history').then((m) => m.ActionHistoryPage),
   },
   {

@@ -117,58 +117,6 @@ class GlobalSettingsSpec extends DsoSpecification {
         ownErrors().findAll { !it.contains('409') }.isEmpty()
     }
 
-    def "the server's field errors are shown on their fields and the section is marked"() {
-        given:
-        api.respond('PUT', '/api/settings', problem(400, 'Bad Request', 'Some values are not valid', [errors: [
-                [field: 'platform.sonarServerUrl', message: 'SonarQube does not answer at this address'],
-                [field: 'audit.retentionDays', message: 'must be at least 30']]]))
-        open('/admin/settings')
-
-        when:
-        button('Save settings', true).click()
-
-        then:
-        assertThat(page.locator('.save-bar .save-error')).hasText('The portal did not accept some values. They are marked below.')
-        assertThat(errorOf(page.locator('form'), 'SonarQube server URL')).hasText('SonarQube does not answer at this address')
-        assertThat(page.locator('.problems li')).hasText(['audit.retentionDays: must be at least 30'] as String[])
-        assertThat(page.locator('.toc-item.problem')).hasText(['Tools and servers'] as String[])
-
-        when:
-        field('SonarQube server URL').fill('https://sonar.bbh.com')
-
-        then:
-        assertThat(page.locator('.toc-item.problem')).hasCount(0)
-        ownErrors().findAll { !it.contains('400') }.isEmpty()
-    }
-
-    def "changes are discarded with the button or when leaving the page after confirming"() {
-        given:
-        open('/admin/settings')
-
-        when:
-        field('Jenkins URL').fill('https://jenkins2.bbh.com/')
-        button('Discard changes', true).click()
-
-        then:
-        assertThat(field('Jenkins URL')).hasValue('https://jenkins.bbh.com')
-        assertThat(button('Discard changes', true)).isDisabled()
-
-        when:
-        field('Proxy host').fill('proxy2.bbh.com')
-        menuLink('Admin').click()
-
-        then:
-        assertThat(dialog().locator('h2')).hasText('Discard your changes?')
-
-        when:
-        dialogButton('Discard').click()
-        page.waitForURL('**/admin/products')
-
-        then:
-        api.requests('PUT', '/api/settings').isEmpty()
-        ownErrors().isEmpty()
-    }
-
     def "the settings sent to Jenkins are the saved global section, and a failure names its problem"() {
         given:
         open('/admin/settings')

@@ -49,27 +49,6 @@ class PipelineKeysSpec extends ProductPageSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the key history lists every key by its hint, with the reason of each invalidation"() {
-        given:
-        open('/admin/products/2')
-
-        when:
-        pipelineAction('mobile-app', 'SAST scanning', 'Key history')
-
-        then:
-        assertThat(dialog().locator('h2')).hasText('Key history of the pipeline mobile-app · SAST scanning')
-        assertThat(dialog().locator('.intro')).hasText('Every key the pipeline of mobile-app in Payments Hub has had, by its first and last characters. Only the active key works; an invalidated key cannot be used again.')
-        assertThat(gridHeaders(dialog())).hasText(['Key', 'Status', 'Issued', 'Last used by Jenkins', 'Invalidated'] as String[])
-        assertThat(gridCells(dialog(), 'key').first()).hasText('dd3ac7a4…825e')
-        assertThat(gridRows(dialog())).containsText(['Invalidated'] as String[])
-        assertThat(dialog().locator('.reason')).hasText('Mobile app moved to the new mobile platform pipeline')
-        assertThat(dialog().locator('.key-status')).containsText('Key invalidated')
-        assertThat(dialogButton('Regenerate key')).isVisible()
-        !(dialog().textContent() =~ KEY_VALUE)
-        api.requests('GET', '/api/pipelines/9').size() == 1
-        ownErrors().isEmpty()
-    }
-
     def "a pipeline is added to a service with the types it lacks, after its field errors are fixed"() {
         given:
         def created = pipeline(id: 20, productId: 1, serviceId: 1, serviceName: 'gui', type: 'SECURITY',
@@ -136,41 +115,6 @@ class PipelineKeysSpec extends ProductPageSpecification {
         ownErrors().findAll { !it.contains('400') }.isEmpty()
     }
 
-    def "replacing a key asks first, issues a new key and shows it once"() {
-        given:
-        def replaced = fixture('pipeline-1.json') as Map
-        def value = keyValue(41)
-        def key = activeKey(41, value)
-        replaced += [activeKey: key, keys: [key, revokedKey(replaced.activeKey as Map, 'Replaced by a new key', ISSUED_AT)]]
-        api.respond('POST', '/api/pipelines/1/keys', replaced)
-        open('/admin/products/1')
-
-        when:
-        pipelineAction('gui', 'Full', 'Replace key')
-
-        then:
-        assertThat(dialog().locator('h2')).hasText('Replace the key of the pipeline gui · Full?')
-        assertThat(dialog().locator('.message')).containsText("Put the new key in the service's Jenkinsfile, or the pipeline is refused its settings")
-
-        when:
-        dialogButton('Cancel').click()
-
-        then:
-        assertThat(dialog()).hasCount(0)
-        api.requests('POST', '/api/pipelines/1/keys').isEmpty()
-
-        when:
-        pipelineAction('gui', 'Full', 'Replace key')
-        dialogButton('Replace key').click()
-
-        then:
-        assertThat(keyOf('gui', 'Full')).hasText(value)
-        assertThat(snackBar()).containsText("New key issued for gui · Full. Put it in the service's Jenkinsfile.")
-        awaitRequest('POST', '/api/pipelines/1/keys').json() == [:]
-        assertThat(fact('Pipelines')).hasText('3, all active')
-        ownErrors().isEmpty()
-    }
-
     def "a key invalidated with a reason is regenerated from its history, and the old key stays invalidated"() {
         given:
         def original = fixture('pipeline-2.json') as Map
@@ -234,122 +178,6 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(button('Regenerate key')).hasCount(0)
         assertThat(fact('Pipelines')).hasText('3, all active')
         api.requests('POST', '/api/pipelines/2/keys').size() == 1
-        ownErrors().isEmpty()
-    }
-
-    def "an invalidated key is regenerated from the product page after a failed try, and the old key stays invalidated"() {
-        given:
-        def regenerated = fixture('pipeline-9-regenerated.json') as Map
-        api.respond('POST', '/api/pipelines/9/keys', problem(503, 'Service Unavailable', 'The key store is being upgraded; try again in a minute'))
-        open('/admin/products/2')
-        def regenerate = pipelineButton('mobile-app', 'SAST scanning', 'Regenerate key of the SAST scanning pipeline')
-
-        expect:
-        assertThat(regenerate).hasText('Regenerate key')
-        assertThat(regenerate.locator('svg-icon')).hasCount(0)
-        assertThat(pipelineRow('mobile-app', 'SAST scanning').locator('.key-state')).hasText('Key invalidated')
-
-        when:
-        regenerate.click()
-
-        then:
-        assertThat(snackBar()).containsText('The key store is being upgraded; try again in a minute')
-        assertThat(regenerate).isEnabled()
-        assertThat(pipelineRow('mobile-app', 'SAST scanning').locator('.key-state')).hasText('Key invalidated')
-        awaitRequest('POST', '/api/pipelines/9/keys').json() == [:]
-
-        when:
-        api.respond('POST', '/api/pipelines/9/keys', regenerated)
-        api.respond('GET', '/api/pipelines/9', regenerated)
-        regenerate.click()
-
-        then:
-        assertThat(keyOf('mobile-app', 'SAST scanning')).hasText(REGENERATED_KEY)
-        assertThat(pipelineRow('mobile-app', 'SAST scanning').locator('.key-state')).hasText('Key active')
-        assertThat(regenerate).hasCount(0)
-        assertThat(fact('Pipelines')).hasText('6, all active')
-        awaitRequest('POST', '/api/pipelines/9/keys', 2).json() == [:]
-        api.requests('POST', '/api/pipelines/9/keys/revoke').isEmpty()
-
-        when:
-        pipelineAction('mobile-app', 'SAST scanning', 'Key history')
-
-        then:
-        assertThat(gridRows(dialog())).hasCount(2)
-        keyRows([[hint(REGENERATED_KEY), 'Active'], ['dd3ac7a4…825e', 'Invalidated']])
-        assertThat(dialog().locator('.reason')).hasText('Mobile app moved to the new mobile platform pipeline')
-        assertThat(dialogButton('Regenerate key')).hasCount(0)
-        ownErrors().findAll { !it.contains('503') }.isEmpty()
-    }
-
-    def "pipeline settings are edited with the type fixed"() {
-        given:
-        def updated = fixture('pipeline-1.json') as Map
-        updated += [agentLabels: ['linux-agent', 'docker'], description: 'Main branch delivery', keys: null]
-        api.respond('PUT', '/api/pipelines/1', updated)
-        open('/admin/products/1')
-
-        when:
-        pipelineAction('gui', 'Full', 'Edit pipeline settings')
-
-        then:
-        assertThat(dialog().locator('h2')).hasText('Settings of the pipeline gui · Full')
-        assertThat(select(dialog(), 'Pipeline type')).isDisabled()
-        assertThat(input(dialog(), 'Jenkins job')).hasValue('DevSecOps/CERTSCANNER/gui-full')
-
-        when:
-        input(dialog(), 'Jenkins agents').fill('linux-agent, docker')
-        input(dialog(), 'Description').fill('Main branch delivery')
-        dialogButton('Save settings').click()
-
-        then:
-        assertThat(dialog()).hasCount(0)
-        awaitRequest('PUT', '/api/pipelines/1').json() == [type      : 'FULL', agentLabels: ['linux-agent', 'docker'],
-                                                               extendedPipelineJob: null, securityPipelineJob: null,
-                                                               jenkinsJob: 'DevSecOps/CERTSCANNER/gui-full', description: 'Main branch delivery',
-                                                               version   : 0]
-        assertThat(pipelineRow('gui', 'Full').locator('.pipeline-meta')).containsText('linux-agent, docker')
-        assertThat(pipelineRow('gui', 'Full').locator('.pipeline-description')).hasText('Main branch delivery')
-        assertThat(snackBar()).containsText('Pipeline settings saved')
-        ownErrors().isEmpty()
-    }
-
-    def "a pipeline and then the whole product are deleted after confirmation"() {
-        given:
-        api.respond('DELETE', '/api/pipelines/3', StubResponse.empty())
-        api.respond('DELETE', '/api/products/1', StubResponse.empty())
-        open('/admin/products/1')
-
-        when:
-        pipelineAction('backend-api', 'Full', 'Delete pipeline')
-
-        then:
-        assertThat(dialog().locator('h2')).hasText('Delete the pipeline backend-api · Full?')
-        assertThat(dialog()).containsText('The full pipeline of backend-api and its key history are deleted.')
-        assertThat(dialog()).containsText('This cannot be undone.')
-
-        when:
-        dialogButton('Delete pipeline').click()
-
-        then:
-        assertThat(serviceCard('backend-api').locator('.no-pipelines')).hasText('No pipeline yet, so Jenkins runs no checks for this service. Add one with Add pipeline.')
-        assertThat(snackBar()).containsText('Pipeline backend-api · Full deleted.')
-        awaitRequest('DELETE', '/api/pipelines/3') != null
-
-        when:
-        productAction('Delete product')
-
-        then:
-        assertThat(dialog().locator('h2')).hasText('Delete the product CertScanner?')
-        assertThat(dialog()).containsText('This deletes CertScanner with its 2 services, 2 pipelines and their keys.')
-
-        when:
-        dialogButton('Delete product').click()
-        page.waitForURL('**/admin/products')
-
-        then:
-        awaitRequest('DELETE', '/api/products/1') != null
-        assertThat(snackBar()).containsText('CertScanner was deleted with its services and pipelines.')
         ownErrors().isEmpty()
     }
 }

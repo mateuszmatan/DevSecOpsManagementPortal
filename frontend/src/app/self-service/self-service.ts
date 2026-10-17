@@ -457,11 +457,19 @@ export class SelfService implements HasUnsavedChanges {
 
   protected openService(index: number | null): void {
     const services = this.services();
+    const current = index === null ? null : services[index];
+    const stored =
+      current?.id != null
+        ? this.existing()?.services.find((candidate) => candidate.id === current.id)
+        : undefined;
     this.dialog
       .open<WizardService, ServiceDialogData, ServiceDialog>(ServiceDialog, {
         data: {
           pipeline: this.pipeline()!,
-          service: index === null ? null : services[index],
+          service:
+            current && stored && !current.serviceRequest
+              ? { ...current, serviceRequest: stored }
+              : current,
           takenNames: services
             .filter((_, position) => position !== index)
             .map((service) => service.name),

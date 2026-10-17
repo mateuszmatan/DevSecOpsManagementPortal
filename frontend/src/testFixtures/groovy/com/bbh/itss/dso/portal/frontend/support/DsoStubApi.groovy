@@ -53,5 +53,10 @@ class DsoStubApi extends StubApi {
         get('/api/monitoring/activity') { json(fixture('monitoring-activity.json')) }
         get('/api/monitoring/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
         get('/api/monitoring/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
+        get('/api/action-history') { json([]) }
+        get('/api/user/me') {
+            json([username: 'mmatan', fullName: 'Mateusz Matan', email: 'mateusz.matan@bbh.com',
+                  roles   : ['ADMIN', 'AI_LAB', 'CAPITAL_PARTNERS', 'CORPORATE_TECHNOLOGY', 'CUSTODY', 'FUND_SERVICES']])
+        }
     }
 }

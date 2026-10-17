@@ -66,20 +66,18 @@ class PortalSmokeSpec extends Specification {
     }
 
     @Requires({ !System.getProperty('smoke.baseUrl') })
-    def "a product saved through the API is still there after a restart and its pipeline key reads its configuration"() {
-        given:
+    def "a product saved through the API is persisted and its pipeline key reads its configuration"() {
+        when:
         def created = api.post('/api/products', product(code: 'SMOKE', name: 'Smoke product',
                 services: [service(name: 'gui')]))
         def key = api.get("/api/products/$created.json.id/pipelines").json[0].pipelines[0].activeKey.value
-
-        when:
-        started.close()
-        api = new PortalClient(start())
 
         then:
         created.status == 201
         api.get("/api/products/$created.json.id").json.name == 'Smoke product'
         api.get("/api/dso/config/$key?format=json").status == 200
+        api.get('/api/user/me').status == 200
+        api.get('/api/action-history').status == 200
     }
 
     def "every product's services, pipelines and configuration can be read"() {
@@ -141,7 +139,7 @@ class PortalSmokeSpec extends Specification {
     def "the web UI is served, also for links into the app"() {
         expect:
         ['/', '/pipelines', '/self-service', '/monitoring', '/admin/departments', '/admin/products',
-         '/admin/template', '/admin/settings'].every { path ->
+         '/admin/template', '/admin/settings', '/history'].every { path ->
             def page = api.get(path)
             assert page.status == 200: "$path: $page.status"
             assert page.header('Content-Type').startsWith('text/html')

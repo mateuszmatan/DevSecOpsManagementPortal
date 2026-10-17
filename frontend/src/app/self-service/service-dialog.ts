@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { AbstractControl, ReactiveFormsModule } from '@angular/forms';
+import { pairwise, startWith } from 'rxjs';
 import { BuildTool, DeployTarget } from '../core/models';
 import { DIALOG } from '@common/ui/dialog';
 import { revalidateAll } from '@common/shared/form-controls';
@@ -121,6 +122,19 @@ export class ServiceDialog {
         : null;
     });
 
+    const template = this.data.defaults.template;
+    const { tool, buildPath, command } = this.serviceForm.controls.build.controls;
+    tool.valueChanges.pipe(startWith(tool.value), pairwise()).subscribe(([previous, next]) => {
+      const before = buildDefaults(template, previous);
+      const after = buildDefaults(template, next);
+      if (!buildPath.value || buildPath.value === before.artifact) {
+        buildPath.setValue(after.artifact);
+      }
+      if (!command.controls.tasks.value || command.controls.tasks.value === before.tasks) {
+        command.controls.tasks.setValue(after.tasks);
+      }
+    });
+
     if (!this.data.service) {
       this.serviceForm.controls.name.valueChanges.subscribe((name) => {
         const trimmed = (name ?? '').trim();
@@ -157,6 +171,7 @@ export class ServiceDialog {
         tool,
         autoSetup: true,
         sourceDir: '.',
+        buildPath: build.artifact,
         command: { tasks: build.tasks },
       },
       delivery: {

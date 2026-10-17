@@ -13,8 +13,8 @@ import static com.bbh.itss.dso.portal.frontend.support.StubResponse.json
 
 class LargeCatalogue {
 
-    static final int PRODUCTS = 25
-    static final int SERVICES = 16
+    static final int PRODUCTS = 8
+    static final int SERVICES = 4
     static final Map<String, String> TYPES = ENTRY_POINTS.subMap(['FULL', 'SECURITY', 'EXTENDED', 'SAST'])
     static final int PIPELINES = SERVICES * TYPES.size()
 

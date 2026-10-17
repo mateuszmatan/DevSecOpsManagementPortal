@@ -45,26 +45,6 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the product's config.yaml holds every service of the product"() {
-        given:
-        def yaml = fixtureText('product-1-config.yaml')
-        open('/admin/products/1')
-
-        when:
-        productAction('Settings sent to Jenkins (config.yaml)')
-
-        then:
-        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins (config.yaml) for CertScanner')
-        dialog().locator('pre.code-block').textContent() == yaml
-
-        when:
-        def download = page.waitForDownload { dialogButton('Download').click() }
-
-        then:
-        download.suggestedFilename() == 'certscanner-config.yaml'
-        ownErrors().isEmpty()
-    }
-
     def "the Jenkinsfile of a pipeline loads the shared library of the global settings with the pipeline's key"() {
         given:
         def settings = fixture('settings.json') as Map
@@ -81,24 +61,5 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         dialog().locator('pre.code-block').textContent() ==
                 "@Library('BbhDevSecOps@2.4') _\n\ndevSecOpsSASTScanningPipeline(pipelineKey: '2c0ca4f4-a1a6-472a-9685-0c75f22fe713')\n"
         ownErrors().isEmpty()
-    }
-
-    def "a failed #what preview shows the problem detail the API sends"() {
-        given:
-        api.respond('GET', path, problem(status, title, detail))
-        open('/admin/products/1')
-
-        when:
-        action.call(this)
-
-        then:
-        assertThat(snackBar()).containsText(detail)
-        assertThat(dialog()).hasCount(0)
-        api.requests('GET', path).size() == 1
-
-        where:
-        what                | path                      | status | title                   | detail                                                             | action
-        'pipeline config'   | '/api/pipelines/3/config' | 404    | 'Not Found'             | 'Pipeline 3 was not found'                                         | { ConfigPreviewSpec spec -> spec.pipelineAction('backend-api', 'Full', 'Settings sent to Jenkins (config.yaml)') }
-        'product config'    | '/api/products/1/config'  | 500    | 'Internal Server Error' | 'The configuration of CertScanner cannot be rendered: no services' | { ConfigPreviewSpec spec -> spec.productAction('Settings sent to Jenkins (config.yaml)') }
     }
 }

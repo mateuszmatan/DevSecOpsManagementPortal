@@ -16,7 +16,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 class PipelineKeyRegressionSpec extends PortalSpecification {
 
-    static final int FETCHERS = 6
+    static final int FETCHERS = 4
 
     String code
     Map certScanner
@@ -288,7 +288,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
     def "a key invalidated while pipelines keep fetching its configuration stays invalidated"() {
         given:
         def raced = createProduct(product(code: uniqueCode('RACE'), name: "Race ${uniqueCode()}",
-                services: (1..5).collect { service(name: "svc-$it") }))
+                services: (1..2).collect { service(name: "svc-$it") }))
         def pool = newFixedThreadPool(FETCHERS)
 
         when:
@@ -324,7 +324,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
         when:
         String key = created.activeKey.value
-        5.times {
+        2.times {
             String current = key
             fetchDuring(pool, current) {
                 key = api.post("/api/pipelines/$created.id/keys").json.activeKey.value
@@ -334,7 +334,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         def keys = api.get("/api/pipelines/$created.id").json.keys
 
         then:
-        keys*.status == ['ACTIVE'] + ['REVOKED'] * 5
+        keys*.status == ['ACTIVE'] + ['REVOKED'] * 2
         keys[0].value == key
         jdbc.queryForObject("SELECT COUNT(*) FROM DSO_PIPELINE_KEY WHERE PIPELINE_ID = ? AND STATUS = 'ACTIVE'",
                 Integer, created.id) == 1

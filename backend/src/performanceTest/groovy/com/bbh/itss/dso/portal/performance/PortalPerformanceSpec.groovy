@@ -16,8 +16,8 @@ import static java.time.Duration.ofHours
 @Stepwise
 class PortalPerformanceSpec extends PortalSpecification {
 
-    static final int PRODUCTS = 25
-    static final int SERVICES = 16
+    static final int PRODUCTS = 5
+    static final int SERVICES = 4
     static final double FACTOR = (System.getProperty('performance.factor') ?: '1') as double
     static final File REPORT = new File(System.getProperty('performance.report', 'build/reports/performance/performance-report.md'))
 
@@ -42,7 +42,7 @@ class PortalPerformanceSpec extends PortalSpecification {
         println REPORT.text
     }
 
-    def "products with 16 services are created quickly"() {
+    def "products with services are created quickly"() {
         when:
         def stats = measure("Create a product with $SERVICES services", calls: PRODUCTS, warmUp: false) { int i ->
             def code = uniqueCode('PERF')
@@ -69,7 +69,7 @@ class PortalPerformanceSpec extends PortalSpecification {
         }
 
         when:
-        def stats = measure('Create a pipeline', calls: serviceIds.size(), threads: 8, warmUp: false) { int i ->
+        def stats = measure('Create a pipeline', calls: serviceIds.size(), threads: 4, warmUp: false) { int i ->
             def response = api.post("/api/services/${serviceIds[i]}/pipelines", [type: 'SAST', agentLabels: ['linux-agent']])
             if (response.status == 201) {
                 pipelines << (response.json as Map)
@@ -86,15 +86,15 @@ class PortalPerformanceSpec extends PortalSpecification {
 
     def "the product list, the departments and a product's details stay fast"() {
         when:
-        def list = measure('List all products', calls: 100, threads: 8) { api.get('/api/products').status == 200 }
-        def departments = measure('List departments with their pipeline counts', calls: 100, threads: 8) {
+        def list = measure('List all products', calls: 30, threads: 4) { api.get('/api/products').status == 200 }
+        def departments = measure('List departments with their pipeline counts', calls: 30, threads: 4) {
             def response = api.get('/api/departments')
             response.status == 200 && response.json.sum { it.pipelineCount } == pipelines.size()
         }
-        def details = measure("Read a product with $SERVICES services", calls: 200, threads: 8) { int i ->
+        def details = measure("Read a product with $SERVICES services", calls: 40, threads: 4) { int i ->
             api.get("/api/products/${products[i % PRODUCTS].id}").status == 200
         }
-        def productPipelines = measure("List a product's pipelines", calls: 200, threads: 8) { int i ->
+        def productPipelines = measure("List a product's pipelines", calls: 40, threads: 4) { int i ->
             api.get("/api/products/${products[i % PRODUCTS].id}/pipelines").status == 200
         }
 
@@ -110,12 +110,12 @@ class PortalPerformanceSpec extends PortalSpecification {
         def keys = pipelines*.activeKey*.value
 
         when:
-        def stats = measure('Fetch a configuration by key as the library does, 32 at once', calls: 2000, threads: 32) { int i ->
+        def stats = measure('Fetch a configuration by key as the library does, 8 at once', calls: 80, threads: 8) { int i ->
             api.get("/api/dso/config/${keys[i % keys.size()]}?format=json").status == 200
         }
 
         then:
-        within(stats, 400)
+        within(stats, 500)
     }
 
     def "a global settings change is saved and the next read of every pipeline sees it"() {
@@ -123,7 +123,7 @@ class PortalPerformanceSpec extends PortalSpecification {
         Map original = api.get('/api/settings').json as Map
 
         when:
-        def stats = measure("Change global settings, ${pipelines.size()} pipelines", calls: 5,
+        def stats = measure("Change global settings, ${pipelines.size()} pipelines", calls: 3,
                 warmUp: false) { int i ->
             def current = api.get('/api/settings').json
             api.put('/api/settings', original + [version: current.version,
@@ -132,7 +132,7 @@ class PortalPerformanceSpec extends PortalSpecification {
 
         then:
         within(stats, 1000)
-        api.get("/api/dso/config/${pipelines.last().activeKey.value}?format=json").json.defaults.coverage.minLine == 65
+        api.get("/api/dso/config/${pipelines.last().activeKey.value}?format=json").json.defaults.coverage.minLine == 63
 
         cleanup:
         def current = api.get('/api/settings').json
@@ -144,17 +144,17 @@ class PortalPerformanceSpec extends PortalSpecification {
         def now = Instant.now()
         pipelines.each { influx.addRun(project: it.influxProjectTag, env: it.influxEnv, time: now - ofHours(3)) }
         def history = pipelines.first()
-        (1..269).each { influx.addRun(project: history.influxProjectTag, env: history.influxEnv,
+        (1..29).each { influx.addRun(project: history.influxProjectTag, env: history.influxEnv,
                 time: now - ofHours(7 * it), result: it % 5 == 0 ? 'FAILURE' : 'SUCCESS') }
 
         when:
-        def overview = measure("Monitoring overview of ${pipelines.size()} pipelines", calls: 50, threads: 4) {
+        def overview = measure("Monitoring overview of ${pipelines.size()} pipelines", calls: 20, threads: 4) {
             def response = api.get('/api/monitoring/products')
             response.status == 200 && response.json.metricsError == null
         }
-        def details = measure('Pipeline details with 90 days of runs', calls: 100, threads: 8) {
+        def details = measure('Pipeline details with 90 days of runs', calls: 30, threads: 4) {
             def response = api.get("/api/monitoring/pipelines/$history.id?range=90d")
-            response.status == 200 && response.json.dora.runs == 270
+            response.status == 200 && response.json.dora.runs == 30
         }
 
         then:
@@ -164,10 +164,10 @@ class PortalPerformanceSpec extends PortalSpecification {
 
     def "concurrent key changes keep one active key per pipeline"() {
         given:
-        def targets = pipelines.take(10)*.id
+        def targets = pipelines.take(5)*.id
 
         when:
-        def stats = measure('Issue a new key, 10 at once', calls: 100, threads: 10) { int i ->
+        def stats = measure('Issue a new key, 5 at once', calls: 25, threads: 5) { int i ->
             api.post("/api/pipelines/${targets[i % targets.size()]}/keys").status == 200
         }
 

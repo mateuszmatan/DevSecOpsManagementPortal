@@ -48,8 +48,31 @@ abstract class GuiSpecification extends Specification {
         };
     '''
 
-    @Shared
-    Playwright playwright
+    private static Playwright sharedPlaywright
+    private static Browser sharedBrowser
+
+    private static synchronized Browser sharedBrowser() {
+        if (sharedBrowser == null) {
+            sharedPlaywright = Playwright.create()
+            def options = new BrowserType.LaunchOptions().setHeadless(!Boolean.getBoolean('frontend.headed'))
+            def executable = System.getProperty('frontend.browser')
+            if (executable) {
+                options.setExecutablePath(Paths.get(executable))
+            }
+            sharedBrowser = sharedPlaywright.chromium().launch(options)
+            Runtime.runtime.addShutdownHook(new Thread({
+                try {
+                    sharedBrowser?.close()
+                } catch (Exception ignored) {
+                }
+                try {
+                    sharedPlaywright?.close()
+                } catch (Exception ignored) {
+                }
+            }))
+        }
+        sharedBrowser
+    }
 
     @Shared
     Browser browser
@@ -71,13 +94,7 @@ abstract class GuiSpecification extends Specification {
         if (!remoteBaseUrl()) {
             server = GuiServer.start(distDir(), api)
         }
-        playwright = Playwright.create()
-        def options = new BrowserType.LaunchOptions().setHeadless(!Boolean.getBoolean('frontend.headed'))
-        def executable = System.getProperty('frontend.browser')
-        if (executable) {
-            options.setExecutablePath(Paths.get(executable))
-        }
-        browser = playwright.chromium().launch(options)
+        browser = sharedBrowser()
     }
 
     def setup() {
@@ -86,7 +103,7 @@ abstract class GuiSpecification extends Specification {
     }
 
     def cleanup() {
-        if (page) {
+        if (page && Boolean.getBoolean('frontend.screenshots')) {
             try {
                 def target = reportsDir().resolve('screenshots').resolve(getClass().simpleName)
                 createDirectories(target)
@@ -99,8 +116,6 @@ abstract class GuiSpecification extends Specification {
     }
 
     def cleanupSpec() {
-        browser?.close()
-        playwright?.close()
         server?.close()
     }
 

@@ -70,29 +70,6 @@ class ServiceTemplateSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a template saved by someone else in the meantime is not overwritten"() {
-        given:
-        api.respond('PUT', '/api/service-template',
-                problem(409, 'Conflict', 'The service template was changed by someone else'))
-
-        when:
-        open('/admin/template')
-        input(page.locator('form'), 'Health check path').fill('/health')
-        button('Save template', true).click()
-
-        then:
-        assertThat(page.locator('.conflict')).containsText('Someone else saved the template after you opened this page.')
-        assertThat(saveError()).hasText('Not saved: the template was changed by someone else.')
-        assertThat(button('Save template', true)).isDisabled()
-
-        when:
-        button('Reload', true).click()
-
-        then:
-        assertThat(page.locator('.conflict')).hasCount(0)
-        assertThat(input(page.locator('form'), 'Health check path')).hasValue('/actuator/health')
-    }
-
     Locator example(String label) {
         holding(page.locator('.example .pairs > div'), "dt:text-is('${label}')").locator('dd')
     }

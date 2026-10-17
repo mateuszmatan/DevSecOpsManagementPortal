@@ -14,10 +14,11 @@ import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
-        'spring.datasource.url=jdbc:h2:mem:template-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
+        'spring.datasource.url=jdbc:h2:mem:persistence-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = NONE)
-@Import(ServiceTemplatePersistenceAdapter)
+@Import([DepartmentPersistenceAdapter, ProductPersistenceAdapter, PipelinePersistenceAdapter,
+        GlobalSettingsPersistenceAdapter, ServiceTemplatePersistenceAdapter])
 class ServiceTemplatePersistenceAdapterSpec extends Specification {
 
     @Subject

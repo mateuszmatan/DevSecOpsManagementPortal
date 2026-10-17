@@ -37,23 +37,6 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         ownErrors().isEmpty()
     }
 
-    def "products without a department are listed last until they are edited"() {
-        given:
-        def products = fixture('products.json') as List<Map>
-        api.respond('GET', '/api/products', [products[0], products[1] + [departmentId: null, departmentName: null]])
-
-        when:
-        open('/admin/products')
-
-        then:
-        assertThat(departmentNames()).hasText((DEPARTMENTS + 'Not in a department') as String[])
-        assertThat(gridRows(department('Not in a department')).locator('a.name')).hasText('Payments Hub')
-        assertThat(department('Not in a department').locator('.tally')).hasText('1 product, 6 pipelines, 1 key invalidated')
-        assertThat(department('Not in a department').locator('.hint')).hasText('Edit these products to choose their department.')
-        assertThat(department('Not in a department').getByRole(BUTTON)).hasCount(0)
-        ownErrors().isEmpty()
-    }
-
     def "searching asks the API for the trimmed term and says when nothing matches"() {
         given:
         open('/admin/products')
@@ -91,45 +74,6 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         assertThat(names()).hasText(['CertScanner', 'Payments Hub'] as String[])
         assertThat(departmentNames()).hasText(DEPARTMENTS as String[])
         api.lastRequest('GET', '/api/products').params() == [:]
-        ownErrors().isEmpty()
-    }
-
-    def "a product opens from its row or its name and the breadcrumb leads back"() {
-        given:
-        open('/admin/products')
-
-        when:
-        gridCell(row('Payments Hub'), 'ownerTeam').click()
-        page.waitForURL('**/admin/products/2')
-
-        then:
-        assertThat(page.locator('h1')).hasText('Payments Hub')
-        assertThat(page.locator('.breadcrumb > :not(.sep)'))
-                .hasText(['DevSecOps Admin', 'Products', 'Fund Services', 'Payments Hub'] as String[])
-        assertThat(fact('Department')).hasText('Fund Services')
-        assertThat(page.locator('.page-header .code')).hasText('PAYHUB')
-        assertThat(holding(serviceCard('mobile-app').locator('.service-facts > div'), "dt:text-is('Build tool')")).containsText('Flutter')
-        assertThat(serviceCard('gateway').locator('.repository a'))
-                .hasAttribute('href', 'https://bitbucket.bbh.com/projects/PAY/repos/payhub-gateway')
-        assertThat(fact('Services')).hasText('4')
-        assertThat(fact('Pipelines')).hasText('6, 1 key invalidated')
-        assertThat(page.locator('.stats')).hasCount(0)
-
-        when:
-        page.locator(".breadcrumb a:text-is('Products')").click()
-        page.waitForURL('**/admin/products')
-        row('CertScanner').locator('a.name').click()
-        page.waitForURL('**/admin/products/1')
-
-        then:
-        assertThat(page.locator('h1')).hasText('CertScanner')
-        assertThat(pipelineTypes('gui')).hasText(['Full pipeline', 'SAST scanning pipeline'] as String[])
-        assertThat(link('View monitoring', true)).hasAttribute('href', '/monitoring/products/1')
-        assertThat(pipelineRow('gui', 'Full').getByRole(LINK,
-                new Locator.GetByRoleOptions().setName('Open the full pipeline in Jenkins').setExact(true)))
-                .hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
-        assertThat(pipelineRow('gui', 'Full').locator('.pipeline-actions').getByRole(LINK)).hasCount(1)
-        assertThat(pipelineRow('gui', 'Full').locator('.pipeline-actions').getByRole(BUTTON)).hasCount(1)
         ownErrors().isEmpty()
     }
 

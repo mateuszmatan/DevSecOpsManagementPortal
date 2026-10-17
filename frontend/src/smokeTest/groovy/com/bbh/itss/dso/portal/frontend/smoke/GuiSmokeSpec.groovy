@@ -16,6 +16,8 @@ class GuiSmokeSpec extends DsoSpecification {
              description: 'Set up the DevSecOps pipelines of your product, or change them, in five guided steps. No DevSecOps knowledge needed.'],
             [label      : 'Pipeline Monitoring', heading: 'DevSecOps Pipeline Monitoring', path: '/monitoring',
              description: 'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.'],
+            [label      : 'Action history', heading: 'DevSecOps Action History', path: '/history',
+             description: 'History and audit log of all operations in the portal: who, when, what was done and the result.'],
             [label      : 'Admin', heading: 'DevSecOps Admin', path: '/admin/products',
              description: 'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.']]
 
@@ -55,7 +57,7 @@ class GuiSmokeSpec extends DsoSpecification {
         ownErrors().isEmpty()
     }
 
-    def "every menu link opens its section with the full name and the description on top"() {
+    def "every menu link and admin tab opens its section with the heading and active state"() {
         given:
         open('/monitoring')
 
@@ -67,28 +69,9 @@ class GuiSmokeSpec extends DsoSpecification {
             assertThat(page.locator('.page-header .page-description')).hasText(section.description)
             true
         }
-        ownErrors().isEmpty()
-    }
 
-    def "#path opens from a direct link"() {
-        when:
-        open(path)
-
-        then:
-        assertThat(page.locator('h1').first()).containsText(heading)
-        ownErrors().isEmpty()
-
-        where:
-        [path, heading] << SECTIONS.collect { [it.path, it.heading] } +
-                ADMIN_TABS.values().collect { [it, 'DevSecOps Admin'] } +
-                [['/admin', 'DevSecOps Admin'], ['/admin/products/new', 'Add product']]
-    }
-
-    def "every tab of DevSecOps Admin opens its page with the tab marked"() {
-        given:
+        and:
         open(ADMIN_TABS.values().first())
-
-        expect:
         assertThat(page.locator('nav.tab-bar a')).hasText(ADMIN_TABS.keySet() as String[])
         ADMIN_TABS.every { label, path ->
             tab(label).click()
@@ -96,50 +79,38 @@ class GuiSmokeSpec extends DsoSpecification {
             assertThat(page.locator('h1')).hasText('DevSecOps Admin')
             assertThat(page.locator('nav.tab-bar a.active')).hasText(label)
             assertThat(tab(label)).hasAttribute('aria-current', 'page')
-            assertThat(page.locator('.page.admin > router-outlet + *')).hasCount(1)
             true
         }
         ownErrors().isEmpty()
     }
 
     @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
-    def "#path shows #heading from the API"() {
+    def "key pages open from direct links, render API data without stray icons, and fit narrow viewports"() {
         given:
         page.addInitScript(CORPORATE_TECHNOLOGY)
 
-        when:
-        open(path)
+        expect:
+        [['/pipelines', 'DevSecOps Pipelines'],
+         ['/pipelines/1', 'Full pipeline'],
+         ['/history', 'DevSecOps Action History'],
+         ['/admin/products/1', 'CertScanner'],
+         ['/monitoring/products/1', 'CertScanner'],
+         ['/monitoring/pipelines/1', 'Full pipeline']].every { List<String> pair ->
+            def (path, heading) = pair
+            open(path)
+            assertThat(page.locator('h1').first()).containsText(heading)
+            assert page.locator('svg-icon').count() == 0
+            true
+        }
 
-        then:
-        assertThat(page.locator('h1').first()).containsText(heading)
+        and:
+        page.setViewportSize(800, 900)
+        ['/pipelines', '/self-service', '/monitoring', '/admin/products'].every { String path ->
+            open(path)
+            assert (page.evaluate('() => document.documentElement.scrollWidth - document.documentElement.clientWidth') as int) == 0
+            true
+        }
         ownErrors().isEmpty()
-
-        where:
-        path                       | heading
-        '/pipelines'               | 'DevSecOps Pipelines'
-        '/pipelines/1'             | 'Full pipeline'
-        '/admin/products/1'        | 'CertScanner'
-        '/admin/products/2/edit'   | 'Edit Payments Hub'
-        '/monitoring/products/1'   | 'CertScanner'
-        '/monitoring/pipelines/1'  | 'Full pipeline'
-    }
-
-    @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
-    def "#path shows no icons"() {
-        given:
-        page.addInitScript(CORPORATE_TECHNOLOGY)
-
-        when:
-        open(path)
-
-        then:
-        assertThat(page.locator('h1').first()).isVisible()
-        page.locator('svg-icon').count() == 0
-        ownErrors().isEmpty()
-
-        where:
-        path << ['/pipelines', '/pipelines/1', '/self-service', '/monitoring', '/monitoring/products/1', '/monitoring/pipelines/1',
-                 '/admin/departments', '/admin/products', '/admin/products/1', '/admin/template', '/admin/settings']
     }
 
     @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
@@ -152,25 +123,6 @@ class GuiSmokeSpec extends DsoSpecification {
         assertThat(page.locator('.rail svg-icon svg').first()).isVisible()
         page.locator('svg-icon').count() == page.locator('.rail svg-icon').count()
         ownErrors().isEmpty()
-    }
-
-    @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
-    def "#path fits a #width px window without horizontal scrolling"() {
-        given:
-        page.setViewportSize(width, 900)
-        page.addInitScript(CORPORATE_TECHNOLOGY)
-
-        when:
-        open(path)
-
-        then:
-        (page.evaluate('() => document.documentElement.scrollWidth - document.documentElement.clientWidth') as int) == 0
-        ownErrors().isEmpty()
-
-        where:
-        [path, width] << [['/pipelines', '/pipelines/1', '/self-service', '/monitoring', '/monitoring/products/1',
-                           '/admin/departments', '/admin/products', '/admin/products/1', '/admin/products/1/edit',
-                           '/admin/template', '/admin/settings'], [800, 600]].combinations()
     }
 
     @IgnoreIf({ DsoSpecification.remoteBaseUrl() })

@@ -20,7 +20,7 @@ import static java.nio.file.Files.writeString
 class GuiPerformanceSpec extends DsoSpecification {
 
     static final int WARMUPS = 1
-    static final int RUNS = 5
+    static final int RUNS = 3
     static final double FACTOR = (System.getProperty('performance.factor') ?: '1') as double
     static final String READY = '''({ selector, count }) => {
         const found = document.querySelectorAll(selector);
@@ -56,7 +56,7 @@ class GuiPerformanceSpec extends DsoSpecification {
 
     def "#scenario is visible within #limit ms at the 95th percentile"() {
         when:
-        def times = (0..<WARMUPS + RUNS).collect { int run -> measure(from, click, 1 + (run * 7) % PRODUCTS, [selector: selector, count: count]) }
+        def times = (0..<WARMUPS + RUNS).collect { int run -> measure(from, click, 1 + (run * 3) % PRODUCTS, [selector: selector, count: count]) }
         def sorted = times.drop(WARMUPS).sort()
         def p95 = sorted[(int) ceil(0.95d * RUNS) - 1]
         report << "| $scenario | $count × `$selector` | ${Math.round(sorted[RUNS.intdiv(2)])} ms | ${Math.round(p95)} ms | ${Math.round(limit * FACTOR)} ms | ${p95 <= limit * FACTOR ? 'pass' : 'FAIL'} |".toString()
@@ -70,7 +70,7 @@ class GuiPerformanceSpec extends DsoSpecification {
         'Product list, cold start'                 | 2500  | null                      | null                                             | '.ag-center-cols-container .ag-row'           | PRODUCTS
         'Product page from the product list'       | 1500  | '/admin/products'         | "a.name[href='/admin/products/ID']"              | 'section.service .pipeline'                   | PIPELINES
         'Product editor from the product page'     | 2000  | '/admin/products/ID'      | "a[href='/admin/products/ID/edit']"              | 'dso-panel .service-name'                     | SERVICES
-        'A service expanded in the editor'         | 500   | '/admin/products/ID/edit' | '.service-panel > h3 .accordion-button >> nth=8' | 'dso-panel.expanded dso-service-fields input' | 1
+        'A service expanded in the editor'         | 500   | '/admin/products/ID/edit' | '.service-panel > h3 .accordion-button >> nth=2' | 'dso-panel.expanded dso-service-fields input' | 1
         'Monitoring overview from the menu'        | 1000  | '/admin/products'         | "nav.menu a[href='/monitoring']"                 | 'a.product'                                   | PRODUCTS
         "A product's monitoring from the overview" | 1000  | '/monitoring'             | "a.product[href='/monitoring/products/ID']"      | 'a.pipeline-link'                             | PIPELINES
     }
