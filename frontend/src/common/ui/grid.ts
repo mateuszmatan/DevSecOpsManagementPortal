@@ -23,6 +23,7 @@ import {
   ColDef,
   CsvExportModule,
   CustomFilterModule,
+  GetRowIdParams,
   GridOptions,
   ICellRendererParams,
   IFilterComp,
@@ -35,6 +36,29 @@ import {
 } from 'ag-grid-community';
 import { LicenseManager } from 'ag-grid-enterprise';
 import { GRID_THEME } from './design-system';
+import {
+  V6Table,
+  V6TableConfig,
+  V6TableHelpers,
+  V6TableKeyStorageProvider,
+  V6TableMenuOption,
+  V6ActionsButtonOptions,
+  V6TablePreferences,
+  V6TablePreferencesStorage,
+  V6TablePreferencesLocalStorage,
+  V6ServerSideDatasource,
+  V6TableDefaultDatasource,
+  V6TableDefaultDatasourceOptions,
+  V6ActiveFilter,
+  V6ActiveSort,
+  V6TableHeaderSearchBoxComponent,
+  V6TableHeaderTitleComponent,
+  V6TableHeaderFilterSummaryComponent,
+  V6TableHeaderSortSummaryComponent,
+  V6TableSelectedRowsCountComponent,
+  V6ActionsButtonCellComponent,
+  V6_TABLE_COMPONENTS,
+} from './v6-table';
 
 ModuleRegistry.registerModules([
   ClientSideRowModelModule,
@@ -197,7 +221,7 @@ const INTERACTIVE = 'a, button, input, select, textarea, label';
   template: `
     <ag-grid-angular
       [class]="theme"
-      [gridOptions]="options"
+      [gridOptions]="options()"
       [columnDefs]="columnDefs()"
       [rowData]="rowData()"
       [overlayNoRowsTemplate]="emptyTemplate()"
@@ -220,6 +244,8 @@ export class DsoGrid<T> {
   readonly templates = input<readonly DsoCell<T>[], readonly DsoCell<T>[] | undefined>([], {
     transform: (templates) => templates ?? [],
   });
+  readonly v6Config = input<V6TableConfig>();
+  readonly gridOptions = input<GridOptions<T>>();
   readonly rowClick = output<T>();
 
   private readonly cells = contentChildren<DsoCell<T>>(DsoCell);
@@ -230,30 +256,26 @@ export class DsoGrid<T> {
     () => `<span class="dso-grid-empty">${escapeHtml(this.empty())}</span>`,
   );
 
-  protected readonly options: GridOptions<T> = {
-    theme: 'legacy',
-    domLayout: 'autoHeight',
-    suppressColumnVirtualisation: true,
-    suppressRowVirtualisation: true,
-    ensureDomOrder: true,
-    suppressAnimationFrame: true,
-    suppressMovableColumns: true,
-    suppressDragLeaveHidesColumns: true,
-    enableCellTextSelection: true,
-    suppressCellFocus: true,
-    rowHeight: 34,
-    headerHeight: 34,
-    floatingFiltersHeight: 38,
-    defaultColDef: {
-      resizable: true,
-      suppressHeaderMenuButton: true,
-      suppressHeaderFilterButton: true,
-      suppressFloatingFilterButton: true,
-    },
-    getRowId: ({ data }) => String(this.rowId()(data)),
-    getRowClass: (params: RowClassParams<T>) =>
-      params.data ? this.rowClass()?.(params.data) : undefined,
-  };
+  protected readonly options = computed<GridOptions<T>>(() => {
+    const base = V6Table.defaultClientSideGridOptions() as GridOptions<T>;
+    const custom = this.v6Config()?.options || this.gridOptions() || {};
+    return {
+      ...base,
+      suppressMovableColumns: true,
+      suppressDragLeaveHidesColumns: true,
+      ...custom,
+      defaultColDef: {
+        ...base.defaultColDef,
+        suppressHeaderMenuButton: true,
+        suppressHeaderFilterButton: true,
+        suppressFloatingFilterButton: true,
+        ...custom.defaultColDef,
+      },
+      getRowId: (params: GetRowIdParams<T>) => String(this.rowId()(params.data)),
+      getRowClass: (params: RowClassParams<T>) =>
+        params.data ? this.rowClass()?.(params.data) : undefined,
+    } as unknown as GridOptions<T>;
+  });
 
   protected clicked(event: RowClickedEvent<T>): void {
     const target = event.event?.target;
@@ -311,4 +333,6 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"]/g, (character) => `&#${character.charCodeAt(0)};`);
 }
 
-export const GRID = [DsoGrid, DsoCell] as const;
+export const GRID = [DsoGrid, DsoCell, ...V6_TABLE_COMPONENTS] as const;
+
+export * from './v6-table';
