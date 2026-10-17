@@ -37,9 +37,13 @@ DevSecOpsManagementPortal/
 ├── deploy/openshift/         # Kustomize base & overlays (rd, qc, prod) for OpenShift (multi-pod replicas: 2)
 ├── gradle/                   # Gradle wrapper and version catalog (libs.versions.toml)
 ├── build.gradle              # Root build script
+├── docs/                     # Deployment and architecture documentation
+│   └── DEPLOYMENT.md         # Quick guide: local laptop & OpenShift deployment
 ├── settings.gradle           # BBH Nexus repository configuration
 └── README.md
 ```
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for a quick step-by-step run and deploy guide.
 
 ---
 
