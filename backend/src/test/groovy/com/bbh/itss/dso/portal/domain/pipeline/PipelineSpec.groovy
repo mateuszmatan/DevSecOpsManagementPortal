@@ -117,7 +117,7 @@ class PipelineSpec extends Specification {
         'revoking without an active key' | { pipeline(keys: [revokedKey()]).revokeActiveKey('again', LATER) } || IllegalStateException         | 'The pipeline has no active key to invalidate'
         'a second active key'           | { pipeline(keys: [activeKey(), activeKey(id: 101, value: 'x')]) }  || IllegalArgumentException      | 'a pipeline has at most one active key'
         'changing the key history'      | { pipeline().keys().clear() }                                      || UnsupportedOperationException | null
-        'changing the type'             | { pipeline().reconfigure(null, SAST, pipelineSettings()) }         || IllegalStateException         | 'The type of a pipeline cannot change; add a new pipeline instead'
+        'changing the type'             | { pipeline().with { it.reconfigure(it.version(), SAST, pipelineSettings()) } } || IllegalStateException         | 'The type of a pipeline cannot change; add a new pipeline instead'
         'a reason over 500 bytes'       | { pipeline().revokeActiveKey('ł' * 251, LATER) }                   || InvalidRequestException       | 'is too long: it may take at most 500 bytes'
     }
 
@@ -168,7 +168,7 @@ class PipelineSpec extends Specification {
         created.problems()*.field() == ['agentLabels']
 
         when:
-        existing.reconfigure(null, existing.type(), tooMany)
+        existing.reconfigure(existing.version(), existing.type(), tooMany)
 
         then:
         def reconfigured = thrown(InvalidRequestException)
@@ -176,13 +176,13 @@ class PipelineSpec extends Specification {
         existing.settings() != tooMany
     }
 
-    def "settings read at an older version are refused before anything changes, settings without a version are not checked"() {
+    def "settings read at an older version or without one are refused before anything changes"() {
         given:
         def pipeline = pipeline(version: 3)
         def settings = pipeline.settings()
 
         when:
-        pipeline.reconfigure(2L, FULL, pipelineSettings(jenkinsJob: 'CERT/gui-full'))
+        pipeline.reconfigure(readAt, FULL, pipelineSettings(jenkinsJob: 'CERT/gui-full'))
 
         then:
         def e = thrown(IllegalStateException)
@@ -190,11 +190,13 @@ class PipelineSpec extends Specification {
         pipeline.settings() == settings
 
         when:
-        pipeline.reconfigure(null, FULL, pipelineSettings(jenkinsJob: 'CERT/gui-full'))
         pipeline.reconfigure(3L, FULL, pipelineSettings(jenkinsJob: 'CERT/gui'))
 
         then:
         pipeline.settings().jenkinsJob() == 'CERT/gui'
+
+        where:
+        readAt << [2L, null]
     }
 
     def "a Jenkins job and a description that fit their column in characters but not in UTF-8 bytes are refused"() {

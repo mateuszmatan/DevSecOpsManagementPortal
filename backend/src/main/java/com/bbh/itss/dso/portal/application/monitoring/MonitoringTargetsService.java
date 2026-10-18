@@ -30,6 +30,12 @@ public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
 
     @Override
     @ReadOnly
+    public PlatformSettings platform() {
+        return settings.current().platform();
+    }
+
+    @Override
+    @ReadOnly
     public MonitoringTargets everything() {
         return targets(products.findAll(), pipelines.findAll());
     }
@@ -58,7 +64,7 @@ public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
 
     private MonitoringTargets targets(List<Product> found, List<Pipeline> monitored) {
         Map<Long, Product> byId = found.stream().collect(toMap(Product::id, identity()));
-        PlatformSettings platform = settings.current().platform();
+        PlatformSettings platform = platform();
         List<PipelineView> views = monitored.stream()
                 .filter(pipeline -> byId.containsKey(pipeline.service().productId()))
                 .map(pipeline -> PipelineView.of(byId.get(pipeline.service().productId()), pipeline,

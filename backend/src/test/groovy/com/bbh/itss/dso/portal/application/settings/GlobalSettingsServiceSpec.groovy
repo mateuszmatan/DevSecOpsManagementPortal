@@ -61,18 +61,21 @@ class GlobalSettingsServiceSpec extends Specification {
         result.is(saved)
 
         where:
-        version << [3L, null]
+        version = 3L
     }
 
-    def "a refused change is not saved"() {
+    def "a change read at #version is refused and not saved"() {
         given:
         repository.load() >> Optional.of(stored)
 
         when:
-        service.update(2L, bbh)
+        service.update(version, bbh)
 
         then:
         thrown(IllegalStateException)
         0 * repository.save(_)
+
+        where:
+        version << [2L, null]
     }
 }

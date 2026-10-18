@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.bbh.itss.dso.portal.domain.shared.Versions.requireCurrent;
+import static com.bbh.itss.dso.portal.domain.shared.Versions.requireReadAt;
 import static java.util.Comparator.comparingInt;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
@@ -56,7 +56,7 @@ public final class Product {
 
     public void update(Long expectedVersion, ProductDetails details, AppScanAccount appScanAccount,
                        List<ServiceDraft> services, ProductDirectory directory) {
-        requireCurrent(expectedVersion, version);
+        requireReadAt(expectedVersion, version);
         change(details, appScanAccount, services, directory);
     }
 

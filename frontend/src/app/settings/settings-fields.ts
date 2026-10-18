@@ -137,7 +137,8 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             placeholder: 'DORA-metrics',
           }),
           mono('influxToken', 'InfluxDB read token', 'dso.influx.token', 12, {
-            hint: 'Read token used by the portal to query InfluxDB `/api/v2/query`',
+            type: 'password',
+            hint: 'Stored and never shown again. Leave empty to keep the stored token; a new InfluxDB URL needs its token again.',
           }),
           mono('grafanaName', 'Grafana instance name', 'dso.grafana.instances[0].name', 4, {
             placeholder: 'Grafana',

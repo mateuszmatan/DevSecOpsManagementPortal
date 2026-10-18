@@ -29,6 +29,7 @@ import java.util.NoSuchElementException;
 
 import static com.bbh.itss.dso.portal.domain.pipeline.Pipeline.UNKNOWN_KEY;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineKey.normalize;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -71,7 +72,7 @@ public class PipelineService implements PipelinesUseCase {
             throw new IllegalStateException("Service " + service.name() + " already has a " + type.variant()
                     + " pipeline");
         }
-        return PipelineView.of(product, create(product, serviceId, type, settings), jenkinsUrl());
+        return PipelineView.of(product, create(product, service, type, settings), jenkinsUrl());
     }
 
     @Override
@@ -86,13 +87,18 @@ public class PipelineService implements PipelinesUseCase {
                 .map(serviceId -> product.service(serviceId)
                         .orElseThrow(() -> notFound("Service", serviceId)))
                 .filter(service -> !pipelines.existsForService(service.id(), type))
-                .map(service -> PipelineView.of(product, create(product, service.id(), type,
+                .map(service -> PipelineView.of(product, create(product, service, type,
                         defaults.pipelineSettings(product.code(), service.name(), type)), jenkinsUrl))
                 .toList();
     }
 
-    private Pipeline create(Product product, long serviceId, PipelineType type, PipelineSettings settings) {
-        return pipelines.save(Pipeline.create(new ServiceRef(product.id(), serviceId), type, settings, keys, now()));
+    private Pipeline create(Product product, Service service, PipelineType type, PipelineSettings settings) {
+        if (type == NEXUS_IQ && service.settings().nexusIqApplications().isEmpty()) {
+            throw new IllegalStateException("Service " + service.name()
+                    + " has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing");
+        }
+        return pipelines.save(Pipeline.create(new ServiceRef(product.id(), service.id()), type, settings, keys,
+                now()));
     }
 
     @Override

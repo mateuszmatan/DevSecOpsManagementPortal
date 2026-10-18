@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsRow;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
+import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -29,31 +30,31 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
     private final InfluxQueryClient influx;
 
     @Override
-    public boolean configured() {
-        return influx.configured();
+    public boolean configured(PlatformSettings platform) {
+        return influx.configured(platform);
     }
 
     @Override
-    public void ping() {
-        influx.read(() -> influx.query("buckets() |> limit(n: 1)"));
+    public void ping(PlatformSettings platform) {
+        influx.read(platform, () -> influx.query(platform, "buckets() |> limit(n: 1)"));
     }
 
     @Override
-    public LatestRuns latestRuns(Collection<MetricsTag> tags, Set<MetricsTag> sharedTags) {
+    public LatestRuns latestRuns(PlatformSettings platform, Collection<MetricsTag> tags, Set<MetricsTag> sharedTags) {
         if (tags.isEmpty()) {
-            influx.requireConfigured();
+            influx.requireConfigured(platform);
             return LatestRuns.none();
         }
         List<MetricsTag> byTag = tags.stream().filter(tag -> !sharedTags.contains(tag)).toList();
         List<MetricsTag> byJob = tags.stream().filter(sharedTags::contains).toList();
-        return influx.read(() -> {
+        return influx.read(platform, () -> {
             Map<MetricsTag, List<PipelineRun>> runs = new HashMap<>();
-            collect(runs, byTag, """
+            collect(platform, runs, byTag, """
                       |> last()
                       |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                       |> group(columns: ["project", "env"])
                     """);
-            collect(runs, byJob, """
+            collect(platform, runs, byJob, """
                       |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                       |> group(columns: ["project", "env", "job"])
                     """);
@@ -61,7 +62,8 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
         });
     }
 
-    private void collect(Map<MetricsTag, List<PipelineRun>> runs, List<MetricsTag> tags, String grouping) {
+    private void collect(PlatformSettings platform, Map<MetricsTag, List<PipelineRun>> runs, List<MetricsTag> tags,
+                         String grouping) {
         if (tags.isEmpty()) {
             return;
         }
@@ -72,9 +74,9 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                   |> filter(fn: (r) => contains(value: r.project, set: [%s]))
                 %s  |> sort(columns: ["_time"])
                   |> last(column: "_time")
-                """.formatted(influx.bucket(), influx.lastRunLookback(),
+                """.formatted(influx.bucket(platform), influx.lastRunLookback(),
                 strings(tags.stream().map(MetricsTag::project).toList()), grouping);
-        for (Map<String, String> row : influx.query(flux)) {
+        for (Map<String, String> row : influx.query(platform, flux)) {
             MetricsTag tag = tag(row);
             if (tags.contains(tag)) {
                 runs.computeIfAbsent(tag, ignored -> new ArrayList<>()).add(MetricsRow.run(row));
@@ -83,7 +85,7 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
     }
 
     @Override
-    public List<PipelineRun> recentRuns(MetricsTag tag, String job, int days, int limit) {
+    public List<PipelineRun> recentRuns(PlatformSettings platform, MetricsTag tag, String job, int days, int limit) {
         String byJob = job == null ? "" : """
                   |> filter(fn: (r) => exists r.job and (r.job == %s or strings.hasPrefix(v: r.job, prefix: %s)))
                 """.formatted(string(job), string(job + "/"));
@@ -96,15 +98,16 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                 %s  |> group()
                   |> sort(columns: ["_time"], desc: true)
                   |> limit(n: %d)
-                """.formatted(job == null ? "" : "import \"strings\"\n\n", influx.bucket(), positive(days),
+                """.formatted(job == null ? "" : "import \"strings\"\n\n", influx.bucket(platform), positive(days),
                 string(tag.project()), string(tag.env()), byJob, positive(limit));
-        return influx.read(() -> influx.query(flux).stream().map(MetricsRow::run).toList());
+        return influx.read(platform, () -> influx.query(platform, flux).stream().map(MetricsRow::run).toList());
     }
 
     @Override
-    public Map<MetricsTag, List<DoraPoint>> doraPoints(Collection<MetricsTag> tags, int days) {
+    public Map<MetricsTag, List<DoraPoint>> doraPoints(PlatformSettings platform, Collection<MetricsTag> tags,
+                                                       int days) {
         if (tags.isEmpty()) {
-            influx.requireConfigured();
+            influx.requireConfigured(platform);
             return Map.of();
         }
         String flux = """
@@ -117,11 +120,11 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                   |> group()
                   |> sort(columns: ["_time"])
-                """.formatted(influx.bucket(), positive(days),
+                """.formatted(influx.bucket(platform), positive(days),
                 strings(tags.stream().map(MetricsTag::project).toList()));
-        return influx.read(() -> {
+        return influx.read(platform, () -> {
             Map<MetricsTag, List<DoraPoint>> points = new HashMap<>();
-            for (Map<String, String> row : influx.query(flux)) {
+            for (Map<String, String> row : influx.query(platform, flux)) {
                 MetricsTag tag = tag(row);
                 DoraPoint point = doraPoint(row);
                 if (point != null && tags.contains(tag)) {

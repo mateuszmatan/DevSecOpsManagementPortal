@@ -11,14 +11,14 @@ import java.util.Objects;
 
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
-@Builder
+@Builder(toBuilder = true)
 public record PlatformSettings(@With String jenkinsUrl, String jenkinsLibrary, String asocUrl,
                                String appScanClientLinuxUrl, String appScanClientWindowsUrl, String proxyHost,
                                Integer proxyPort, String proxyUser, String oisHost, String sonarServerUrl,
                                String sonarInstallationName, String nexusIqServerUrl, String nexusIqCredentialsId,
                                String nexusSnapshotRepositoryUrl, String nexusSnapshotRepositoryId,
                                String influxWriteUrl, String influxCredentialsId, String iosBuildAgent,
-                               String influxUrl, String influxOrg, String influxBucket, String influxToken,
+                               String influxUrl, String influxOrg, String influxBucket, @With String influxToken,
                                String grafanaName, String grafanaDashboardUrl, String grafanaSecurityDashboardUrl,
                                String grafana2Name, String grafana2DashboardUrl, String grafana2SecurityDashboardUrl) {
 

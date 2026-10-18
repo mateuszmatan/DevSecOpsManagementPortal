@@ -25,6 +25,10 @@ final class ApiJson {
          appScan   : [applicationId: APP_ID]] + overrides
     }
 
+    static Map scannedByNexusIq(String application) {
+        [nexusIqApplications: [[application: application, scanPatterns: ['**/*.jar']]]]
+    }
+
     static Map build(Map overrides = [:]) {
         [tool: 'GRADLE', javaPath: JDK, command: [tasks: ['clean', 'build']]] + overrides
     }

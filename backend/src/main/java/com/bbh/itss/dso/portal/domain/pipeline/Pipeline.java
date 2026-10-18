@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineKey.REVOKE_REASON_MAX;
-import static com.bbh.itss.dso.portal.domain.shared.Versions.requireCurrent;
+import static com.bbh.itss.dso.portal.domain.shared.Versions.requireReadAt;
 import static java.util.Objects.requireNonNull;
 
 @Getter
@@ -55,7 +55,7 @@ public final class Pipeline {
     }
 
     public void reconfigure(Long expectedVersion, PipelineType requestedType, PipelineSettings requestedSettings) {
-        requireCurrent(expectedVersion, version);
+        requireReadAt(expectedVersion, version);
         if (requestedType != type) {
             throw new IllegalStateException("The type of a pipeline cannot change; add a new pipeline instead");
         }

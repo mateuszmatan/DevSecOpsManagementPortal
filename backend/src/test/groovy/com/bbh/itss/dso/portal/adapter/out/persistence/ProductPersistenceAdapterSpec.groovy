@@ -158,7 +158,7 @@ class ProductPersistenceAdapterSpec extends Specification {
                 urbanCodeApplications: changed.urbanCodeApplications().drop(1), sshTargets: [(QC): changed.sshTargets()[QC]])
 
         when:
-        stored.update(null, details(), account(), [new ServiceDraft(gui, 'gui', null, trimmed)], adapter)
+        stored.update(stored.version(), details(), account(), [new ServiceDraft(gui, 'gui', null, trimmed)], adapter)
         adapter.save(stored)
         entities.clear()
 

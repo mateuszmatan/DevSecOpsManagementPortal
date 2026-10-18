@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
+import static com.bbh.itss.dso.portal.support.ApiJson.scannedByNexusIq
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 import static java.util.concurrent.Executors.newFixedThreadPool
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -25,7 +26,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
     def setup() {
         code = uniqueCode()
         certScanner = createProduct(product(code: code, name: "Product $code",
-                services: [service(name: 'gui'), service(name: 'backend-api')]))
+                services: [service([name: 'gui'] + scannedByNexusIq("$code-gui")), service(name: 'backend-api')]))
         gui = certScanner.services[0].id as long
     }
 
@@ -138,13 +139,15 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         api.get("/api/pipelines/$created.id").json.activeKey.lastUsedAt != null
     }
 
-    def "an unknown key is 404 and revoking twice is 409"() {
+    def "an unknown key is 404 with the detail the DevSecOps library looks for, and revoking twice is 409"() {
         given:
         def created = pipelineFor(gui)
         api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'retired'])
+        def unknown = api.get('/api/dso/config/00000000-0000-4000-8000-000000000000')
 
         expect:
-        api.get('/api/dso/config/00000000-0000-4000-8000-000000000000').status == 404
+        unknown.status == 404
+        unknown.json.detail == 'Unknown DevSecOps pipeline key'
         api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'again']).status == 409
     }
 
@@ -160,7 +163,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         api.get("/api/products/$certScanner.id/pipelines").json[0].pipelines*.type == ['FULL']
     }
 
-    def "a pipeline is changed at the version it was read at, and a change read before another one is refused"() {
+    def "a pipeline is changed at the version it was read at, and a change read before another one or without a version is refused"() {
         given:
         def read = pipelineFor(gui)
 
@@ -174,11 +177,9 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         first.json.version == read.version + 1
         stale.status == 409
         stale.json.detail == 'The record was changed by someone else in the meantime. Reload it and apply your change again.'
-        unversioned.status == 200
-        unversioned.json.version == first.json.version + 1
-        unversioned.json.agentLabels == ['linux-agent']
-        api.get("/api/pipelines/$read.id").json.version == unversioned.json.version
-        api.get("/api/products/$certScanner.id/pipelines").json[0].pipelines[0].version == unversioned.json.version
+        unversioned.status == 409
+        api.get("/api/pipelines/$read.id").json.version == first.json.version
+        api.get("/api/products/$certScanner.id/pipelines").json[0].pipelines[0].version == first.json.version
     }
 
     def "texts that fit their column in characters but not in UTF-8 bytes are refused against their fields"() {
@@ -187,7 +188,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
         when:
         def settings = api.put("/api/pipelines/$created.id", pipeline(jenkinsJob: 'Zespół/' * 125,
-                description: 'Opis zadań – ' * 70))
+                description: 'Opis zadań – ' * 70, version: created.version))
         def revoked = api.post("/api/pipelines/$created.id/keys/revoke", [reason: 'Klucz wyciekł – ' * 30])
 
         then:
@@ -260,7 +261,7 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
 
         when:
         api.put("/api/products/$certScanner.id", product(code: code, name: "Product $code",
-                services: [service(id: gui, name: 'gui')]))
+                version: certScanner.version, services: [service(id: gui, name: 'gui')]))
 
         then:
         api.get("/api/pipelines/$created.id").status == 404

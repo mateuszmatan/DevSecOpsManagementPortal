@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.influx
 
+import com.bbh.itss.dso.portal.domain.settings.PlatformSettings
 import com.bbh.itss.dso.portal.support.FakeInfluxDb
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestClient
@@ -8,6 +9,8 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 class InfluxQueryClientSpec extends Specification {
+
+    static final PlatformSettings UNSET = PlatformSettings.builder().build()
 
     @Shared
     @AutoCleanup
@@ -22,7 +25,7 @@ class InfluxQueryClientSpec extends Specification {
         influx.respondWith(',result,table,name\r\n,_result,0,DORA-metrics\r\n')
 
         when:
-        def rows = client(influx.url, token).query('buckets() |> limit(n: 1)')
+        def rows = client(influx.url, token).query(UNSET, 'buckets() |> limit(n: 1)')
 
         then:
         rows == [[table: '0', name: 'DORA-metrics']]
@@ -46,13 +49,13 @@ class InfluxQueryClientSpec extends Specification {
         def client = client(influx.url, 'wrong')
 
         when:
-        client.query('buckets()')
+        client.query(UNSET, 'buckets()')
 
         then:
         thrown(HttpClientErrorException.Unauthorized)
 
         when:
-        client.read { client.query('buckets()') }
+        client.read(UNSET) { client.query(UNSET, 'buckets()') }
 
         then:
         def e = thrown(UncheckedIOException)
@@ -65,15 +68,15 @@ class InfluxQueryClientSpec extends Specification {
         def reads = 0
 
         when:
-        client.query('buckets()')
+        client.query(UNSET, 'buckets()')
 
         then:
-        !client.configured()
+        !client.configured(UNSET)
         !new InfluxProperties(url, 'DevSecOps', 'DORA-metrics', null, '365d').configured()
         thrown(UncheckedIOException)
 
         when:
-        client.read { reads++ }
+        client.read(UNSET) { reads++ }
 
         then:
         reads == 0
@@ -81,7 +84,7 @@ class InfluxQueryClientSpec extends Specification {
         e.message == 'InfluxDB is not configured for the portal'
 
         when:
-        client.requireConfigured()
+        client.requireConfigured(UNSET)
 
         then:
         thrown(UncheckedIOException)
@@ -95,13 +98,13 @@ class InfluxQueryClientSpec extends Specification {
         def client = client(influx.url)
 
         expect:
-        client.configured()
-        client.read { 'read' } == 'read'
-        client.bucket() == '"DORA-metrics"'
+        client.configured(UNSET)
+        client.read(UNSET) { 'read' } == 'read'
+        client.bucket(UNSET) == '"DORA-metrics"'
         client.lastRunLookback() == '365d'
 
         when:
-        client.read { throw failure }
+        client.read(UNSET) { throw failure }
 
         then:
         def e = thrown(UncheckedIOException)
@@ -131,38 +134,21 @@ class InfluxQueryClientSpec extends Specification {
     def "settings saved in the management panel override the environment properties"() {
         given:
         influx.respondWith(',result,table,name\r\n,_result,0,custom-bucket\r\n')
-        def store = new com.bbh.itss.dso.portal.adapter.MonitoringSettingsStore()
-        def configured = new InfluxQueryClient(
-                new InfluxProperties(null, 'DevSecOps', 'DORA-metrics', null, '365d'),
-                RestClient.builder(), store)
-
-        expect:
-        !configured.configured()
+        def client = client(null)
+        def panel = PlatformSettings.builder()
+                .influxUrl(influx.url)
+                .influxOrg('CustomOrg')
+                .influxBucket('custom-bucket')
+                .influxToken('panel-token')
+                .build()
 
         when:
-        store.update(com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults().platform()
-                .withJenkinsUrl('https://jenkins.bbh.com')
-                .with {
-                    com.bbh.itss.dso.portal.domain.settings.PlatformSettings.builder()
-                            .jenkinsLibrary(it.jenkinsLibrary())
-                            .asocUrl(it.asocUrl())
-                            .appScanClientLinuxUrl(it.appScanClientLinuxUrl())
-                            .appScanClientWindowsUrl(it.appScanClientWindowsUrl())
-                            .sonarServerUrl(it.sonarServerUrl())
-                            .sonarInstallationName(it.sonarInstallationName())
-                            .nexusIqServerUrl(it.nexusIqServerUrl())
-                            .nexusIqCredentialsId(it.nexusIqCredentialsId())
-                            .influxUrl(influx.url)
-                            .influxOrg('CustomOrg')
-                            .influxBucket('custom-bucket')
-                            .influxToken('panel-token')
-                            .build()
-                })
-        def rows = configured.query('buckets() |> limit(n: 1)')
+        def rows = client.query(panel, 'buckets() |> limit(n: 1)')
 
         then:
-        configured.configured()
-        configured.bucket() == '"custom-bucket"'
+        !client.configured(UNSET)
+        client.configured(panel)
+        client.bucket(panel) == '"custom-bucket"'
         rows == [[table: '0', name: 'custom-bucket']]
         with(influx.requests.first()) {
             query == 'org=CustomOrg'

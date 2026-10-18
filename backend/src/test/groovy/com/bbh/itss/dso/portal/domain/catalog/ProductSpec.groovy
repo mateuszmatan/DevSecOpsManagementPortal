@@ -113,29 +113,21 @@ class ProductSpec extends Specification {
         product.services()*.settings()*.metrics()*.influxProject() == ['CERT-api', 'CERT-worker', 'CERT-web']
     }
 
-    def "an update that sends no version is not checked against the stored one"() {
+    def "an update based on an older version or on none is refused before anything changes"() {
         given:
         def product = product(version: 4, services: [[name: 'gui', id: 10]])
 
         when:
-        product.update(null, details(), account(), [draft(id: 10, name: 'gui')], nobody)
-
-        then:
-        product.version() == 4
-    }
-
-    def "an update based on an older version is refused before anything changes"() {
-        given:
-        def product = product(version: 4, services: [[name: 'gui', id: 10]])
-
-        when:
-        product.update(3L, details(name: 'Other'), account(), [], nobody)
+        product.update(readAt, details(name: 'Other'), account(), [], nobody)
 
         then:
         def e = thrown(IllegalStateException)
         e.message == STALE_VERSION
         product.name() == 'CertScanner'
         product.services()*.name() == ['gui']
+
+        where:
+        readAt << [3L, null]
     }
 
     def "a product #value used by another product is refused"() {

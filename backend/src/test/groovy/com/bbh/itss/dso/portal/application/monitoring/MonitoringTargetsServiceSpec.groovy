@@ -44,6 +44,7 @@ class MonitoringTargetsServiceSpec extends Specification {
         read.pipelines()*.pipeline()*.id() == [100L, 102L, 200L]
         read.pipelines()*.service()*.name() == ['gui', 'backend-api', 'gateway']
         read.platform().jenkinsUrl() == 'https://jenkins.test'
+        targets.platform() == read.platform()
         read.pipelines()[0].jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
     }
 
