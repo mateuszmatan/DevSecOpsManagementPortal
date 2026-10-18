@@ -1,0 +1,28 @@
+[
+  {
+    "id": 2,
+    "createdAt": "2026-10-16T08:30:00Z",
+    "username": "mateusz.matan",
+    "userDisplayName": "Mateusz Matan",
+    "userEmail": "mateusz.matan@bbh.com",
+    "departmentName": "Corporate Technology",
+    "actionType": "REVOKE_KEY",
+    "resourceType": "PIPELINE_KEY",
+    "resourceName": "payments-api (SECURITY)",
+    "details": "Invalidated active key. Reason: the service moved to another team and its Jenkins job was renamed",
+    "status": "SUCCESS"
+  },
+  {
+    "id": 1,
+    "createdAt": "2026-10-16T08:00:00Z",
+    "username": "mateusz.matan",
+    "userDisplayName": "Mateusz Matan",
+    "userEmail": "mateusz.matan@bbh.com",
+    "departmentName": "Corporate Technology",
+    "actionType": "CREATE_PRODUCT",
+    "resourceType": "PRODUCT",
+    "resourceName": "Payments Platform",
+    "details": "Created product PAYMENTS with 2 service(s)",
+    "status": "SUCCESS"
+  }
+]

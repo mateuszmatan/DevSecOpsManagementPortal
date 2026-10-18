@@ -1,4 +1,4 @@
-import { Department as PortalDepartment, BusinessService as PortalBusinessService } from '@common/core/models';
+import { Department as PortalDepartment } from '@common/core/models';
 
 export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER';
 export type DeployTarget = 'VM' | 'OPENSHIFT';
@@ -30,13 +30,11 @@ export type TestSuite = 'UNIT' | TestStage;
 export const TEST_SUITES: TestSuite[] = ['UNIT', ...TEST_STAGES];
 export const SCANNERS: Scanner[] = ['SAST', 'SCA', 'NEXUS_IQ', 'DAST'];
 
-export interface BusinessService extends PortalBusinessService {
+export interface Department extends PortalDepartment {
   serviceCount: number;
   pipelineCount: number;
   activePipelineCount: number;
 }
-
-export type Department = BusinessService;
 
 export interface ProductSummary {
   id: number;
@@ -46,8 +44,6 @@ export interface ProductSummary {
   ownerTeam: string | null;
   departmentId: number | null;
   departmentName: string | null;
-  businessServiceId?: number | null;
-  businessServiceName?: string | null;
   serviceCount: number;
   pipelineCount: number;
   activePipelineCount: number;
@@ -353,7 +349,6 @@ export interface ProductFields {
   ownerTeam: string | null;
   contactEmail: string | null;
   departmentId: number | null;
-  businessServiceId?: number | null;
   appScan: AppScanAccount | null;
 }
 
@@ -699,7 +694,6 @@ export interface UserProfile {
   email: string;
   roles: string[];
   departmentNames: string[];
-  businessServiceNames?: string[];
   admin: boolean;
 }
 
@@ -710,7 +704,6 @@ export interface ActionLog {
   userDisplayName: string;
   userEmail?: string;
   departmentName?: string;
-  businessServiceName?: string;
   actionType: string;
   resourceType: string;
   resourceName?: string;

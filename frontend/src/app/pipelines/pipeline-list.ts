@@ -303,7 +303,6 @@ export class PipelineList {
       header: 'Product',
       value: (row) => row.pipeline.productName,
       filter: { control: this.filters.controls.product, label: 'product' },
-      flex: 1.5,
       minWidth: 190,
     },
     {
@@ -322,7 +321,6 @@ export class PipelineList {
       filter: { control: this.filters.controls.job, label: 'Jenkins job' },
       cellClass: 'mono',
       wrap: true,
-      flex: 2,
       minWidth: 200,
     },
     {

@@ -36,7 +36,6 @@ class ActionLogPersistenceAdapter implements ActionLogRepositoryPort {
                 .username(logItem.username())
                 .userDisplayName(logItem.userDisplayName())
                 .userEmail(logItem.userEmail())
-                .businessServiceName(logItem.businessServiceName() != null ? logItem.businessServiceName() : logItem.departmentName())
                 .departmentName(logItem.departmentName())
                 .actionType(logItem.actionType())
                 .resourceType(logItem.resourceType())

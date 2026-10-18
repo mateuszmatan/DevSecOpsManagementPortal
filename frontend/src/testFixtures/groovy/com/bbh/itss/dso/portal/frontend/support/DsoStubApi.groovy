@@ -53,25 +53,10 @@ class DsoStubApi extends StubApi {
         get('/api/monitoring/activity') { json(fixture('monitoring-activity.json')) }
         get('/api/monitoring/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
         get('/api/monitoring/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
-        get('/api/action-history') {
-            json([[
-                id: 1,
-                createdAt: '2026-10-15T10:00:00Z',
-                username: 'mateusz.matan',
-                userDisplayName: 'Mateusz Matan',
-                userEmail: 'mateusz.matan@bbh.com',
-                departmentName: 'Corporate Technology',
-                businessServiceName: 'Corporate Technology',
-                actionType: 'CREATE_PRODUCT',
-                resourceType: 'PRODUCT',
-                resourceName: 'CertScanner',
-                details: 'Created product CertScanner with TLS certificates monitoring.',
-                status: 'SUCCESS'
-            ]])
-        }
+        get('/api/action-history') { json(fixture('action-history.json')) }
         get('/api/user/me') {
-            json([username: 'mmatan', fullName: 'Mateusz Matan', email: 'mateusz.matan@bbh.com',
-                  roles   : ['ADMIN', 'AI_LAB', 'CAPITAL_PARTNERS', 'CORPORATE_TECHNOLOGY', 'CUSTODY', 'FUND_SERVICES']])
+            json([id   : 1, username: 'mateusz.matan', displayName: 'Mateusz Matan', email: 'mateusz.matan@bbh.com',
+                  roles: ['ROLE_ADMIN'], departmentNames: [], admin: true])
         }
     }
 }

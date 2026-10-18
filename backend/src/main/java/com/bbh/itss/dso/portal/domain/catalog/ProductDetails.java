@@ -35,14 +35,10 @@ public record ProductDetails(String code, String name, String description, Strin
                 .fits("ownerTeam", ownerTeam, OWNER_TEAM_MAX);
         if (departmentId == null) {
             problems.add("departmentId", "choose the product's department");
-        } else if (!directory.departmentExists(departmentId) && !directory.businessServiceExists(departmentId)) {
+        } else if (!directory.departmentExists(departmentId)) {
             problems.add("departmentId", "department " + departmentId + " does not exist");
         }
         return problems;
-    }
-
-    public Long businessServiceId() {
-        return departmentId;
     }
 
     public void requireUnique(Long productId, ProductDirectory directory) {

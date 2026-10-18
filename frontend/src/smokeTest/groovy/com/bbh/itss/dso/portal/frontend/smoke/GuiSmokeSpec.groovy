@@ -114,19 +114,21 @@ class GuiSmokeSpec extends DsoSpecification {
     }
 
     @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
-    def "a grid wider than its box scrolls horizontally with the bar ag-grid sizes"() {
+    def "a grid wider than its box shows whole cells and scrolls horizontally"() {
         given: 'the Action History in a window narrower than its columns'
         page.setViewportSize(600, 900)
         open('/history')
         page.locator('dso-grid .ag-row').first().waitFor()
 
-        expect: 'the content is wider than the grid and no style shrinks the scrollbar below the height ag-grid gave it'
+        expect: 'columns fit their content, the grid scrolls instead and no style shrinks the bar ag-grid sized'
         def bar = page.evaluate('''() => {
             const viewport = document.querySelector('dso-grid .ag-body-horizontal-scroll-viewport');
-            return { wider: viewport.scrollWidth > viewport.clientWidth,
+            const cut = [...document.querySelectorAll('dso-grid .ag-cell')].filter((cell) => cell.scrollWidth > cell.clientWidth + 1);
+            return { wider: viewport.scrollWidth > viewport.clientWidth, cut: cut.length,
                      height: getComputedStyle(viewport).height, sized: viewport.style.height };
         }''') as Map
         bar.wider
+        bar.cut == 0
         bar.height == bar.sized
         ownErrors().isEmpty()
     }

@@ -110,11 +110,6 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
         return departments.existsById(id);
     }
 
-    @Override
-    public boolean businessServiceExists(long id) {
-        return departmentExists(id);
-    }
-
     private static ProductIdentity identity(ProductEntity product) {
         return new ProductIdentity(product.id(), product.name());
     }

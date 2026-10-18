@@ -71,10 +71,6 @@ export class ProductsApi {
 export class PipelinesApi {
   private readonly http = inject(HttpClient);
 
-  listForBusinessService(businessServiceId: number): Observable<DepartmentPipelines> {
-    return this.http.get<DepartmentPipelines>('/api/pipelines', { params: { businessServiceId } });
-  }
-
   listForDepartment(departmentId: number): Observable<DepartmentPipelines> {
     return this.http.get<DepartmentPipelines>('/api/pipelines', { params: { departmentId } });
   }

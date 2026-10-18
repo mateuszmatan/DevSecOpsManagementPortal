@@ -112,12 +112,7 @@ export const STATUS_OPTIONS: { value: string; label: string }[] = [
                 <span class="time-cell">{{ row.createdAt | date: 'd MMM y, HH:mm:ss' }}</span>
               </ng-template>
               <ng-template dsoCell="user" let-row>
-                <div class="user-cell">
-                  <strong>{{ row.userDisplayName || row.username }}</strong>
-                  @if (row.userEmail) {
-                    <span class="muted email">{{ row.userEmail }}</span>
-                  }
-                </div>
+                <strong [title]="row.userEmail ?? ''">{{ row.userDisplayName || row.username }}</strong>
               </ng-template>
               <ng-template dsoCell="resource" let-row>
                 <span class="badge resource-tag">{{ row.resourceType }}</span>
@@ -179,16 +174,6 @@ export const STATUS_OPTIONS: { value: string; label: string }[] = [
     .time-cell {
       white-space: nowrap;
       font-size: 12.5px;
-    }
-
-    .user-cell {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-
-      .email {
-        font-size: 11px;
-      }
     }
 
     .resource-tag {
@@ -265,9 +250,9 @@ export class ActionHistoryPage {
     },
     {
       key: 'department',
-      header: 'Business Service',
-      value: (row) => row.businessServiceName || row.departmentName || '—',
-      sortValue: (row) => (row.businessServiceName || row.departmentName || '').toLowerCase(),
+      header: 'Department',
+      value: (row) => row.departmentName || '—',
+      sortValue: (row) => (row.departmentName || '').toLowerCase(),
       width: 150,
     },
     {
@@ -329,7 +314,6 @@ export class ActionHistoryPage {
           item.userEmail,
           item.resourceName,
           item.details,
-          item.businessServiceName,
           item.departmentName,
           item.actionType,
         ]

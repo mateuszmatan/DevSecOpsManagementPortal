@@ -15,11 +15,14 @@
           >
         }
       </nav>
-      <div class="user-badge" title="User: Mateusz Matan | Roles: Admin, Departments: AI Lab, Capital Partners, Corporate Technology, Custody, Fund Services">
-        <span class="user-icon" aria-hidden="true">👤</span>
-        <span class="user-name">Mateusz Matan</span>
-        <span class="badge user-role">Admin</span>
-      </div>
+      @if (user(); as user) {
+        <div class="user-badge" [title]="user.email ?? user.displayName">
+          <span class="user-name">{{ user.displayName }}</span>
+          @if (user.admin) {
+            <span class="badge user-role">Admin</span>
+          }
+        </div>
+      }
     </div>
   </header>
 

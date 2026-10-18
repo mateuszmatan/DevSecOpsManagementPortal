@@ -2,8 +2,6 @@ package com.bbh.itss.dso.portal.application.catalog;
 
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.BusinessServiceView;
-import com.bbh.itss.dso.portal.application.catalog.port.in.BusinessServicesUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentRepositoryPort;
@@ -21,7 +19,7 @@ import static java.util.Comparator.comparing;
 
 @UseCase
 @RequiredArgsConstructor
-public class DepartmentService implements DepartmentsUseCase, BusinessServicesUseCase {
+public class DepartmentService implements DepartmentsUseCase {
 
     private final DepartmentRepositoryPort departments;
     private final DepartmentUsagePort usage;
@@ -61,29 +59,6 @@ public class DepartmentService implements DepartmentsUseCase, BusinessServicesUs
             throw new IllegalStateException(refusal);
         });
         departments.delete(id);
-    }
-
-    @Override
-    @ReadOnly
-    public List<BusinessServiceView> listBusinessServices() {
-        return list().stream().map(v -> new BusinessServiceView(v.id(), v.name(), v.version(), v.usage())).toList();
-    }
-
-    @Override
-    public BusinessServiceView createBusinessService(String name) {
-        DepartmentView created = create(name);
-        return new BusinessServiceView(created.id(), created.name(), created.version(), created.usage());
-    }
-
-    @Override
-    public BusinessServiceView renameBusinessService(long id, Long version, String name) {
-        DepartmentView renamed = rename(id, version, name);
-        return new BusinessServiceView(renamed.id(), renamed.name(), renamed.version(), renamed.usage());
-    }
-
-    @Override
-    public void deleteBusinessService(long id) {
-        delete(id);
     }
 
     private DepartmentView view(long id) {
