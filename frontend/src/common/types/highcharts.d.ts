@@ -11,5 +11,3 @@ declare module 'highcharts/js/highcharts' {
   const Highcharts: HighchartsStatic;
   export default Highcharts;
 }
-
-declare const AG_GRID_LICENSE_KEY: string;

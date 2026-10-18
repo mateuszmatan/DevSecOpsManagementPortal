@@ -16,8 +16,11 @@ public interface PipelinesUseCase {
 
     List<PipelineView> createMissing(long productId, List<Long> serviceIds, PipelineType type);
 
-    /** Refuses a product whose service keeps a Nexus IQ GoldenFix pipeline but no Nexus IQ application to scan. */
-    void requireNexusIqApplications(Product product);
+    /**
+     * Refuses a product whose service keeps a pipeline that would fail: a Nexus IQ GoldenFix pipeline without a Nexus
+     * IQ application to scan, or a Full pipeline deploying to virtual machines without an UrbanCode Deploy application.
+     */
+    void requireRunnablePipelines(Product product);
 
     PipelineView update(long id, Long version, PipelineType type, PipelineSettings settings);
 

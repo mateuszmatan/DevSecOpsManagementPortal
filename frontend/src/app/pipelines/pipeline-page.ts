@@ -6,21 +6,14 @@ import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, map, of } from 'rxjs';
 import { MonitoringApi, PipelinesApi, SettingsApi } from '../core/api';
-import { errorMessage } from '@common/core/errors';
-import {
-  PIPELINE_TYPES,
-  Pipeline,
-  PipelineRun,
-  PipelineType,
-  pipelineTypeLabel,
-} from '../core/models';
-import { PIPELINES, adminProduct } from '../core/sections';
+import { PIPELINE_TYPES, Pipeline, PipelineType, pipelineTypeLabel } from '../core/models';
+import { PIPELINES, adminProduct, monitoringPipeline } from '../core/sections';
 import { MetricsBanner } from '../monitoring/metrics-banner';
+import { RunGrid } from '../monitoring/run-grid';
 import { jenkinsfile } from '../products/jenkinsfile';
-import { BuildLink } from '../shared/build-link';
-import { CountedPipe, TIME_ZONE_NOTE, capitalized, formatDuration } from '@common/shared/formatting';
-import { RUN_LOOK, StatusChip } from '../shared/status-chip';
-import { GRID, GridColumn } from '@common/ui/grid';
+import { CountedPipe, TIME_ZONE_NOTE, capitalized } from '@common/shared/formatting';
+import { StatusChip } from '../shared/status-chip';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 import { MENU_AT_END } from '@common/ui/menu';
 import { PipelineActions } from './pipeline-actions';
@@ -37,11 +30,11 @@ const RECENT_RUNS = 5;
     CdkMenuTrigger,
     DatePipe,
     RouterLink,
-    GRID,
     DsoLoading,
-    BuildLink,
+    LoadError,
     MetricsBanner,
     CountedPipe,
+    RunGrid,
     StatusChip,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -65,10 +58,9 @@ const RECENT_RUNS = 5;
       }
 
       @if (pipeline.error(); as error) {
-        <div class="banner" role="alert">
-          The pipeline could not be loaded. {{ errorMessage(error) }}
-        </div>
-        <a class="btn btn-outline-primary" [routerLink]="section.path">Back to pipelines</a>
+        <dso-load-error what="The pipeline" [error]="error" (retry)="pipeline.reload()">
+          <a class="btn btn-link" [routerLink]="section.path">Back to pipelines</a>
+        </dso-load-error>
       } @else if (pipeline.hasValue()) {
         @let p = pipeline.value();
         <header class="page-header">
@@ -110,7 +102,7 @@ const RECENT_RUNS = 5;
             <ng-template #more>
               <div cdkMenu class="dropdown-menu dso-menu">
                 <button cdkMenuItem class="dropdown-item" (click)="editServiceConfig(p)">
-                  Edit service configuration
+                  Configure service
                 </button>
                 <a cdkMenuItem class="dropdown-item" [routerLink]="productLink(p.productId)"
                   >Open {{ p.productName }} in Admin</a
@@ -302,7 +294,7 @@ const RECENT_RUNS = 5;
         <section class="card runs">
           <header class="card-header">
             <h2>Latest runs</h2>
-            <a class="text-link" [routerLink]="['/monitoring/pipelines', p.id]"
+            <a class="text-link" [routerLink]="monitoringPipeline(p.id)"
               >See every run and the delivery performance (DORA)</a
             >
           </header>
@@ -311,14 +303,7 @@ const RECENT_RUNS = 5;
             {{ timeZoneNote }}
           </p>
           @if (monitoring.error(); as error) {
-            <div class="banner" role="alert">
-              <span class="banner-text"
-                >The latest runs could not be loaded. {{ errorMessage(error) }}</span
-              >
-              <button type="button" class="btn btn-outline-primary" (click)="monitoring.reload()">
-                Try again
-              </button>
-            </div>
+            <dso-load-error what="The latest runs" [error]="error" (retry)="monitoring.reload()" />
           } @else if (!monitoring.hasValue()) {
             <dso-loading />
           } @else {
@@ -329,15 +314,7 @@ const RECENT_RUNS = 5;
                 <p>Runs show here once Jenkins runs this pipeline with its Jenkinsfile.</p>
               </div>
             } @else {
-              <dso-grid label="Latest runs" [rows]="runs()" [columns]="runColumns" [rowId]="runId">
-                <ng-template dsoCell="time" let-run>
-                  {{ run.time | date: 'd MMM, HH:mm' }}
-                </ng-template>
-                <ng-template dsoCell="result" let-run>
-                  <dso-status-chip [status]="run.result" />
-                </ng-template>
-                <ng-template dsoCell="build" let-run><dso-build-link [run]="run" /></ng-template>
-              </dso-grid>
+              <dso-run-grid label="Latest runs" [runs]="runs()" />
             }
           }
         </section>
@@ -389,10 +366,6 @@ const RECENT_RUNS = 5;
       overflow-wrap: anywhere;
     }
 
-    .banner-text {
-      flex: 1;
-    }
-
     .rows > div {
       display: contents;
     }
@@ -431,41 +404,15 @@ export class PipelinePage {
 
   protected readonly section = PIPELINES;
   protected readonly productLink = adminProduct;
+  protected readonly monitoringPipeline = monitoringPipeline;
   protected readonly typeLabel = pipelineTypeLabel;
   protected readonly name = pipelineName;
-  protected readonly errorMessage = errorMessage;
   protected readonly keyHelp = capitalized(KEY_MEANING);
   protected readonly jenkinsfileHelp = JENKINSFILE_HELP;
   protected readonly timeZoneNote = TIME_ZONE_NOTE;
   protected readonly dateTime = 'd MMM y, HH:mm';
   protected readonly recentRuns = RECENT_RUNS;
   protected readonly menuAtEnd = MENU_AT_END;
-  protected readonly runId = (run: PipelineRun) => `${run.job} ${run.build} ${run.time}`;
-  protected readonly runColumns: GridColumn<PipelineRun>[] = [
-    { key: 'time', header: 'Finished', value: (run) => run.time, minWidth: 110 },
-    {
-      key: 'result',
-      header: 'Result',
-      value: (run) => RUN_LOOK[run.result].label,
-      minWidth: 170,
-    },
-    { key: 'build', header: 'Jenkins build', value: (run) => run.build ?? '', minWidth: 120 },
-    {
-      key: 'branch',
-      header: 'Branch',
-      value: (run) => run.branch ?? '–',
-      cellClass: 'mono',
-      wrap: true,
-      minWidth: 120,
-    },
-    {
-      key: 'duration',
-      header: 'Duration',
-      value: (run) => formatDuration(run.durationSeconds),
-      sortValue: (run) => run.durationSeconds ?? 0,
-      minWidth: 100,
-    },
-  ];
 
   private readonly pipelineId = computed(() => Number(this.id()));
   protected readonly pipeline = rxResource({

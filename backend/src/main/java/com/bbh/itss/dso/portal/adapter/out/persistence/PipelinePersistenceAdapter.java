@@ -7,7 +7,6 @@ import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -23,7 +22,6 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toSet;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 class PipelinePersistenceAdapter implements PipelineRepositoryPort, PipelineCountsPort {

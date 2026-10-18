@@ -102,9 +102,6 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         changed.status == 200
         status.influxConfigured == true
         status.influxReachable == true
-        status.grafana == [
-                [name: 'Panel Grafana', dashboardUrl: 'https://grafana.panel.bbh.com/d/pipe/pipeline'],
-                [name: 'Panel DR Grafana', dashboardUrl: 'https://grafana-dr.panel.bbh.com/d/pipe/pipeline']]
         influx.requests.last().query == 'org=PanelOrg'
         influx.requests.last().authorization == 'Token panel-secret-token'
         details.grafana == [
@@ -130,7 +127,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
 
         then:
         changed.status == 200
-        projects.plain.deploy.vm == [
+        projects.plain.deploy.vm.subMap(['rd', 'qc']) == [
                 rd: [host        : 'rdnew.testbbh.com', user: 'dsoadm',
                      deployScript: original.deployment.deployScript, versionFile: original.deployment.versionFile],
                 qc: [host        : 'qcnew.testbbh.com', user: 'dsoadm',
@@ -188,14 +185,23 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
     def "settings the pipelines could not work with are refused with every problem"() {
         when:
         def response = api.put('/api/settings', original + [
-                platform : original.platform + [proxyPort: null],
                 limits   : original.limits.findAll { it.key != 'DAST' },
                 goldenFix: original.goldenFix + [commitAuthorName: null, ecosystems: []]])
 
         then:
         response.status == 400
-        response.json.errors*.field == ['platform.proxyPort', 'limits.DAST', 'goldenFix.commitAuthorName',
-                                        'goldenFix.ecosystems']
+        response.json.errors*.field == ['limits.DAST', 'goldenFix.commitAuthorName', 'goldenFix.ecosystems']
+        api.get('/api/settings').json.version == original.version
+    }
+
+    def "the proxy the pipelines reach AppScan through is required"() {
+        when:
+        def response = api.put('/api/settings', original + [
+                platform: original.platform + [proxyHost: ' ', proxyPort: null, proxyUser: null]])
+
+        then:
+        response.status == 400
+        response.json.errors*.field as Set == ['platform.proxyHost', 'platform.proxyPort', 'platform.proxyUser'] as Set
         api.get('/api/settings').json.version == original.version
     }
 

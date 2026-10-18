@@ -67,6 +67,14 @@
         "command": { "tasks": ["clean", "build"] }
       },
       "deployment": { "target": "VM" },
+      "urbanCodeApplications": [
+        {
+          "applicationName": "TRADEARCHIVE-GUI",
+          "components": [
+            { "componentName": "archive-gui", "baseDir": "build/libs", "fileIncludePatterns": "*.jar" }
+          ]
+        }
+      ],
       "appScan": {
         "applicationId": "9c25d0e7-1b84-4a3f-a6c9-7e0f3d5b2a18",
         "compile": true

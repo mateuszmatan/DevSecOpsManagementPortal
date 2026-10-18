@@ -12,15 +12,10 @@ import static org.apache.commons.lang3.CharUtils.isAsciiAlphanumeric;
 public final class UriEncoding {
 
     private static final String PATH_SEGMENT_SYMBOLS = "-._~!$&'()*+,;=:@";
-    private static final String QUERY_PARAM_SYMBOLS = "-._~!$'()*+,;:@/?";
     private static final char[] HEX = "0123456789ABCDEF".toCharArray();
 
     public static String pathSegment(String value) {
         return encode(value, PATH_SEGMENT_SYMBOLS);
-    }
-
-    public static String queryParam(String value) {
-        return encode(value, QUERY_PARAM_SYMBOLS);
     }
 
     public static String decode(String value) {

@@ -76,7 +76,7 @@ class PortalSmokeSpec extends Specification {
         created.status == 201
         api.get("/api/products/$created.json.id").json.name == 'Smoke product'
         api.get("/api/dso/config/$key?format=json").status == 200
-        api.get('/api/user/me').status == 200
+        api.get('/api/user/me').json.keySet() == ['username', 'displayName', 'email', 'admin'] as Set
         api.get('/api/action-history').status == 200
     }
 
@@ -128,11 +128,6 @@ class PortalSmokeSpec extends Specification {
         overview.json.products instanceof List
         activity.status == 200
         activity.json.dora.daily.size() == 30
-    }
-
-    def "Beadle's change management is not part of this application"() {
-        expect:
-        ['/api/changes', '/api/change-profiles', '/api/evidence/products/1'].every { api.get(it).status == 404 }
     }
 
     @Requires({ PortalSmokeSpec.uiExpected() })

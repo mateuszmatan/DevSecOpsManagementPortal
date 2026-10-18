@@ -8,8 +8,8 @@
     "departmentName": "Corporate Technology",
     "actionType": "REVOKE_KEY",
     "resourceType": "PIPELINE_KEY",
-    "resourceName": "payments-api (SECURITY)",
-    "details": "Invalidated active key. Reason: the service moved to another team and its Jenkins job was renamed",
+    "resourceName": "payments-api · Security",
+    "details": "Invalidated the active key: the service moved to another team and its Jenkins job was renamed",
     "status": "SUCCESS"
   },
   {

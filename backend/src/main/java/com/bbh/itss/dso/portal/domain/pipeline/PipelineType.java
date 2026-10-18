@@ -5,12 +5,14 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public enum PipelineType {
-    FULL("devSecOpsPipeline", "full", ""),
-    SECURITY("devSecOpsSecurityPipeline", "security", "security"),
-    EXTENDED("devSecOpsExtendedPipeline", "extended", "extended"),
-    SAST("devSecOpsSASTScanningPipeline", "sast", "sast"),
-    NEXUS_IQ("devSecOpsNexusIqGoldenFixPipeline", "nexusiq", "nexusiq");
+    FULL("Full", "devSecOpsPipeline", "full", ""),
+    SECURITY("Security", "devSecOpsSecurityPipeline", "security", "security"),
+    EXTENDED("Extended", "devSecOpsExtendedPipeline", "extended", "extended"),
+    SAST("SAST scanning", "devSecOpsSASTScanningPipeline", "sast", "sast"),
+    NEXUS_IQ("Nexus IQ GoldenFix", "devSecOpsNexusIqGoldenFixPipeline", "nexusiq", "nexusiq");
 
+    @Getter
+    private final String label;
     @Getter
     private final String entryPoint;
     @Getter

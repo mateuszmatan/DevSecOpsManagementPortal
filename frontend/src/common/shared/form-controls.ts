@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   AbstractControl,
   FormArray,
@@ -6,6 +7,7 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms';
+import { errorMessage, fieldProblems } from '../core/errors';
 import { FieldProblem } from '../core/models';
 
 export const HTTP_URL = /^https?:\/\/[^\s$`"\\]+$/;
@@ -98,7 +100,11 @@ export function maxLines(max: number, distinct = true): ValidatorFn {
 }
 
 export function maxWords(max: number, distinct = true): ValidatorFn {
-  return (control) => (words(control.value, distinct).length > max ? { maxItems: { max } } : null);
+  return maxItems((value) => words(value, distinct), max);
+}
+
+export function maxItems(parse: (value: string) => string[], max: number): ValidatorFn {
+  return (control) => (parse(control.value ?? '').length > max ? { maxItems: { max } } : null);
 }
 
 export function eachItem(
@@ -210,6 +216,31 @@ export function applyFieldProblems(
     showServerError(control, [...new Set(list)].join('; '), scope ?? control.parent ?? control),
   );
   return unmatched;
+}
+
+export interface SaveFailure {
+  conflict: boolean;
+  message: string;
+  unmatched: FieldProblem[];
+}
+
+export function saveFailure(
+  form: AbstractControl,
+  error: unknown,
+  conflictMessage: string,
+): SaveFailure {
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    return { conflict: true, message: conflictMessage, unmatched: [] };
+  }
+  const problems = fieldProblems(error);
+  if (problems.length === 0) {
+    return { conflict: false, message: errorMessage(error), unmatched: [] };
+  }
+  return {
+    conflict: false,
+    message: 'The portal did not accept some values. They are marked in the form.',
+    unmatched: applyFieldProblems(form, problems),
+  };
 }
 
 const serverValidators = new WeakMap<AbstractControl, ValidatorFn>();

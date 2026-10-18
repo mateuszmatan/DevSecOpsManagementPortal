@@ -123,11 +123,8 @@ projects:
         - '**/target/*.jar'
         stage: build
         failOnNetworkError: false
-    sast:
-      scanName: payhub-gateway-sast
     dast:
       enabled: true
-      scanName: payhub-gateway-dast
       targetUrl: http://rdltaapps1.testbbh.com
     build:
       buildPath: target/*.jar

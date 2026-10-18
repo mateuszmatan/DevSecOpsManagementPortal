@@ -1,1 +1,1 @@
-{"influxConfigured":true,"influxReachable":true,"influxError":null,"grafana":[{"name":"Grafana","dashboardUrl":"https://grafana.bbh.com/d/adzfc54123/devsecops-pipeline-long"}]}
+{"influxConfigured":true,"influxReachable":true,"influxError":null}

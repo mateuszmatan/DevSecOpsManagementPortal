@@ -136,7 +136,7 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
         when:
         adapter.latestRuns(UNSET, [new MetricsTag('CERT-"gui"${x}\\', 'test')], [] as Set)
         adapter.recentRuns(UNSET, new MetricsTag('CERT-gui" or true or "', 'te"st'), null, 30, 25)
-        adapter.doraPoints(UNSET, [new MetricsTag('CERT-"gui"${x}\\', 'test')], 30)
+        adapter.doraPoints(UNSET, [new MetricsTag('CERT-"gui"${x}\\', 'test')], null, 30)
 
         then:
         2 * influx.query(_, { String flux -> flux.contains('set: ["CERT-\\"gui\\"\\${x}\\\\"]') }) >> []
@@ -163,7 +163,7 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
 
     def "DORA points are read from the dora measurement of every tag asked for"() {
         when:
-        def points = adapter.doraPoints(UNSET, [gui, guiSast], 90)
+        def points = adapter.doraPoints(UNSET, [gui, guiSast], null, 90)
 
         then:
         1 * influx.query(_, '''\
@@ -185,7 +185,41 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
         points == [(gui)    : [new DoraPoint(Instant.parse('2026-10-01T10:00:00Z'), true, false, 3600, 600),
                                new DoraPoint(Instant.parse('2026-10-02T10:00:00Z'), false, true, 0, 0)],
                    (guiSast): [new DoraPoint(Instant.parse('2026-10-02T11:00:00Z'), false, false, 0, 0)]]
-        adapter.doraPoints(UNSET, [], 90) == [:]
+        adapter.doraPoints(UNSET, [], null, 90) == [:]
+    }
+
+    def "the DORA points of a tag several services share are those written with the runs of one Jenkins job or its branches"() {
+        given:
+        def certScanner = new MetricsTag('CertScanner', 'test')
+
+        when:
+        def points = adapter.doraPoints(UNSET, [certScanner], 'DevSecOps/CERT/gui-full', 30)
+
+        then:
+        1 * influx.query(_, '''\
+            import "strings"
+
+            runs = from(bucket: "DORA-metrics")
+              |> range(start: -30d)
+              |> filter(fn: (r) => r._measurement == "pipeline_run" and r._field == "job")
+              |> filter(fn: (r) => contains(value: r.project, set: ["CertScanner"]))
+              |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+              |> filter(fn: (r) => exists r.job and (r.job == "DevSecOps/CERT/gui-full" or strings.hasPrefix(v: r.job, prefix: "DevSecOps/CERT/gui-full/")))
+              |> keep(columns: ["_time", "project", "env"])
+              |> group()
+            dora = from(bucket: "DORA-metrics")
+              |> range(start: -30d)
+              |> filter(fn: (r) => r._measurement == "dora")
+              |> filter(fn: (r) => contains(value: r.project, set: ["CertScanner"]))
+              |> filter(fn: (r) => r._field == "deployment" or r._field == "change_failure" or r._field == "lead_time_s" or r._field == "duration_s")
+              |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+              |> group()
+
+            join(tables: {dora: dora, run: runs}, on: ["_time", "project", "env"])
+              |> sort(columns: ["_time"])
+            '''.stripIndent()) >> [[_time: '2026-10-01T10:00:00Z', project: 'CertScanner', env: 'test', deployment: '1',
+                                    change_failure: '0', lead_time_s: '3600', duration_s: '600']]
+        points == [(certScanner): [new DoraPoint(Instant.parse('2026-10-01T10:00:00Z'), true, false, 3600, 600)]]
     }
 
     def "without InfluxDB nothing is read and the reason is given"() {
@@ -204,7 +238,7 @@ class InfluxPipelineRunsAdapterSpec extends Specification {
         where:
         reading << [{ it.latestRuns(UNSET, [], [] as Set) }, { it.latestRuns(UNSET, [new MetricsTag('CERT-gui', 'test')], [] as Set) },
                     { it.recentRuns(UNSET, new MetricsTag('CERT-gui', 'test'), null, 30, 25) },
-                    { it.doraPoints(UNSET, [new MetricsTag('CERT-gui', 'test')], 30) }, { it.doraPoints(UNSET, [], 30) },
+                    { it.doraPoints(UNSET, [new MetricsTag('CERT-gui', 'test')], null, 30) }, { it.doraPoints(UNSET, [], null, 30) },
                     { it.ping(UNSET) }]
     }
 

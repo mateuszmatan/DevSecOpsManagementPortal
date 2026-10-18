@@ -257,7 +257,6 @@ public record ServiceDto(
             @Pattern(regexp = "^\\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\s*$",
                     message = "must be the AppScan application ID, a UUID such as 109f44ac-cc06-4ca0-884e-d944904f7019")
             String applicationId,
-            @Size(max = 200) String sastScanName,
             @Size(max = 30)
             List<@Pattern(regexp = FOLDER, message = FOLDER_MESSAGE) String> includedDirs,
             @Size(max = 30)
@@ -269,7 +268,6 @@ public record ServiceDto(
             @Size(max = 500) @Pattern(regexp = POWERSHELL_PATH, message = POWERSHELL_PATH_MESSAGE) String clientPath,
             @Valid ToolCommandDto compileCommand,
             Boolean dastEnabled,
-            @Size(max = 200) String dastScanName,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String dastTargetUrl,
             @Size(max = 100) String dastPresenceId,
             @Size(max = 200) String secretCredentialsId) implements Mirrors<AppScanSettings> {
@@ -295,8 +293,7 @@ public record ServiceDto(
 
     public record NexusIqSettingsDto(
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String serverUrl,
-            @Size(max = 200) String credentialsId,
-            @Size(max = 200) String scaScanName) implements Mirrors<NexusIqSettings> {
+            @Size(max = 200) String credentialsId) implements Mirrors<NexusIqSettings> {
     }
 
     public record NexusIqApplicationDto(

@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.adapter.out.influx;
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort;
 import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint;
 import com.bbh.itss.dso.portal.domain.monitoring.LatestRuns;
-import com.bbh.itss.dso.portal.domain.monitoring.MetricsRow;
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
@@ -20,8 +19,8 @@ import java.util.Set;
 import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.positive;
 import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.string;
 import static com.bbh.itss.dso.portal.adapter.out.influx.Flux.strings;
-import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.doraPoint;
-import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.tag;
+import static com.bbh.itss.dso.portal.adapter.out.influx.MetricsRow.doraPoint;
+import static com.bbh.itss.dso.portal.adapter.out.influx.MetricsRow.tag;
 
 @Component
 @RequiredArgsConstructor
@@ -86,9 +85,6 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
 
     @Override
     public List<PipelineRun> recentRuns(PlatformSettings platform, MetricsTag tag, String job, int days, int limit) {
-        String byJob = job == null ? "" : """
-                  |> filter(fn: (r) => exists r.job and (r.job == %s or strings.hasPrefix(v: r.job, prefix: %s)))
-                """.formatted(string(job), string(job + "/"));
         String flux = """
                 %sfrom(bucket: %s)
                   |> range(start: -%dd)
@@ -99,18 +95,19 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                   |> sort(columns: ["_time"], desc: true)
                   |> limit(n: %d)
                 """.formatted(job == null ? "" : "import \"strings\"\n\n", influx.bucket(platform), positive(days),
-                string(tag.project()), string(tag.env()), byJob, positive(limit));
+                string(tag.project()), string(tag.env()), job == null ? "" : byJob(job), positive(limit));
         return influx.read(platform, () -> influx.query(platform, flux).stream().map(MetricsRow::run).toList());
     }
 
     @Override
     public Map<MetricsTag, List<DoraPoint>> doraPoints(PlatformSettings platform, Collection<MetricsTag> tags,
-                                                       int days) {
+                                                       String job, int days) {
         if (tags.isEmpty()) {
             influx.requireConfigured(platform);
             return Map.of();
         }
-        String flux = """
+        String projects = strings(tags.stream().map(MetricsTag::project).toList());
+        String dora = """
                 from(bucket: %s)
                   |> range(start: -%dd)
                   |> filter(fn: (r) => r._measurement == "dora")
@@ -119,9 +116,21 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
                 or r._field == "lead_time_s" or r._field == "duration_s")
                   |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                   |> group()
+                """.formatted(influx.bucket(platform), positive(days), projects);
+        String flux = job == null ? dora + "  |> sort(columns: [\"_time\"])\n" : """
+                import "strings"
+
+                runs = from(bucket: %s)
+                  |> range(start: -%dd)
+                  |> filter(fn: (r) => r._measurement == "pipeline_run" and r._field == "job")
+                  |> filter(fn: (r) => contains(value: r.project, set: [%s]))
+                  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                %s  |> keep(columns: ["_time", "project", "env"])
+                  |> group()
+                dora = %s
+                join(tables: {dora: dora, run: runs}, on: ["_time", "project", "env"])
                   |> sort(columns: ["_time"])
-                """.formatted(influx.bucket(platform), positive(days),
-                strings(tags.stream().map(MetricsTag::project).toList()));
+                """.formatted(influx.bucket(platform), positive(days), projects, byJob(job), dora);
         return influx.read(platform, () -> {
             Map<MetricsTag, List<DoraPoint>> points = new HashMap<>();
             for (Map<String, String> row : influx.query(platform, flux)) {
@@ -133,5 +142,11 @@ class InfluxPipelineRunsAdapter implements PipelineRunsPort {
             }
             return points;
         });
+    }
+
+    private static String byJob(String job) {
+        return """
+                  |> filter(fn: (r) => exists r.job and (r.job == %s or strings.hasPrefix(v: r.job, prefix: %s)))
+                """.formatted(string(job), string(job + "/"));
     }
 }

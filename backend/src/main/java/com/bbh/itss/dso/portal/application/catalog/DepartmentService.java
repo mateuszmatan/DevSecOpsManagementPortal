@@ -7,7 +7,7 @@ import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentRepositoryPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentUsagePort;
 import com.bbh.itss.dso.portal.domain.catalog.Department;
-import com.bbh.itss.dso.portal.domain.catalog.DepartmentUsage;
+import com.bbh.itss.dso.portal.domain.catalog.CatalogUsage;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -27,42 +27,41 @@ public class DepartmentService implements DepartmentsUseCase {
     @Override
     @ReadOnly
     public List<DepartmentView> list() {
-        Map<Long, DepartmentUsage> perDepartment = usage.perDepartment();
+        Map<Long, CatalogUsage> perDepartment = usage.perDepartment();
         return departments.findAll().stream()
                 .sorted(comparing(Department::name, CASE_INSENSITIVE_ORDER))
                 .map(department -> new DepartmentView(department.id(), department.name(), department.version(),
-                        perDepartment.getOrDefault(department.id(), usage.unused())))
+                        perDepartment.getOrDefault(department.id(), CatalogUsage.UNUSED)))
                 .toList();
     }
 
     @Override
+    @ReadOnly
+    public DepartmentView get(long id) {
+        return list().stream().filter(department -> department.id() == id).findFirst()
+                .orElseThrow(() -> notFound("Business service", id));
+    }
+
+    @Override
     public DepartmentView create(String name) {
-        return view(departments.save(Department.create(name, departments::findByName)).id());
+        return get(departments.save(Department.create(name, departments::findByName)).id());
     }
 
     @Override
     public DepartmentView rename(long id, Long version, String name) {
         Department department = departments.load(id).orElseThrow(() -> notFound("Business service", id));
         departments.save(department.rename(version, name, departments::findByName));
-        return view(id);
+        return get(id);
     }
 
     @Override
     public void delete(long id) {
-        DepartmentView department = view(id);
+        DepartmentView department = get(id);
         long products = department.usage().productCount();
         if (products > 0) {
             throw new IllegalStateException(department.name() + " still has " + products
                     + " product(s). Move them to another business service first.");
         }
-        department.usage().deletionRefusal(department.name()).ifPresent(refusal -> {
-            throw new IllegalStateException(refusal);
-        });
         departments.delete(id);
-    }
-
-    private DepartmentView view(long id) {
-        return list().stream().filter(department -> department.id() == id).findFirst()
-                .orElseThrow(() -> notFound("Business service", id));
     }
 }

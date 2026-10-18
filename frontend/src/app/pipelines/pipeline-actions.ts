@@ -10,8 +10,8 @@ import { KeyHistoryDialog } from '../products/key-history-dialog';
 import { PipelineDialog, PipelineDialogData } from '../products/pipeline-dialog';
 import { RevokeKeyDialog } from '../products/revoke-key-dialog';
 import { ServiceConfigDialog, ServiceConfigDialogData } from './service-config-dialog';
-import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
-import { ConfirmDialog, ConfirmDialogData } from '@common/shared/confirm-dialog';
+import { CodeDialogData, showCode } from '../shared/code-dialog';
+import { ConfirmDialogData, askToConfirm } from '@common/shared/confirm-dialog';
 import { JENKINSFILE_HELP, pipelineName, typeName } from './pipeline-texts';
 
 export { typeName } from './pipeline-texts';
@@ -85,10 +85,10 @@ export class PipelineActions {
     );
   }
 
-  editService(pipeline: Pipeline): Observable<boolean> {
+  editService(pipeline: Pipeline, allSections = false): Observable<boolean> {
     return this.dialog
       .open<boolean, ServiceConfigDialogData, ServiceConfigDialog>(ServiceConfigDialog, {
-        data: { pipeline },
+        data: { pipeline, allSections },
       })
       .closed.pipe(map((res) => !!res));
   }
@@ -163,13 +163,11 @@ export class PipelineActions {
   }
 
   confirm(data: ConfirmDialogData): Observable<boolean> {
-    return this.dialog
-      .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, { data })
-      .closed.pipe(filter((confirmed) => confirmed === true));
+    return askToConfirm(this.dialog, data).pipe(filter(Boolean));
   }
 
   openCode(data: CodeDialogData): void {
-    this.dialog.open(CodeDialog, { data, width: '760px', maxWidth: '95vw' });
+    showCode(this.dialog, data);
   }
 
   private openPipelineDialog(

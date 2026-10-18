@@ -3,13 +3,13 @@ import { Dialog } from '@angular/cdk/dialog';
 import { outputFromObservable, rxResource, toObservable } from '@angular/core/rxjs-interop';
 import { filter, switchMap } from 'rxjs';
 import { DepartmentsApi } from '../core/api';
-import { errorMessage } from '../core/errors';
 import { Department } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { DepartmentDialog } from '../departments/department-dialog';
-import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
+import { askToConfirm } from '../shared/confirm-dialog';
 import { counted } from '../shared/formatting';
 import { DsoCell, GRID, GridColumn } from '../ui/grid';
+import { LoadError } from '../ui/load-error';
 import { DsoLoading } from '../ui/loading';
 
 export interface DepartmentCount<D> {
@@ -26,7 +26,7 @@ export interface DepartmentUsage<D extends Department = Department> {
 
 @Component({
   selector: 'dso-departments-admin',
-  imports: [GRID, DsoLoading],
+  imports: [GRID, DsoLoading, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './departments-admin.html',
   styleUrl: './departments-admin.scss',
@@ -87,8 +87,6 @@ export class DepartmentsAdmin<D extends Department = Department> {
       `${this.usage().subject}. Only an empty business service can be deleted.`,
   );
 
-  protected readonly errorMessage = errorMessage;
-
   protected deleteHint(department: D): string | null {
     if (department.productCount) {
       const them = department.productCount === 1 ? 'it' : 'them';
@@ -109,19 +107,16 @@ export class DepartmentsAdmin<D extends Department = Department> {
   }
 
   protected delete(department: D): void {
-    this.dialog
-      .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, {
-        data: {
-          title: `Delete the business service ${department.name}?`,
-          message:
-            `${department.name} has no products, so nothing else is deleted with it. ` +
-            'It disappears from every list of business services in the portal. This cannot be undone.',
-          confirmLabel: 'Delete business service',
-          danger: true,
-        },
-      })
-      .closed.pipe(
-        filter((confirmed) => confirmed === true),
+    askToConfirm(this.dialog, {
+      title: `Delete the business service ${department.name}?`,
+      message:
+        `${department.name} has no products, so nothing else is deleted with it. ` +
+        'It disappears from every list of business services in the portal. This cannot be undone.',
+      confirmLabel: 'Delete business service',
+      danger: true,
+    })
+      .pipe(
+        filter(Boolean),
         switchMap(() => this.api.delete(department.id)),
       )
       .subscribe({

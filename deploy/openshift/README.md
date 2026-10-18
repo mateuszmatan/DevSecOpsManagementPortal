@@ -34,7 +34,7 @@ docker run --rm -p 8080:8080 \
   dso-portal:0.1.0-SNAPSHOT
 ```
 
-InfluxDB and Grafana are set either in the GUI under Admin, Library defaults, Portal monitoring (InfluxDB & Grafana), or with the environment variables `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET`, `INFLUX_TOKEN`, `GRAFANA_DASHBOARD_URL` and `GRAFANA_SECURITY_DASHBOARD_URL`; values saved in the GUI win.
+InfluxDB and Grafana are set as described in [Running locally](../../README.md#running-locally).
 
 ## Deploy to OpenShift (with Oracle database)
 
@@ -63,24 +63,26 @@ with one pod, its Service and its Route, so it sits next to the other applicatio
    oc create secret generic dso-portal-influx --from-literal=INFLUX_TOKEN='<token>'
    ```
 
-3. Apply the overlay from its folder, where step 1 left you:
+3. Apply the overlay from its folder, where step 1 left you. `oc rollout restart` is needed only when a rebuilt image
+   was pushed under the same tag: the new pod pulls it again.
 
    ```bash
    oc apply -k .
+   oc rollout restart deployment/dso-portal
    oc rollout status deployment/dso-portal
    oc get route dso-portal
    ```
 
-Liquibase automatically migrates the Oracle schema when the pod starts, and Hibernate validates the schema (`ddl-auto: validate`). Because the database is external Oracle, the Deployment uses `RollingUpdate` for zero-downtime rollouts. The pod logs to its console, which OpenShift collects, and to `/application/logs` on an `emptyDir` of 2 GB that lives as long as the pod.
+Liquibase automatically migrates the Oracle schema when the pod starts, and Hibernate validates the schema (`ddl-auto: validate`). Because the database is external Oracle, the Deployment uses `RollingUpdate` for zero-downtime rollouts. The pod logs to its console, which OpenShift collects, and to `/application/logs` on an `emptyDir` of 3 GB that lives as long as the pod.
 
-| Variable | Source | Purpose |
-| --- | --- | --- |
-| `SPRING_PROFILES_ACTIVE` | ConfigMap `dso-portal-config` | `rd`, `qc` or `prod` (activates `oracle` profile group; `rd` logs at `DEBUG`) |
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Secret `dso-portal-db` | Oracle JDBC connection (`ojdbc11`) |
-| `DB_POOL_SIZE` | ConfigMap (optional) | Hikari connection pool size (`5` in `rd`, `10` in `qc`, `20` in `prod`) |
-| `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET` | ConfigMap | InfluxDB v2 connection when Library defaults leave it empty |
-| `INFLUX_TOKEN` | Secret `dso-portal-influx` | InfluxDB read token, sent only to `INFLUX_URL` |
-| `GRAFANA_DASHBOARD_URL`, `GRAFANA_SECURITY_DASHBOARD_URL`, `GRAFANA_NAME` | ConfigMap | first Grafana instance when Library defaults leave it empty |
-| `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | ConfigMap | second Grafana instance when Library defaults leave it empty |
+The pod reads the variables of [Running locally](../../README.md#running-locally) from:
+
+| Variable | Source |
+| --- | --- |
+| `SPRING_PROFILES_ACTIVE` | ConfigMap `dso-portal-config`, set by the overlay |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Secret `dso-portal-db` |
+| `DB_POOL_SIZE` | ConfigMap (optional) |
+| `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET`, `GRAFANA_*` | ConfigMap |
+| `INFLUX_TOKEN` | Secret `dso-portal-influx` (optional) |
 
 Jenkins reaches the portal through its route: a Jenkins administrator sets the global environment variable `DSO_PORTAL_URL` to the route's address, and DSOEnhanced fetches each pipeline's configuration from `/api/dso/config/<key>?format=json`.

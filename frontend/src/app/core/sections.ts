@@ -68,3 +68,11 @@ export function adminProduct(id: number | string, ...rest: string[]): (string | 
 export function pipelinePage(id: number | string): (string | number)[] {
   return [PIPELINES.path, id];
 }
+
+export function monitoringProduct(id: number | string): (string | number)[] {
+  return [`${MONITORING.path}/products`, id];
+}
+
+export function monitoringPipeline(id: number | string): (string | number)[] {
+  return [`${MONITORING.path}/pipelines`, id];
+}

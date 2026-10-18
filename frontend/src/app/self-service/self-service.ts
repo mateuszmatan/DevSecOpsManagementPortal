@@ -35,7 +35,13 @@ import { PipelinesApi, ProductsApi, ServiceTemplateApi, SettingsApi } from '../c
 import { errorMessage, fieldProblems } from '@common/core/errors';
 import { Department, Product } from '../core/models';
 import { Notifier } from '@common/core/notifier';
-import { ADMIN, SELF_SERVICE, adminProduct, pipelinePage } from '../core/sections';
+import {
+  ADMIN,
+  SELF_SERVICE,
+  adminProduct,
+  monitoringProduct,
+  pipelinePage,
+} from '../core/sections';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { byDepartment } from '@common/departments/departments';
 import { jenkinsfile } from '../products/jenkinsfile';
@@ -105,6 +111,7 @@ export class SelfService implements HasUnsavedChanges {
   protected readonly section = SELF_SERVICE;
   protected readonly admin = ADMIN.heading;
   protected readonly adminProduct = adminProduct;
+  protected readonly monitoringProduct = monitoringProduct;
   protected readonly pipelinePage = pipelinePage;
   protected readonly steps = STEPS;
   protected readonly modes = PRODUCT_MODES;

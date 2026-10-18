@@ -10,7 +10,7 @@ import spock.lang.Specification
 
 class ActionLogServiceSpec extends Specification {
 
-    static final UserProfile ANN = new UserProfile(7L, 'ann', 'Ann Lee', 'ann@bbh.com', [], [], false)
+    static final UserProfile ANN = new UserProfile('ann', 'Ann Lee', 'ann@bbh.com', false)
 
     ActionLogRepositoryPort repository = Mock()
     DepartmentRepositoryPort departments = Stub() {
@@ -23,14 +23,14 @@ class ActionLogServiceSpec extends Specification {
         when:
         service.record(ActionRecord.of('CREATE_PRODUCT', 'PRODUCT', ' Payments ', departmentId).withUser(ANN)
                 .done('Created product PAY with 2 service(s)'))
-        service.record(ActionRecord.of('DELETE_PIPELINE', 'PIPELINE', 'api (FULL)', departmentId).withUser(ANN)
+        service.record(ActionRecord.of('DELETE_PIPELINE', 'PIPELINE', 'api · Full', departmentId).withUser(ANN)
                 .failed('Pipeline 9 does not exist'))
 
         then:
         1 * repository.save(new ActionLog(null, null, 'ann', 'Ann Lee', 'ann@bbh.com', department, 'CREATE_PRODUCT',
                 'PRODUCT', 'Payments', 'Created product PAY with 2 service(s)', 'SUCCESS'))
         1 * repository.save(new ActionLog(null, null, 'ann', 'Ann Lee', 'ann@bbh.com', department, 'DELETE_PIPELINE',
-                'PIPELINE', 'api (FULL)', 'Pipeline 9 does not exist', 'FAILURE'))
+                'PIPELINE', 'api · Full', 'Pipeline 9 does not exist', 'FAILURE'))
 
         where:
         departmentId | department

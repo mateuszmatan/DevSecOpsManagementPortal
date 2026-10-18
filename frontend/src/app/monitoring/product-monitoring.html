@@ -1,17 +1,14 @@
 <div class="page">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a routerLink="/monitoring">DevSecOps Pipeline Monitoring</a>
+    <a [routerLink]="section.path">{{ section.heading }}</a>
     <span class="sep" aria-hidden="true">/</span>
     <span>{{ product.hasValue() ? product.value().name : 'Product' }}</span>
   </nav>
 
   @if (product.error(); as error) {
-    <div class="banner">
-      <span>The product could not be loaded. {{ errorMessage(error) }}</span>
-      <span class="spacer"></span>
-      <button type="button" class="btn btn-link" (click)="product.reload()">Try again</button>
-    </div>
-    <a class="btn btn-outline-primary" routerLink="/monitoring">Back to monitoring</a>
+    <dso-load-error what="The product" [error]="error" (retry)="product.reload()">
+      <a class="btn btn-link" [routerLink]="section.path">Back to monitoring</a>
+    </dso-load-error>
   } @else {
     @if (product.hasValue()) {
       @let p = product.value();
@@ -33,7 +30,7 @@
           >
             Refresh
           </button>
-          <a class="btn btn-outline-primary" [routerLink]="['/admin/products', p.productId]"
+          <a class="btn btn-outline-primary" [routerLink]="adminProduct(p.productId)"
             >Manage product</a
           >
         </div>
@@ -65,9 +62,7 @@
           <div class="empty-state">
             <h3>No pipelines yet</h3>
             <p>Add pipelines to the services of {{ p.name }} to see their results here.</p>
-            <a class="btn btn-primary" [routerLink]="['/admin/products', p.productId]"
-              >Add pipelines</a
-            >
+            <a class="btn btn-primary" [routerLink]="adminProduct(p.productId)">Add pipelines</a>
           </div>
         } @else {
           <dso-grid
@@ -85,7 +80,7 @@
               <div>
                 <a
                   class="pipeline-link quiet-link"
-                  [routerLink]="['/monitoring/pipelines', health.pipeline.id]"
+                  [routerLink]="monitoringPipeline(health.pipeline.id)"
                   >{{ typeLabel(health.pipeline.type) }}</a
                 >
                 <div class="muted small mono">
@@ -114,7 +109,7 @@
             <ng-template dsoCell="stages" let-health>
               @if (health.lastRun?.stagesTotal; as total) {
                 <div class="stages">
-                  <div>{{ health.lastRun.passed ?? 0 }} of {{ total }} passed</div>
+                  <div>{{ stagesPassed(health.lastRun) }} of {{ total }} passed</div>
                   @if (stageProblems(health.lastRun); as problems) {
                     <div
                       class="stage-problems small"

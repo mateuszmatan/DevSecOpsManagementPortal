@@ -6,7 +6,7 @@ PRODUCT_ID="${1:?usage: monitoring.sh PRODUCT_ID PIPELINE_ID [RANGE]}"
 PIPELINE_ID="${2:?usage: monitoring.sh PRODUCT_ID PIPELINE_ID [RANGE]}"
 RANGE="${3:-30d}"
 
-echo "== Metrics and dashboards"
+echo "== Metrics store"
 curl -sS --fail-with-body "$PORTAL_URL/api/monitoring/status" | jq .
 
 echo "== Every product"

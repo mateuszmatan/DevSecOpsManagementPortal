@@ -45,8 +45,6 @@ projects:
             credentialsId: nexusiqP
             stage: release
             failOnNetworkError: true
-    sast:
-      scanName: payhub-gateway
     dast:
       enabled: true
       targetUrl: https://payhub-uat.testbbh.com
@@ -171,13 +169,8 @@ projects:
         - '**/target/*.war'
         stage: stage-release
         failOnNetworkError: true
-    sast:
-      scanName: ledger-sast
-    sca:
-      scanName: ledger-sca
     dast:
       enabled: true
-      scanName: ledger-dast
       targetUrl: https://ledger-uat.testbbh.com
       presenceId: presence-1
     build:
@@ -366,6 +359,21 @@ projects:
       - plugins/camera
     deploy:
       vm:
+        dod:
+          skipWait: false
+          deployWithSnapshot: true
+          updateSnapshotComp: false
+          includeOnlyDeployVersions: true
+          deployOnlyChanged: false
+          applications:
+          - applicationName: LEDGER-MOBILE
+            components:
+            - componentName: ledger-mobile
+              baseDir: build/libs
+              fileIncludePatterns: '*.jar'
+              incrementalVersion: true
+          siteName: deploy.bbh.com
+          deployProcess: tomcat-app-process
         rd:
           host: rdltaapps1.testbbh.com
           user: taadmin

@@ -1,8 +1,6 @@
 spring:
   application:
     name: dso-portal
-  config:
-    import: classpath:bbh-devsecops-common.yml
   profiles:
     default: local
     group:
@@ -10,13 +8,34 @@ spring:
       qc: oracle
       prod: oracle
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        type:
+          preferred_instant_jdbc_type: TIMESTAMP
+          preferred_boolean_jdbc_type: INTEGER
+        default_batch_fetch_size: 50
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    analytics-enabled: false
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          no-cache: true
 
 server:
   port: ${PORT:8080}
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
   endpoint:
     health:
       show-details: never

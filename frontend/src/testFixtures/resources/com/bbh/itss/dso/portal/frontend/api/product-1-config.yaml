@@ -33,11 +33,8 @@ projects:
         - '**/build/libs/*.jar'
         stage: build
         failOnNetworkError: false
-    sast:
-      scanName: cert-scanner-gui-sast
     dast:
       enabled: true
-      scanName: cert-scanner-gui-dast
       targetUrl: http://rdltaapps1.testbbh.com
     build:
       buildPath: build/libs/*.jar
@@ -156,11 +153,8 @@ projects:
         - '**/target/*.jar'
         stage: build
         failOnNetworkError: false
-    sast:
-      scanName: cert-scanner-backend-sast
     dast:
       enabled: true
-      scanName: cert-scanner-backend-dast
       targetUrl: http://rdltaapps1.testbbh.com
     build:
       buildPath: target/*.jar

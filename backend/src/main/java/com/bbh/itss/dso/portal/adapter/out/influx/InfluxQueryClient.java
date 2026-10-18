@@ -69,7 +69,7 @@ public class InfluxQueryClient {
         } catch (UncheckedIOException e) {
             throw e;
         } catch (RuntimeException e) {
-            log.warn("Reading from InfluxDB failed: {}", e.getMessage());
+            log.warn("Reading from InfluxDB failed", e);
             throw unavailable(UNREADABLE
                     + truncate(getIfNull(e.getMessage(), e.getClass().getSimpleName()), MAX_REASON), e);
         }

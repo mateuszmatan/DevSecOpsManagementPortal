@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.domain.settings;
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
-import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import lombok.Builder;
 import lombok.With;
 
@@ -21,18 +20,6 @@ public record PlatformSettings(@With String jenkinsUrl, String jenkinsLibrary, S
                                String influxUrl, String influxOrg, String influxBucket, @With String influxToken,
                                String grafanaName, String grafanaDashboardUrl, String grafanaSecurityDashboardUrl,
                                String grafana2Name, String grafana2DashboardUrl, String grafana2SecurityDashboardUrl) {
-
-    public PlatformSettings(String jenkinsUrl, String jenkinsLibrary, String asocUrl,
-                            String appScanClientLinuxUrl, String appScanClientWindowsUrl, String proxyHost,
-                            Integer proxyPort, String proxyUser, String oisHost, String sonarServerUrl,
-                            String sonarInstallationName, String nexusIqServerUrl, String nexusIqCredentialsId,
-                            String nexusSnapshotRepositoryUrl, String nexusSnapshotRepositoryId,
-                            String influxWriteUrl, String influxCredentialsId, String iosBuildAgent) {
-        this(jenkinsUrl, jenkinsLibrary, asocUrl, appScanClientLinuxUrl, appScanClientWindowsUrl, proxyHost, proxyPort,
-                proxyUser, oisHost, sonarServerUrl, sonarInstallationName, nexusIqServerUrl, nexusIqCredentialsId,
-                nexusSnapshotRepositoryUrl, nexusSnapshotRepositoryId, influxWriteUrl, influxCredentialsId,
-                iosBuildAgent, null, null, null, null, null, null, null, null, null, null);
-    }
 
     public PlatformSettings {
         jenkinsUrl = trimToNull(jenkinsUrl);
@@ -89,15 +76,6 @@ public record PlatformSettings(@With String jenkinsUrl, String jenkinsLibrary, S
                 .set("tools.sonar.installationName", sonarInstallationName)
                 .set("tools.nexusIq.serverUrl", nexusIqServerUrl)
                 .set("tools.nexusIq.credentialsId", nexusIqCredentialsId);
-    }
-
-    public void validate(ValidationProblems problems) {
-        if (proxyHost != null && proxyPort == null) {
-            problems.add("proxyPort", "is required with a proxy host");
-        }
-        if (proxyHost == null && proxyPort != null) {
-            problems.add("proxyHost", "is required with a proxy port");
-        }
     }
 
     private static String host(String url) {

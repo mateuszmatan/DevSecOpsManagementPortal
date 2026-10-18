@@ -26,7 +26,6 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
         def adapter = new GrafanaDashboardLinksAdapter(properties([' Test ', " $PIPELINE ", security], [null, PROD, '']))
 
         expect:
-        adapter.instances(UNSET) == [new DashboardLink('Test', PIPELINE), new DashboardLink('Grafana', PROD)]
         adapter.dashboards(UNSET, tag, type, 90) == [new DashboardLink('Test', link.toString()),
                                               new DashboardLink('Grafana', "$PROD?var-project=CERT%20gui&from=now-90d&to=now")]
 
@@ -46,10 +45,9 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
         def adapter = new GrafanaDashboardLinksAdapter(properties(['Security', null, SECURITY], ['Unused', ' ', null]))
 
         expect:
-        adapter.instances(UNSET) == [new DashboardLink('Security', SECURITY)]
         adapter.dashboards(UNSET, tag, FULL, 30) == []
         adapter.dashboards(UNSET, tag, SAST, 7) == [new DashboardLink('Security', "$SECURITY&var-project=CERT%20gui&from=now-7d&to=now")]
-        new GrafanaDashboardLinksAdapter(new GrafanaProperties(null)).instances(UNSET) == []
+        new GrafanaDashboardLinksAdapter(new GrafanaProperties(null)).dashboards(UNSET, tag, SAST, 30) == []
         new GrafanaDashboardLinksAdapter(new GrafanaProperties([])).dashboards(UNSET, tag, FULL, 30) == []
     }
 
@@ -63,7 +61,6 @@ class GrafanaDashboardLinksAdapterSpec extends Specification {
                 .build()
 
         expect:
-        adapter.instances(panel) == [new DashboardLink('Panel Grafana', PROD)]
         adapter.dashboards(panel, tag, FULL, 30) == [new DashboardLink('Panel Grafana', "$PROD?var-project=CERT%20gui&from=now-30d&to=now")]
         adapter.dashboards(panel, tag, SAST, 30) == [new DashboardLink('Panel Grafana', "$SECURITY&var-project=CERT%20gui&from=now-30d&to=now")]
     }

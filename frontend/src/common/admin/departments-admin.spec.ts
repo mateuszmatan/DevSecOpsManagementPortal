@@ -123,8 +123,8 @@ describe('DepartmentsAdmin', () => {
     http.expectOne('/api/departments').flush(null, { status: 0, statusText: 'Unknown Error' });
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.banner'))).toContain(
-      'The business services could not be loaded: The portal cannot be reached.',
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
+      'The business services could not be loaded. The portal cannot be reached. Check your network connection and try again.',
     );
 
     buttonOf(page().querySelector('.banner')!, 'Try again').click();

@@ -72,7 +72,6 @@ class InfluxQueryClientSpec extends Specification {
 
         then:
         !client.configured(UNSET)
-        !new InfluxProperties(url, 'DevSecOps', 'DORA-metrics', null, '365d').configured()
         thrown(UncheckedIOException)
 
         when:

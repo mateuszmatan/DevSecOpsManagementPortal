@@ -11,6 +11,7 @@ import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettings
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageServiceTemplateUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey;
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
@@ -26,9 +27,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
 import static com.bbh.itss.dso.portal.domain.pipeline.Pipeline.UNKNOWN_KEY;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineKey.normalize;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 import static java.util.stream.Collectors.groupingBy;
@@ -93,25 +97,36 @@ public class PipelineService implements PipelinesUseCase {
     }
 
     @Override
-    public void requireNexusIqApplications(Product product) {
-        product.services().stream()
-                .filter(service -> service.id() != null && pipelines.existsForService(service.id(), NEXUS_IQ))
-                .forEach(PipelineService::requireNexusIqApplication);
+    public void requireRunnablePipelines(Product product) {
+        for (Service service : product.services()) {
+            for (PipelineType type : List.of(FULL, NEXUS_IQ)) {
+                Optional<String> refusal = refusal(service, type);
+                if (refusal.isPresent() && service.id() != null && pipelines.existsForService(service.id(), type)) {
+                    throw new IllegalStateException(refusal.get());
+                }
+            }
+        }
     }
 
     private Pipeline create(Product product, Service service, PipelineType type, PipelineSettings settings) {
-        if (type == NEXUS_IQ) {
-            requireNexusIqApplication(service);
-        }
+        refusal(service, type).ifPresent(reason -> {
+            throw new IllegalStateException(reason);
+        });
         return pipelines.save(Pipeline.create(new ServiceRef(product.id(), service.id()), type, settings, keys,
                 now()));
     }
 
-    private static void requireNexusIqApplication(Service service) {
-        if (service.settings().nexusIqApplications().isEmpty()) {
-            throw new IllegalStateException("Service " + service.name()
+    private static Optional<String> refusal(Service service, PipelineType type) {
+        ServiceSettings configured = service.settings();
+        if (type == NEXUS_IQ && configured.nexusIqApplications().isEmpty()) {
+            return Optional.of("Service " + service.name()
                     + " has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing");
         }
+        if (type == FULL && configured.deployment().target() == VM && configured.urbanCodeApplications().isEmpty()) {
+            return Optional.of("Service " + service.name() + " deploys to virtual machines but has no UrbanCode"
+                    + " Deploy application, so its Full pipeline would fail at the lower test region deployment");
+        }
+        return Optional.empty();
     }
 
     @Override

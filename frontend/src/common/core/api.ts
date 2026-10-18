@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Department, DepartmentRequest, LookupItem } from './models';
+import { Department, DepartmentRequest } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class DepartmentsApi {
@@ -21,17 +21,5 @@ export class DepartmentsApi {
 
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`/api/departments/${id}`);
-  }
-}
-
-@Injectable({ providedIn: 'root' })
-export class LookupsApi {
-  private readonly http = inject(HttpClient);
-
-  find(kind: string, query: string): Observable<LookupItem[]> {
-    const text = query.trim();
-    return this.http.get<LookupItem[]>(`/api/lookups/${kind}`, {
-      params: text ? { q: text } : {},
-    });
   }
 }

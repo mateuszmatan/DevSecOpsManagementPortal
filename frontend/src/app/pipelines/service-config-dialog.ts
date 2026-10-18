@@ -10,10 +10,11 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { ReactiveFormsModule } from '@angular/forms';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ProductsApi } from '../core/api';
-import { Pipeline, Product, Service, pipelineTypeLabel } from '../core/models';
+import { Pipeline, pipelineTypeLabel } from '../core/models';
 import { Notifier } from '@common/core/notifier';
 import { errorMessage } from '@common/core/errors';
 import { DIALOG } from '@common/ui/dialog';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
 import { revalidateAll } from '@common/shared/form-controls';
 import {
@@ -28,30 +29,33 @@ import { ServiceFields } from '../products/service-fields';
 
 export interface ServiceConfigDialogData {
   pipeline: Pipeline;
+  allSections?: boolean;
 }
 
 @Component({
   selector: 'dso-service-config-dialog',
-  imports: [ReactiveFormsModule, DIALOG, DsoLoading, DsoSpinner, ServiceFields],
+  imports: [ReactiveFormsModule, DIALOG, DsoLoading, DsoSpinner, LoadError, ServiceFields],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
-      <div class="header-titles">
-        <h2 dsoDialogTitle>Configure {{ data.pipeline.serviceName }}</h2>
-        <span class="pipeline-pill">{{ typeLabel() }} pipeline</span>
-      </div>
-      <p class="subtitle muted">
-        {{ data.pipeline.productName }} ({{ data.pipeline.productCode }})
-      </p>
+      <h2 dsoDialogTitle>Configure {{ data.pipeline.serviceName }}</h2>
     </div>
 
     <div class="modal-body">
+      <p class="subtitle">
+        {{ data.pipeline.productName }} ({{ data.pipeline.productCode }})
+        @if (!data.allSections) {
+          <span class="tag">{{ typeLabel() }} pipeline</span>
+        }
+      </p>
       @if (productResource.isLoading()) {
         <dso-loading />
       } @else if (productResource.error(); as error) {
-        <div class="banner danger" role="alert">
-          Could not load service settings. {{ errorMessage(error) }}
-        </div>
+        <dso-load-error
+          what="The service settings"
+          [error]="error"
+          (retry)="productResource.reload()"
+        />
       } @else if (serviceForm(); as form) {
         @if (saveError()) {
           <div class="banner danger" role="alert">{{ saveError() }}</div>
@@ -59,7 +63,7 @@ export interface ServiceConfigDialogData {
         <dso-service-fields
           #fields
           [form]="form"
-          [pipeline]="data.pipeline.type"
+          [pipeline]="data.allSections ? null : data.pipeline.type"
           [productCode]="data.pipeline.productCode"
           [submitted]="submitted()"
         />
@@ -79,51 +83,16 @@ export interface ServiceConfigDialogData {
         (click)="save()"
       >
         @if (saving()) {
-          <dso-spinner /> Saving...
-        } @else {
-          Save service configuration
+          <dso-spinner />
         }
+        Save service configuration
       </button>
     </div>
   `,
   styles: `
     :host {
       display: block;
-    }
-
-    .header-titles {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-
-      h2 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-      }
-    }
-
-    .subtitle {
-      margin: 4px 0 0;
-      font-size: 13px;
-    }
-
-    .pipeline-pill {
-      background: var(--dso-info-bg, #e8f0fe);
-      color: var(--dso-navy, #002d62);
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .modal-body {
       width: min(980px, 92vw);
-      max-height: calc(85vh - 140px);
-      overflow-y: auto;
-      padding: 12px 16px;
     }
   `,
 })
@@ -137,7 +106,6 @@ export class ServiceConfigDialog {
   protected readonly submitted = signal(false);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
-  protected readonly errorMessage = errorMessage;
 
   protected readonly typeLabel = computed(() => pipelineTypeLabel(this.data.pipeline.type));
 

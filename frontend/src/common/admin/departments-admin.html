@@ -17,14 +17,7 @@
   }
 
   @if (departments.error(); as error) {
-    <div class="banner" role="alert">
-      <span class="banner-text"
-        >The business services could not be loaded: {{ errorMessage(error) }}</span
-      >
-      <button type="button" class="btn btn-outline-primary" (click)="departments.reload()">
-        Try again
-      </button>
-    </div>
+    <dso-load-error what="The business services" [error]="error" (retry)="departments.reload()" />
   } @else if (departments.hasValue()) {
     @if (empty()) {
       <div class="empty-state">

@@ -1,11 +1,11 @@
 <div class="page editor">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a routerLink="/admin">DevSecOps Admin</a>
+    <a [routerLink]="section.path">{{ section.heading }}</a>
     <span class="sep" aria-hidden="true">/</span>
-    <a routerLink="/admin/products">Products</a>
+    <a [routerLink]="tab.path">{{ tab.label }}</a>
     <span class="sep" aria-hidden="true">/</span>
     @if (product(); as stored) {
-      <a [routerLink]="['/admin/products', stored.id]">{{ stored.name }}</a>
+      <a [routerLink]="adminProduct(stored.id)">{{ stored.name }}</a>
       <span class="sep" aria-hidden="true">/</span>
       <span>Edit</span>
     } @else {
@@ -38,8 +38,8 @@
   }
 
   @if (loadError(); as error) {
-    <div class="banner">{{ error }}</div>
-    <a class="btn btn-outline-primary" routerLink="/admin/products">Back to products</a>
+    <div class="banner danger" role="alert">{{ error }}</div>
+    <a class="btn btn-outline-primary" [routerLink]="tab.path">Back to products</a>
   } @else if (!loading()) {
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <p class="required-note muted">Fields marked * are required.</p>

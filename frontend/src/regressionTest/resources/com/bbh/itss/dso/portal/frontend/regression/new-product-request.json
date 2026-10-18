@@ -94,7 +94,6 @@
       "openShiftTargets": {},
       "appScan": {
         "applicationId": "7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31",
-        "sastScanName": null,
         "includedDirs": [],
         "excludedDirs": [],
         "compile": true,
@@ -112,7 +111,6 @@
           "returnStdout": false
         },
         "dastEnabled": false,
-        "dastScanName": null,
         "dastTargetUrl": null,
         "dastPresenceId": null,
         "secretCredentialsId": null
@@ -139,8 +137,7 @@
       },
       "nexusIq": {
         "serverUrl": null,
-        "credentialsId": null,
-        "scaScanName": null
+        "credentialsId": null
       },
       "nexusIqApplications": [],
       "scm": {
@@ -269,7 +266,6 @@
       "openShiftTargets": {},
       "appScan": {
         "applicationId": "7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b32",
-        "sastScanName": null,
         "includedDirs": [],
         "excludedDirs": [],
         "compile": true,
@@ -287,7 +283,6 @@
           "returnStdout": false
         },
         "dastEnabled": false,
-        "dastScanName": null,
         "dastTargetUrl": null,
         "dastPresenceId": null,
         "secretCredentialsId": null
@@ -314,8 +309,7 @@
       },
       "nexusIq": {
         "serverUrl": null,
-        "credentialsId": null,
-        "scaScanName": null
+        "credentialsId": null
       },
       "nexusIqApplications": [],
       "scm": {

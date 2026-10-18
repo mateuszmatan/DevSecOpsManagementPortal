@@ -3,7 +3,6 @@ import {
   BuildTool,
   DeployTarget,
   OpenShiftTarget,
-  PIPELINE_TYPES,
   Pipeline,
   PipelineType,
   Product,
@@ -15,13 +14,15 @@ import {
   ServiceRequest,
   ServiceTemplateValues,
   pipelineTypeLabel,
+  pipelineTypeOrder,
   pipelineTypeSlug,
 } from '../core/models';
 import { RETRY, UNREACHABLE } from '@common/core/errors';
+import { labelOf } from '@common/shared/formatting';
 import {
   ServiceForm,
-  createNexusIqApplicationForm,
   createServiceForm,
+  nexusIqApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
 import { Choice } from '../shared/choice-tiles';
@@ -71,7 +72,7 @@ const TOOL_NAMES: readonly Choice<BuildTool>[] = [
 ];
 
 export function toolName(tool: BuildTool): string {
-  return choiceLabel(TOOL_NAMES, tool);
+  return labelOf(TOOL_NAMES, tool);
 }
 
 export const TARGETS: readonly Choice<DeployTarget>[] = [
@@ -107,10 +108,9 @@ function typeLabel(type: PipelineType): string {
 }
 
 export function pipelineNames(service: ServicePipelines): string {
-  const order = (type: PipelineType) => PIPELINE_TYPES.findIndex((option) => option.value === type);
   return service.pipelines
     .map((pipeline) => pipeline.type)
-    .sort((one, other) => order(one) - order(other))
+    .sort((one, other) => pipelineTypeOrder(one) - pipelineTypeOrder(other))
     .map(typeLabel)
     .join(', ');
 }
@@ -133,10 +133,6 @@ export function pipelineChoices(
   return services
     ? PIPELINES.map((option) => ({ ...option, note: coverage(services, option.value) }))
     : PIPELINES;
-}
-
-export function choiceLabel<T>(choices: readonly Choice<T>[], value: T): string {
-  return choices.find((option) => option.value === value)?.label ?? String(value);
 }
 
 export function deploys(pipeline: WizardPipeline): boolean {
@@ -221,7 +217,7 @@ export function deploysWith(pipeline: WizardPipeline, service: WizardService): D
 }
 
 function place(target: DeployTarget | null): string {
-  return target === 'VM' ? 'virtual machines' : choiceLabel(TARGETS, target);
+  return target === 'VM' ? 'virtual machines' : labelOf(TARGETS, target);
 }
 
 function runsOn(target: DeployTarget | null, project: string): string {
@@ -467,12 +463,7 @@ function scanWithNexusIq(
     if (applications.length) {
       applications.controls[0].controls.application.setValue(service.nexusIqApplication);
     } else {
-      applications.push(
-        createNexusIqApplicationForm({
-          application: service.nexusIqApplication,
-          scanPatterns: scanPattern ? [scanPattern] : [],
-        }),
-      );
+      applications.push(nexusIqApplicationForm(service.nexusIqApplication, scanPattern));
     }
   }
   const scm = form.controls.scm.controls;

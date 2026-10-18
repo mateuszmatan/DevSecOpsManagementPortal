@@ -1,8 +1,6 @@
 package com.bbh.itss.dso.portal.domain.settings
 
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree
-import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
-import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
@@ -67,14 +65,15 @@ class PlatformSettingsSpec extends Specification {
 
     def "blank values are stored as null and the others trimmed"() {
         when:
-        def platform = new PlatformSettings(' https://jenkins.bbh.com ', ' DevSecOpsJenkinsLibrary ', ' ', '', null,
-                ' tstproxy.bbh.com ', 9090, '  ', ' oisapi.bbh.com ', ' https://tools.bbh.com/sonar ', ' SonarQube ',
-                ' https://tools.bbh.com/IQ ', ' nexusiqP ', ' ', ' ', ' ', ' ', ' mac002.bbh.com ')
+        def platform = PlatformSettings.builder().jenkinsUrl(' https://jenkins.bbh.com ')
+                .jenkinsLibrary(' DevSecOpsJenkinsLibrary ').asocUrl(' ').appScanClientLinuxUrl('')
+                .proxyHost(' tstproxy.bbh.com ').proxyPort(9090).proxyUser('  ').oisHost(' oisapi.bbh.com ')
+                .sonarServerUrl(' https://tools.bbh.com/sonar ').influxOrg(' ').grafanaName(' Grafana ').build()
 
         then:
-        platform == new PlatformSettings('https://jenkins.bbh.com', 'DevSecOpsJenkinsLibrary', null, null, null,
-                'tstproxy.bbh.com', 9090, null, 'oisapi.bbh.com', 'https://tools.bbh.com/sonar', 'SonarQube',
-                'https://tools.bbh.com/IQ', 'nexusiqP', null, null, null, null, 'mac002.bbh.com')
+        platform == PlatformSettings.builder().jenkinsUrl('https://jenkins.bbh.com')
+                .jenkinsLibrary('DevSecOpsJenkinsLibrary').proxyHost('tstproxy.bbh.com').proxyPort(9090)
+                .oisHost('oisapi.bbh.com').sonarServerUrl('https://tools.bbh.com/sonar').grafanaName('Grafana').build()
     }
 
     def "changing the Jenkins URL keeps every other value and puts the URL first"() {
@@ -103,23 +102,5 @@ class PlatformSettingsSpec extends Specification {
                          tools : [sonar  : [serverUrl: 'https://tools.bbh.com/sonar', installationName: 'SonarQube'],
                                   nexusIq: [serverUrl: 'https://tools.bbh.com/IQ', credentialsId: 'nexusiqP']]]
         bare.toMap() == tree.toMap().findAll { it.key != 'influx' }
-    }
-
-    def "a proxy host #proxyHost with port #proxyPort reports #problems"() {
-        given:
-        def found = new ValidationProblems()
-
-        when:
-        copy(bbh, proxyHost: proxyHost, proxyPort: proxyPort).validate(found.at('platform'))
-
-        then:
-        found.list() == problems
-
-        where:
-        proxyHost          | proxyPort || problems
-        'tstproxy.bbh.com' | 9090      || []
-        null               | null      || []
-        'tstproxy.bbh.com' | null      || [new FieldProblem('platform.proxyPort', 'is required with a proxy host')]
-        null               | 8080      || [new FieldProblem('platform.proxyHost', 'is required with a proxy port')]
     }
 }

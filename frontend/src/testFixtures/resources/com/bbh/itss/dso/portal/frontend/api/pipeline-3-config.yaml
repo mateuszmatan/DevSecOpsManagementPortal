@@ -121,11 +121,8 @@ projects:
         - '**/target/*.jar'
         stage: build
         failOnNetworkError: false
-    sast:
-      scanName: cert-scanner-backend-sast
     dast:
       enabled: true
-      scanName: cert-scanner-backend-dast
       targetUrl: http://rdltaapps1.testbbh.com
     build:
       buildPath: target/*.jar

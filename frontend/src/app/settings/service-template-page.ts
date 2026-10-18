@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,24 +11,19 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize, map } from 'rxjs';
 import { ServiceTemplateApi } from '../core/api';
-import { errorMessage, fieldProblems } from '@common/core/errors';
 import { ServiceTemplate, ServiceTemplateRequest, ServiceTemplateValues } from '../core/models';
 import { Notifier } from '@common/core/notifier';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
-import { AGENT_LABEL } from '../products/pipeline-dialog';
 import { Field, Fields, mono } from '@common/shared/fields';
 import {
   IMAGE_TAG,
   IMAGE_TAG_ERROR,
   SHELL_SAFE_ERROR,
-  applyFieldProblems,
   commaItems,
-  eachItem,
-  filled,
-  fitsColumn,
   joinWords,
   max,
   optional,
+  saveFailure,
   shellSafe,
   text,
   url,
@@ -41,10 +35,11 @@ import {
   fillTemplate,
   knownPlaceholders,
 } from '../shared/service-template';
+import { agentLabels } from '../shared/build-options';
 import { FieldProblem } from '@common/core/models';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
 
-const MAX_LABELS = 20;
 const JOB_PATTERN = /^(?!.*\.\.)[A-Za-z0-9._ /{}-]*$/;
 const NEXUS_IQ_PATTERN = /^[A-Za-z0-9._{}-]*$/;
 const PROJECT_PATTERN = /^[A-Za-z0-9{}-]*$/;
@@ -61,14 +56,7 @@ interface TemplateSection {
 export function createTemplateForm() {
   const service = knownPlaceholders(SERVICE_PLACEHOLDERS);
   return new FormGroup({
-    agentLabels: text(
-      '',
-      filled,
-      (control) =>
-        commaItems(control.value).length > MAX_LABELS ? { maxItems: { max: MAX_LABELS } } : null,
-      eachItem(commaItems, AGENT_LABEL, 'At most 100 characters per label'),
-      fitsColumn(commaItems, ',', 1000),
-    ),
+    agentLabels: agentLabels(''),
     jenkinsJob: text(
       '',
       Validators.pattern(JOB_PATTERN),
@@ -229,7 +217,7 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
 
 @Component({
   selector: 'dso-service-template-page',
-  imports: [ReactiveFormsModule, DsoLoading, DsoSpinner, Fields, RelativeTimePipe],
+  imports: [ReactiveFormsModule, DsoLoading, DsoSpinner, LoadError, Fields, RelativeTimePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="tab-header">
@@ -245,10 +233,7 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
     }
 
     @if (loadError(); as error) {
-      <div class="banner" role="alert">
-        <span class="banner-text">The service template could not be loaded: {{ error }}</span>
-        <button type="button" class="btn btn-outline-primary" (click)="load()">Try again</button>
-      </div>
+      <dso-load-error what="The service template" [error]="error" (retry)="load()" />
     } @else if (template(); as t) {
       @if (conflict()) {
         <div class="banner danger conflict" role="alert">
@@ -427,10 +412,6 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
       }
     }
 
-    .banner-text {
-      flex: 1;
-    }
-
     @media (max-width: 1100px) {
       .layout {
         grid-template-columns: minmax(0, 1fr);
@@ -458,7 +439,7 @@ export class ServiceTemplatePage implements OnInit, HasUnsavedChanges {
   }));
   protected readonly template = signal<ServiceTemplate | null>(null);
   protected readonly loading = signal(false);
-  protected readonly loadError = signal<string | null>(null);
+  protected readonly loadError = signal<unknown>(null);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly conflict = signal(false);
@@ -508,7 +489,7 @@ export class ServiceTemplatePage implements OnInit, HasUnsavedChanges {
       )
       .subscribe({
         next: (template) => this.apply(template),
-        error: (error) => this.loadError.set(errorMessage(error)),
+        error: (error) => this.loadError.set(error),
       });
   }
 
@@ -552,17 +533,13 @@ export class ServiceTemplatePage implements OnInit, HasUnsavedChanges {
   }
 
   private showSaveError(error: unknown): void {
-    if (error instanceof HttpErrorResponse && error.status === 409) {
-      this.conflict.set(true);
-      this.saveError.set('Not saved: the template was changed by someone else.');
-      return;
-    }
-    const problems = fieldProblems(error);
-    if (problems.length === 0) {
-      this.saveError.set(errorMessage(error));
-      return;
-    }
-    this.unmatchedProblems.set(applyFieldProblems(this.form, problems));
-    this.saveError.set('The portal did not accept some values. They are marked above.');
+    const failure = saveFailure(
+      this.form,
+      error,
+      'Not saved: the template was changed by someone else.',
+    );
+    this.conflict.set(failure.conflict);
+    this.saveError.set(failure.message);
+    this.unmatchedProblems.set(failure.unmatched);
   }
 }

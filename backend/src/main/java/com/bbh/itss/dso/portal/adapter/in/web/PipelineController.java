@@ -98,7 +98,7 @@ public class PipelineController {
     }
 
     private static ActionRecord described(ActionRecord action, PipelineView view) {
-        return action.withResourceName(view.service().name() + " (" + view.pipeline().type() + ")")
+        return action.withResourceName(view.service().name() + " · " + view.pipeline().type().label())
                 .withDepartmentId(view.product().departmentId());
     }
 

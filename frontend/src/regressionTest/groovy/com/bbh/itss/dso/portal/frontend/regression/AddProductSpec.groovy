@@ -104,7 +104,7 @@ class AddProductSpec extends EditorSpecification {
         button('Add product', true).click()
 
         then:
-        assertThat(saveError()).hasText('The portal did not accept some values. They are marked below.')
+        assertThat(saveError()).hasText('The portal did not accept some values. They are marked in the form.')
         assertThat(errorOf(productFields(), 'Code')).hasText('another product already uses this code')
         assertThat(openService().locator('.service-name')).hasText('backend-api')
         assertThat(servicePanel('backend-api').locator('.tag.error')).hasText('Needs attention')

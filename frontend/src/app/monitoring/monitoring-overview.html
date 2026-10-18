@@ -76,11 +76,7 @@
     }
 
     @if (overview.error() ?? departments.error(); as error) {
-      <div class="banner">
-        <span>The products could not be loaded. {{ errorMessage(error) }}</span>
-        <span class="spacer"></span>
-        <button type="button" class="btn btn-link" (click)="refresh()">Try again</button>
-      </div>
+      <dso-load-error what="The products" [error]="error" (retry)="refresh()" />
     } @else if (overview.hasValue() && departments.hasValue()) {
       @if (products().length === 0) {
         <div class="empty-state">
@@ -91,7 +87,7 @@
             <p>
               Products added in DevSecOps Admin appear here with the results of their pipelines.
             </p>
-            <a class="btn btn-primary" routerLink="/admin/products/new">Add product</a>
+            <a class="btn btn-primary" [routerLink]="newProduct">Add product</a>
           }
         </div>
       } @else {
@@ -104,7 +100,7 @@
             @for (product of group.products; track product.productId) {
               <a
                 class="product"
-                [routerLink]="['/monitoring/products', product.productId]"
+                [routerLink]="monitoringProduct(product.productId)"
                 [class]="'overall-' + product.overall.toLowerCase()"
               >
                 <span class="names">
@@ -134,11 +130,11 @@
       <header class="card-header">
         <h2>Delivery performance (DORA)</h2>
       </header>
-      <div class="banner">
-        <span>Delivery performance and runs per day could not be loaded. {{ problem }}</span>
-        <span class="spacer"></span>
-        <button type="button" class="btn btn-link" (click)="activity.reload()">Try again</button>
-      </div>
+      <dso-load-error
+        what="Delivery performance and runs per day"
+        [error]="problem"
+        (retry)="activity.reload()"
+      />
     </section>
   } @else if (activity.hasValue() && activity.value().dora.runs > 0) {
     @let dora = activity.value().dora;

@@ -5,7 +5,6 @@ import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { MyDepartment } from '@common/departments/my-department';
 import { PipelinesApi } from '../core/api';
-import { errorMessage } from '@common/core/errors';
 import {
   PIPELINE_TYPES,
   Pipeline,
@@ -13,14 +12,16 @@ import {
   PipelineType,
   RunResult,
   pipelineTypeLabel,
+  pipelineTypeOrder,
 } from '../core/models';
 import { PIPELINES, SELF_SERVICE, pipelinePage } from '../core/sections';
 import { MetricsBanner } from '../monitoring/metrics-banner';
 import { text } from '@common/shared/form-controls';
-import { counted, formatRelative } from '@common/shared/formatting';
+import { Option, counted, formatRelative } from '@common/shared/formatting';
 import { RUN_LOOK, StatusChip } from '../shared/status-chip';
 import { FORM_FIELD } from '@common/ui/form-field';
 import { GRID, GridColumn } from '@common/ui/grid';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 import { PipelineActions } from './pipeline-actions';
 import { KEY_MEANING } from './pipeline-texts';
@@ -37,18 +38,18 @@ export interface PipelineFilters {
   status: RunResult | 'ALL';
 }
 
-export const KEY_FILTERS: { value: KeyFilter; label: string }[] = [
+export const KEY_FILTERS: Option<KeyFilter>[] = [
   { value: 'ALL', label: 'All' },
   { value: 'ACTIVE', label: 'Active' },
   { value: 'INVALIDATED', label: 'Invalidated' },
 ];
 
-export const TYPE_FILTERS: { value: PipelineType | 'ALL'; label: string }[] = [
+export const TYPE_FILTERS: Option<PipelineType | 'ALL'>[] = [
   { value: 'ALL', label: 'All' },
   ...PIPELINE_TYPES.map(({ value, label }) => ({ value, label })),
 ];
 
-export const STATUS_FILTERS: { value: RunResult | 'ALL'; label: string }[] = [
+export const STATUS_FILTERS: Option<RunResult | 'ALL'>[] = [
   { value: 'ALL', label: 'All' },
   ...(Object.keys(RUN_LOOK) as RunResult[]).map((value) => ({
     value,
@@ -81,6 +82,7 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
     FORM_FIELD,
     GRID,
     DsoLoading,
+    LoadError,
     MetricsBanner,
     StatusChip,
   ],
@@ -114,14 +116,11 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
         </dso-form-field>
       </section>
       @if (departments.error(); as error) {
-        <div class="banner" role="alert">
-          <span class="banner-text"
-            >The business services could not be loaded. {{ errorMessage(error) }}</span
-          >
-          <button type="button" class="btn btn-outline-primary" (click)="departments.reload()">
-            Try again
-          </button>
-        </div>
+        <dso-load-error
+          what="The business services"
+          [error]="error"
+          (retry)="departments.reload()"
+        />
       }
       @if (departmentId() === null) {
         <section class="card empty-state">
@@ -133,14 +132,7 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
           <dso-loading />
         }
         @if (pipelines.error(); as error) {
-          <div class="banner" role="alert">
-            <span class="banner-text"
-              >The pipelines could not be loaded. {{ errorMessage(error) }}</span
-            >
-            <button type="button" class="btn btn-outline-primary" (click)="pipelines.reload()">
-              Try again
-            </button>
-          </div>
+          <dso-load-error what="The pipelines" [error]="error" (retry)="pipelines.reload()" />
         }
         @if (pipelines.hasValue()) {
           <dso-metrics-banner [metricsError]="pipelines.value().metricsError" />
@@ -190,7 +182,7 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
                       [attr.aria-label]="'Configure service of ' + label(row.pipeline)"
                       (click)="editService(row.pipeline)"
                     >
-                      Config
+                      Configure service
                     </button>
                     <button
                       type="button"
@@ -198,7 +190,7 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
                       [attr.aria-label]="'Edit the settings of ' + label(row.pipeline)"
                       (click)="edit(row.pipeline)"
                     >
-                      Pipeline
+                      Edit settings
                     </button>
                   </div>
                 </ng-template>
@@ -231,10 +223,6 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
       max-width: 100%;
     }
 
-    .banner-text {
-      flex: 1;
-    }
-
     .list {
       padding: 10px 14px 0;
     }
@@ -254,7 +242,6 @@ export class PipelineList {
   protected readonly section = PIPELINES;
   protected readonly selfService = SELF_SERVICE;
   protected readonly pipelineLink = pipelinePage;
-  protected readonly errorMessage = errorMessage;
   protected readonly keyMeaning = KEY_MEANING;
 
   protected readonly departmentId = this.myDepartment.departmentId;
@@ -309,7 +296,7 @@ export class PipelineList {
       key: 'type',
       header: 'Type',
       value: (row) => pipelineTypeLabel(row.pipeline.type),
-      sortValue: (row) => PIPELINE_TYPES.findIndex((type) => type.value === row.pipeline.type),
+      sortValue: (row) => pipelineTypeOrder(row.pipeline.type),
       filter: { control: this.filters.controls.type, label: 'type', options: TYPE_FILTERS },
       minWidth: 140,
     },
@@ -346,7 +333,7 @@ export class PipelineList {
       sortValue: (row) => Date.parse(row.lastRun?.time ?? '') || 0,
       width: 120,
     },
-    { key: 'actions', header: '', width: 140 },
+    { key: 'actions', header: '', width: 250 },
   ];
 
   protected readonly all = computed(() =>

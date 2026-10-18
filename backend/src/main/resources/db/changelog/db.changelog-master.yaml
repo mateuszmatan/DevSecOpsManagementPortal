@@ -8,3 +8,6 @@ databaseChangeLog:
   - include:
       file: oracle/029-drop-business-service-copy.yaml
       relativeToChangelogFile: true
+  - include:
+      file: oracle/030-drop-scan-names.sql
+      relativeToChangelogFile: true

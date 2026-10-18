@@ -60,7 +60,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         PlatformSettings platform = targets.platform();
         boolean configured = runs.configured(platform);
         String error = configured ? MetricsReading.of(() -> ping(platform), false).error() : null;
-        return new MonitoringStatus(configured, configured && error == null, error, dashboards.instances(platform));
+        return new MonitoringStatus(configured, configured && error == null, error);
     }
 
     @Override
@@ -112,7 +112,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
                 : new MetricsReading<>(List.of(), null);
         MetricsReading<List<DoraPoint>> points = recent.failed() || !attributable
                 ? new MetricsReading<>(List.of(), recent.error())
-                : MetricsReading.of(() -> runs.doraPoints(monitored.platform(), List.of(tag), days)
+                : MetricsReading.of(() -> runs.doraPoints(monitored.platform(), List.of(tag), job, days)
                         .getOrDefault(tag, List.of()), List.of());
         List<PipelineRun> recentRuns = recent.value();
         PipelineRun last = recentRuns.isEmpty() ? null : recentRuns.get(0);
@@ -133,7 +133,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         int days = MonitoringRange.parse(range).days();
         MonitoringTargets monitored = targets.everything();
         MetricsReading<Map<MetricsTag, List<DoraPoint>>> points =
-                MetricsReading.of(() -> runs.doraPoints(monitored.platform(), monitored.tags(), days), Map.of());
+                MetricsReading.of(() -> runs.doraPoints(monitored.platform(), monitored.tags(), null, days), Map.of());
         return new PortfolioActivity(monitored.pipelines().size(),
                 summarizeAll(points.value().values(), days, now(clock)), points.error());
     }

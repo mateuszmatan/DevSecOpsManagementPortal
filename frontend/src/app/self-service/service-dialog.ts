@@ -8,15 +8,15 @@ import {
 } from '@angular/core';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { AbstractControl, ReactiveFormsModule } from '@angular/forms';
-import { pairwise, startWith } from 'rxjs';
 import { BuildTool, DeployTarget } from '../core/models';
 import { DIALOG } from '@common/ui/dialog';
 import { revalidateAll } from '@common/shared/form-controls';
 import {
   ServiceForm,
-  createNexusIqApplicationForm,
   createServiceForm,
   firstInvalidSection,
+  followToolDefaults,
+  nexusIqApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
 import { ServiceFields } from '../products/service-fields';
@@ -44,12 +44,12 @@ export interface ServiceDialogData {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
-      <div class="header-titles">
-        <h2 dsoDialogTitle>{{ title() }}</h2>
-        <span class="pipeline-pill">{{ pipelineLabel() }} pipeline</span>
-      </div>
+      <h2 dsoDialogTitle>{{ title() }}</h2>
     </div>
     <div class="modal-body">
+      <p class="subtitle">
+        <span class="tag">{{ pipelineLabel() }} pipeline</span>
+      </p>
       <dso-service-fields
         #fields
         [form]="serviceForm"
@@ -66,36 +66,7 @@ export interface ServiceDialogData {
   styles: `
     :host {
       display: block;
-    }
-
-    .header-titles {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-
-      h2 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-      }
-    }
-
-    .pipeline-pill {
-      background: var(--dso-info-bg, #e8f0fe);
-      color: var(--dso-navy, #002d62);
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .modal-body {
       width: min(980px, 92vw);
-      max-height: calc(85vh - 120px);
-      overflow-y: auto;
-      padding: 12px 16px;
     }
   `,
 })
@@ -123,18 +94,7 @@ export class ServiceDialog {
         : null;
     });
 
-    const template = this.data.defaults.template;
-    const { tool, buildPath, command } = this.serviceForm.controls.build.controls;
-    tool.valueChanges.pipe(startWith(tool.value), pairwise()).subscribe(([previous, next]) => {
-      const before = buildDefaults(template, previous);
-      const after = buildDefaults(template, next);
-      if (!buildPath.value || buildPath.value === before.artifact) {
-        buildPath.setValue(after.artifact);
-      }
-      if (!command.controls.tasks.value || command.controls.tasks.value === before.tasks) {
-        command.controls.tasks.setValue(after.tasks);
-      }
-    });
+    followToolDefaults(this.serviceForm, this.data.defaults.template);
 
     if (!this.data.service) {
       this.serviceForm.controls.name.valueChanges.subscribe((name) => {
@@ -196,12 +156,7 @@ export class ServiceDialog {
     if (s?.nexusIqApplication) {
       form.controls.nexusIqApplications.clear();
       form.controls.nexusIqApplications.push(
-        createNexusIqApplicationForm({
-          application: s.nexusIqApplication,
-          scanPatterns: build.scanPattern ? [build.scanPattern] : [],
-          stage: 'build',
-          failOnNetworkError: false,
-        }),
+        nexusIqApplicationForm(s.nexusIqApplication, build.scanPattern),
       );
     }
 
@@ -222,14 +177,7 @@ export class ServiceDialog {
       const build = buildDefaults(this.data.defaults.template, tool);
       const apps = form.controls.nexusIqApplications;
       if (apps.length === 0) {
-        apps.push(
-          createNexusIqApplicationForm({
-            application: named.nexusIqApplication,
-            scanPatterns: build.scanPattern ? [build.scanPattern] : [],
-            stage: 'build',
-            failOnNetworkError: false,
-          }),
-        );
+        apps.push(nexusIqApplicationForm(named.nexusIqApplication, build.scanPattern));
       } else {
         if (!apps.controls[0].controls.application.value) {
           apps.controls[0].controls.application.setValue(named.nexusIqApplication);

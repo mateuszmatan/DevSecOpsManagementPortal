@@ -26,10 +26,7 @@
   }
 
   @if (loadError(); as error) {
-    <div class="banner" role="alert">
-      <span class="banner-text">The library defaults could not be loaded: {{ error }}</span>
-      <button type="button" class="btn btn-outline-primary" (click)="load()">Try again</button>
-    </div>
+    <dso-load-error what="The library defaults" [error]="error" (retry)="load()" />
   } @else if (settings()) {
     @if (conflict()) {
       <div class="banner danger conflict" role="alert">

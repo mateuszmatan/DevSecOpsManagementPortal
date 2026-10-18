@@ -85,11 +85,12 @@ class GlobalSettingsSpec extends Specification {
         e.problems() == problems
 
         where:
-        invalid << [copy(BBH, platform: copy(BBH.platform(), proxyHost: null), limits: BBH.limits().findAll { it.key != DAST }),
+        invalid << [copy(BBH, limits: BBH.limits().findAll { it.key != DAST },
+                         goldenFix: copy(BBH.goldenFix(), commitAuthorName: null)),
                     copy(BBH, goldenFix: copy(BBH.goldenFix(), commitAuthorEmail: null))]
         message << ['2 fields are invalid', 'is required in the global settings']
-        problems << [[new FieldProblem('platform.proxyHost', 'is required with a proxy port'),
-                      new FieldProblem('limits.DAST', 'set the limits of every scanner')],
+        problems << [[new FieldProblem('limits.DAST', 'set the limits of every scanner'),
+                      new FieldProblem('goldenFix.commitAuthorName', 'is required in the global settings')],
                      [new FieldProblem('goldenFix.commitAuthorEmail', 'is required in the global settings')]]
     }
 }

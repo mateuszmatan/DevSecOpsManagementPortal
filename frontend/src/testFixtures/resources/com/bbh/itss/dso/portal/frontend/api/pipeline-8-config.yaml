@@ -118,8 +118,6 @@ projects:
         - '**/build/libs/*.jar'
         stage: build
         failOnNetworkError: false
-    sast:
-      scanName: payhub-notifications-sast
     dast:
       enabled: false
     build:

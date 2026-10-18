@@ -89,8 +89,8 @@ describe('GlobalSettingsPage', () => {
     expect(page().querySelector('.banner')?.textContent).toContain('Database unavailable');
     expect(page().querySelector('form')).toBeNull();
 
-    expect(text(page().querySelector('.banner'))).toContain(
-      'The library defaults could not be loaded: Database unavailable',
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
+      'The library defaults could not be loaded. Database unavailable',
     );
     buttonOf(page().querySelector('.banner')!, 'Try again').click();
     await load();
@@ -191,7 +191,7 @@ describe('GlobalSettingsPage', () => {
     );
     expect(page().querySelector('.toc-item.problem')?.textContent).toContain('Security limits');
     expect(page().querySelector('.save-error')?.textContent).toContain(
-      'The portal did not accept some values.',
+      'The portal did not accept some values. They are marked in the form.',
     );
   });
 

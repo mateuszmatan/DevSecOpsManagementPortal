@@ -1,5 +1,6 @@
-import { DIALOG_DATA } from '@angular/cdk/dialog';
+import { DIALOG_DATA, Dialog } from '@angular/cdk/dialog';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Observable, map } from 'rxjs';
 import { DIALOG } from '../ui/dialog';
 
 export interface ConfirmDialogData {
@@ -47,4 +48,10 @@ export interface ConfirmDialogData {
 })
 export class ConfirmDialog {
   protected readonly data = inject<ConfirmDialogData>(DIALOG_DATA);
+}
+
+export function askToConfirm(dialog: Dialog, data: ConfirmDialogData): Observable<boolean> {
+  return dialog
+    .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, { data })
+    .closed.pipe(map((confirmed) => confirmed === true));
 }

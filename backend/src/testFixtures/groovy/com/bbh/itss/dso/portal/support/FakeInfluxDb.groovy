@@ -18,8 +18,8 @@ import static java.util.concurrent.Executors.newFixedThreadPool
 class FakeInfluxDb implements AutoCloseable {
 
     static final List<String> RUN_COLUMNS = ['_time', 'project', 'env', 'variant', 'result', 'branch', 'build',
-                                             'duration_s', 'commit', 'job', 'stages_total', 'passed', 'warned',
-                                             'failed', 'blocked', 'skipped']
+                                             'duration_s', 'commit', 'job', 'stages_total', 'passed',
+                                             'not_required', 'warned', 'failed', 'blocked', 'skipped']
     static final List<String> DORA_COLUMNS = ['_time', 'project', 'env', 'variant', 'change_failure', 'deployment',
                                               'duration_s', 'lead_time_s']
 
@@ -123,11 +123,11 @@ class FakeInfluxDb implements AutoCloseable {
         if (flux.contains('last(column: "_time")')) {
             return latestRuns(flux)
         }
-        if (flux.contains('"pipeline_run"')) {
-            return recentRuns(flux)
-        }
         if (flux.contains('"dora"')) {
             return doraPoints(flux)
+        }
+        if (flux.contains('"pipeline_run"')) {
+            return recentRuns(flux)
         }
         return ''
     }
@@ -152,7 +152,9 @@ class FakeInfluxDb implements AutoCloseable {
     private String doraPoints(String flux) {
         Set<String> projects = projectsIn(flux)
         Instant since = Instant.now() - ofDays(days(flux))
-        def selected = runs.findAll { it.project in projects && it.time.isAfter(since) }.sort { it.time }
+        String job = jobIn(flux)
+        def selected = runs.findAll { it.project in projects && it.time.isAfter(since) && ofJob(it, job) }
+                .sort { it.time }
         csv(DORA_COLUMNS, selected.collect { run ->
             [0, [run.time.toString(), run.project, run.env, run.variant, run.result == 'SUCCESS' ? '0' : '1',
                  run.deployment ? '1' : '0', run.durationSeconds as String, run.leadTimeSeconds as String]]
@@ -161,16 +163,21 @@ class FakeInfluxDb implements AutoCloseable {
 
     private List<Run> selectedRuns(String flux) {
         def filter = (flux =~ /r\.project == "([^"]*)" and r\.env == "([^"]*)"/)[0]
-        def job = (flux =~ /r\.job == "([^"]*)"/).with { it.find() ? it.group(1) : null }
+        String job = jobIn(flux)
         Instant since = Instant.now() - ofDays(days(flux))
-        runs.findAll {
-            it.project == filter[1] && it.env == filter[2] && it.time.isAfter(since) &&
-                    (job == null || jobOf(it) == job || jobOf(it).startsWith(job + '/'))
-        }
+        runs.findAll { it.project == filter[1] && it.env == filter[2] && it.time.isAfter(since) && ofJob(it, job) }
     }
 
     private static Set<String> projectsIn(String flux) {
         (flux =~ /set: \[(.*?)]/)[0][1].findAll(/"([^"]*)"/) { all, value -> value } as Set
+    }
+
+    private static String jobIn(String flux) {
+        (flux =~ /r\.job == "([^"]*)"/).with { it.find() ? it.group(1) : null }
+    }
+
+    private static boolean ofJob(Run run, String job) {
+        job == null || jobOf(run) == job || jobOf(run).startsWith(job + '/')
     }
 
     private static String jobOf(Run run) {
@@ -183,9 +190,8 @@ class FakeInfluxDb implements AutoCloseable {
 
     private static List<String> runValues(Run run) {
         [run.time.toString(), run.project, run.env, run.variant, run.result, run.branch, run.build as String,
-         run.durationSeconds as String, 'a1b2c3d4e5f6', jobOf(run), '12',
-         run.result == 'SUCCESS' ? '12' : '11', run.result == 'UNSTABLE' ? '1' : '0', run.result == 'FAILURE' ? '1' : '0',
-         '0', '0']
+         run.durationSeconds as String, 'a1b2c3d4e5f6', jobOf(run), '12', run.result == 'SUCCESS' ? '11' : '10', '1',
+         run.result == 'UNSTABLE' ? '1' : '0', run.result == 'FAILURE' ? '1' : '0', '0', '0']
     }
 
     private static String csv(List<String> columns, List<List> tablesAndValues) {

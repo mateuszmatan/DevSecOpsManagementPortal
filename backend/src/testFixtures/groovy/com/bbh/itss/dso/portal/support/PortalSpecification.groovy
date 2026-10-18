@@ -1,10 +1,17 @@
 package com.bbh.itss.dso.portal.support
 
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import spock.lang.Specification
+
+import java.util.concurrent.atomic.AtomicInteger
 
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
+import static java.lang.System.nanoTime
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
 
 @SpringBootTest(webEnvironment = RANDOM_PORT, properties = [
@@ -15,7 +22,19 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
         'dso.grafana.instances[0].security-dashboard-url=http://grafana.test/d/ad2trcm/devsecops-security',
         'dso.grafana.instances[1].name=Grafana prod',
         'dso.grafana.instances[1].dashboard-url=http://grafana-prod.test/d/adzfc54123/devsecops-pipeline-long'])
-abstract class PortalSpecification extends ServiceSpecification {
+abstract class PortalSpecification extends Specification {
+
+    private static final AtomicInteger SEQUENCE = new AtomicInteger()
+
+    @Value('${local.server.port}')
+    int port
+
+    @Autowired
+    JdbcTemplate jdbc
+
+    PortalClient getApi() {
+        new PortalClient("http://localhost:$port")
+    }
 
     FakeInfluxDb getInflux() {
         FakeInfluxDb.shared()
@@ -24,6 +43,16 @@ abstract class PortalSpecification extends ServiceSpecification {
     @DynamicPropertySource
     static void influxUrl(DynamicPropertyRegistry registry) {
         registry.add('dso.influx.url') { FakeInfluxDb.shared().url }
+    }
+
+    static String uniqueCode(String prefix = 'REG') {
+        "${prefix}${SEQUENCE.incrementAndGet()}${nanoTime() % 100_000}"
+    }
+
+    Map createProduct(Map product) {
+        def response = api.post('/api/products', product)
+        assert response.status == 201: response
+        response.json as Map
     }
 
     Map createPipeline(long serviceId, Map pipeline = pipeline()) {

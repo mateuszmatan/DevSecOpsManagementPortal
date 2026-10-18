@@ -1,3 +1,5 @@
+import { DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   FormArray,
@@ -24,6 +26,7 @@ import {
   Region,
   ServiceDefaults,
   ServiceRequest,
+  ServiceTemplateValues,
   SshTarget,
   TestJob,
   TestJobType,
@@ -64,6 +67,8 @@ import {
   url,
   words,
 } from '@common/shared/form-controls';
+import { pairwise, startWith } from 'rxjs';
+import { buildDefaults } from '../shared/service-template';
 
 export const SERVICE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 export const UUID =
@@ -300,6 +305,13 @@ export function createNexusIqApplicationForm(application?: Partial<NexusIqApplic
     ),
     stage: text(application?.stage ?? 'build', Validators.pattern(NEXUS_STAGE), max(50)),
     failOnNetworkError: flag(application?.failOnNetworkError),
+  });
+}
+
+export function nexusIqApplicationForm(application: string, scanPattern: string) {
+  return createNexusIqApplicationForm({
+    application,
+    scanPatterns: scanPattern ? [scanPattern] : [],
   });
 }
 
@@ -551,7 +563,6 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     }),
     appScan: new FormGroup({
       applicationId: text(s?.appScan?.applicationId, filled, Validators.pattern(UUID)),
-      sastScanName: text(s?.appScan?.sastScanName, max(200)),
       includedDirs: folders(s?.appScan?.includedDirs),
       excludedDirs: folders(s?.appScan?.excludedDirs),
       compile: flag(s?.appScan?.compile, true),
@@ -561,7 +572,6 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       clientPath: text(s?.appScan?.clientPath, Validators.pattern(POWERSHELL_PATH), max(500)),
       compileCommand: createToolCommandForm(s?.appScan?.compileCommand),
       dastEnabled: flag(s?.appScan?.dastEnabled),
-      dastScanName: text(s?.appScan?.dastScanName, max(200)),
       dastTargetUrl: url(s?.appScan?.dastTargetUrl),
       dastPresenceId: text(s?.appScan?.dastPresenceId, max(100)),
       secretCredentialsId: text(s?.appScan?.secretCredentialsId, max(200)),
@@ -581,7 +591,6 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     nexusIq: new FormGroup({
       serverUrl: url(s?.nexusIq?.serverUrl),
       credentialsId: text(s?.nexusIq?.credentialsId, max(200)),
-      scaScanName: text(s?.nexusIq?.scaScanName, max(200)),
     }),
     nexusIqApplications: new FormArray(
       (s?.nexusIqApplications ?? []).map(createNexusIqApplicationForm),
@@ -705,6 +714,26 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
 
 export type ServiceForm = ReturnType<typeof createServiceForm>;
 
+export function followToolDefaults(
+  service: ServiceForm,
+  template: ServiceTemplateValues | null,
+  destroyRef?: DestroyRef,
+): void {
+  const { tool, buildPath, command } = service.controls.build.controls;
+  tool.valueChanges
+    .pipe(startWith(tool.value), pairwise(), takeUntilDestroyed(destroyRef))
+    .subscribe(([previous, next]) => {
+      const before = buildDefaults(template, previous);
+      const after = buildDefaults(template, next);
+      if (!buildPath.value || buildPath.value === before.artifact) {
+        buildPath.setValue(after.artifact);
+      }
+      if (!command.controls.tasks.value || command.controls.tasks.value === before.tasks) {
+        command.controls.tasks.setValue(after.tasks);
+      }
+    });
+}
+
 export function unitTestsConfigured(form: ServiceForm): boolean {
   const v = form.controls.unitTests.getRawValue();
   return (
@@ -733,7 +762,7 @@ function syncApplicability(form: ServiceForm): void {
   setEnabled(form.controls.sonar.controls.command, !flutter);
   const appScan = form.controls.appScan.controls;
   setEnabled(appScan.compileCommand, !flutter && appScan.compile.value);
-  [appScan.dastTargetUrl, appScan.dastScanName, appScan.dastPresenceId].forEach((control) =>
+  [appScan.dastTargetUrl, appScan.dastPresenceId].forEach((control) =>
     setEnabled(control, appScan.dastEnabled.value),
   );
   setEnabled(form.controls.delivery, vm && tool === 'MAVEN');
@@ -922,7 +951,6 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
         c.appScan.controls.compileCommand,
         !flutter && passesValidators(c.appScan.controls.compileCommand),
       ),
-      dastScanName: kept(c.appScan.controls.dastScanName),
       dastTargetUrl: kept(c.appScan.controls.dastTargetUrl),
       dastPresenceId: kept(c.appScan.controls.dastPresenceId),
     },

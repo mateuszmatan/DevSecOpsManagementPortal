@@ -47,14 +47,12 @@ class MonitoringRegressionSpec extends PortalSpecification {
         influx.reset()
     }
 
-    def "the status shows InfluxDB is reachable and which Grafana instances there are"() {
+    def "the status shows InfluxDB is reachable"() {
         when:
         def status = api.get('/api/monitoring/status').json
 
         then:
-        status == [influxConfigured: true, influxReachable: true, influxError: null,
-                   grafana: [[name: 'Grafana test', dashboardUrl: PIPELINE_DASHBOARD],
-                             [name: 'Grafana prod', dashboardUrl: PROD_DASHBOARD]]]
+        status == [influxConfigured: true, influxReachable: true, influxError: null]
         influx.requests.last().authorization == 'Token test-token'
     }
 

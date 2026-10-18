@@ -4,12 +4,12 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { ProductsApi } from '../core/api';
-import { errorMessage } from '@common/core/errors';
 import { Department, ProductSummary } from '../core/models';
 import { ADMIN_PRODUCTS, adminProduct } from '../core/sections';
 import { counted } from '@common/shared/formatting';
 import { DsoInput } from '@common/ui/form-field';
 import { GRID, GridColumn } from '@common/ui/grid';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 import { byDepartment } from '@common/departments/departments';
 import { pipelineTally, tally } from './pipeline-tally';
@@ -17,7 +17,7 @@ import { DepartmentsApi } from '@common/core/api';
 
 @Component({
   selector: 'dso-product-list',
-  imports: [ReactiveFormsModule, RouterLink, DsoInput, GRID, DsoLoading],
+  imports: [ReactiveFormsModule, RouterLink, DsoInput, GRID, DsoLoading, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './product-list.html',
   styleUrl: './product-list.scss',
@@ -96,7 +96,6 @@ export class ProductList {
     return unassigned ? `${total}, ${unassigned} not in a business service` : total;
   });
 
-  protected readonly errorMessage = errorMessage;
   protected readonly tally = tally;
   protected readonly pipelineTally = pipelineTally;
 

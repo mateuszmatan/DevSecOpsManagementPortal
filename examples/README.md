@@ -1,7 +1,7 @@
 # Examples
 
-Jenkinsfiles, REST calls and a rendered configuration for the DevSecOps Management Portal, and the screenshots of
-both GUIs. The API scripts run against a portal started as in [Running locally](../README.md#running-locally); the
+Jenkinsfiles, REST calls and a rendered configuration for the DevSecOps Management Portal, and screenshots of the
+portal GUI. The API scripts run against a portal started as in [Running locally](../README.md#running-locally); the
 portal starts empty, so `api/create-product.sh` first adds the product the other scripts read, or the scripts take the
 products you added in the portal. Every pipeline key in these files is a placeholder: take the real one from the
 product page, or from `api/pipeline-key.sh`.
@@ -76,10 +76,11 @@ problem detail it sent and exits with a non-zero status.
 ```bash
 export PORTAL_URL=http://localhost:8080
 examples/api/list-departments.sh
-examples/api/list-products.sh PAYHUB
-PRODUCT_ID=$(examples/api/list-products.sh PAYHUB | jq '.[0].id')
+examples/api/create-product.sh
+examples/api/list-products.sh TRADEARCHIVE
+PRODUCT_ID=$(examples/api/list-products.sh TRADEARCHIVE | jq '.[0].id')
 examples/api/product-pipelines.sh "$PRODUCT_ID"
-KEY=$(examples/api/pipeline-key.sh PAYHUB gateway FULL)
+KEY=$(examples/api/pipeline-key.sh TRADEARCHIVE archive-api FULL)
 examples/api/dso-config.sh "$KEY"
 ```
 
@@ -89,9 +90,10 @@ examples/api/dso-config.sh "$KEY"
   `new-product.json` and posts that to `POST /api/products?pipelineType=FULL`, as the Self-service wizard does after the
   choice of a full pipeline. The body is the product Trade Archive with `archive-api`, a Maven build on OpenShift with
   the RD and QC targets the wizard derives from the OpenShift project `cus-archive`, and `archive-gui`, a Gradle build
-  on virtual machines. It carries the values the wizard fills in; the fields the wizard sends empty (`null`, `[]` or
-  their defaults) are left out, which the API reads the same way. Each service gets a full pipeline with an active key.
-  A second run answers 409, because the product code is taken.
+  that the UrbanCode Deploy application `TRADEARCHIVE-GUI` deploys to virtual machines. It carries the values the
+  wizard fills in; the fields the wizard sends empty (`null`, `[]` or their defaults) are left out, which the API reads
+  the same way. Each service gets a full pipeline with an active key. A second run answers 409, because the product
+  code is taken.
 - `product-pipelines.sh PRODUCT_ID` calls `GET /api/products/{id}/pipelines` and shows each pipeline's ID, type,
   entry point, Jenkins job and active key.
 - `pipeline-key.sh CODE SERVICE [TYPE]` finds the product by its code and prints the active key of the service's

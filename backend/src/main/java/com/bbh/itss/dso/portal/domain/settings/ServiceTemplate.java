@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.DEFAULT_AGENT_LABEL;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.JENKINS_JOB_MAX;
-import static com.bbh.itss.dso.portal.domain.shared.StoredList.COMMAS_1000;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.validateAgentLabels;
 import static com.bbh.itss.dso.portal.domain.shared.Text.bytes;
 import static com.bbh.itss.dso.portal.domain.shared.Text.clean;
 import static java.util.Comparator.comparingInt;
@@ -70,8 +70,7 @@ public record ServiceTemplate(List<String> agentLabels, String jenkinsJob, Strin
     }
 
     public void validate(ValidationProblems problems) {
-        problems.require("agentLabels", agentLabels, "add at least one Jenkins agent label");
-        COMMAS_1000.check(problems, "agentLabels", agentLabels);
+        validateAgentLabels(problems, agentLabels);
         checkPattern(problems, "jenkinsJob", jenkinsJob, JOB_PLACEHOLDERS, JENKINS_JOB_MAX);
         checkPattern(problems, "nexusIqApplication", nexusIqApplication, SERVICE_PLACEHOLDERS, 200);
         checkPattern(problems, "repositoryUrl", repositoryUrl, SERVICE_PLACEHOLDERS, 1000);

@@ -61,7 +61,7 @@ public class ProductCatalogService implements ProductsUseCase {
         Product product = find(id);
         Set<Long> known = product.serviceIds();
         product.update(command.version(), command.details(), command.appScan(), command.services(), products);
-        pipelines.requireNexusIqApplications(product);
+        pipelines.requireRunnablePipelines(product);
         return withPipelines(products.save(product), known, command.pipelineType());
     }
 

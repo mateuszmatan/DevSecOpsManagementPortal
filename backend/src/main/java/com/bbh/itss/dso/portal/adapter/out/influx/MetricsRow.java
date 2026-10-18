@@ -1,5 +1,8 @@
-package com.bbh.itss.dso.portal.domain.monitoring;
+package com.bbh.itss.dso.portal.adapter.out.influx;
 
+import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint;
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag;
+import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
@@ -14,21 +17,21 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @NoArgsConstructor(access = PRIVATE)
-public final class MetricsRow {
+final class MetricsRow {
 
-    public static MetricsTag tag(Map<String, String> row) {
+    static MetricsTag tag(Map<String, String> row) {
         return new MetricsTag(row.get("project"), row.get("env"));
     }
 
-    public static PipelineRun run(Map<String, String> row) {
+    static PipelineRun run(Map<String, String> row) {
         return new PipelineRun(Instant.parse(row.get("_time")), fromTag(row.get("result")),
                 trimToNull(row.get("branch")), number(row.get("build")), number(row.get("duration_s")),
                 trimToNull(row.get("commit")), trimToNull(row.get("job")), number(row.get("stages_total")),
-                number(row.get("passed")), number(row.get("warned")), number(row.get("failed")),
-                number(row.get("blocked")), number(row.get("skipped")));
+                number(row.get("passed")), number(row.get("not_required")), number(row.get("warned")),
+                number(row.get("failed")), number(row.get("blocked")), number(row.get("skipped")));
     }
 
-    public static DoraPoint doraPoint(Map<String, String> row) {
+    static DoraPoint doraPoint(Map<String, String> row) {
         if (row.get("_time") == null) {
             return null;
         }
@@ -37,12 +40,12 @@ public final class MetricsRow {
                 getIfNull(number(row.get("duration_s")), 0L));
     }
 
-    public static Long number(String value) {
+    static Long number(String value) {
         Double decimal = decimal(value);
         return decimal == null ? null : (long) floor(decimal);
     }
 
-    public static Double decimal(String value) {
+    static Double decimal(String value) {
         if (isBlank(value)) {
             return null;
         }
@@ -53,7 +56,7 @@ public final class MetricsRow {
         }
     }
 
-    public static boolean positive(String value) {
+    static boolean positive(String value) {
         Long number = number(value);
         return number != null && number > 0;
     }

@@ -9,7 +9,5 @@ import java.util.List;
 
 public interface DashboardLinksPort {
 
-    List<DashboardLink> instances(PlatformSettings platform);
-
     List<DashboardLink> dashboards(PlatformSettings platform, MetricsTag tag, PipelineType type, int rangeDays);
 }

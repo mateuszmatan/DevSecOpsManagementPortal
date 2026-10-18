@@ -79,7 +79,9 @@ describe('KeyHistoryDialog', () => {
       .flush({ detail: 'Pipeline 100 was not found' }, { status: 404, statusText: 'Not Found' });
     await fixture.whenStable();
 
-    expect(page().querySelector('.banner')?.textContent).toBe('Pipeline 100 was not found');
+    expect(page().querySelector('.banner .banner-text')?.textContent).toBe(
+      'The key history could not be loaded. Pipeline 100 was not found',
+    );
     expect(page().querySelector('dso-grid')).toBeNull();
   });
 

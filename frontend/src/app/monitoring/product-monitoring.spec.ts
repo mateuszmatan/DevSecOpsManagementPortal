@@ -3,12 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { ProductMonitoring } from '../core/models';
-import {
-  monitoringPipeline,
-  pipelineHealth,
-  pipelineRun,
-  productMonitoring,
-} from '../testing/fixtures';
+import { pipelineHealth, pipelineRun, productMonitoring } from '../testing/fixtures';
 import { ProductMonitoringPage } from './product-monitoring';
 import { buttonOf, gridCell, gridRows, settleGrid, text } from '@common/testing/dom';
 
@@ -57,6 +52,14 @@ describe('ProductMonitoringPage', () => {
     expect(rows()[0].querySelector('.stage-problems')?.classList).toContain('failing');
     expect(text(page().querySelector('.summary'))).toBe('1 pipeline: 1 passed');
     expect(text(gridCell(rows()[0], 'jenkins'))).toBe('Open in Jenkins');
+  });
+
+  it('counts the stages that were not required as passed and never as a problem', async () => {
+    const run = pipelineRun({ stagesTotal: 13, passed: 12, notRequired: 1, warned: 0, failed: 0 });
+    await load(productMonitoring({ pipelines: [pipelineHealth({ lastRun: run })] }));
+
+    expect(text(rows()[0].querySelector('.stages'))).toBe('13 of 13 passed');
+    expect(rows()[0].querySelector('.stage-problems')).toBeNull();
   });
 
   it('opens a pipeline when its row is clicked', async () => {

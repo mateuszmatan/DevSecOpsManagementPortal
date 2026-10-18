@@ -9,8 +9,8 @@ import static org.apache.commons.lang3.StringUtils.stripEnd;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public record PipelineRun(Instant time, RunResult result, String branch, Long build, Long durationSeconds,
-                          String commit, String job, Long stagesTotal, Long passed, Long warned, Long failed,
-                          Long blocked, Long skipped) {
+                          String commit, String job, Long stagesTotal, Long passed, Long notRequired, Long warned,
+                          Long failed, Long blocked, Long skipped) {
 
     public PipelineRun {
         requireNonNull(time, "a run has the time it finished");

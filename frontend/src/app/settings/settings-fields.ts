@@ -55,7 +55,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
           mono('appScanClientLinuxUrl', 'Scan client download for Linux', 'SA_LINUX_URL', 6),
           mono('appScanClientWindowsUrl', 'Scan client download for Windows', 'SA_WIN_URL', 6),
           mono('proxyHost', 'Proxy host', 'PROXY_HOST', 5, {
-            hint: 'Set together with the port, or leave both empty',
+            hint: 'The proxy the pipelines reach AppScan through',
             error: HOST_ERROR,
           }),
           {

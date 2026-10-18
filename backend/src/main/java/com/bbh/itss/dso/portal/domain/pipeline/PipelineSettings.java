@@ -39,9 +39,13 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
     }
 
     public void validate(ValidationProblems problems) {
-        problems.require("agentLabels", agentLabels, "add at least one Jenkins agent label");
-        COMMAS_1000.check(problems, "agentLabels", agentLabels);
+        validateAgentLabels(problems, agentLabels);
         problems.fits("jenkinsJob", jenkinsJob, JENKINS_JOB_MAX).fits("description", description, DESCRIPTION_MAX);
+    }
+
+    public static void validateAgentLabels(ValidationProblems problems, List<String> labels) {
+        problems.require("agentLabels", labels, "add at least one Jenkins agent label");
+        COMMAS_1000.check(problems, "agentLabels", labels);
     }
 
     public PipelineSettings forType(PipelineType type) {

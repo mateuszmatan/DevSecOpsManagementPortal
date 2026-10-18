@@ -1,4 +1,5 @@
 import { Department as PortalDepartment } from '@common/core/models';
+import { labelOf } from '@common/shared/formatting';
 
 export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER';
 export type DeployTarget = 'VM' | 'OPENSHIFT';
@@ -196,7 +197,6 @@ export interface OpenShiftTarget {
 
 export interface AppScanSettings {
   applicationId: string;
-  sastScanName: string | null;
   includedDirs: string[];
   excludedDirs: string[];
   compile: boolean;
@@ -206,7 +206,6 @@ export interface AppScanSettings {
   clientPath: string | null;
   compileCommand: ToolCommand;
   dastEnabled: boolean;
-  dastScanName: string | null;
   dastTargetUrl: string | null;
   dastPresenceId: string | null;
   secretCredentialsId: string | null;
@@ -228,7 +227,6 @@ export interface SonarSettings {
 export interface NexusIqSettings {
   serverUrl: string | null;
   credentialsId: string | null;
-  scaScanName: string | null;
 }
 
 export interface NexusIqApplication {
@@ -548,6 +546,7 @@ export interface PipelineRun {
   buildUrl: string | null;
   stagesTotal: number | null;
   passed: number | null;
+  notRequired: number | null;
   warned: number | null;
   failed: number | null;
   blocked: number | null;
@@ -672,7 +671,11 @@ export const PIPELINE_TYPES: { value: PipelineType; label: string; description: 
 ];
 
 export function pipelineTypeLabel(type: PipelineType): string {
-  return PIPELINE_TYPES.find((option) => option.value === type)?.label ?? type;
+  return labelOf(PIPELINE_TYPES, type);
+}
+
+export function pipelineTypeOrder(type: PipelineType): number {
+  return PIPELINE_TYPES.findIndex((option) => option.value === type);
 }
 
 export function pipelineTypeSlug(type: PipelineType): string {
@@ -683,12 +686,9 @@ export const DEFAULT_JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';
 export const RELEASE_GATE_FILE = 'release-gate.json';
 
 export interface UserProfile {
-  id: number;
   username: string;
   displayName: string;
   email: string;
-  roles: string[];
-  departmentNames: string[];
   admin: boolean;
 }
 

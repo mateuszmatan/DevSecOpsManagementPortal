@@ -14,8 +14,8 @@ one jar and one container image.
 
 ## Build and tests
 
-The build runs inside the BBH network only: Gradle 8.14, plugins and libraries come from the BBH Nexus, npm packages
-from the BBH npm registry through `njproxy` (all set in `settings.gradle`, `gradle.properties` and the Gradle wrapper).
+The build runs inside the BBH network only: Gradle 8.14, plugins and libraries come from the BBH Nexus and npm packages
+from the BBH npm registry, both reached directly (set in `settings.gradle`, `gradle.properties` and the Gradle wrapper).
 It needs Java 21, and Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.x, on the `PATH`; on Windows `gradle.properties` points `npm.executable` and
 `npx.executable` at `C:\Program Files\nodejs`. Use `gradlew.bat` instead of `./gradlew` on Windows.
 
@@ -32,8 +32,9 @@ It needs Java 21, and Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.
 Tests are Groovy and Spock; the Angular unit tests stay in Vitest. Smoke and performance tests cover the key functions
 only, regression the most important journeys. The GUI suites run in Chromium, which Playwright downloads once through
 `njproxy`; `-Dfrontend.browser=<path to chrome.exe>` runs them in an installed Chrome or Edge instead, with no
-download. `-PskipGui` builds the service without its GUI for API work, `-Dperformance.factor=3` relaxes the
-performance limits further on a slow machine (the default is 2), and `-Dsmoke.baseUrl=https://...` runs the backend
+download. `-Dfrontend.screenshots=true` saves a screenshot of every GUI test under `frontend/build/reports/frontend`.
+`-PskipGui` builds the service without its GUI for API work, and `-Dperformance.factor=3` relaxes the performance limits
+further on a slow machine (the default is 2). `./gradlew smokeTest -Dsmoke.baseUrl=https://...` runs the backend and GUI
 smoke tests against a deployed portal.
 
 ## Running locally
@@ -56,7 +57,7 @@ http://localhost:4200 rebuilds on every change and sends `/api` to port 8080.
 |----------|---------|---------|
 | `PORT` | `8080` | HTTP port |
 | `DSO_DATA_DIR` | `~/bbh-devsecops/dso-portal` | folder of the local H2 database |
-| `SPRING_PROFILES_ACTIVE` | `local` | `rd`, `qc` or `prod` switch to Oracle (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_POOL_SIZE`); `rd` logs at DEBUG |
+| `SPRING_PROFILES_ACTIVE` | `local` | `rd`, `qc` or `prod` switch to Oracle (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_POOL_SIZE` of 5, 10 or 20 by default); `rd` logs at DEBUG |
 | `INFLUX_URL`, `INFLUX_TOKEN`, `INFLUX_ORG`, `INFLUX_BUCKET` | empty, empty, `DevSecOps`, `DORA-metrics` | the InfluxDB the pipelines report their runs to |
 | `GRAFANA_DASHBOARD_URL`, `GRAFANA_SECURITY_DASHBOARD_URL`, `GRAFANA_NAME` | empty, empty, `Grafana` | the DSOEnhanced dashboards linked from Pipeline Monitoring; `GRAFANA_2_*` for a second instance |
 
@@ -70,7 +71,7 @@ only to `INFLUX_URL`, never to another InfluxDB saved in the GUI.
 environments are Docker and OpenShift: in OpenShift every application of the team runs in one project, each in its own
 pod, and the portal is the `dso-portal` Deployment. RD, QC and prod use Oracle; Liquibase updates the schema at
 start-up. In the image the logs are written to the console and to `/application/logs`, which the pod keeps on an
-`emptyDir` of 2 GB. [deploy/openshift/README.md](deploy/openshift/README.md) has the commands.
+`emptyDir` of 3 GB. [deploy/openshift/README.md](deploy/openshift/README.md) has the commands.
 
 ## How DSOEnhanced reads its configuration
 
@@ -87,8 +88,9 @@ no other setting.
 
 The configuration names Jenkins credentials IDs, never passwords. The library writes its run metrics to InfluxDB, and
 the portal reads them back for Pipeline Monitoring. A Nexus IQ GoldenFix pipeline is accepted only for a service with a
-Nexus IQ application, because the library refuses to scan without one. `GET /api/pipelines/{id}/config` shows the same
-configuration in the GUI without recording a use.
+Nexus IQ application, because the library refuses to scan without one, and a Full pipeline of a service on virtual
+machines only with an UrbanCode Deploy application, because the library deploys it to RD through UrbanCode.
+`GET /api/pipelines/{id}/config` shows the same configuration in the GUI without recording a use.
 
 ## Architecture
 

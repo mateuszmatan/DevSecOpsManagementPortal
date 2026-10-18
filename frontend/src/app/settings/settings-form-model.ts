@@ -20,7 +20,6 @@ import {
   integer,
   max,
   optional,
-  requireWhile,
   requiredRule,
   sent,
   shellSafe,
@@ -46,16 +45,16 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
   const s = settings?.scans;
   const minutes = (value: number | undefined) => integer(value, 1, 1440, filled);
   const seconds = (value: number | undefined) => integer(value, 1, 3600, filled);
-  const form = new FormGroup({
+  return new FormGroup({
     platform: new FormGroup({
       jenkinsUrl: url(p?.jenkinsUrl, 500),
       jenkinsLibrary: text(p?.jenkinsLibrary ?? DEFAULT_JENKINS_LIBRARY, filled, max(200)),
       asocUrl: url(p?.asocUrl, 500, filled),
       appScanClientLinuxUrl: url(p?.appScanClientLinuxUrl, 1000, filled),
       appScanClientWindowsUrl: url(p?.appScanClientWindowsUrl, 1000, filled),
-      proxyHost: host(p?.proxyHost),
-      proxyPort: integer(p?.proxyPort, 1, 65535),
-      proxyUser: text(p?.proxyUser, max(100)),
+      proxyHost: host(p?.proxyHost, filled),
+      proxyPort: integer(p?.proxyPort, 1, 65535, filled),
+      proxyUser: text(p?.proxyUser, filled, max(100)),
       oisHost: host(p?.oisHost),
       sonarServerUrl: url(p?.sonarServerUrl, 500, filled),
       sonarInstallationName: text(p?.sonarInstallationName, filled, max(200)),
@@ -128,10 +127,6 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
     }),
     goldenFix: createGlobalGoldenFixForm(settings?.goldenFix),
   });
-  const { proxyHost, proxyPort } = form.controls.platform.controls;
-  requireWhile(proxyPort, () => !!optional(proxyHost.value), proxyHost);
-  requireWhile(proxyHost, () => proxyPort.value !== null, proxyPort);
-  return form;
 }
 
 type SettingsForm = ReturnType<typeof createSettingsForm>;

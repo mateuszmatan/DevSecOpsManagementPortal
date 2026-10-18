@@ -520,6 +520,36 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCT WHERE CODE = ?', Integer, unscanned) == 0
     }
 
+    def "a service that deploys to virtual machines gets a Full pipeline only with an UrbanCode Deploy application"() {
+        given:
+        def code = uniqueCode('UCD')
+        def notDeployed = { String service ->
+            "Service $service deploys to virtual machines but has no UrbanCode Deploy application, so its Full " +
+                    'pipeline would fail at the lower test region deployment'
+        }
+
+        when:
+        def refused = api.post('/api/products', product(code: code, name: "Product $code",
+                services: [service(name: 'batch', urbanCodeApplications: [])]))
+
+        then:
+        refused.status == 409
+        refused.json.detail == notDeployed('batch')
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCT WHERE CODE = ?', Integer, code) == 0
+
+        when:
+        def created = api.post('/api/products', product(code: code, name: "Product $code",
+                services: [service(name: 'gui'), fullOpenShiftService(name: 'api')]))
+        def emptied = api.put("/api/products/$created.json.id", product(code: code, name: "Product $code",
+                version: created.json.version, services: created.json.services.collect { it + [urbanCodeApplications: []] }))
+
+        then:
+        created.status == 201
+        emptied.status == 409
+        emptied.json.detail == notDeployed('gui')
+        api.get("/api/products/$created.json.id").json.services*.urbanCodeApplications*.size() == [1, 0]
+    }
+
     def "#refusal is a problem detail that keeps the portal's internals to itself"() {
         when:
         def response = call.call(api)

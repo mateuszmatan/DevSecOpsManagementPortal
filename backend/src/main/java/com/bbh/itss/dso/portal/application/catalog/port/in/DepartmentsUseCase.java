@@ -6,6 +6,8 @@ public interface DepartmentsUseCase {
 
     List<DepartmentView> list();
 
+    DepartmentView get(long id);
+
     DepartmentView create(String name);
 
     DepartmentView rename(long id, Long version, String name);

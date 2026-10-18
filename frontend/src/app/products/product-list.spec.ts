@@ -165,8 +165,8 @@ describe('ProductList', () => {
     http.expectOne('/api/departments').flush([department()]);
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.banner'))).toBe(
-      'The product list could not be loaded. The portal cannot be reached. Check your network connection and try again. Try again',
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
+      'The product list could not be loaded. The portal cannot be reached. Check your network connection and try again.',
     );
 
     page().querySelector<HTMLButtonElement>('.banner button')!.click();

@@ -182,7 +182,7 @@ class ServiceDtoSpec extends Specification {
                 .appScan(appScan(dastEnabled: true, dastTargetUrl: 'https://rdl1.testbbh.com',
                         compileCommand: command(['compile'])))
                 .sonar(SonarSettings.of('Cert', 'cert-gui', command(['sonar:sonar'])))
-                .nexusIq(new NexusIqSettings('https://iq.bbh.com', 'iq-creds', null))
+                .nexusIq(new NexusIqSettings('https://iq.bbh.com', 'iq-creds'))
                 .nexusIqApplications([NexusIqApplication.of('cert', ['**/*.war']),
                                       NexusIqApplication.of('cert-batch', ['**/batch/*.jar'])])
                 .scm(ScmSettings.builder().repositoryUrl('https://bitbucket.bbh.com/scm/ta/cert.git')

@@ -34,11 +34,8 @@ projects:
         - '**/target/*.jar'
         stage: build
         failOnNetworkError: false
-    sast:
-      scanName: payhub-gateway-sast
     dast:
       enabled: true
-      scanName: payhub-gateway-dast
       targetUrl: http://rdltaapps1.testbbh.com
     build:
       buildPath: target/*.jar
@@ -142,8 +139,6 @@ projects:
         - '**/build/libs/*.jar'
         stage: build
         failOnNetworkError: false
-    sast:
-      scanName: payhub-ledger-sast
     dast:
       enabled: false
     build:
@@ -257,8 +252,6 @@ projects:
         - '**/build/libs/*.jar'
         stage: build
         failOnNetworkError: false
-    sast:
-      scanName: payhub-notifications-sast
     dast:
       enabled: false
     build:

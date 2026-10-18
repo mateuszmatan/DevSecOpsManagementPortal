@@ -118,8 +118,6 @@ projects:
         - '**/build/libs/*.jar'
         stage: build
         failOnNetworkError: false
-    sast:
-      scanName: payhub-ledger-sast
     dast:
       enabled: false
     build:
