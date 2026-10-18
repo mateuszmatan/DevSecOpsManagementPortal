@@ -500,6 +500,15 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         api.get("/api/products/$created.json.id/pipelines").json*.pipelines*.type ==
                 [['NEXUS_IQ', 'SAST'], ['NEXUS_IQ', 'SAST']]
 
+        when: 'a service with a Nexus IQ pipeline loses its last Nexus IQ application'
+        def emptied = api.put("/api/products/$created.json.id", product(code: code, name: "Product $code",
+                version: updated.json.version, services: updated.json.services.collect { it + [nexusIqApplications: []] }))
+
+        then:
+        emptied.status == 409
+        emptied.json.detail == 'Service gui has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing'
+        api.get("/api/dso/config/$gui.activeKey.value?format=json").json.projects.gui.tools.nexusIq.application == 'niq-gui'
+
         when: 'a service has nothing for Nexus IQ to scan'
         def unscanned = uniqueCode('NIQ')
         def refused = api.post('/api/products?pipelineType=NEXUS_IQ', product(code: unscanned,

@@ -82,7 +82,8 @@ public class InfluxQueryClient {
                 .queryParam("org", firstNonBlank(platform.influxOrg(), properties.org()))
                 .build()
                 .toUri();
-        String token = defaultString(firstNonBlank(platform.influxToken(), properties.token()));
+        String token = defaultString(url(platform).equals(properties.url())
+                ? firstNonBlank(platform.influxToken(), properties.token()) : platform.influxToken());
         String csv = client.post()
                 .uri(target)
                 .header("Authorization", "Token " + token)

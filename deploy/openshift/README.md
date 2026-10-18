@@ -63,10 +63,10 @@ with one pod, its Service and its Route, so it sits next to the other applicatio
    oc create secret generic dso-portal-influx --from-literal=INFLUX_TOKEN='<token>'
    ```
 
-3. Apply the overlay:
+3. Apply the overlay from its folder, where step 1 left you:
 
    ```bash
-   oc apply -k deploy/openshift/dso-portal/overlays/rd
+   oc apply -k .
    oc rollout status deployment/dso-portal
    oc get route dso-portal
    ```
@@ -79,8 +79,8 @@ Liquibase automatically migrates the Oracle schema when the pod starts, and Hibe
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Secret `dso-portal-db` | Oracle JDBC connection (`ojdbc11`) |
 | `DB_POOL_SIZE` | ConfigMap (optional) | Hikari connection pool size (`5` in `rd`, `10` in `qc`, `20` in `prod`) |
 | `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET` | ConfigMap | InfluxDB v2 connection when Library defaults leave it empty |
-| `INFLUX_TOKEN` | Secret `dso-portal-influx` | InfluxDB read token when Library defaults leave it empty |
+| `INFLUX_TOKEN` | Secret `dso-portal-influx` | InfluxDB read token, sent only to `INFLUX_URL` |
 | `GRAFANA_DASHBOARD_URL`, `GRAFANA_SECURITY_DASHBOARD_URL`, `GRAFANA_NAME` | ConfigMap | first Grafana instance when Library defaults leave it empty |
 | `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | ConfigMap | second Grafana instance when Library defaults leave it empty |
 
-Jenkins reaches the portal through its route: set `DSO_PORTAL_URL` (or pass `portalUrl` to `DSOEnhanced`) so the Jenkins Shared Library fetches each pipeline's configuration from `/api/dso/config/<key>?format=json`.
+Jenkins reaches the portal through its route: a Jenkins administrator sets the global environment variable `DSO_PORTAL_URL` to the route's address, and DSOEnhanced fetches each pipeline's configuration from `/api/dso/config/<key>?format=json`.

@@ -39,12 +39,21 @@ class ActionLogServiceSpec extends Specification {
         null         | null
     }
 
-    def "a change too long for its columns is shortened"() {
+    def "a change too long for its columns is shortened to the bytes the columns hold: #letter"() {
         when:
-        service.record(ActionRecord.of('UPDATE_PRODUCT', 'PRODUCT', 'n' * 300, null).withUser(ANN).done('d' * 5000))
+        service.record(ActionRecord.of('UPDATE_PRODUCT', 'PRODUCT', letter * 300, null).withUser(ANN).done(letter * 5000))
 
         then:
-        1 * repository.save({ ActionLog log -> log.resourceName().length() == 200 && log.details().length() == 4000 })
+        1 * repository.save({ ActionLog log ->
+            bytes(log.resourceName()) in 199..200 && bytes(log.details()) in 3999..4000 && log.details().endsWith('...')
+        })
+
+        where:
+        letter << ['n', 'ł']
+    }
+
+    private static int bytes(String text) {
+        text.getBytes('UTF-8').length
     }
 
     def "the history is listed newest first as stored"() {

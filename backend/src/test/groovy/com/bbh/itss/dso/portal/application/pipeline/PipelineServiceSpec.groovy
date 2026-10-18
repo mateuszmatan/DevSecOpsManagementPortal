@@ -216,6 +216,35 @@ class PipelineServiceSpec extends Specification {
         'the same pipeline started by a save'                           | { it.createMissing(2L, [20L], NEXUS_IQ) }         || NOTHING_TO_SCAN
     }
 
+    def "a product whose service keeps a Nexus IQ pipeline but loses its last Nexus IQ application is refused"() {
+        given:
+        pipelines.existsForService(20L, NEXUS_IQ) >> true
+
+        when:
+        service.requireNexusIqApplications(product(id: 2, services: [[name: 'batch', id: 20], [name: 'new']]))
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message == NOTHING_TO_SCAN
+    }
+
+    def "a product is accepted when #reason"() {
+        given:
+        pipelines.existsForService(20L, NEXUS_IQ) >> hasPipeline
+
+        when:
+        service.requireNexusIqApplications(product(id: 2, services: [[name: 'batch', id: 20, nexusIqApplications: applications],
+                                                                     [name: 'new']]))
+
+        then:
+        noExceptionThrown()
+
+        where:
+        reason                                              | hasPipeline | applications
+        'its Nexus IQ pipeline has an application to scan' | true        | [scanned('cert-batch')]
+        'no service has a Nexus IQ pipeline'               | false       | []
+    }
+
     def "a pipeline's settings can change at the version they were read at"() {
         given:
         pipelines.load(100L) >> Optional.of(pipeline(id: 100, version: 4))

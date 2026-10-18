@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
-import static org.apache.commons.lang3.StringUtils.abbreviate;
+import static com.bbh.itss.dso.portal.domain.shared.Text.abbreviateBytes;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 @UseCase
@@ -38,7 +38,7 @@ public class ActionLogService implements ActionLogUseCase {
         String department = action.departmentId() == null ? null
                 : departments.load(action.departmentId()).map(Department::name).orElse(null);
         repository.save(new ActionLog(null, null, user.username(), user.displayName(), user.email(), department,
-                action.actionType(), action.resourceType(), abbreviate(trim(action.resourceName()), NAME_MAX),
-                abbreviate(action.details(), DETAILS_MAX), action.success() ? "SUCCESS" : "FAILURE"));
+                action.actionType(), action.resourceType(), abbreviateBytes(trim(action.resourceName()), NAME_MAX),
+                abbreviateBytes(action.details(), DETAILS_MAX), action.success() ? "SUCCESS" : "FAILURE"));
     }
 }

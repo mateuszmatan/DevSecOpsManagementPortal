@@ -105,7 +105,7 @@ testing {
         test {
             targets.configureEach {
                 testTask.configure {
-                    finalizedBy tasks.named('jacocoTestReport')
+                    finalizedBy tasks.named('jacocoTestReport'), tasks.named('jacocoTestCoverageVerification')
                 }
             }
         }

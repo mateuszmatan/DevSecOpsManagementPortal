@@ -24,7 +24,7 @@ class ActionRecorder {
         try {
             result = change.get();
         } catch (RuntimeException failure) {
-            save(byUser.failed(failure.getMessage()));
+            save(byUser.failed(ApiExceptionHandler.reason(failure)));
             throw failure;
         }
         save(done.apply(byUser, result));

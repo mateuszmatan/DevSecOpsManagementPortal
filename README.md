@@ -30,10 +30,11 @@ It needs Java 21, and Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.
 | `./gradlew build` | the jar and every suite above | 3 min 40 s from clean |
 
 Tests are Groovy and Spock; the Angular unit tests stay in Vitest. Smoke and performance tests cover the key functions
-only, regression the most important journeys. `-PskipGui` builds the service without its GUI for API work,
-`-Dperformance.factor=2` relaxes the performance limits on a slow machine, `-Dsmoke.baseUrl=https://...` runs the
-backend smoke tests against a deployed portal, and `-Dfrontend.browser=<path to chrome>` runs the GUI suites in an
-installed Chrome or Edge.
+only, regression the most important journeys. The GUI suites run in Chromium, which Playwright downloads once through
+`njproxy`; `-Dfrontend.browser=<path to chrome.exe>` runs them in an installed Chrome or Edge instead, with no
+download. `-PskipGui` builds the service without its GUI for API work, `-Dperformance.factor=3` relaxes the
+performance limits further on a slow machine (the default is 2), and `-Dsmoke.baseUrl=https://...` runs the backend
+smoke tests against a deployed portal.
 
 ## Running locally
 
@@ -60,7 +61,8 @@ http://localhost:4200 rebuilds on every change and sends `/api` to port 8080.
 | `GRAFANA_DASHBOARD_URL`, `GRAFANA_SECURITY_DASHBOARD_URL`, `GRAFANA_NAME` | empty, empty, `Grafana` | the DSOEnhanced dashboards linked from Pipeline Monitoring; `GRAFANA_2_*` for a second instance |
 
 The InfluxDB and Grafana settings can also be set in the GUI under Admin, Library defaults, Portal monitoring; values
-saved there win over the variables. The InfluxDB token saved there is never shown again.
+saved there win over the variables. The InfluxDB token saved there is never shown again, and `INFLUX_TOKEN` is sent
+only to `INFLUX_URL`, never to another InfluxDB saved in the GUI.
 
 ## Containers and OpenShift
 

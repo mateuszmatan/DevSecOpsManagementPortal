@@ -313,6 +313,16 @@ describe('sections that apply to the build tool and deployment target', () => {
     expect(visibleSectionsForPipeline(form, pipeline).map((section) => section.id)).toEqual(sections);
   });
 
+  it('shows the SECURITY pipeline of a service on OpenShift its OpenShift targets and stops at their problems', () => {
+    const form = createServiceForm(service());
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    form.patchValue({ deployment: { appName: 'gui', artifactName: 'gui.jar' } });
+
+    expect(visibleSectionsForPipeline(form, 'SECURITY').map((section) => section.id)).toContain('openShift');
+    expect(firstInvalidSection(form, 'SECURITY')).toBe('openShift');
+    expect(firstInvalidSection(form, 'SAST')).toBeNull();
+  });
+
   it('lets a pipeline save past problems in sections it does not read', () => {
     const form = createServiceForm(service());
     form.controls.appScan.controls.applicationId.setValue('');

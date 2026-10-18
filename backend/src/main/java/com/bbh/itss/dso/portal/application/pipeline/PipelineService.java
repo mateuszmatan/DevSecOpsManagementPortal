@@ -92,13 +92,26 @@ public class PipelineService implements PipelinesUseCase {
                 .toList();
     }
 
+    @Override
+    public void requireNexusIqApplications(Product product) {
+        product.services().stream()
+                .filter(service -> service.id() != null && pipelines.existsForService(service.id(), NEXUS_IQ))
+                .forEach(PipelineService::requireNexusIqApplication);
+    }
+
     private Pipeline create(Product product, Service service, PipelineType type, PipelineSettings settings) {
-        if (type == NEXUS_IQ && service.settings().nexusIqApplications().isEmpty()) {
-            throw new IllegalStateException("Service " + service.name()
-                    + " has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing");
+        if (type == NEXUS_IQ) {
+            requireNexusIqApplication(service);
         }
         return pipelines.save(Pipeline.create(new ServiceRef(product.id(), service.id()), type, settings, keys,
                 now()));
+    }
+
+    private static void requireNexusIqApplication(Service service) {
+        if (service.settings().nexusIqApplications().isEmpty()) {
+            throw new IllegalStateException("Service " + service.name()
+                    + " has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing");
+        }
     }
 
     @Override

@@ -20,6 +20,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION;
@@ -33,6 +34,23 @@ import static org.springframework.http.ProblemDetail.forStatusAndDetail;
 @Slf4j
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final String CONSTRAINT_VIOLATED =
+            "The change violates a database constraint, most likely a duplicate name or key.";
+    private static final String UNEXPECTED = "The portal could not handle the request. The failure is in the portal's log.";
+    private static final List<Class<? extends RuntimeException>> TOLD_AS_IS = List.of(NoSuchElementException.class,
+            IllegalStateException.class, UncheckedIOException.class, InvalidRequestException.class);
+
+    /** The reason the API gives for a failed change, also recorded in the Action History: never the portal's internals. */
+    static String reason(RuntimeException e) {
+        if (e instanceof OptimisticLockingFailureException) {
+            return STALE_VERSION;
+        }
+        if (e instanceof DataIntegrityViolationException) {
+            return CONSTRAINT_VIOLATED;
+        }
+        return TOLD_AS_IS.stream().anyMatch(type -> type.isInstance(e)) ? e.getMessage() : UNEXPECTED;
+    }
 
     @ExceptionHandler(NoSuchElementException.class)
     ProblemDetail notFound(NoSuchElementException e) {
@@ -51,8 +69,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail integrity(DataIntegrityViolationException e) {
-        return problem(CONFLICT, "Conflict",
-                "The change violates a database constraint, most likely a duplicate name or key.");
+        return problem(CONFLICT, "Conflict", CONSTRAINT_VIOLATED);
     }
 
     @ExceptionHandler(UncheckedIOException.class)
@@ -70,8 +87,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(Exception.class)
     ProblemDetail unexpected(Exception e) {
         log.error("The portal could not serve a request", e);
-        return problem(INTERNAL_SERVER_ERROR, "Request failed",
-                "The portal could not handle the request. The failure is in the portal's log.");
+        return problem(INTERNAL_SERVER_ERROR, "Request failed", UNEXPECTED);
     }
 
     @Override

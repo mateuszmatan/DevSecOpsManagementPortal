@@ -156,6 +156,24 @@ class InfluxQueryClientSpec extends Specification {
         }
     }
 
+    def "the token of the environment goes only to the InfluxDB of the environment: #portal"() {
+        given:
+        influx.respondWith(',result,table,name\r\n,_result,0,DORA-metrics\r\n')
+        def client = client(environmentUrl, 'secret-token')
+
+        when:
+        client.query(PlatformSettings.builder().influxUrl(savedUrl).build(), 'buckets() |> limit(n: 1)')
+
+        then:
+        influx.requests.first().authorization.trim() == expected
+
+        where:
+        portal                              | environmentUrl          | savedUrl                || expected
+        'no URL saved in the portal'        | influx.url              | null                    || 'Token secret-token'
+        'the same URL saved in the portal'  | influx.url              | influx.url              || 'Token secret-token'
+        'another URL saved in the portal'   | 'https://influx.bbh.com' | influx.url             || 'Token'
+    }
+
     private static InfluxQueryClient client(String url, String token = null) {
         new InfluxQueryClient(new InfluxProperties(url, 'DevSecOps', 'DORA-metrics', token, '365d'), RestClient.builder())
     }
