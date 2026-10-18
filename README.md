@@ -25,9 +25,9 @@ It needs Java 21, and Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.
 | `./gradlew assemble` | the jar without running any test | as above |
 | `./gradlew :backend:test` | backend unit tests, fails below 60% line coverage | 45 s |
 | `./gradlew :frontend:test` | Angular unit tests (Vitest), fails below 60% of lines | 45 s |
-| `./gradlew regressionTest` | the API end to end on H2, and the GUI journeys in Chromium against a stub API | 2 min |
-| `./gradlew smokeTest performanceTest` | start-up, health and every page; p95 latencies of the key calls | 1 min |
-| `./gradlew build` | the jar and every suite above | 4 min |
+| `./gradlew regressionTest` | the API end to end on H2, and the GUI journeys in Chromium against a stub API | 1 min 20 s |
+| `./gradlew smokeTest performanceTest` | start-up, health and every page; p95 latencies of the key calls | 55 s |
+| `./gradlew build` | the jar and every suite above | 3 min 40 s from clean |
 
 Tests are Groovy and Spock; the Angular unit tests stay in Vitest. Smoke and performance tests cover the key functions
 only, regression the most important journeys. `-PskipGui` builds the service without its GUI for API work,
