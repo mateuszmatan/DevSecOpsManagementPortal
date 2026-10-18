@@ -9,83 +9,50 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.Instant;
 
+import static com.bbh.itss.dso.portal.adapter.RecordMapper.map;
 import static jakarta.persistence.GenerationType.IDENTITY;
+import static lombok.AccessLevel.PRIVATE;
 import static lombok.AccessLevel.PROTECTED;
 
 @Entity
 @Table(name = "DSO_ACTION_LOG")
-@Getter
-@Setter
-@Builder
-@AllArgsConstructor
 @NoArgsConstructor(access = PROTECTED)
+@AllArgsConstructor(access = PRIVATE)
 public class ActionLogEntity {
 
     @Id
     @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
-    @Column(nullable = false, updatable = false)
+    @Column(updatable = false)
     private Instant createdAt;
 
-    @Column(nullable = false, length = 100)
     private String username;
-
-    @Column(nullable = false, length = 200)
     private String userDisplayName;
-
-    @Column(length = 200)
     private String userEmail;
-
-    @Column(length = 200)
-    private String businessServiceName;
-
-    @Column(length = 200)
     private String departmentName;
-
-    @Column(nullable = false, length = 100)
     private String actionType;
-
-    @Column(nullable = false, length = 50)
     private String resourceType;
-
-    @Column(length = 200)
     private String resourceName;
-
-    @Column(length = 4000)
     private String details;
-
-    @Column(nullable = false, length = 50)
     private String status;
 
-    public ActionLogEntity(String username, String userDisplayName, String userEmail,
-                           String departmentName, String actionType, String resourceType,
-                           String resourceName, String details, String status) {
-        this(null, null, username, userDisplayName, userEmail, departmentName, departmentName, actionType, resourceType, resourceName, details, status);
+    static ActionLogEntity of(ActionLog log) {
+        return new ActionLogEntity(null, null, log.username(), log.userDisplayName(), log.userEmail(),
+                log.departmentName(), log.actionType(), log.resourceType(), log.resourceName(), log.details(),
+                log.status());
     }
 
     @PrePersist
     void onCreate() {
-        if (createdAt == null) {
-            createdAt = Timestamps.now();
-        }
-        if (businessServiceName == null && departmentName != null) {
-            businessServiceName = departmentName;
-        } else if (departmentName == null && businessServiceName != null) {
-            departmentName = businessServiceName;
-        }
+        createdAt = Timestamps.now();
     }
 
-    public ActionLog toDomain() {
-        return new ActionLog(id, createdAt, username, userDisplayName, userEmail,
-                departmentName != null ? departmentName : businessServiceName,
-                actionType, resourceType, resourceName, details, status);
+    ActionLog toDomain() {
+        return map(ActionLog.class, this);
     }
 }

@@ -44,6 +44,7 @@ class MonitoringTargetsServiceSpec extends Specification {
         read.pipelines()*.pipeline()*.id() == [100L, 102L, 200L]
         read.pipelines()*.service()*.name() == ['gui', 'backend-api', 'gateway']
         read.platform().jenkinsUrl() == 'https://jenkins.test'
+        targets.platform() == read.platform()
         read.pipelines()[0].jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
     }
 
@@ -111,7 +112,7 @@ class MonitoringTargetsServiceSpec extends Specification {
 
         where:
         what                   | message                        | read
-        'department'           | 'Department 7 does not exist'  | { MonitoringTargetsService it -> it.ofDepartment(7L) }
+        'department'           | 'Business service 7 does not exist'  | { MonitoringTargetsService it -> it.ofDepartment(7L) }
         'product'              | 'Product 5 does not exist'     | { MonitoringTargetsService it -> it.ofProduct(5L) }
         'pipeline'             | 'Pipeline 101 does not exist'  | { MonitoringTargetsService it -> it.ofPipeline(101L) }
         "pipeline's product"   | 'Product 1 does not exist'     | { MonitoringTargetsService it -> it.ofPipeline(100L) }

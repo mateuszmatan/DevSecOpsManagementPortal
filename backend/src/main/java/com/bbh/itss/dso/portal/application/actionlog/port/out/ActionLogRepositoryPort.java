@@ -6,9 +6,8 @@ import java.util.List;
 
 public interface ActionLogRepositoryPort {
 
-    List<ActionLog> listAll();
-
-    List<ActionLog> search(String search, String actionType, String resourceType, String status);
+    /** The newest first. */
+    List<ActionLog> findAll();
 
     void save(ActionLog log);
 }

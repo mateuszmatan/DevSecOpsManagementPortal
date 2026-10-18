@@ -169,8 +169,8 @@ export class ProductDetail {
           other.type === pipeline.type &&
           other.serviceId !== pipeline.serviceId &&
           other.activeKey &&
-          (pipeline.type !== 'EXTENDED' ||
-            other.securityPipelineJob === pipeline.securityPipelineJob),
+          other.securityPipelineJob === pipeline.securityPipelineJob &&
+          other.extendedPipelineJob === pipeline.extendedPipelineJob,
       );
   }
 

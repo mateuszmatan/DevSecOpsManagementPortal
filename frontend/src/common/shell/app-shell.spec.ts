@@ -64,6 +64,23 @@ describe('AppShell', () => {
     expect(active()).toEqual(['Orders']);
   });
 
+  it('shows the signed-in user only once it is known', async () => {
+    expect(page().querySelector('.user-badge')).toBeNull();
+
+    fixture.componentRef.setInput('user', { displayName: 'Ann Lee', email: 'ann@bbh.com', admin: true });
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.user-name'))).toBe('Ann Lee');
+    expect(text(page().querySelector('.user-role'))).toBe('Administrator');
+    expect(page().querySelector('.user-badge')?.getAttribute('title')).toBe('ann@bbh.com');
+
+    fixture.componentRef.setInput('user', { displayName: 'Bob Day' });
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.user-badge'))).toBe('Bob Day');
+    expect(page().querySelector('.user-role')).toBeNull();
+  });
+
   it('has an empty footer apart from the year mark', () => {
     expect(page().querySelector('footer')?.textContent?.trim()).toBe('BBH 2026');
   });

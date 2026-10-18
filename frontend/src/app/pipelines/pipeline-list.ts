@@ -100,15 +100,15 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
       </header>
       <section class="card toolbar">
         <dso-form-field class="department">
-          <dso-label>Your department</dso-label>
+          <dso-label>Your business service</dso-label>
           <select dsoInput [formControl]="department">
-            <option [ngValue]="null" disabled>Choose your department</option>
+            <option [ngValue]="null" disabled>Choose your business service</option>
             @for (department of departmentList(); track department.id) {
               <option [ngValue]="department.id">{{ department.name }}</option>
             }
           </select>
           <dso-hint
-            >Only the pipelines of this department are listed. This browser remembers your
+            >Only the pipelines of this business service are listed. This browser remembers your
             choice.</dso-hint
           >
         </dso-form-field>
@@ -116,7 +116,7 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
       @if (departments.error(); as error) {
         <div class="banner" role="alert">
           <span class="banner-text"
-            >The departments could not be loaded. {{ errorMessage(error) }}</span
+            >The business services could not be loaded. {{ errorMessage(error) }}</span
           >
           <button type="button" class="btn btn-outline-primary" (click)="departments.reload()">
             Try again
@@ -125,8 +125,8 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
       }
       @if (departmentId() === null) {
         <section class="card empty-state">
-          <h3>Choose your department to see its pipelines</h3>
-          <p>Pick it under Your department above.</p>
+          <h3>Choose your business service to see its pipelines</h3>
+          <p>Pick it under Your business service above.</p>
         </section>
       } @else {
         @if (pipelines.isLoading()) {
@@ -266,7 +266,7 @@ export class PipelineList {
   protected readonly departmentName = computed(
     () =>
       this.departmentList().find((department) => department.id === this.departmentId())?.name ??
-      'your department',
+      'your business service',
   );
 
   protected readonly pipelines = rxResource({
@@ -303,7 +303,6 @@ export class PipelineList {
       header: 'Product',
       value: (row) => row.pipeline.productName,
       filter: { control: this.filters.controls.product, label: 'product' },
-      flex: 1.5,
       minWidth: 190,
     },
     {
@@ -322,7 +321,6 @@ export class PipelineList {
       filter: { control: this.filters.controls.job, label: 'Jenkins job' },
       cellClass: 'mono',
       wrap: true,
-      flex: 2,
       minWidth: 200,
     },
     {

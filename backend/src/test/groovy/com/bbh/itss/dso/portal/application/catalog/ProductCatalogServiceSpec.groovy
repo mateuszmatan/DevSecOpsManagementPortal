@@ -227,6 +227,22 @@ class ProductCatalogServiceSpec extends Specification {
         updated.services()[0].description() == 'REST API'
     }
 
+    def "an update that would leave a Nexus IQ pipeline nothing to scan is refused before anything is stored"() {
+        given:
+        products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10]]))
+
+        when:
+        catalog.update(5L, command(version: 0L, services: [service(id: 10L, name: 'gui')]))
+
+        then:
+        1 * pipelines.requireNexusIqApplications({ Product p -> p.services()*.id() == [10L] }) >> {
+            throw new IllegalStateException('Service gui has no Nexus IQ application')
+        }
+        thrown(IllegalStateException)
+        0 * products.save(_)
+        0 * pipelines.createMissing(*_)
+    }
+
     def "#refusal is refused before anything is stored"() {
         given:
         products.findProductByCode('CERT') >> Optional.of(new ProductDirectory.ProductIdentity(1L, 'Certificates'))

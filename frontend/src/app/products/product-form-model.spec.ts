@@ -38,6 +38,7 @@ import {
   toToolCommand,
   unitTestsConfigured,
   visibleSections,
+  visibleSectionsForPipeline,
 } from './product-form-model';
 
 const DEFAULTS: ServiceDefaults = {
@@ -297,6 +298,37 @@ describe('sections that apply to the build tool and deployment target', () => {
 
     form.controls.sonar.controls.command.controls.tasks.setValue('');
     expect(firstInvalidSection(form)).toBe('sonar');
+  });
+
+  it.each([
+    ['SAST', ['general', 'build', 'appScan', 'scm']],
+    ['NEXUS_IQ', ['general', 'build', 'nexusIq', 'scm', 'goldenFix']],
+    [
+      'SECURITY',
+      ['general', 'build', 'unitTests', 'deployment', 'appScan', 'sonar', 'nexusIq', 'scm', 'goldenFix', 'metrics'],
+    ],
+  ] as const)('shows the %s pipeline the sections it reads', (pipeline, sections) => {
+    const form = createServiceForm(service());
+
+    expect(visibleSectionsForPipeline(form, pipeline).map((section) => section.id)).toEqual(sections);
+  });
+
+  it('shows the SECURITY pipeline of a service on OpenShift its OpenShift targets and stops at their problems', () => {
+    const form = createServiceForm(service());
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    form.patchValue({ deployment: { appName: 'gui', artifactName: 'gui.jar' } });
+
+    expect(visibleSectionsForPipeline(form, 'SECURITY').map((section) => section.id)).toContain('openShift');
+    expect(firstInvalidSection(form, 'SECURITY')).toBe('openShift');
+    expect(firstInvalidSection(form, 'SAST')).toBeNull();
+  });
+
+  it('lets a pipeline save past problems in sections it does not read', () => {
+    const form = createServiceForm(service());
+    form.controls.appScan.controls.applicationId.setValue('');
+
+    expect(firstInvalidSection(form, 'NEXUS_IQ')).toBeNull();
+    expect(firstInvalidSection(form, 'SAST')).toBe('appScan');
   });
 });
 

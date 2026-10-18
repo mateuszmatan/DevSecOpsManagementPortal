@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RETRY } from '@common/core/errors';
 import { MonitoringStatus } from '../core/models';
 
@@ -13,8 +13,8 @@ import { MonitoringStatus } from '../core/models';
             Run results are not shown: the portal is not connected to InfluxDB, where the pipelines
             report their runs, so it only knows whether each pipeline's key is valid.
             <span class="admin"
-              >For the administrator: set <code>INFLUX_URL</code> and
-              <code>INFLUX_TOKEN</code>.</span
+              >For the administrator: set the InfluxDB connection under Admin, Library
+              defaults.</span
             >
           </span>
         </div>
@@ -27,7 +27,7 @@ import { MonitoringStatus } from '../core/models';
         </div>
       }
     }
-    @if (metricsError(); as error) {
+    @if (!influxProblem() && metricsError(); as error) {
       <div class="banner">
         <span
           >Run results could not be loaded, so the statuses below may be incomplete ({{ error }}).
@@ -45,6 +45,12 @@ import { MonitoringStatus } from '../core/models';
 export class MetricsBanner {
   readonly status = input<MonitoringStatus | undefined>();
   readonly metricsError = input<string | null>(null);
+
+  /** A missing or silent InfluxDB already explains every failed reading, so it is said once. */
+  protected readonly influxProblem = computed(() => {
+    const s = this.status();
+    return !!s && !(s.influxConfigured && s.influxReachable);
+  });
 
   protected readonly retry = RETRY;
 }

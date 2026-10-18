@@ -33,7 +33,7 @@ public record Department(Long id, String name, long version) {
         }
         new ValidationProblems().fits("name", name, MAX_NAME_LENGTH).throwIfAny();
         byName.apply(name).filter(other -> !other.id().equals(id)).ifPresent(other -> {
-            throw new IllegalStateException("A department named " + other.name() + " already exists");
+            throw new IllegalStateException("A business service named " + other.name() + " already exists");
         });
         return this;
     }

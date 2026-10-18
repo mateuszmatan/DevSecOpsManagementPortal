@@ -20,12 +20,12 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
@@ -35,46 +35,50 @@ import static org.springframework.http.ProblemDetail.forStatusAndDetail;
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
-    @ExceptionHandler(NoSuchElementException.class)
-    ProblemDetail notFound(NoSuchElementException e) {
-        log.warn("Resource not found: {}", e.getMessage());
-        return problem(NOT_FOUND, "Not found", e.getMessage());
+    private static final String CONSTRAINT_VIOLATED =
+            "The change violates a database constraint, most likely a duplicate name or key.";
+    private static final String UNEXPECTED = "The portal could not handle the request. The failure is in the portal's log.";
+    private static final List<Class<? extends RuntimeException>> TOLD_AS_IS = List.of(NoSuchElementException.class,
+            IllegalStateException.class, UncheckedIOException.class, InvalidRequestException.class);
+
+    /** The reason the API gives for a failed change, also recorded in the Action History: never the portal's internals. */
+    static String reason(RuntimeException e) {
+        if (e instanceof OptimisticLockingFailureException) {
+            return STALE_VERSION;
+        }
+        if (e instanceof DataIntegrityViolationException) {
+            return CONSTRAINT_VIOLATED;
+        }
+        return TOLD_AS_IS.stream().anyMatch(type -> type.isInstance(e)) ? e.getMessage() : UNEXPECTED;
     }
 
-    @ExceptionHandler(SecurityException.class)
-    ProblemDetail forbidden(SecurityException e) {
-        log.warn("Forbidden access: {}", e.getMessage());
-        return problem(FORBIDDEN, "Forbidden", e.getMessage());
+    @ExceptionHandler(NoSuchElementException.class)
+    ProblemDetail notFound(NoSuchElementException e) {
+        return problem(NOT_FOUND, "Not found", e.getMessage());
     }
 
     @ExceptionHandler(IllegalStateException.class)
     ProblemDetail conflict(IllegalStateException e) {
-        log.warn("Illegal state conflict: {}", e.getMessage());
         return problem(CONFLICT, "Conflict", e.getMessage());
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ProblemDetail staleData(OptimisticLockingFailureException e) {
-        log.warn("Optimistic locking failure: {}", e.getMessage());
         return problem(CONFLICT, "Conflict", STALE_VERSION);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail integrity(DataIntegrityViolationException e) {
-        log.warn("Data integrity violation: {}", e.getMessage());
-        return problem(CONFLICT, "Conflict",
-                "The change violates a database constraint, most likely a duplicate name or key.");
+        return problem(CONFLICT, "Conflict", CONSTRAINT_VIOLATED);
     }
 
     @ExceptionHandler(UncheckedIOException.class)
     ProblemDetail unavailable(UncheckedIOException e) {
-        log.warn("A system the portal relies on could not be reached: {}", e.getMessage());
         return problem(SERVICE_UNAVAILABLE, "Service Unavailable", e.getMessage());
     }
 
     @ExceptionHandler(InvalidRequestException.class)
     ProblemDetail invalid(InvalidRequestException e) {
-        log.warn("Validation failed: {}", e.getMessage());
         ProblemDetail detail = problem(BAD_REQUEST, "Validation failed", e.getMessage());
         detail.setProperty("errors", e.problems());
         return detail;
@@ -82,9 +86,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ProblemDetail unexpected(Exception e) {
-        log.error("The portal could not serve a request: {}", e.getMessage(), e);
-        return problem(INTERNAL_SERVER_ERROR, "Request failed",
-                "The portal could not handle the request. The failure is in the portal's log.");
+        log.error("The portal could not serve a request", e);
+        return problem(INTERNAL_SERVER_ERROR, "Request failed", UNEXPECTED);
     }
 
     @Override
@@ -135,6 +138,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     static ProblemDetail problem(HttpStatus status, String title, String message) {
+        log.warn("{} {}: {}", status.value(), title, message);
         ProblemDetail detail = forStatusAndDetail(status, message);
         detail.setTitle(title);
         return detail;

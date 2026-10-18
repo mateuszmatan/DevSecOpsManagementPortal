@@ -212,22 +212,6 @@ export function applyFieldProblems(
   return unmatched;
 }
 
-export function applyProblemsAt(
-  form: AbstractControl,
-  prefix: string,
-  problems: FieldProblem[],
-): FieldProblem[] {
-  const own = problems.filter((problem) => problem.field.startsWith(prefix));
-  const unmatched = applyFieldProblems(
-    form,
-    own.map((problem) => ({ ...problem, field: problem.field.slice(prefix.length) })),
-  );
-  return [
-    ...problems.filter((problem) => !own.includes(problem)),
-    ...unmatched.map((problem) => ({ ...problem, field: prefix + problem.field })),
-  ];
-}
-
 const serverValidators = new WeakMap<AbstractControl, ValidatorFn>();
 
 function showServerError(control: AbstractControl, message: string, scope: AbstractControl): void {

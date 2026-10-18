@@ -153,7 +153,7 @@ class PipelineKeysSpec extends ProductPageSpecification {
         assertThat(snackBar()).containsText('Key invalidated. The pipeline gui · SAST scanning is refused its settings and stops at its next start.')
         assertThat(pipelineRow('gui', 'SAST scanning').locator('.key-state')).hasText('Key invalidated')
         assertThat(pipelineRow('gui', 'SAST scanning').locator('.revoked-note'))
-                .hasText("Jenkins is refused this pipeline's settings, so it stops until a new key is issued.")
+                .hasText('The pipeline is refused its settings and stops until a new key is issued.')
         assertThat(pipelineButton('gui', 'SAST scanning', 'Regenerate key of the SAST scanning pipeline')).isVisible()
         assertThat(fact('Pipelines')).hasText('3, 1 key invalidated')
 

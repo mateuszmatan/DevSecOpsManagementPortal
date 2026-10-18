@@ -25,7 +25,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         assertThat(gridHeaders(department('Fund Services')))
                 .hasText(['Product', 'Owner team', 'Services', 'Pipelines'] as String[])
         assertThat(names()).hasText(['CertScanner', 'Payments Hub'] as String[])
-        assertThat(page.locator('.toolbar .summary')).hasText('2 products in 5 departments')
+        assertThat(page.locator('.toolbar .summary')).hasText('2 products in 5 business services')
         assertThat(page.locator('.toolbar .intro')).containsText('A pipeline is active while its key is valid')
         assertThat(page.getByRole(LINK, new Page.GetByRoleOptions().setName('Add product').setExact(true))).hasCount(1)
         assertThat(gridCell(row('Payments Hub'), 'services')).hasText('4')
@@ -48,7 +48,7 @@ class ProductCatalogueSpec extends ProductPageSpecification {
         assertThat(names()).hasText(['Payments Hub'] as String[])
         assertThat(departmentNames()).hasText(['Fund Services'] as String[])
         assertThat(department('Fund Services').locator('.tally')).hasText('1 product, 6 pipelines, 1 key invalidated')
-        assertThat(page.locator('.toolbar .summary')).hasText('1 product in 1 department')
+        assertThat(page.locator('.toolbar .summary')).hasText('1 product in 1 business service')
         api.lastRequest('GET', '/api/products').params() == [search: 'Payments']
 
         when:
@@ -63,8 +63,8 @@ class ProductCatalogueSpec extends ProductPageSpecification {
 
         then:
         assertThat(page.locator('.empty-state h3')).hasText('No product matches "ledger-x"')
-        assertThat(page.locator('.empty-state')).containsText('Try another name, code, team or department.')
-        assertThat(page.locator('.toolbar .summary')).hasText('0 products in 0 departments')
+        assertThat(page.locator('.empty-state')).containsText('Try another name, code, team or business service.')
+        assertThat(page.locator('.toolbar .summary')).hasText('0 products in 0 business services')
 
         when:
         button('Clear the search', true).click()

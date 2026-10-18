@@ -155,12 +155,12 @@ class UseCaseConfigurationSpec extends Specification {
     def "the monitoring pages query InfluxDB with no transaction and no database connection of their own"() {
         given:
         def influx = { String query, Object answer -> calls << query + ' ' + transactionState(); answer }
-        runs.configured() >> true
-        runs.ping() >> { influx('ping', null) }
+        runs.configured(_) >> true
+        runs.ping(_) >> { influx('ping', null) }
         runs.latestRuns(*_) >> { influx('latest runs', LatestRuns.none()) }
         runs.recentRuns(*_) >> { influx('recent runs', []) }
         runs.doraPoints(*_) >> { influx('DORA points', [:]) }
-        dashboards.instances() >> []
+        dashboards.instances(_) >> []
         dashboards.dashboards(*_) >> []
         def product = Fixtures.product(id: 5L, services: [[id: 10L, name: 'gui']])
         def pipeline = Fixtures.pipeline(id: 20L, productId: 5L, serviceId: 10L)
@@ -172,9 +172,9 @@ class UseCaseConfigurationSpec extends Specification {
             context.getBean(MonitorPipelinesUseCase).pipeline(20L, '30d')
         }
 
-        then: 'only the short reads of the catalogue run in a transaction, the InfluxDB queries do not'
-        transactions.log == ['begin read-only', 'begin read-only', 'commit', 'commit'] * 2
-        calls == ['ping without transaction', 'load read-only', 'latest runs without transaction',
+        then: 'only the short reads of the settings and the catalogue run in a transaction, the InfluxDB queries do not'
+        transactions.log == ['begin read-only', 'begin read-only', 'commit', 'commit'] * 3
+        calls == ['load read-only', 'ping without transaction', 'load read-only', 'latest runs without transaction',
                   'load read-only', 'recent runs without transaction', 'DORA points without transaction',
                   'latest runs without transaction']
         1 * products.findAll() >> [product]

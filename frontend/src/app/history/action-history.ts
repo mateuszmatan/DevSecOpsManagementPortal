@@ -13,22 +13,28 @@ import { DsoLoading } from '@common/ui/loading';
 export const ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'All actions' },
   { value: 'CREATE_PRODUCT', label: 'Create product' },
-  { value: 'UPDATE_PRODUCT', label: 'Update product/services' },
+  { value: 'UPDATE_PRODUCT', label: 'Update product' },
   { value: 'DELETE_PRODUCT', label: 'Delete product' },
   { value: 'CREATE_PIPELINE', label: 'Create pipeline' },
   { value: 'UPDATE_PIPELINE', label: 'Update pipeline' },
   { value: 'DELETE_PIPELINE', label: 'Delete pipeline' },
-  { value: 'ROTATE_KEY', label: 'Rotate / issue key' },
+  { value: 'ROTATE_KEY', label: 'Issue new key' },
   { value: 'REVOKE_KEY', label: 'Revoke key' },
+  { value: 'CREATE_DEPARTMENT', label: 'Create business service' },
+  { value: 'RENAME_DEPARTMENT', label: 'Rename business service' },
+  { value: 'DELETE_DEPARTMENT', label: 'Delete business service' },
+  { value: 'UPDATE_SERVICE_TEMPLATE', label: 'Update service template' },
+  { value: 'UPDATE_GLOBAL_SETTINGS', label: 'Update library defaults' },
   { value: 'INITIALIZE_PORTAL', label: 'Initialize portal' },
 ];
 
 export const RESOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'All resources' },
   { value: 'PRODUCT', label: 'Product' },
-  { value: 'SERVICE', label: 'Service' },
   { value: 'PIPELINE', label: 'Pipeline' },
   { value: 'PIPELINE_KEY', label: 'Pipeline key' },
+  { value: 'DEPARTMENT', label: 'Business service' },
+  { value: 'SETTINGS', label: 'Settings' },
   { value: 'PORTAL', label: 'Portal' },
 ];
 
@@ -37,6 +43,9 @@ export const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'SUCCESS', label: 'Success' },
   { value: 'FAILURE', label: 'Failure' },
 ];
+
+const labelOf = (options: { value: string; label: string }[], value: string) =>
+  options.find((option) => option.value === value)?.label ?? value;
 
 @Component({
   selector: 'dso-action-history',
@@ -112,23 +121,14 @@ export const STATUS_OPTIONS: { value: string; label: string }[] = [
                 <span class="time-cell">{{ row.createdAt | date: 'd MMM y, HH:mm:ss' }}</span>
               </ng-template>
               <ng-template dsoCell="user" let-row>
-                <div class="user-cell">
-                  <strong>{{ row.userDisplayName || row.username }}</strong>
-                  @if (row.userEmail) {
-                    <span class="muted email">{{ row.userEmail }}</span>
-                  }
-                </div>
+                <strong [title]="row.userEmail ?? ''">{{ row.userDisplayName || row.username }}</strong>
               </ng-template>
               <ng-template dsoCell="resource" let-row>
-                <span class="badge resource-tag">{{ row.resourceType }}</span>
-                <span class="resource-name mono">{{ row.resourceName || '—' }}</span>
+                <span class="resource-type">{{ resourceLabel(row) }}</span>
+                {{ row.resourceName || '—' }}
               </ng-template>
               <ng-template dsoCell="status" let-row>
-                @if (row.status === 'SUCCESS') {
-                  <span class="chip success">Success</span>
-                } @else {
-                  <span class="chip danger">Failure</span>
-                }
+                <span class="status" [class.failure]="row.status !== 'SUCCESS'">{{ statusLabel(row) }}</span>
               </ng-template>
             </dso-grid>
           </section>
@@ -181,47 +181,17 @@ export const STATUS_OPTIONS: { value: string; label: string }[] = [
       font-size: 12.5px;
     }
 
-    .user-cell {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-
-      .email {
-        font-size: 11px;
-      }
-    }
-
-    .resource-tag {
-      background: var(--dso-surface-variant, #e2e8f0);
-      color: var(--dso-on-surface-variant, #334155);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 10.5px;
-      font-weight: 600;
+    .resource-type {
+      color: var(--dso-muted);
       margin-right: 6px;
     }
 
-    .resource-name {
-      font-size: 12.5px;
-    }
+    .status {
+      font-weight: 500;
+      color: var(--dso-success);
 
-    .chip {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-
-      &.success {
-        background: #e6f4ea;
-        color: #137333;
-      }
-
-      &.danger {
-        background: #fce8e6;
-        color: #c5221f;
+      &.failure {
+        color: var(--dso-danger);
       }
     }
   `,
@@ -266,22 +236,20 @@ export class ActionHistoryPage {
     {
       key: 'department',
       header: 'Business Service',
-      value: (row) => row.businessServiceName || row.departmentName || '—',
-      sortValue: (row) => (row.businessServiceName || row.departmentName || '').toLowerCase(),
+      value: (row) => row.departmentName || '—',
+      sortValue: (row) => (row.departmentName || '').toLowerCase(),
       width: 150,
     },
     {
       key: 'action',
       header: 'Action',
-      value: (row) => row.actionType,
-      sortValue: (row) => row.actionType,
+      value: (row) => labelOf(ACTION_OPTIONS, row.actionType),
       width: 160,
     },
     {
       key: 'resource',
       header: 'Resource',
-      value: (row) => `${row.resourceType}: ${row.resourceName || ''}`,
-      sortValue: (row) => `${row.resourceType} ${row.resourceName || ''}`.toLowerCase(),
+      value: (row) => `${this.resourceLabel(row)} ${row.resourceName || ''}`,
       width: 200,
     },
     {
@@ -293,13 +261,14 @@ export class ActionHistoryPage {
     {
       key: 'status',
       header: 'Status',
-      value: (row) => row.status,
-      sortValue: (row) => row.status,
+      value: (row) => this.statusLabel(row),
       width: 100,
     },
   ];
 
   protected readonly rowId = (row: ActionLog) => String(row.id);
+  protected readonly resourceLabel = (row: ActionLog) => labelOf(RESOURCE_OPTIONS, row.resourceType);
+  protected readonly statusLabel = (row: ActionLog) => labelOf(STATUS_OPTIONS, row.status);
 
   protected readonly filteredRows = computed(() => {
     if (!this.logsResource.hasValue()) {
@@ -329,9 +298,8 @@ export class ActionHistoryPage {
           item.userEmail,
           item.resourceName,
           item.details,
-          item.businessServiceName,
           item.departmentName,
-          item.actionType,
+          labelOf(ACTION_OPTIONS, item.actionType),
         ]
           .filter(Boolean)
           .join(' ')

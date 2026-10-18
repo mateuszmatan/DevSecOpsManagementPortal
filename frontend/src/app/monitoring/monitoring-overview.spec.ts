@@ -143,7 +143,7 @@ describe('MonitoringOverview', () => {
 
     expect(page().querySelector('dso-dora-tiles')).toBeNull();
     expect(page().querySelector('.portfolio')).toBeNull();
-    expect(headings()).toEqual(['Not in a department']);
+    expect(headings()).toEqual(['Not in a business service']);
     expect(cards().length).toBe(1);
   });
 
@@ -244,7 +244,7 @@ describe('MonitoringOverview', () => {
     expect(page().querySelector('dso-dora-tiles')).not.toBeNull();
   });
 
-  it('explains missing or unreachable metrics', async () => {
+  it('explains unreachable metrics once', async () => {
     await load(
       monitoringOverview({ metricsError: 'InfluxDB timed out' }),
       monitoringStatus({ influxReachable: false, influxError: 'connection refused' }),
@@ -253,13 +253,21 @@ describe('MonitoringOverview', () => {
     const banners = [...page().querySelectorAll('.banner')].map(text);
     expect(banners).toEqual([
       'Run results could not be loaded: InfluxDB, where the pipelines report their runs, does not answer (connection refused). Try again in a moment; if it keeps failing, tell the portal administrator.',
+    ]);
+  });
+
+  it('explains a failed reading of a reachable InfluxDB', async () => {
+    await load(monitoringOverview({ metricsError: 'InfluxDB timed out' }), monitoringStatus());
+
+    const banners = [...page().querySelectorAll('.banner')].map(text);
+    expect(banners).toEqual([
       'Run results could not be loaded, so the statuses below may be incomplete (InfluxDB timed out). Try again in a moment; if it keeps failing, tell the portal administrator.',
     ]);
   });
 
   it('says what is not shown while InfluxDB is not configured and tells the administrator what to set', async () => {
     await load(
-      monitoringOverview(),
+      monitoringOverview({ metricsError: 'InfluxDB is not configured for the portal' }),
       monitoringStatus({ influxConfigured: false }),
       portfolioActivity({
         dora: doraSummary({ runs: 0 }),
@@ -272,8 +280,9 @@ describe('MonitoringOverview', () => {
       "Run results are not shown: the portal is not connected to InfluxDB, where the pipelines report their runs, so it only knows whether each pipeline's key is valid.",
     );
     expect(text(banner.querySelector('.admin'))).toBe(
-      'For the administrator: set INFLUX_URL and INFLUX_TOKEN.',
+      'For the administrator: set the InfluxDB connection under Admin, Library defaults.',
     );
+    expect(page().querySelectorAll('dso-metrics-banner .banner')).toHaveLength(1);
     expect(page().querySelector('.dora-unavailable')).toBeNull();
   });
 

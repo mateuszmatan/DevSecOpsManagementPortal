@@ -1,9 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.out.influx;
 
-import com.bbh.itss.dso.portal.adapter.MonitoringSettingsStore;
 import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -36,57 +34,36 @@ public class InfluxQueryClient {
     private static final int MAX_REASON = 300;
 
     private final InfluxProperties properties;
-    private final MonitoringSettingsStore monitoring;
     private final RestClient client;
 
     public InfluxQueryClient(InfluxProperties properties, RestClient.Builder builder) {
-        this(properties, builder, new MonitoringSettingsStore());
-    }
-
-    @Autowired
-    public InfluxQueryClient(InfluxProperties properties, RestClient.Builder builder,
-                             MonitoringSettingsStore monitoring) {
         this.properties = properties;
-        this.monitoring = monitoring != null ? monitoring : new MonitoringSettingsStore();
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(ofSeconds(3));
         requestFactory.setReadTimeout(ofSeconds(20));
         this.client = builder.requestFactory(requestFactory).build();
     }
 
-    public boolean configured() {
-        return isNotBlank(url());
+    public boolean configured(PlatformSettings platform) {
+        return isNotBlank(url(platform));
     }
 
-    String url() {
-        return firstNonBlank(monitoring.platform().map(PlatformSettings::influxUrl).orElse(null), properties.url());
-    }
-
-    String org() {
-        return firstNonBlank(monitoring.platform().map(PlatformSettings::influxOrg).orElse(null), properties.org());
-    }
-
-    String bucket() {
-        return string(firstNonBlank(monitoring.platform().map(PlatformSettings::influxBucket).orElse(null),
-                properties.bucket()));
-    }
-
-    String token() {
-        return firstNonBlank(monitoring.platform().map(PlatformSettings::influxToken).orElse(null), properties.token());
+    String bucket(PlatformSettings platform) {
+        return string(firstNonBlank(platform.influxBucket(), properties.bucket()));
     }
 
     String lastRunLookback() {
         return duration(properties.lastRunLookback());
     }
 
-    void requireConfigured() {
-        if (!configured()) {
+    void requireConfigured(PlatformSettings platform) {
+        if (!configured(platform)) {
             throw unavailable(NOT_CONFIGURED, null);
         }
     }
 
-    <T> T read(Supplier<T> reading) {
-        requireConfigured();
+    <T> T read(PlatformSettings platform, Supplier<T> reading) {
+        requireConfigured(platform);
         try {
             return reading.get();
         } catch (UncheckedIOException e) {
@@ -98,16 +75,18 @@ public class InfluxQueryClient {
         }
     }
 
-    public List<Map<String, String>> query(String flux) {
-        requireConfigured();
-        URI target = UriComponentsBuilder.fromUriString(url())
+    public List<Map<String, String>> query(PlatformSettings platform, String flux) {
+        requireConfigured(platform);
+        URI target = UriComponentsBuilder.fromUriString(url(platform))
                 .path("/api/v2/query")
-                .queryParam("org", org())
+                .queryParam("org", firstNonBlank(platform.influxOrg(), properties.org()))
                 .build()
                 .toUri();
+        String token = defaultString(url(platform).equals(properties.url())
+                ? firstNonBlank(platform.influxToken(), properties.token()) : platform.influxToken());
         String csv = client.post()
                 .uri(target)
-                .header("Authorization", "Token " + defaultString(token()))
+                .header("Authorization", "Token " + token)
                 .contentType(APPLICATION_JSON)
                 .accept(parseMediaType("application/csv"))
                 .body(Map.of("query", flux, "type", "flux",
@@ -115,6 +94,10 @@ public class InfluxQueryClient {
                 .retrieve()
                 .body(String.class);
         return FluxCsv.parse(csv);
+    }
+
+    private String url(PlatformSettings platform) {
+        return firstNonBlank(platform.influxUrl(), properties.url());
     }
 
     private static UncheckedIOException unavailable(String reason, Throwable cause) {

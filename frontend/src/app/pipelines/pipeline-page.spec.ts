@@ -229,7 +229,7 @@ describe('PipelinePage', () => {
     await load(pipeline({ activeKey: null }), pipelineMonitoring({ status: 'DISABLED' }));
 
     expect(text(page().querySelector('.banner.danger .banner-text'))).toBe(
-      "The pipeline key is invalidated. Jenkins is refused the settings of this pipeline, so the pipeline stops at its next start. Regenerate the key, then put the new Jenkinsfile in the service's repository.",
+      "The pipeline key is invalidated. The pipeline is refused its settings and stops at its next start. Regenerate the key, then put the new Jenkinsfile in the service's repository.",
     );
     expect(text(page().querySelector('.title .last-run'))).toBe('Key invalidated');
     expect(page().querySelector('.last-run .muted')).toBeNull();

@@ -1069,6 +1069,8 @@ export function visibleSectionsForPipeline(
       break;
     case 'SECURITY':
       allowed.add('unitTests');
+      allowed.add('deployment');
+      allowed.add('openShift');
       allowed.add('appScan');
       allowed.add('sonar');
       allowed.add('nexusIq');

@@ -18,12 +18,14 @@ import {
   IFloatingFilterAngularComp,
 } from 'ag-grid-angular';
 import {
+  AgGridEvent,
   CellStyleModule,
   ClientSideRowModelModule,
   ColDef,
+  ColumnApiModule,
+  ColumnAutoSizeModule,
   CsvExportModule,
   CustomFilterModule,
-  GetRowIdParams,
   GridOptions,
   ICellRendererParams,
   IFilterComp,
@@ -36,32 +38,11 @@ import {
 } from 'ag-grid-community';
 import { LicenseManager } from 'ag-grid-enterprise';
 import { GRID_THEME } from './design-system';
-import {
-  V6Table,
-  V6TableConfig,
-  V6TableHelpers,
-  V6TableKeyStorageProvider,
-  V6TableMenuOption,
-  V6ActionsButtonOptions,
-  V6TablePreferences,
-  V6TablePreferencesStorage,
-  V6TablePreferencesLocalStorage,
-  V6ServerSideDatasource,
-  V6TableDefaultDatasource,
-  V6TableDefaultDatasourceOptions,
-  V6ActiveFilter,
-  V6ActiveSort,
-  V6TableHeaderSearchBoxComponent,
-  V6TableHeaderTitleComponent,
-  V6TableHeaderFilterSummaryComponent,
-  V6TableHeaderSortSummaryComponent,
-  V6TableSelectedRowsCountComponent,
-  V6ActionsButtonCellComponent,
-  V6_TABLE_COMPONENTS,
-} from './v6-table';
 
 ModuleRegistry.registerModules([
   ClientSideRowModelModule,
+  ColumnApiModule,
+  ColumnAutoSizeModule,
   CellStyleModule,
   RowStyleModule,
   RowAutoHeightModule,
@@ -93,7 +74,6 @@ export interface GridColumn<T> {
   wrap?: boolean;
   width?: number;
   minWidth?: number;
-  flex?: number;
 }
 
 export function compare(x: string | number, y: string | number): number {
@@ -212,6 +192,7 @@ class PassingFilter implements IFilterComp {
 }
 
 const INTERACTIVE = 'a, button, input, select, textarea, label';
+const WRAP_WIDTH = 240;
 
 @Component({
   selector: 'dso-grid',
@@ -221,18 +202,19 @@ const INTERACTIVE = 'a, button, input, select, textarea, label';
   template: `
     <ag-grid-angular
       [class]="theme"
-      [gridOptions]="options()"
+      [gridOptions]="options"
       [columnDefs]="columnDefs()"
       [rowData]="rowData()"
       [overlayNoRowsTemplate]="emptyTemplate()"
       (rowClicked)="clicked($event)"
+      (firstDataRendered)="fit($event)"
+      (rowDataUpdated)="fit($event)"
+      (gridSizeChanged)="fit($event)"
     />
   `,
   styles: `
-    :host,
-    ag-grid-angular {
+    :host {
       display: block;
-      min-width: 0;
     }
   `,
 })
@@ -246,8 +228,6 @@ export class DsoGrid<T> {
   readonly templates = input<readonly DsoCell<T>[], readonly DsoCell<T>[] | undefined>([], {
     transform: (templates) => templates ?? [],
   });
-  readonly v6Config = input<V6TableConfig>();
-  readonly gridOptions = input<GridOptions<T>>();
   readonly rowClick = output<T>();
 
   private readonly cells = contentChildren<DsoCell<T>>(DsoCell);
@@ -258,30 +238,43 @@ export class DsoGrid<T> {
     () => `<span class="dso-grid-empty">${escapeHtml(this.empty())}</span>`,
   );
 
-  protected readonly options = computed<GridOptions<T>>(() => {
-    const base = V6Table.defaultClientSideGridOptions() as GridOptions<T>;
-    const custom = this.v6Config()?.options || this.gridOptions() || {};
-    const autoSizeStrategy = this.v6Config()?.autoSizeStrategy;
-    return {
-      ...base,
-      suppressMovableColumns: true,
-      suppressDragLeaveHidesColumns: true,
-      suppressHorizontalScroll: false,
-      alwaysShowHorizontalScroll: true,
-      ...(autoSizeStrategy ? { autoSizeStrategy } : {}),
-      ...custom,
-      defaultColDef: {
-        ...base.defaultColDef,
-        suppressHeaderMenuButton: true,
-        suppressHeaderFilterButton: true,
-        suppressFloatingFilterButton: true,
-        ...custom.defaultColDef,
-      },
-      getRowId: (params: GetRowIdParams<T>) => String(this.rowId()(params.data)),
-      getRowClass: (params: RowClassParams<T>) =>
-        params.data ? this.rowClass()?.(params.data) : undefined,
-    } as unknown as GridOptions<T>;
-  });
+  protected readonly options: GridOptions<T> = {
+    theme: 'legacy',
+    domLayout: 'autoHeight',
+    suppressColumnVirtualisation: true,
+    suppressRowVirtualisation: true,
+    ensureDomOrder: true,
+    suppressAnimationFrame: true,
+    suppressMovableColumns: true,
+    suppressDragLeaveHidesColumns: true,
+    enableCellTextSelection: true,
+    suppressCellFocus: true,
+    rowHeight: 34,
+    headerHeight: 34,
+    floatingFiltersHeight: 38,
+    defaultColDef: {
+      resizable: true,
+      suppressHeaderMenuButton: true,
+      suppressHeaderFilterButton: true,
+      suppressFloatingFilterButton: true,
+    },
+    getRowId: ({ data }) => String(this.rowId()(data)),
+    getRowClass: (params: RowClassParams<T>) =>
+      params.data ? this.rowClass()?.(params.data) : undefined,
+  };
+
+  /** Sizes columns to their content and fills spare width; wider content scrolls horizontally. */
+  protected fit({ api }: AgGridEvent<T>): void {
+    api.autoSizeAllColumns();
+    api.sizeColumnsToFit({
+      columnLimits: (api.getColumns() ?? []).map((column) => ({
+        key: column,
+        minWidth: column.getColDef().suppressAutoSize
+          ? column.getColDef().minWidth
+          : column.getActualWidth(),
+      })),
+    });
+  }
 
   protected clicked(event: RowClickedEvent<T>): void {
     const target = event.event?.target;
@@ -305,14 +298,13 @@ function columnDef<T>(
   const value = column.value;
   const sortValue = column.sortValue ?? value;
   const classes = [column.cellClass, column.numeric ? 'number' : null].filter(Boolean).join(' ');
-  const minWidth = column.minWidth ?? (column.width ? column.width : 130);
   return {
     colId: column.key,
     headerName: column.header,
     headerClass: column.numeric ? 'number' : undefined,
     cellClass: classes || undefined,
     valueGetter: value ? ({ data }) => (data ? value(data) : null) : () => null,
-    sortable: (column as any).sortable !== false && !!sortValue,
+    sortable: !!sortValue,
     sort: column.sort ?? null,
     comparator: sortValue
       ? (_x, _y, a, b) => compare(sortKey(sortValue, a.data), sortKey(sortValue, b.data))
@@ -325,9 +317,10 @@ function columnDef<T>(
     cellRendererParams: template ? { template } : undefined,
     wrapText: column.wrap,
     autoHeight: column.wrap,
-    width: column.width,
-    minWidth: minWidth,
-    flex: column.width ? undefined : (column.flex ?? 1),
+    suppressAutoSize: column.wrap,
+    suppressSizeToFit: !!column.width,
+    width: column.width ?? (column.wrap ? (column.minWidth ?? WRAP_WIDTH) : undefined),
+    minWidth: column.minWidth ?? column.width ?? (column.wrap ? WRAP_WIDTH : 80),
   };
 }
 
@@ -340,6 +333,4 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"]/g, (character) => `&#${character.charCodeAt(0)};`);
 }
 
-export const GRID = [DsoGrid, DsoCell, ...V6_TABLE_COMPONENTS] as const;
-
-export * from './v6-table';
+export const GRID = [DsoGrid, DsoCell] as const;

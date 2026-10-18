@@ -14,6 +14,7 @@ import com.bbh.itss.dso.portal.domain.settings.Scanner;
 import com.bbh.itss.dso.portal.domain.settings.ServiceDefaults;
 import com.bbh.itss.dso.portal.domain.settings.SeverityLimits;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -34,6 +35,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_URL
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_URL_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
+import static com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY;
 
 @JsonIgnoreProperties(value = "updatedAt", allowGetters = true)
 public record GlobalSettingsDto(
@@ -78,7 +80,7 @@ public record GlobalSettingsDto(
             @Size(max = 500) @Pattern(regexp = URL, message = URL_MESSAGE) String influxUrl,
             @Size(max = 200) String influxOrg,
             @Size(max = 200) String influxBucket,
-            @Size(max = 500) String influxToken,
+            @JsonProperty(access = WRITE_ONLY) @Size(max = 500) String influxToken,
             @Size(max = 100) String grafanaName,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String grafanaDashboardUrl,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String grafanaSecurityDashboardUrl,

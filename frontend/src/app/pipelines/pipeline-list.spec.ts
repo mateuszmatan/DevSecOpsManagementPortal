@@ -149,17 +149,17 @@ describe('PipelineList', () => {
 
     expect(text(page().querySelector('h1'))).toBe('DevSecOps Pipelines');
     expect(text(page().querySelector('.empty-state h3'))).toBe(
-      'Choose your department to see its pipelines',
+      'Choose your business service to see its pipelines',
     );
-    expect(selectOf(page(), 'Your department').selectedOptions[0].textContent?.trim()).toBe(
-      'Choose your department',
+    expect(selectOf(page(), 'Your business service').selectedOptions[0].textContent?.trim()).toBe(
+      'Choose your business service',
     );
     expect(text(page().querySelector('.department dso-hint'))).toBe(
-      'Only the pipelines of this department are listed. This browser remembers your choice.',
+      'Only the pipelines of this business service are listed. This browser remembers your choice.',
     );
     expect(page().querySelector('dso-grid')).toBeNull();
 
-    await pick(selectOf(page(), 'Your department'), 'Fund Services');
+    await pick(selectOf(page(), 'Your business service'), 'Fund Services');
     expect(localStorage.getItem(MY_DEPARTMENT_KEY)).toBe('5');
     http.expectOne('/api/pipelines?departmentId=5').flush({ pipelines: [], metricsError: null });
     await settle();
@@ -172,7 +172,7 @@ describe('PipelineList', () => {
   it('lists the pipelines of the remembered department with their key and last run', async () => {
     await listed();
 
-    expect(selectOf(page(), 'Your department').selectedOptions[0].textContent?.trim()).toBe(
+    expect(selectOf(page(), 'Your business service').selectedOptions[0].textContent?.trim()).toBe(
       'Corporate Technology',
     );
     expect(gridHeaders(page())).toEqual([
@@ -280,14 +280,14 @@ describe('PipelineList', () => {
 
     expect(text(page().querySelector('dso-metrics-banner'))).toContain('InfluxDB timed out');
 
-    await pick(selectOf(page(), 'Your department'), 'Fund Services');
+    await pick(selectOf(page(), 'Your business service'), 'Fund Services');
     http
       .expectOne('/api/pipelines?departmentId=5')
-      .flush({ detail: 'Department 5 does not exist' }, { status: 404, statusText: 'Not Found' });
+      .flush({ detail: 'Business service 5 does not exist' }, { status: 404, statusText: 'Not Found' });
     await settle();
 
     expect(text(page().querySelector('.banner .banner-text'))).toBe(
-      'The pipelines could not be loaded. Department 5 does not exist',
+      'The pipelines could not be loaded. Business service 5 does not exist',
     );
 
     buttonOf(page(), 'Try again').click();
@@ -314,7 +314,7 @@ describe('PipelineList', () => {
     await settle();
 
     expect(text(page().querySelector('.banner .banner-text'))).toBe(
-      'The departments could not be loaded. The database is not available',
+      'The business services could not be loaded. The database is not available',
     );
 
     buttonOf(page(), 'Try again').click();

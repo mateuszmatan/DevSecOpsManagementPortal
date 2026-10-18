@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageServiceTemplateUseCase
+import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
@@ -36,6 +37,8 @@ class PipelineServiceSpec extends Specification {
     static final Instant NOW = Instant.parse('2026-10-05T07:30:00.123456789Z')
     static final Instant NOW_MICROS = Instant.parse('2026-10-05T07:30:00.123456Z')
     static final String NEW_KEY = '9b2e2a52-2f0d-4f53-9b55-4f0b9a8f6c11'
+    static final String NOTHING_TO_SCAN =
+            'Service batch has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing'
 
     PipelineRepositoryPort pipelines = Mock(defaultResponse: INSTANCE)
     ProductRepositoryPort products = Mock(defaultResponse: INSTANCE)
@@ -49,7 +52,9 @@ class PipelineServiceSpec extends Specification {
     }
     def service = new PipelineService(pipelines, products, settings, templates, keys, fixed(NOW, UTC))
 
-    def certScanner = product(id: 1, services: [[name: 'gui', id: 10], [name: 'backend-api', id: 11]])
+    def certScanner = product(id: 1, services: [[name: 'gui', id: 10, nexusIqApplications: [scanned('cert-gui')]],
+                                                [name: 'backend-api', id: 11, nexusIqApplications: [scanned('cert-api')]]])
+    def batch = product(id: 2, services: [[name: 'batch', id: 20]])
 
     def "each service of a product is listed with its pipelines, and one pipeline comes with its product and service"() {
         given:
@@ -188,6 +193,8 @@ class PipelineServiceSpec extends Specification {
     def "#refusal is refused before anything is saved"() {
         given:
         products.findByServiceId(10L) >> Optional.of(certScanner)
+        products.findByServiceId(20L) >> Optional.of(batch)
+        products.load(2L) >> Optional.of(batch)
         pipelines.existsForService(10L, FULL) >> true
         pipelines.load(100L) >> Optional.of(pipeline(id: 100, version: 4))
 
@@ -205,9 +212,40 @@ class PipelineServiceSpec extends Specification {
         'a change of the type'        | { it.update(100L, 4L, SAST, pipelineSettings()) }   || 'The type of a pipeline cannot change; add a new pipeline instead'
         'a change read at version 3'  | { it.update(100L, 3L, FULL, pipelineSettings()) }   || STALE_VERSION
         'a change read at version 5'  | { it.update(100L, 5L, FULL, pipelineSettings()) }   || STALE_VERSION
+        'a Nexus IQ pipeline for a service with no Nexus IQ application' | { it.create(20L, NEXUS_IQ, pipelineSettings()) } || NOTHING_TO_SCAN
+        'the same pipeline started by a save'                           | { it.createMissing(2L, [20L], NEXUS_IQ) }         || NOTHING_TO_SCAN
     }
 
-    def "a pipeline's settings can change, at the version they were read at or without one"() {
+    def "a product whose service keeps a Nexus IQ pipeline but loses its last Nexus IQ application is refused"() {
+        given:
+        pipelines.existsForService(20L, NEXUS_IQ) >> true
+
+        when:
+        service.requireNexusIqApplications(product(id: 2, services: [[name: 'batch', id: 20], [name: 'new']]))
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message == NOTHING_TO_SCAN
+    }
+
+    def "a product is accepted when #reason"() {
+        given:
+        pipelines.existsForService(20L, NEXUS_IQ) >> hasPipeline
+
+        when:
+        service.requireNexusIqApplications(product(id: 2, services: [[name: 'batch', id: 20, nexusIqApplications: applications],
+                                                                     [name: 'new']]))
+
+        then:
+        noExceptionThrown()
+
+        where:
+        reason                                              | hasPipeline | applications
+        'its Nexus IQ pipeline has an application to scan' | true        | [scanned('cert-batch')]
+        'no service has a Nexus IQ pipeline'               | false       | []
+    }
+
+    def "a pipeline's settings can change at the version they were read at"() {
         given:
         pipelines.load(100L) >> Optional.of(pipeline(id: 100, version: 4))
         products.load(1L) >> Optional.of(certScanner)
@@ -224,7 +262,7 @@ class PipelineServiceSpec extends Specification {
         view.pipeline().settings().securityPipelineJob() == null
 
         where:
-        version << [4L, null]
+        version = 4L
     }
 
     def "a key is revoked on the pipeline loaded under a row lock"() {
@@ -331,5 +369,9 @@ class PipelineServiceSpec extends Specification {
         Pipeline.restore(id, pipeline.service(), pipeline.type(), pipeline.settings(),
                 pipeline.keys().collect { k -> activeKey(id: 500L, value: k.value(), issuedAt: k.issuedAt()) },
                 0, NOW, NOW)
+    }
+
+    private static NexusIqApplication scanned(String application) {
+        NexusIqApplication.of(application, ['**/*.jar'])
     }
 }

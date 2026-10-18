@@ -34,12 +34,12 @@ class SelfServiceSpec extends EditorSpecification {
                 .hasText(['Product', 'Pipeline', 'Services', 'Review', 'Next steps'] as String[])
         assertThat(currentStep()).hasText('Product')
         assertThat(radio(step(), 'A new product')).hasAttribute('aria-checked', 'true')
-        hasErrors(step(), ['Department'        : 'Required',
+        hasErrors(step(), ['Business Service'  : 'Required',
                            'Product name'      : 'This product is already in the portal: choose "A product in the portal" above',
                            'AppScan API key ID': 'Required'])
 
         when:
-        choose(step(), 'Department', 'Custody')
+        choose(step(), 'Business Service', 'Custody')
         fillIn(step(), ['Product name': 'Trade Archive', 'Owner team': 'Custody Technology',
                         'AppScan API key ID': APP_SCAN_KEY])
 
@@ -85,7 +85,7 @@ class SelfServiceSpec extends EditorSpecification {
 
         then:
         assertThat(currentStep()).hasText('Review')
-        assertThat(review('Department')).hasText('Custody')
+        assertThat(review('Business Service')).hasText('Custody')
         assertThat(review('Pipeline')).hasText('Security')
 
         when:
@@ -181,7 +181,7 @@ class SelfServiceSpec extends EditorSpecification {
 
     void openProduct(String department, String product) {
         open('/self-service')
-        choose(step(), 'Department', department)
+        choose(step(), 'Business Service', department)
         radio(step(), 'A product in the portal').click()
         choose(step(), 'Product', product)
         assertThat(step().locator('dl.rows')).isVisible()

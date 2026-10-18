@@ -7,6 +7,7 @@ import java.time.Instant
 
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
+import static com.bbh.itss.dso.portal.support.ApiJson.scannedByNexusIq
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 import static java.time.Duration.ofDays
 import static java.time.Duration.ofHours
@@ -26,7 +27,8 @@ class MonitoringRegressionSpec extends PortalSpecification {
     def setup() {
         influx.reset()
         code = uniqueCode('MON')
-        monitored = createProduct(product(code: code, name: "Monitored $code", services: [service(name: 'gui'), service(name: 'api')]))
+        monitored = createProduct(product(code: code, name: "Monitored $code",
+                services: [service([name: 'gui'] + scannedByNexusIq("$code-gui")), service(name: 'api')]))
         guiFull = pipelineFor(monitored.services[0].id as long)
         guiSast = pipelineFor(monitored.services[0].id as long, pipeline(type: 'SAST'))
         apiFull = pipelineFor(monitored.services[1].id as long)

@@ -37,25 +37,42 @@ class GlobalSettingsSpec extends Specification {
         e.message == 'values'
     }
 
-    def "a change read at version #version takes the new values and keeps the version for the store to raise"() {
+    def "a change read at the current version takes the new values and keeps the version for the store to raise"() {
         given:
         def changed = BBH.withPlatform(BBH.platform().withJenkinsUrl('https://jenkins.bbh.com'))
 
         expect:
-        stored.change(version, changed) == new GlobalSettings(changed, 3, UPDATED)
+        stored.change(3L, changed) == new GlobalSettings(changed, 3, UPDATED)
         stored.values() == BBH
-
-        where:
-        version << [3L, null]
     }
 
-    def "a change read at an older version is refused"() {
+    def "a change without an InfluxDB token keeps the stored one for the same InfluxDB, a new token replaces it"() {
+        given:
+        def withToken = stored.change(3L, influx('https://influx.bbh.com', 'old-token'))
+
+        expect:
+        withToken.change(3L, influx('https://influx.bbh.com', null)).platform().influxToken() == 'old-token'
+        withToken.change(3L, influx('https://influx.bbh.com', 'new-token')).platform().influxToken() == 'new-token'
+        withToken.change(3L, influx(url, null)).platform().influxToken() == null
+
+        where:
+        url << ['https://elsewhere.bbh.com', null]
+    }
+
+    private static GlobalSettingsValues influx(String url, String token) {
+        BBH.withPlatform(BBH.platform().toBuilder().influxUrl(url).influxToken(token).build())
+    }
+
+    def "a change read at an older version or without one is refused"() {
         when:
-        stored.change(2L, BBH)
+        stored.change(version, BBH)
 
         then:
         def e = thrown(IllegalStateException)
         e.message == 'The record was changed by someone else in the meantime. Reload it and apply your change again.'
+
+        where:
+        version << [2L, null]
     }
 
     def "a change breaking the business rules is refused with every problem"() {

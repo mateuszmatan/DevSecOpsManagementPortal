@@ -1,6 +1,6 @@
 import { Department } from '../core/models';
 
-export const NOT_IN_A_DEPARTMENT = 'Not in a department';
+export const NOT_IN_A_DEPARTMENT = 'Not in a business service';
 
 export interface DepartmentGroup<T, D extends Department = Department> {
   department: D | null;

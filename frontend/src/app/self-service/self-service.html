@@ -27,25 +27,26 @@
       @case (0) {
         <h2>Which product is it?</h2>
         <p class="lead">
-          Choose its department, then start a new product or pick one that is already in the portal.
+          Choose its business service, then start a new product or pick one that is already in the
+          portal.
         </p>
         <p class="required-note">Fields marked * are required.</p>
         <div class="fields">
           <dso-form-field>
-            <dso-label>Department</dso-label>
+            <dso-label>Business Service</dso-label>
             <select dsoInput [formControl]="productForm.controls.departmentId">
               @for (department of departments(); track department.id) {
                 <option [ngValue]="department.id">{{ department.name }}</option>
               }
             </select>
             @if (needsDepartment()) {
-              <dso-hint>Saving moves the product into this department</dso-hint>
+              <dso-hint>Saving moves the product into this business service</dso-hint>
             }
             <dso-error>{{ errorText(productForm.controls.departmentId) }}</dso-error>
           </dso-form-field>
         </div>
         @if (departmentsError(); as error) {
-          <p class="choice-error">{{ notLoaded('The departments', error) }}</p>
+          <p class="choice-error">{{ notLoaded('The business services', error) }}</p>
         }
         @if (catalogue.error(); as error) {
           <p class="choice-error">{{ notLoaded('The products', errorMessage(error)) }}</p>
@@ -323,7 +324,7 @@
         <dl class="rows">
           <dt>Product</dt>
           <dd>{{ productName() }} ({{ existing()?.code ?? code() }})</dd>
-          <dt>Department</dt>
+          <dt>Business Service</dt>
           <dd>{{ departmentName() }}</dd>
           @if (!existing()) {
             <dt>Owner team</dt>

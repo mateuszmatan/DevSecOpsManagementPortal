@@ -37,7 +37,7 @@ abstract class PortalSpecification extends ServiceSpecification {
         if (!started) {
             return createPipeline(serviceId, settings)
         }
-        def response = api.put("/api/pipelines/$started.id", settings)
+        def response = api.put("/api/pipelines/$started.id", settings + [version: started.version])
         assert response.status == 200: response
         response.json as Map
     }

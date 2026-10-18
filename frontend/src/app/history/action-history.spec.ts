@@ -64,6 +64,23 @@ describe('ActionHistoryPage', () => {
     expect(component['filteredRows']()[0].resourceName).toBe('CertScanner');
   });
 
+  it('shows actions, resources and statuses in words rather than codes', async () => {
+    await fixture.whenStable();
+    const page = fixture.nativeElement as HTMLElement;
+    const cells = (column: string) =>
+      [...page.querySelectorAll(`[col-id="${column}"].ag-cell`)].map((cell) => cell.textContent!.trim());
+
+    expect(cells('action')).toEqual(['Create product', 'Revoke key']);
+    expect(cells('resource')).toEqual(['Product CertScanner', 'Pipeline key backend-api (FULL)']);
+    expect(cells('status')).toEqual(['Success', 'Success']);
+  });
+
+  it('finds a row by the words of its action', () => {
+    component['filters'].controls.search.setValue('revoke');
+    fixture.detectChanges();
+    expect(component['filteredRows']().map((row) => row.id)).toEqual([2]);
+  });
+
   it('filters rows by action type', () => {
     component['filters'].controls.actionType.setValue('REVOKE_KEY');
     fixture.detectChanges();

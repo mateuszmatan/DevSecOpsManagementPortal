@@ -5,21 +5,17 @@ export interface FieldProblem {
   message: string;
 }
 
-export interface BusinessService {
+export interface Department {
   id: number;
   name: string;
   version: number;
   productCount: number;
 }
 
-export type Department = BusinessService;
-
-export interface BusinessServiceRequest {
+export interface DepartmentRequest {
   name: string;
   version: number | null;
 }
-
-export type DepartmentRequest = BusinessServiceRequest;
 
 export interface LookupItem {
   value: string;

@@ -46,6 +46,7 @@ class PipelineMonitoringServiceSpec extends Specification {
     ManageGlobalSettingsUseCase settings = Stub() {
         current() >> storedSettings('https://jenkins.test')
     }
+    def platform = storedSettings('https://jenkins.test').platform()
 
     def targets = new MonitoringTargetsService(products, pipelines, settings)
     def monitoring = new PipelineMonitoringService(targets, runs, dashboards, fixed(NOW, UTC))
@@ -64,9 +65,9 @@ class PipelineMonitoringServiceSpec extends Specification {
 
     def "the status says whether InfluxDB answers and which Grafana instances there are"() {
         given:
-        runs.configured() >> configured
-        runs.ping() >> { if (failure) { throw new UncheckedIOException(failure, new IOException()) } }
-        dashboards.instances() >> grafana
+        runs.configured(platform) >> configured
+        runs.ping(platform) >> { if (failure) { throw new UncheckedIOException(failure, new IOException()) } }
+        dashboards.instances(platform) >> grafana
 
         expect:
         monitoring.status() == new MonitoringStatus(configured, reachable, failure, grafana)
@@ -90,7 +91,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def overview = monitoring.overview()
 
         then:
-        1 * runs.latestRuns({ it.size() == 4 }, [] as Set) >> latest([(tag(guiFull)): success, (tag(apiFull)): failure])
+        1 * runs.latestRuns(platform, { it.size() == 4 }, [] as Set) >> latest([(tag(guiFull)): success, (tag(apiFull)): failure])
         overview.metricsError() == null
         overview.products()*.product()*.code() == ['CERT', 'EMPTY', 'PAY']
         with(overview.products()[0]) {
@@ -118,7 +119,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def overview = monitoring.overview()
 
         then:
-        1 * runs.latestRuns([tag(guiFull), tag(guiSast), tag(apiFull)] as Set, _) >> {
+        1 * runs.latestRuns(platform, [tag(guiFull), tag(guiSast), tag(apiFull)] as Set, _) >> {
             throw new UncheckedIOException(NOT_CONFIGURED, new IOException())
         }
         overview.metricsError() == NOT_CONFIGURED
@@ -134,7 +135,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def overview = monitoring.overview()
 
         then:
-        1 * runs.latestRuns([] as Set, _) >> { if (failure) { throw failure }; LatestRuns.none() }
+        1 * runs.latestRuns(platform, [] as Set, _) >> { if (failure) { throw failure }; LatestRuns.none() }
         overview.metricsError() == error
 
         where:
@@ -224,9 +225,9 @@ class PipelineMonitoringServiceSpec extends Specification {
         def details = monitoring.pipeline(100L, '30d')
 
         then:
-        1 * runs.recentRuns(tag, null, 30, 25) >> [newest, run('2026-10-03T09:00:00Z', FAILURE)]
-        1 * runs.doraPoints([tag], 30) >> [(tag): [new DoraPoint(newest.time(), true, false, 3600, 600)]]
-        1 * dashboards.dashboards(tag, guiFull.type(), 30) >> [new DashboardLink('Test', 'https://grafana/d/x'), new DashboardLink('Prod', 'https://grafana-prod/d/x')]
+        1 * runs.recentRuns(platform, tag, null, 30, 25) >> [newest, run('2026-10-03T09:00:00Z', FAILURE)]
+        1 * runs.doraPoints(platform, [tag], 30) >> [(tag): [new DoraPoint(newest.time(), true, false, 3600, 600)]]
+        1 * dashboards.dashboards(platform, tag, guiFull.type(), 30) >> [new DashboardLink('Test', 'https://grafana/d/x'), new DashboardLink('Prod', 'https://grafana-prod/d/x')]
         0 * runs.latestRuns(*_)
         details.pipeline().pipeline().keys().size() == 1
         details.pipeline().jenkinsJobUrl() == 'https://jenkins.test/job/DevSecOps/job/CERT/job/gui-full/'
@@ -251,7 +252,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def details = monitoring.pipeline(100L, '7d')
 
         then:
-        1 * runs.latestRuns([tag(guiFull)] as Set, [] as Set) >> latest([(tag(guiFull)): old])
+        1 * runs.latestRuns(platform, [tag(guiFull)] as Set, [] as Set) >> latest([(tag(guiFull)): old])
         details.lastRun() == old
         details.status() == FAILURE
         details.dora().runs() == 0
@@ -277,7 +278,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         given:
         pipelines.load(101L) >> Optional.of(guiSast)
         runs.recentRuns(*_) >> { throw new UncheckedIOException(NOT_CONFIGURED, new IOException()) }
-        dashboards.dashboards(_, _, 90) >> [new DashboardLink('Grafana', 'https://grafana/d/x')]
+        dashboards.dashboards(platform, _, _, 90) >> [new DashboardLink('Grafana', 'https://grafana/d/x')]
 
         when:
         def details = monitoring.pipeline(101L, '90d')
@@ -347,7 +348,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def product = monitoring.product(3L)
 
         then:
-        1 * runs.latestRuns([tag] as Set, [tag] as Set) >> new LatestRuns([(tag): [apiRun, guiRun]], [tag] as Set)
+        1 * runs.latestRuns(platform, [tag] as Set, [tag] as Set) >> new LatestRuns([(tag): [apiRun, guiRun]], [tag] as Set)
         product.pipelines()*.lastRun() == [guiRun, apiRun, null]
         product.pipelines()*.status() == [SUCCESS, FAILURE, NO_DATA]
     }
@@ -361,7 +362,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def details = monitoring.pipeline(id, '30d')
 
         then:
-        queries * runs.recentRuns(_, job, 30, 25) >> [run('2026-10-04T09:00:00Z', SUCCESS, 'DevSecOps/CERT/gui-full')]
+        queries * runs.recentRuns(platform, _, job, 30, 25) >> [run('2026-10-04T09:00:00Z', SUCCESS, 'DevSecOps/CERT/gui-full')]
         queries * runs.doraPoints(*_) >> [:]
         details.recentRuns().size() == queries
 
@@ -380,7 +381,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def activity = monitoring.activity('7d')
 
         then:
-        1 * runs.doraPoints({ it.size() == 4 }, 7) >> [
+        1 * runs.doraPoints(platform, { it.size() == 4 }, 7) >> [
                 (tag(guiFull)): [new DoraPoint(NOW.minusSeconds(86_400), true, false, 3600, 600)],
                 (tag(apiFull)): [new DoraPoint(NOW.minusSeconds(3600), true, true, 7200, 900),
                                  new DoraPoint(NOW.minusSeconds(1800), false, false, 0, 300)]]

@@ -14,6 +14,7 @@ import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
 import static com.bbh.itss.dso.portal.support.ApiJson.mavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.openShiftTarget
 import static com.bbh.itss.dso.portal.support.ApiJson.product
+import static com.bbh.itss.dso.portal.support.ApiJson.scannedByNexusIq
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 import static com.bbh.itss.dso.portal.support.Json.toJson
 import static java.util.concurrent.Executors.newFixedThreadPool
@@ -123,7 +124,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
 
         when:
         def updated = api.put("/api/products/$created.id", product(code: code, name: "Product $code",
-                services: [service(name: 'gui', description: 'new service with the old name')]))
+                version: created.version, services: [service(name: 'gui', description: 'new service with the old name')]))
 
         then:
         updated.status == 200
@@ -417,7 +418,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         when:
         def kept = created.services[0]
         def updated = api.put("/api/products/$created.id", product(code: code, name: "Product $code",
-                services: [service(id: kept.id, name: 'gui'), service(name: 'worker')])).json
+                version: created.version, services: [service(id: kept.id, name: 'gui'), service(name: 'worker')])).json
         def afterAdding = api.get("/api/products/$created.id/pipelines").json
 
         then:
@@ -429,7 +430,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
 
         when:
         api.delete("/api/pipelines/${afterAdding[1].pipelines[0].id}")
-        api.put("/api/products/$created.id", product(code: code, name: "Product $code 2",
+        api.put("/api/products/$created.id", product(code: code, name: "Product $code 2", version: updated.version,
                 services: [service(id: kept.id, name: 'gui'), service(id: updated.services[1].id, name: 'worker')]))
 
         then:
@@ -450,7 +451,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
 
         when:
         def updated = api.put("/api/products/$created.json.id?pipelineType=SECURITY", product(code: code,
-                name: "Product $code", services: [service(id: created.json.services[0].id, name: 'gui'),
+                name: "Product $code", version: created.json.version, services: [service(id: created.json.services[0].id, name: 'gui'),
                                                   service(name: 'worker')]))
         def pipelines = api.get("/api/products/$created.json.id/pipelines").json
 
@@ -464,7 +465,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                 services: [service(name: 'gui')])).status == 400
     }
 
-    def "a product onboarded for Nexus IQ GoldenFix gives each service a pipeline whose key reads the nexusiq config"() {
+    def "a product onboarded for Nexus IQ GoldenFix gives each scanned service a pipeline whose key reads the nexusiq config"() {
         given:
         def code = uniqueCode('NIQ')
         def repository = 'https://bitbucket.bbh.com/projects/NIQ/repos/gui'
@@ -474,7 +475,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                 services: [service(name: 'gui', nexusIqApplications: [[application: 'niq-gui',
                                                                        scanPatterns: ['**/build/libs/*.jar']]],
                                    scm: [repositoryUrl: repository, credentialsId: 'bitbucket-http-credentials']),
-                           service(name: 'worker')]))
+                           service([name: 'worker'] + scannedByNexusIq('niq-worker'))]))
         def pipelines = api.get("/api/products/$created.json.id/pipelines").json*.pipelines
         def gui = pipelines[0][0]
         def config = api.get("/api/dso/config/$gui.activeKey.value?format=json").json
@@ -492,12 +493,31 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
 
         when:
         def updated = api.put("/api/products/$created.json.id?pipelineType=SAST", product(code: code,
-                name: "Product $code", services: created.json.services))
+                name: "Product $code", version: created.json.version, services: created.json.services))
 
         then:
         updated.status == 200
         api.get("/api/products/$created.json.id/pipelines").json*.pipelines*.type ==
                 [['NEXUS_IQ', 'SAST'], ['NEXUS_IQ', 'SAST']]
+
+        when: 'a service with a Nexus IQ pipeline loses its last Nexus IQ application'
+        def emptied = api.put("/api/products/$created.json.id", product(code: code, name: "Product $code",
+                version: updated.json.version, services: updated.json.services.collect { it + [nexusIqApplications: []] }))
+
+        then:
+        emptied.status == 409
+        emptied.json.detail == 'Service gui has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing'
+        api.get("/api/dso/config/$gui.activeKey.value?format=json").json.projects.gui.tools.nexusIq.application == 'niq-gui'
+
+        when: 'a service has nothing for Nexus IQ to scan'
+        def unscanned = uniqueCode('NIQ')
+        def refused = api.post('/api/products?pipelineType=NEXUS_IQ', product(code: unscanned,
+                name: "Product $unscanned", services: [service(name: 'batch')]))
+
+        then:
+        refused.status == 409
+        refused.json.detail == 'Service batch has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing'
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCT WHERE CODE = ?', Integer, unscanned) == 0
     }
 
     def "#refusal is a problem detail that keeps the portal's internals to itself"() {

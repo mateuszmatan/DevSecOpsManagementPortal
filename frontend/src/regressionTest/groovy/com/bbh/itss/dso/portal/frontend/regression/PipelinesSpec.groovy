@@ -24,13 +24,13 @@ class PipelinesSpec extends DsoSpecification {
         then:
         assertThat(page.locator('h1')).hasText('DevSecOps Pipelines')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('Every automated build, test and security pipeline of your department\'s products. Open one to see its key, its Jenkinsfile and its latest runs.')
-        assertThat(page.locator('.empty-state h3')).hasText('Choose your department to see its pipelines')
-        assertThat(page.locator('.toolbar dso-hint')).hasText('Only the pipelines of this department are listed. This browser remembers your choice.')
+                .hasText('Every automated build, test and security pipeline of your business service\'s products. Open one to see its key, its Jenkinsfile and its latest runs.')
+        assertThat(page.locator('.empty-state h3')).hasText('Choose your business service to see its pipelines')
+        assertThat(page.locator('.toolbar dso-hint')).hasText('Only the pipelines of this business service are listed. This browser remembers your choice.')
         api.requests('GET', '/api/pipelines').isEmpty()
 
         when:
-        choose(page.locator('.toolbar'), 'Your department', 'Fund Services')
+        choose(page.locator('.toolbar'), 'Your business service', 'Fund Services')
 
         then:
         assertThat(column('service')).hasText(['gateway', 'gateway', 'gateway', 'ledger', 'notifications', 'mobile-app'] as String[])
@@ -91,11 +91,11 @@ class PipelinesSpec extends DsoSpecification {
         open('/pipelines')
 
         then:
-        assertThat(select(page.locator('.toolbar'), 'Your department').locator('option:checked')).hasText('Fund Services')
+        assertThat(select(page.locator('.toolbar'), 'Your business service').locator('option:checked')).hasText('Fund Services')
         assertThat(column('service')).hasCount(6)
 
         when:
-        choose(page.locator('.toolbar'), 'Your department', 'Custody')
+        choose(page.locator('.toolbar'), 'Your business service', 'Custody')
 
         then:
         assertThat(page.locator('.empty-state h3')).hasText('No pipelines in Custody yet')

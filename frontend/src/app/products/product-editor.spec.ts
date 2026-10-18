@@ -192,7 +192,7 @@ describe('ProductEditor', () => {
     expect(inputOf(page(), 'Code').value).toBe('PAYMENTSHUB2');
     expect(editor()['form'].controls.departmentId.value).toBe(5);
     expect(
-      text(selectOf(page().querySelector('.product-fields')!, 'Department').selectedOptions[0]),
+      text(selectOf(page().querySelector('.product-fields')!, 'Business Service').selectedOptions[0]),
     ).toBe('Fund Services');
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
@@ -216,7 +216,7 @@ describe('ProductEditor', () => {
 
     expect(open).not.toHaveBeenCalled();
     expect(page().querySelector('.banner')?.textContent).toBe(
-      'The departments could not be loaded. The database is not available',
+      'The business services could not be loaded. The database is not available',
     );
   });
 

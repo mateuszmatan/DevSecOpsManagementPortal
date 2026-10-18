@@ -24,8 +24,6 @@ export class DepartmentsApi {
   }
 }
 
-export { DepartmentsApi as BusinessServicesApi };
-
 @Injectable({ providedIn: 'root' })
 export class LookupsApi {
   private readonly http = inject(HttpClient);

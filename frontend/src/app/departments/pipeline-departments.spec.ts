@@ -45,12 +45,12 @@ describe('PipelineDepartments', () => {
     await load();
 
     expect(text(page().querySelector('.summary'))).toBe(
-      '2 departments with 1 product and 2 services',
+      '2 business services with 1 product and 2 services',
     );
     expect(text(page().querySelector('.departments .section-help'))).toBe(
-      'Every product belongs to one department, and people choose their department to see its products and pipelines. Only an empty department can be deleted.',
+      'Every product belongs to one business service, and people choose their business service to see its products and pipelines. Only an empty business service can be deleted.',
     );
-    expect(gridHeaders(page())).toEqual(['Department', 'Products', 'Services', 'Pipelines', '']);
+    expect(gridHeaders(page())).toEqual(['Business Service', 'Products', 'Services', 'Pipelines', '']);
     expect(text(gridCell(row('Corporate Technology'), 'services'))).toBe('2');
     expect(text(gridCell(row('Corporate Technology'), 'pipelines'))).toBe('3, 1 key invalidated');
     expect(text(gridCell(row('Fund Services'), 'pipelines'))).toBe('None yet');
@@ -60,7 +60,7 @@ describe('PipelineDepartments', () => {
     await load();
     const chart = page().querySelector('section.chart')!;
 
-    expect(text(chart.querySelector('h2'))).toBe('Pipelines per department');
+    expect(text(chart.querySelector('h2'))).toBe('Pipelines per business service');
     expect([...chart.querySelectorAll('.legend span')].map(text)).toEqual([
       'Active',
       'Key invalidated',

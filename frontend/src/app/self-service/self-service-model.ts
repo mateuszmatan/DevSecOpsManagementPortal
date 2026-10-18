@@ -98,8 +98,6 @@ export const PRODUCT_MODES: readonly Choice<ProductMode>[] = [
   },
 ];
 
-export const OPENSHIFT_PROJECT = /^[a-z0-9]([-a-z0-9]{0,48}[a-z0-9])?$/;
-
 export function pipelineLabel(pipeline: WizardPipeline): string {
   return PIPELINES.find((option) => option.value === pipeline)!.name;
 }

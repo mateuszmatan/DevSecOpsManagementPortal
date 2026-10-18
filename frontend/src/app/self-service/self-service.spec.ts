@@ -106,13 +106,13 @@ describe('SelfService', () => {
       'Review',
       'Next steps',
     ]);
-    expect(text(page().querySelector('.fields dso-label'))).toBe('Department');
+    expect(text(page().querySelector('.fields dso-label'))).toBe('Business Service');
     expect(text(page().querySelector('.step-actions .btn-primary'))).toBe('Next: Pipeline');
 
     await next();
 
     expect(wizard()['step']()).toBe(0);
-    expect(text(fieldOf(page(), 'Department')?.querySelector('dso-error'))).toBe('Required');
+    expect(text(fieldOf(page(), 'Business Service')?.querySelector('dso-error'))).toBe('Required');
 
     wizard()['productForm'].patchValue({
       departmentId: 5,
@@ -137,7 +137,7 @@ describe('SelfService', () => {
 
     await next();
 
-    expect(review()).toEqual(['Product', 'Department', 'Owner team', 'Contact e-mail', 'Pipeline']);
+    expect(review()).toEqual(['Product', 'Business Service', 'Owner team', 'Contact e-mail', 'Pipeline']);
     expect(entries()).toEqual([
       'archive-api · New · Added with a SAST pipeline and its own key. Built with Gradle.',
     ]);
@@ -152,7 +152,7 @@ describe('SelfService', () => {
 
     expect(groups()).toEqual([
       ['Corporate Technology', [1]],
-      ['Not in a department', [2]],
+      ['Not in a business service', [2]],
     ]);
 
     wizard()['productForm'].controls.departmentId.setValue(5);
@@ -160,7 +160,7 @@ describe('SelfService', () => {
 
     expect(groups()).toEqual([
       ['Fund Services', [3]],
-      ['Not in a department', [2]],
+      ['Not in a business service', [2]],
     ]);
     expect(text(fieldOf(page(), 'Product')?.querySelector('dso-hint'))).toBe(
       '2 products to choose from',
@@ -172,8 +172,8 @@ describe('SelfService', () => {
     http.expectOne('/api/products/2/pipelines').flush([servicePipelines()]);
     await fixture.whenStable();
 
-    expect(text(fieldOf(page(), 'Department')?.querySelector('dso-hint'))).toBe(
-      'Saving moves the product into this department',
+    expect(text(fieldOf(page(), 'Business Service')?.querySelector('dso-hint'))).toBe(
+      'Saving moves the product into this business service',
     );
     expect(review()).toEqual(['Owner team', 'Services']);
 
@@ -345,7 +345,7 @@ describe('SelfService', () => {
     await click(rows()[1], 'Undo');
     await next();
 
-    expect(review()).toEqual(['Product', 'Department', 'Pipeline']);
+    expect(review()).toEqual(['Product', 'Business Service', 'Pipeline']);
     expect(entries()).toEqual([
       'gui · Removed · Deleted, with its pipelines and their keys.',
       'api · Gets a Security pipeline with its own key; nothing else changes.',
@@ -536,7 +536,7 @@ describe('SelfService', () => {
   it('keeps the department of a product in the portal', async () => {
     await chooseProduct(3);
 
-    expect(text(fieldOf(page(), 'Department')?.querySelector('dso-hint'))).toBe('');
+    expect(text(fieldOf(page(), 'Business Service')?.querySelector('dso-hint'))).toBe('');
     expect(review()).toEqual(['Owner team', 'Services']);
     expect(wizard()['departmentName']()).toBe('Corporate Technology');
     expect(fieldOf(page(), 'AppScan API key ID')).toBeNull();
@@ -638,7 +638,7 @@ describe('SelfService without departments', () => {
     await fixture.whenStable();
 
     const error = (fixture.nativeElement as HTMLElement).querySelector('.choice-error');
-    expect(text(error)).toContain('The departments could not be loaded');
+    expect(text(error)).toContain('The business services could not be loaded');
 
     wizard['chooseMode']('existing');
     wizard['productId'].setValue(1);
@@ -768,7 +768,7 @@ describe('SelfService in your department', () => {
     await next();
 
     expect(wizard()['step']()).toBe(0);
-    expect(text(fieldOf(page(), 'Department')?.querySelector('dso-error'))).toBe('Required');
+    expect(text(fieldOf(page(), 'Business Service')?.querySelector('dso-error'))).toBe('Required');
 
     wizard()['restart']();
     TestBed.tick();

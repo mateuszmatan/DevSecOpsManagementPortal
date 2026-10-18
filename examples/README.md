@@ -16,7 +16,7 @@ product page, or from `api/pipeline-key.sh`.
 | [jenkins/multi-service/gateway.Jenkinsfile](jenkins/multi-service/gateway.Jenkinsfile) | the full pipeline of Payments Hub `gateway` |
 | [jenkins/multi-service/ledger.Jenkinsfile](jenkins/multi-service/ledger.Jenkinsfile) | the full pipeline of Payments Hub `ledger` |
 | [jenkins/multi-service/payhub-full.Jenkinsfile](jenkins/multi-service/payhub-full.Jenkinsfile) | one full run that builds every Payments Hub service, `gateway` first |
-| [api/list-departments.sh](api/list-departments.sh) | the departments with their product, service and pipeline counts |
+| [api/list-departments.sh](api/list-departments.sh) | the departments (Business Services in the GUI) with their product, service and pipeline counts |
 | [api/list-products.sh](api/list-products.sh) | the products, optionally filtered by a search text |
 | [api/create-product.sh](api/create-product.sh) with [api/new-product.json](api/new-product.json) | a new product with two services, as the Self-service wizard creates it |
 | [api/product-pipelines.sh](api/product-pipelines.sh) | the services of a product with their pipelines and active keys |

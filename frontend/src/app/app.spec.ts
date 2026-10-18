@@ -1,4 +1,6 @@
 import { Component } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { APP_NAME } from '@common/core/app-name';
@@ -16,12 +18,23 @@ describe('App', () => {
     TestBed.configureTestingModule({
       imports: [App],
       providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
         provideRouter([{ path: '**', component: Blank }]),
         { provide: APP_NAME, useValue: 'DevSecOps Management Portal' },
       ],
     });
     fixture = TestBed.createComponent(App);
     await fixture.whenStable();
+  });
+
+  it('shows the user the portal reports as signed in', async () => {
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/user/me')
+      .flush({ id: 1, username: 'ann', displayName: 'Ann Lee', roles: [], departmentNames: [], admin: false });
+    await fixture.whenStable();
+
+    expect(page().querySelector('.user-badge')?.textContent?.trim()).toBe('Ann Lee');
   });
 
   const page = () => fixture.nativeElement as HTMLElement;
@@ -57,7 +70,7 @@ describe('App', () => {
     expect(SECTIONS.map((section) => [section.heading, section.description])).toEqual([
       [
         'DevSecOps Pipelines',
-        "Every automated build, test and security pipeline of your department's products. Open one to see its key, its Jenkinsfile and its latest runs.",
+        "Every automated build, test and security pipeline of your business service's products. Open one to see its key, its Jenkinsfile and its latest runs.",
       ],
       [
         'DevSecOps Self-service',
@@ -73,7 +86,7 @@ describe('App', () => {
       ],
       [
         'DevSecOps Admin',
-        'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
+        'Set up the portal for everyone: business services, products and their services, what a new service gets, and the settings every pipeline shares.',
       ],
     ]);
   });

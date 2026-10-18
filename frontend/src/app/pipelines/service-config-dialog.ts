@@ -63,6 +63,10 @@ export interface ServiceConfigDialogData {
           [productCode]="data.pipeline.productCode"
           [submitted]="submitted()"
         />
+      } @else {
+        <div class="banner danger" role="alert">
+          The service of this pipeline is no longer part of {{ data.pipeline.productName }}.
+        </div>
       }
     </div>
 
@@ -146,20 +150,9 @@ export class ServiceConfigDialog {
     this.productResource.hasValue() ? this.productResource.value() : null,
   );
 
-  protected readonly service = computed(() => {
-    const prod = this.product();
-    if (!prod) {
-      return null;
-    }
-    return (
-      prod.services.find((s) => s.id === this.data.pipeline.serviceId) ??
-      prod.services.find(
-        (s) => s.name.toLowerCase() === this.data.pipeline.serviceName.toLowerCase(),
-      ) ??
-      prod.services[0] ??
-      null
-    );
-  });
+  protected readonly service = computed(
+    () => this.product()?.services.find((s) => s.id === this.data.pipeline.serviceId) ?? null,
+  );
 
   protected readonly serviceForm = computed<ServiceForm | null>(() => {
     const s = this.service();
@@ -175,40 +168,26 @@ export class ServiceConfigDialog {
 
     this.submitted.set(true);
     revalidateAll(form);
-
-    if (form.invalid) {
-      this.fieldsComponent()?.revealFirstProblem();
+    if (this.fieldsComponent()?.revealFirstProblem()) {
       return;
     }
 
     this.saving.set(true);
     this.saveError.set(null);
 
-    const updatedServiceRequest = toServiceRequest(form);
+    const changed = toServiceRequest(form);
     const productForm = createProductForm();
     patchProduct(productForm, prod);
-    const baseRequest = toProductRequest(productForm, prod.version);
+    const stored = toProductRequest(productForm, prod.version);
+    const request = {
+      ...stored,
+      services: stored.services.map((s) => (s.id === changed.id ? changed : s)),
+    };
 
-    const targetIdx = baseRequest.services.findIndex(
-      (s) =>
-        (updatedServiceRequest.id !== null && s.id === updatedServiceRequest.id) ||
-        s.name.toLowerCase() === this.data.pipeline.serviceName.toLowerCase() ||
-        s.name.toLowerCase() === updatedServiceRequest.name.toLowerCase(),
-    );
-
-    const services = [...baseRequest.services];
-    if (targetIdx >= 0) {
-      services[targetIdx] = updatedServiceRequest;
-    } else {
-      services.push(updatedServiceRequest);
-    }
-
-    const request = { ...baseRequest, services };
-
-    this.productsApi.update(prod.id, request, this.data.pipeline.type).subscribe({
+    this.productsApi.update(prod.id, request).subscribe({
       next: () => {
         this.saving.set(false);
-        this.notifier.success(`Configuration for ${updatedServiceRequest.name} saved successfully.`);
+        this.notifier.success(`The configuration of ${changed.name} was saved.`);
         this.dialogRef.close(true);
       },
       error: (err) => {

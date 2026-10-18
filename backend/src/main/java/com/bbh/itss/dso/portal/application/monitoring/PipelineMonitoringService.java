@@ -26,6 +26,7 @@ import com.bbh.itss.dso.portal.domain.monitoring.MonitoringRange;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
+import com.bbh.itss.dso.portal.domain.settings.PlatformSettings;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Clock;
@@ -56,9 +57,10 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
     @Override
     @WithoutTransaction
     public MonitoringStatus status() {
-        boolean configured = runs.configured();
-        String error = configured ? MetricsReading.of(this::ping, false).error() : null;
-        return new MonitoringStatus(configured, configured && error == null, error, dashboards.instances());
+        PlatformSettings platform = targets.platform();
+        boolean configured = runs.configured(platform);
+        String error = configured ? MetricsReading.of(() -> ping(platform), false).error() : null;
+        return new MonitoringStatus(configured, configured && error == null, error, dashboards.instances(platform));
     }
 
     @Override
@@ -106,11 +108,12 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         boolean attributable = !shared || job != null;
 
         MetricsReading<List<PipelineRun>> recent = attributable
-                ? MetricsReading.of(() -> runs.recentRuns(tag, job, days, RECENT_RUNS), List.of())
+                ? MetricsReading.of(() -> runs.recentRuns(monitored.platform(), tag, job, days, RECENT_RUNS), List.of())
                 : new MetricsReading<>(List.of(), null);
         MetricsReading<List<DoraPoint>> points = recent.failed() || !attributable
                 ? new MetricsReading<>(List.of(), recent.error())
-                : MetricsReading.of(() -> runs.doraPoints(List.of(tag), days).getOrDefault(tag, List.of()), List.of());
+                : MetricsReading.of(() -> runs.doraPoints(monitored.platform(), List.of(tag), days)
+                        .getOrDefault(tag, List.of()), List.of());
         List<PipelineRun> recentRuns = recent.value();
         PipelineRun last = recentRuns.isEmpty() ? null : recentRuns.get(0);
         String error = points.error();
@@ -121,7 +124,7 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         }
         DoraSummary dora = summarize(points.value(), days, now(clock));
         return new PipelineMonitoring(view, RunResult.of(pipeline, last), last, dora, recentRuns,
-                dashboards.dashboards(tag, pipeline.type(), days), error);
+                dashboards.dashboards(monitored.platform(), tag, pipeline.type(), days), error);
     }
 
     @Override
@@ -130,18 +133,19 @@ public class PipelineMonitoringService implements MonitorPipelinesUseCase {
         int days = MonitoringRange.parse(range).days();
         MonitoringTargets monitored = targets.everything();
         MetricsReading<Map<MetricsTag, List<DoraPoint>>> points =
-                MetricsReading.of(() -> runs.doraPoints(monitored.tags(), days), Map.of());
+                MetricsReading.of(() -> runs.doraPoints(monitored.platform(), monitored.tags(), days), Map.of());
         return new PortfolioActivity(monitored.pipelines().size(),
                 summarizeAll(points.value().values(), days, now(clock)), points.error());
     }
 
-    private boolean ping() {
-        runs.ping();
+    private boolean ping(PlatformSettings platform) {
+        runs.ping(platform);
         return true;
     }
 
     private MetricsReading<LatestRuns> latestRuns(MonitoringTargets monitored) {
-        return MetricsReading.of(() -> runs.latestRuns(monitored.tags(), monitored.sharedTags()), LatestRuns.none());
+        return MetricsReading.of(() -> runs.latestRuns(monitored.platform(), monitored.tags(), monitored.sharedTags()),
+                LatestRuns.none());
     }
 
     private static List<PipelineHealth> health(List<PipelineView> views, LatestRuns latest) {

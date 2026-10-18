@@ -59,6 +59,16 @@ class DepartmentRegressionSpec extends PortalSpecification {
         deleted.status == 204
         api.get('/api/departments').json.every { it.id != created.json.id }
         api.delete("/api/departments/$created.json.id").status == 404
+
+        and: 'the action history has every change, the refused ones as failures'
+        def renamedName = "$name Services".toString()
+        api.get('/api/action-history').json.findAll { it.resourceName.startsWith(name) }
+                .collect { [it.actionType, it.resourceName, it.departmentName, it.status] }.sort() == [
+                ['CREATE_DEPARTMENT', name, name, 'SUCCESS'],
+                ['DELETE_DEPARTMENT', renamedName, null, 'SUCCESS'],
+                ['RENAME_DEPARTMENT', renamedName, renamedName, 'FAILURE'],
+                ['RENAME_DEPARTMENT', renamedName, renamedName, 'FAILURE'],
+                ['RENAME_DEPARTMENT', renamedName, renamedName, 'SUCCESS']].sort()
     }
 
     def "a department counts its products, their services, their DevSecOps pipelines and the active ones"() {
@@ -100,7 +110,7 @@ class DepartmentRegressionSpec extends PortalSpecification {
 
         then:
         refused.status == 409
-        refused.json.detail == "$department.name still has 1 product(s). Move them to another department first."
+        refused.json.detail == "$department.name still has 1 product(s). Move them to another business service first."
 
         when:
         def moved = api.put("/api/products/$created.id", product(code: code, name: "Product $code",
@@ -124,7 +134,7 @@ class DepartmentRegressionSpec extends PortalSpecification {
 
         then:
         [created, renamed]*.status == [409, 409]
-        [created, renamed]*.json*.detail == ["A department named $first.name already exists".toString()] * 2
+        [created, renamed]*.json*.detail == ["A business service named $first.name already exists".toString()] * 2
         ownName.status == 200
         ownName.json.name == first.name.toUpperCase()
     }
@@ -152,7 +162,7 @@ class DepartmentRegressionSpec extends PortalSpecification {
 
         then:
         [renamed, deleted]*.status == [404, 404]
-        deleted.json.detail == 'Department 99999 does not exist'
+        deleted.json.detail == 'Business service 99999 does not exist'
     }
 
     def "a product is saved only in a department that exists: #problem"() {
@@ -173,8 +183,8 @@ class DepartmentRegressionSpec extends PortalSpecification {
 
         where:
         problem                   | departmentId || message
-        'none chosen'             | null         || "choose the product's department"
-        'one that does not exist' | 99999        || 'department 99999 does not exist'
+        'none chosen'             | null         || "choose the product's business service"
+        'one that does not exist' | 99999        || 'business service 99999 does not exist'
     }
 
     def "a product from before departments shows without one and counts in none"() {

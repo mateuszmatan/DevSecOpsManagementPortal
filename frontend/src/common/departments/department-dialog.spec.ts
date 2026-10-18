@@ -44,10 +44,10 @@ describe('DepartmentDialog', () => {
 
   it('adds a department with the trimmed name', async () => {
     await render(null);
-    expect(page().querySelector('h2')?.textContent).toBe('Add a department');
-    expect(text(page().querySelector('button[type=submit]'))).toBe('Add department');
+    expect(text(page().querySelector('h2'))).toBe('Add a business service');
+    expect(text(page().querySelector('button[type=submit]'))).toBe('Add business service');
     expect(text(page().querySelector('dso-hint'))).toBe(
-      'The name people know the department by, for example Fund Services',
+      'The name people know the business service by, for example Fund Services',
     );
     expect(page().querySelector('.intro')).toBeNull();
 
@@ -72,11 +72,11 @@ describe('DepartmentDialog', () => {
 
   it('renames a department with the version it was read at', async () => {
     await render(department({ version: 2 }));
-    expect(page().querySelector('h2')?.textContent).toBe('Rename Corporate Technology');
+    expect(text(page().querySelector('h2'))).toBe('Rename Corporate Technology');
     expect(text(page().querySelector('.intro'))).toBe(
-      'The new name shows everywhere in the portal at once. The products of the department stay as they are.',
+      'The new name shows everywhere in the portal at once. The products of the business service stay as they are.',
     );
-    expect(text(page().querySelector('button[type=submit]'))).toBe('Rename department');
+    expect(text(page().querySelector('button[type=submit]'))).toBe('Rename business service');
     expect(inputOf(page(), 'Name').value).toBe('Corporate Technology');
 
     await submit('Corporate Tech');
@@ -95,13 +95,13 @@ describe('DepartmentDialog', () => {
     http
       .expectOne('/api/departments')
       .flush(
-        { detail: 'A department named Custody already exists' },
+        { detail: 'A business service named Custody already exists' },
         { status: 409, statusText: 'Conflict' },
       );
     await fixture.whenStable();
 
     expect(page().querySelector('[role=alert]')?.textContent).toBe(
-      'A department named Custody already exists',
+      'A business service named Custody already exists',
     );
     expect(close).not.toHaveBeenCalled();
   });

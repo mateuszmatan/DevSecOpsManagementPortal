@@ -95,6 +95,17 @@ describe('ServiceDialog', () => {
     );
   });
 
+  it.each([
+    ['SAST', 'VM'],
+    ['NEXUS_IQ', 'VM'],
+    ['SECURITY', 'OPENSHIFT'],
+    ['FULL', 'OPENSHIFT'],
+  ] as const)('starts a new service of the %s pipeline on %s when OpenShift is the default', async (pipeline, target) => {
+    await open({ pipeline, defaults: { ...BBH_DEFAULTS, target: 'OPENSHIFT' } });
+
+    expect(component['serviceForm'].controls.deployment.controls.target.value).toBe(target);
+  });
+
   it('loads existing service settings into form', async () => {
     const existing: WizardService = {
       id: 10,

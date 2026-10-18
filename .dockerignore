@@ -1,2 +1,4 @@
 *
 !backend/build/libs/dso-portal-*.jar
+backend/build/libs/dso-portal-*-plain.jar
+backend/build/libs/dso-portal-*-test-fixtures.jar

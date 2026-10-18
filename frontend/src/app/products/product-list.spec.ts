@@ -61,7 +61,7 @@ describe('ProductList', () => {
     expect(text(card('Fund Services').querySelector('.no-products'))).toBe(
       'No products in Fund Services yet.Add a product to Fund Services',
     );
-    expect(text(page().querySelector('.summary'))).toBe('1 product in 2 departments');
+    expect(text(page().querySelector('.summary'))).toBe('1 product in 2 business services');
     expect(gridHeaders(card('Corporate Technology'))).toEqual([
       'Product',
       'Owner team',
@@ -105,16 +105,16 @@ describe('ProductList', () => {
     ]);
     const unassigned = cards().at(-1)!;
 
-    expect(text(unassigned.querySelector('h2'))).toBe('Not in a department');
+    expect(text(unassigned.querySelector('h2'))).toBe('Not in a business service');
     expect(text(unassigned.querySelector('.tally'))).toBe(
       '2 products, 4 pipelines, 1 key invalidated',
     );
     expect(text(unassigned.querySelector('.hint'))).toBe(
-      'Edit these products to choose their department.',
+      'Edit these products to choose their business service.',
     );
     expect(gridRows(unassigned).length).toBe(2);
     expect(text(page().querySelector('.summary'))).toBe(
-      '1 product in 2 departments, 2 not in a department',
+      '1 product in 2 business services, 2 not in a business service',
     );
   });
 
@@ -131,11 +131,11 @@ describe('ProductList', () => {
     await fixture.whenStable();
 
     expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
-      'Not in a department',
+      'Not in a business service',
     ]);
     expect(cards()[0].querySelector('.tally')).toBeNull();
     expect(text(page().querySelector('.summary'))).toBe(
-      '0 products in 0 departments, 1 not in a department',
+      '0 products in 0 business services, 1 not in a business service',
     );
   });
 
@@ -181,7 +181,7 @@ describe('ProductList', () => {
 
   it('searches as the user types and shows only the departments with matches', async () => {
     await load();
-    expect(text(page().querySelector('.summary'))).toBe('1 product in 2 departments');
+    expect(text(page().querySelector('.summary'))).toBe('1 product in 2 business services');
 
     const input = page().querySelector<HTMLInputElement>('input[aria-label="Search products"]')!;
     input.value = '  cert ';
@@ -194,7 +194,7 @@ describe('ProductList', () => {
     expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
       'Corporate Technology',
     ]);
-    expect(text(page().querySelector('.summary'))).toBe('1 product in 1 department');
+    expect(text(page().querySelector('.summary'))).toBe('1 product in 1 business service');
 
     input.value = 'payments';
     input.dispatchEvent(new Event('input'));
@@ -205,7 +205,7 @@ describe('ProductList', () => {
 
     expect(text(page().querySelector('.empty-state h3'))).toBe('No product matches "payments"');
     expect(page().querySelector('.empty-state a')).toBeNull();
-    expect(text(page().querySelector('.summary'))).toBe('0 products in 0 departments');
+    expect(text(page().querySelector('.summary'))).toBe('0 products in 0 business services');
 
     page().querySelector<HTMLButtonElement>('.empty-state button')!.click();
     await new Promise((resolve) => setTimeout(resolve, 300));

@@ -48,7 +48,12 @@ export class DepartmentsAdmin<D extends Department = Department> {
 
   protected readonly departmentId = (department: D) => department.id;
   protected readonly columns = computed<GridColumn<D>[]>(() => [
-    { key: 'name', header: 'Department', value: (department) => department.name, minWidth: 150 },
+    {
+      key: 'name',
+      header: 'Business Service',
+      value: (department) => department.name,
+      minWidth: 150,
+    },
     {
       key: 'products',
       header: 'Products',
@@ -74,12 +79,12 @@ export class DepartmentsAdmin<D extends Department = Department> {
         noun,
       ),
     );
-    return `${counted(departments.length, 'department')} with ${contents.join(' and ')}`;
+    return `${counted(departments.length, 'business service')} with ${contents.join(' and ')}`;
   });
   protected readonly help = computed(
     () =>
-      'Every product belongs to one department, and people choose their department to see ' +
-      `${this.usage().subject}. Only an empty department can be deleted.`,
+      'Every product belongs to one business service, and people choose their business service to see ' +
+      `${this.usage().subject}. Only an empty business service can be deleted.`,
   );
 
   protected readonly errorMessage = errorMessage;
@@ -88,8 +93,8 @@ export class DepartmentsAdmin<D extends Department = Department> {
     if (department.productCount) {
       const them = department.productCount === 1 ? 'it' : 'them';
       return (
-        `Only an empty department can be deleted. ${department.name} still has ` +
-        `${counted(department.productCount, 'product')}: move ${them} to another department first.`
+        `Only an empty business service can be deleted. ${department.name} still has ` +
+        `${counted(department.productCount, 'product')}: move ${them} to another business service first.`
       );
     }
     return this.usage().blocker?.(department) ?? null;
@@ -107,11 +112,11 @@ export class DepartmentsAdmin<D extends Department = Department> {
     this.dialog
       .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, {
         data: {
-          title: `Delete the department ${department.name}?`,
+          title: `Delete the business service ${department.name}?`,
           message:
             `${department.name} has no products, so nothing else is deleted with it. ` +
-            'It disappears from every list of departments in the portal. This cannot be undone.',
-          confirmLabel: 'Delete department',
+            'It disappears from every list of business services in the portal. This cannot be undone.',
+          confirmLabel: 'Delete business service',
           danger: true,
         },
       })

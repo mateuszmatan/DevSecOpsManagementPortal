@@ -2,8 +2,6 @@ package com.bbh.itss.dso.portal.application.catalog;
 
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.BusinessServiceView;
-import com.bbh.itss.dso.portal.application.catalog.port.in.BusinessServicesUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentRepositoryPort;
@@ -21,7 +19,7 @@ import static java.util.Comparator.comparing;
 
 @UseCase
 @RequiredArgsConstructor
-public class DepartmentService implements DepartmentsUseCase, BusinessServicesUseCase {
+public class DepartmentService implements DepartmentsUseCase {
 
     private final DepartmentRepositoryPort departments;
     private final DepartmentUsagePort usage;
@@ -44,7 +42,7 @@ public class DepartmentService implements DepartmentsUseCase, BusinessServicesUs
 
     @Override
     public DepartmentView rename(long id, Long version, String name) {
-        Department department = departments.load(id).orElseThrow(() -> notFound("Department", id));
+        Department department = departments.load(id).orElseThrow(() -> notFound("Business service", id));
         departments.save(department.rename(version, name, departments::findByName));
         return view(id);
     }
@@ -55,7 +53,7 @@ public class DepartmentService implements DepartmentsUseCase, BusinessServicesUs
         long products = department.usage().productCount();
         if (products > 0) {
             throw new IllegalStateException(department.name() + " still has " + products
-                    + " product(s). Move them to another department first.");
+                    + " product(s). Move them to another business service first.");
         }
         department.usage().deletionRefusal(department.name()).ifPresent(refusal -> {
             throw new IllegalStateException(refusal);
@@ -63,31 +61,8 @@ public class DepartmentService implements DepartmentsUseCase, BusinessServicesUs
         departments.delete(id);
     }
 
-    @Override
-    @ReadOnly
-    public List<BusinessServiceView> listBusinessServices() {
-        return list().stream().map(v -> new BusinessServiceView(v.id(), v.name(), v.version(), v.usage())).toList();
-    }
-
-    @Override
-    public BusinessServiceView createBusinessService(String name) {
-        DepartmentView created = create(name);
-        return new BusinessServiceView(created.id(), created.name(), created.version(), created.usage());
-    }
-
-    @Override
-    public BusinessServiceView renameBusinessService(long id, Long version, String name) {
-        DepartmentView renamed = rename(id, version, name);
-        return new BusinessServiceView(renamed.id(), renamed.name(), renamed.version(), renamed.usage());
-    }
-
-    @Override
-    public void deleteBusinessService(long id) {
-        delete(id);
-    }
-
     private DepartmentView view(long id) {
         return list().stream().filter(department -> department.id() == id).findFirst()
-                .orElseThrow(() -> notFound("Department", id));
+                .orElseThrow(() -> notFound("Business service", id));
     }
 }

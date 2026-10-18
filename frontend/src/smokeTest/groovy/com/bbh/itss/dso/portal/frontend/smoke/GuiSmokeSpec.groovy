@@ -11,7 +11,7 @@ class GuiSmokeSpec extends DsoSpecification {
 
     static final List<Map<String, String>> SECTIONS = [
             [label      : 'Pipelines', heading: 'DevSecOps Pipelines', path: '/pipelines',
-             description: 'Every automated build, test and security pipeline of your department\'s products. Open one to see its key, its Jenkinsfile and its latest runs.'],
+             description: 'Every automated build, test and security pipeline of your business service\'s products. Open one to see its key, its Jenkinsfile and its latest runs.'],
             [label      : 'Self-service', heading: 'DevSecOps Self-service', path: '/self-service',
              description: 'Set up the DevSecOps pipelines of your product, or change them, in five guided steps. No DevSecOps knowledge needed.'],
             [label      : 'Pipeline Monitoring', heading: 'DevSecOps Pipeline Monitoring', path: '/monitoring',
@@ -19,10 +19,10 @@ class GuiSmokeSpec extends DsoSpecification {
             [label      : 'Action history', heading: 'DevSecOps Action History', path: '/history',
              description: 'History and audit log of all operations in the portal: who, when, what was done and the result.'],
             [label      : 'Admin', heading: 'DevSecOps Admin', path: '/admin/products',
-             description: 'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.']]
+             description: 'Set up the portal for everyone: business services, products and their services, what a new service gets, and the settings every pipeline shares.']]
 
-    static final Map<String, String> ADMIN_TABS = [Departments       : '/admin/departments', Products: '/admin/products',
-                                                   'Service template': '/admin/template', 'Library defaults': '/admin/settings']
+    static final Map<String, String> ADMIN_TABS = ['Business Services': '/admin/departments', Products: '/admin/products',
+                                                   'Service template' : '/admin/template', 'Library defaults': '/admin/settings']
 
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
 
@@ -53,7 +53,7 @@ class GuiSmokeSpec extends DsoSpecification {
         assertThat(page.locator('section.department .tally').first())
                 .hasText(~/^\d+ products?, \d+ pipelines?(, \d+ keys? invalidated)?$/)
         assertThat(page.locator('.toolbar .summary'))
-                .hasText(~/^\d+ products? in \d+ departments?(, \d+ not in a department)?$/)
+                .hasText(~/^\d+ products? in \d+ business services?(, \d+ not in a business service)?$/)
         ownErrors().isEmpty()
     }
 
@@ -114,19 +114,21 @@ class GuiSmokeSpec extends DsoSpecification {
     }
 
     @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
-    def "a grid wider than its box scrolls horizontally with the bar ag-grid sizes"() {
+    def "a grid wider than its box shows whole cells and scrolls horizontally"() {
         given: 'the Action History in a window narrower than its columns'
         page.setViewportSize(600, 900)
         open('/history')
         page.locator('dso-grid .ag-row').first().waitFor()
 
-        expect: 'the content is wider than the grid and no style shrinks the scrollbar below the height ag-grid gave it'
+        expect: 'columns fit their content, the grid scrolls instead and no style shrinks the bar ag-grid sized'
         def bar = page.evaluate('''() => {
             const viewport = document.querySelector('dso-grid .ag-body-horizontal-scroll-viewport');
-            return { wider: viewport.scrollWidth > viewport.clientWidth,
+            const cut = [...document.querySelectorAll('dso-grid .ag-cell')].filter((cell) => cell.scrollWidth > cell.clientWidth + 1);
+            return { wider: viewport.scrollWidth > viewport.clientWidth, cut: cut.length,
                      height: getComputedStyle(viewport).height, sized: viewport.style.height };
         }''') as Map
         bar.wider
+        bar.cut == 0
         bar.height == bar.sized
         ownErrors().isEmpty()
     }

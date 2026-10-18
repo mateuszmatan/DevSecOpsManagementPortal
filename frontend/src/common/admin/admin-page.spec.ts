@@ -12,10 +12,10 @@ const DEVSECOPS_ADMIN: AdminArea = {
     label: 'Admin',
     heading: 'DevSecOps Admin',
     description:
-      'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
+      'Set up the portal for everyone: business services, products and their services, what a new service gets, and the settings every pipeline shares.',
   },
   tabs: [
-    { path: '/admin/departments', label: 'Departments' },
+    { path: '/admin/departments', label: 'Business Services' },
     { path: '/admin/products', label: 'Products' },
     { path: '/admin/template', label: 'Service template' },
     { path: '/admin/settings', label: 'Library defaults' },
@@ -89,11 +89,11 @@ describe('AdminPage', () => {
 
     expect(text(page().querySelector('h1'))).toBe('DevSecOps Admin');
     expect(text(page().querySelector('.page-header .page-description'))).toBe(
-      'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
+      'Set up the portal for everyone: business services, products and their services, what a new service gets, and the settings every pipeline shares.',
     );
     expect(page().querySelector('nav.tab-bar')?.getAttribute('aria-label')).toBe('DevSecOps Admin');
     expect(tabs().map(text)).toEqual([
-      'Departments',
+      'Business Services',
       'Products',
       'Service template',
       'Library defaults',
@@ -104,12 +104,12 @@ describe('AdminPage', () => {
       '/admin/template',
       '/admin/settings',
     ]);
-    expect(text(page().querySelector('.tab-content'))).toBe('Departments');
+    expect(text(page().querySelector('.tab-content'))).toBe('Business Services');
     expect(page().querySelector('svg-icon')).toBeNull();
   });
 
   it.each([
-    ['/admin/departments', 'Departments'],
+    ['/admin/departments', 'Business Services'],
     ['/admin/products', 'Products'],
     ['/admin/template', 'Service template'],
     ['/admin/settings', 'Library defaults'],

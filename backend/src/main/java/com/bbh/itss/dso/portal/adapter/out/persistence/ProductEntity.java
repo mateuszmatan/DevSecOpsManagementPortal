@@ -47,15 +47,8 @@ public class ProductEntity extends AuditedEntity {
     private String ownerTeam;
     private String contactEmail;
 
-    @Column(name = "BUSINESS_SERVICE_ID")
-    private Long businessServiceId;
-
     @Column(name = "DEPARTMENT_ID")
     private Long departmentId;
-
-    @ManyToOne(fetch = LAZY)
-    @JoinColumn(name = "BUSINESS_SERVICE_ID", insertable = false, updatable = false)
-    private BusinessServiceEntity businessService;
 
     @ManyToOne(fetch = LAZY)
     @JoinColumn(name = "DEPARTMENT_ID", insertable = false, updatable = false)
@@ -69,27 +62,7 @@ public class ProductEntity extends AuditedEntity {
     private List<ServiceEntity> services = new ArrayList<>();
 
     String departmentName() {
-        if (departmentId == null) {
-            return null;
-        }
-        if (department != null) {
-            return department.name();
-        }
-        return businessService == null ? null : businessService.name();
-    }
-
-    String businessServiceName() {
-        if (businessServiceId == null && departmentId == null) {
-            return null;
-        }
-        if (businessService != null) {
-            return businessService.name();
-        }
         return department == null ? null : department.name();
-    }
-
-    Long businessServiceId() {
-        return businessServiceId != null ? businessServiceId : departmentId;
     }
 
     Product toDomain() {
@@ -106,7 +79,6 @@ public class ProductEntity extends AuditedEntity {
         ownerTeam = details.ownerTeam();
         contactEmail = details.contactEmail();
         departmentId = details.departmentId();
-        businessServiceId = details.businessServiceId() != null ? details.businessServiceId() : details.departmentId();
         appScanAccount = RecordMapper.map(product.appScanAccount(), AppScanAccountEmbeddable.class);
     }
 

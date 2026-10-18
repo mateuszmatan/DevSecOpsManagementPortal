@@ -39,7 +39,7 @@
         <dl class="pairs facts">
           @if (departmentName(); as department) {
             <div>
-              <dt>Department</dt>
+              <dt>Business Service</dt>
               <dd>{{ department }}</dd>
             </div>
           }
@@ -74,7 +74,7 @@
         </dl>
         @if (p.appScan; as appScan) {
           <p class="technical">
-            Security scans sign in to HCL AppScan with the API key
+            Security scans sign in to HCL AppScan with the API key ID
             <span class="mono">{{ appScan.keyId }}</span>
           </p>
         }
@@ -304,8 +304,7 @@
                   </div>
                 } @else {
                   <p class="revoked-note">
-                    Jenkins is refused this pipeline's settings, so it stops until a new key is
-                    issued.
+                    The pipeline is refused its settings and stops until a new key is issued.
                   </p>
                 }
                 <dl class="pairs pipeline-meta">
