@@ -13,7 +13,7 @@ The DevSecOps Management Portal ships as a single container image: its Spring Bo
 docker build -f backend/Dockerfile -t dso-portal:0.1.0-SNAPSHOT .
 ```
 
-The build context is the repository root, whose `.dockerignore` lets only `backend/build/libs/dso-portal-*.jar` through. To build on an internal mirror of the base image, pass `--build-arg BASE_IMAGE=<mirror>/ubi9/openjdk-21-runtime:<tag>`. Podman and Buildah accept the same arguments.
+The build context is the repository root, whose `.dockerignore` lets only the boot jar `backend/build/libs/dso-portal-<version>.jar` through. To build on an internal mirror of the base image, pass `--build-arg BASE_IMAGE=<mirror>/ubi9/openjdk-21-runtime:<tag>`. Podman and Buildah accept the same arguments.
 
 ## Run the image locally
 
@@ -34,11 +34,12 @@ docker run --rm -p 8080:8080 \
   dso-portal:0.1.0-SNAPSHOT
 ```
 
-InfluxDB and Grafana can be configured either directly in the portal's **Management Panel** (`/admin/settings` -> **Tools and servers** -> **Portal monitoring (InfluxDB & Grafana)**) or via environment variables (`INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET`, `INFLUX_TOKEN`, `GRAFANA_DASHBOARD_URL`, `GRAFANA_SECURITY_DASHBOARD_URL`).
+InfluxDB and Grafana are set either in the GUI under Admin, Library defaults, Portal monitoring (InfluxDB & Grafana), or with the environment variables `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET`, `INFLUX_TOKEN`, `GRAFANA_DASHBOARD_URL` and `GRAFANA_SECURITY_DASHBOARD_URL`; values saved in the GUI win.
 
 ## Deploy to OpenShift (with Oracle database)
 
-The manifests in `deploy/openshift/dso-portal` provide a Kustomize base (`Deployment`, `Service`, `Route`, and `ConfigMap`) with three environment overlays: `rd`, `qc`, and `prod`. Each overlay activates the matching Spring profile (`rd`, `qc`, `prod`), which belongs to the `oracle` profile group.
+The team's applications share one OpenShift project, each in its own pod; the portal is the `dso-portal` Deployment
+with one pod, its Service and its Route, so it sits next to the other applications without clashing. The manifests in `deploy/openshift/dso-portal` provide a Kustomize base (`Deployment`, `Service`, `Route`, and `ConfigMap`) with three environment overlays: `rd`, `qc`, and `prod`. Each overlay activates the matching Spring profile (`rd`, `qc`, `prod`), which belongs to the `oracle` profile group.
 
 1. Push the image to a registry the cluster can pull from, then point the overlay at it:
 
@@ -56,7 +57,7 @@ The manifests in `deploy/openshift/dso-portal` provide a Kustomize base (`Deploy
      --from-literal=DB_PASSWORD='<password>'
    ```
 
-   Optionally create `dso-portal-influx` if you prefer providing `INFLUX_TOKEN` via Secret instead of the Portal Management Panel:
+   Optionally create `dso-portal-influx` to give `INFLUX_TOKEN` as a Secret instead of saving it under Admin, Library defaults:
 
    ```bash
    oc create secret generic dso-portal-influx --from-literal=INFLUX_TOKEN='<token>'
@@ -77,9 +78,9 @@ Liquibase automatically migrates the Oracle schema when the pod starts, and Hibe
 | `SPRING_PROFILES_ACTIVE` | ConfigMap `dso-portal-config` | `rd`, `qc` or `prod` (activates `oracle` profile group; `rd` logs at `DEBUG`) |
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Secret `dso-portal-db` | Oracle JDBC connection (`ojdbc11`) |
 | `DB_POOL_SIZE` | ConfigMap (optional) | Hikari connection pool size (`5` in `rd`, `10` in `qc`, `20` in `prod`) |
-| `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET` | ConfigMap or Portal Management Panel | Fallback InfluxDB v2 connection when not overridden in `/admin/settings` |
-| `INFLUX_TOKEN` | Secret `dso-portal-influx` or Portal Management Panel | InfluxDB read token |
-| `GRAFANA_DASHBOARD_URL`, `GRAFANA_SECURITY_DASHBOARD_URL`, `GRAFANA_NAME` | ConfigMap or Portal Management Panel | Primary Grafana links when not overridden in `/admin/settings` |
-| `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | ConfigMap or Portal Management Panel | Secondary Grafana links when not overridden in `/admin/settings` |
+| `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET` | ConfigMap | InfluxDB v2 connection when Library defaults leave it empty |
+| `INFLUX_TOKEN` | Secret `dso-portal-influx` | InfluxDB read token when Library defaults leave it empty |
+| `GRAFANA_DASHBOARD_URL`, `GRAFANA_SECURITY_DASHBOARD_URL`, `GRAFANA_NAME` | ConfigMap | first Grafana instance when Library defaults leave it empty |
+| `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | ConfigMap | second Grafana instance when Library defaults leave it empty |
 
 Jenkins reaches the portal through its route: set `DSO_PORTAL_URL` (or pass `portalUrl` to `DSOEnhanced`) so the Jenkins Shared Library fetches each pipeline's configuration from `/api/dso/config/<key>?format=json`.

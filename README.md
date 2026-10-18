@@ -1,104 +1,111 @@
-# DevSecOps Management Portal
+# BBH DevSecOps Management Portal
 
-A centralized management platform for BBH DevSecOps workflows, pipeline automation, pipeline key management & invalidation, product catalogs, and InfluxDB/Grafana metrics monitoring, fully integrated with the **`DSOEnhanced`** Jenkins Shared Library.
+The portal onboards products to DevSecOps, manages their pipelines and pipeline keys, shows how the pipelines are
+doing, and serves the configuration the Jenkins shared library [DSOEnhanced](https://github.com/mateuszmatan/DSOEnhanced)
+reads for every build. It is one Spring Boot service (Java 21, Spring Boot 4) with the Angular GUI inside, packaged as
+one jar and one container image.
 
-The application is structured as a unified multi-module Gradle project consisting of:
-- **`backend`**: Spring Boot 3 service (Java 21) following Hexagonal and MVC architecture: domain logic, Liquibase persistence (H2 in Oracle mode locally, Oracle on OpenShift `rd`/`qc`/`prod`), pipeline key validation, InfluxDB v2 Flux queries, Grafana dashboard links, and REST API endpoints.
-- **`frontend`**: Angular single-page application built with the BBH V6 Design System (`@v6/v6-themes`, `@v6/v6-table`, `@v6/v6-icons`), providing user interfaces for pipeline self-service, product & pipeline key management, audit trail / action history grid, library & monitoring administration (`/admin/settings`), and DORA/pipeline metrics visualization.
+| Folder | Holds |
+|--------|-------|
+| `backend/` | the service: REST API, domain, use cases, persistence (Liquibase), InfluxDB and Grafana adapters, Dockerfile |
+| `frontend/` | the Angular GUI with the BBH Design System v6 (`@v6/v6-themes`, `@v6/v6-table`, `@v6/v6-icons`) |
+| `deploy/openshift/` | Kustomize manifests with `rd`, `qc` and `prod` overlays, and [how to run the image](deploy/openshift/README.md) |
+| `examples/` | Jenkinsfiles, REST calls and a rendered configuration, see [examples/README.md](examples/README.md) |
 
----
+## Build and tests
 
-## Architecture Overview
+The build runs inside the BBH network only: Gradle 8.14, plugins and libraries come from the BBH Nexus, npm packages
+from the BBH npm registry through `njproxy` (all set in `settings.gradle`, `gradle.properties` and the Gradle wrapper).
+It needs Java 21, and Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.x, on the `PATH`; on Windows `gradle.properties` points `npm.executable` and
+`npx.executable` at `C:\Program Files\nodejs`. Use `gradlew.bat` instead of `./gradlew` on Windows.
 
-Hexagonal and MVC layers:
-- `adapter/in/web`: REST controllers, request/response DTOs, global problem exception handler (`@RestControllerAdvice`).
-- `application/<feature>/port/in`: Primary ports implemented by `@UseCase` service components.
-- `application/<feature>/port/out`: Secondary ports for persistence, metrics and external adapters.
-- `domain/<feature>`: Pure domain entities and value objects (Lombok-annotated, framework-free).
-- `adapter/out/persistence`: Spring Data JPA repositories, JPA entities, Liquibase changelogs.
-- `adapter/out/influx`: InfluxDB Flux query and telemetry clients.
+| Command | Does | Takes about |
+|---------|------|-------------|
+| `./gradlew :backend:bootJar` | the jar with the GUI inside: `backend/build/libs/dso-portal-<version>.jar` | 1 min the first time, seconds after |
+| `./gradlew assemble` | the jar without running any test | as above |
+| `./gradlew :backend:test` | backend unit tests, fails below 60% line coverage | 45 s |
+| `./gradlew :frontend:test` | Angular unit tests (Vitest), fails below 60% of lines | 45 s |
+| `./gradlew regressionTest` | the API end to end on H2, and the GUI journeys in Chromium against a stub API | 2 min |
+| `./gradlew smokeTest performanceTest` | start-up, health and every page; p95 latencies of the key calls | 1 min |
+| `./gradlew build` | the jar and every suite above | 4 min |
 
-```
-DevSecOpsManagementPortal/
-├── backend/                  # Spring Boot application (Java 21)
-│   ├── src/main/java/        # Domain model, use cases, REST controllers, adapters
-│   ├── src/main/resources/   # Profiles (local H2 / oracle rd,qc,prod), logback-spring.xml
-│   ├── src/test/             # Spock unit specs with 60% JaCoCo line coverage gate
-│   ├── src/regressionTest/   # Spock API end-to-end regression tests
-│   ├── src/smokeTest/        # Health and endpoint smoke tests
-│   ├── src/performanceTest/  # p95 latency performance benchmark tests
-│   ├── Dockerfile            # Red Hat UBI 9 OpenJDK 21 container image specification
-│   └── build.gradle          # Backend build script
-├── frontend/                 # Angular single-page application with BBH V6 styles
-│   ├── src/app/              # Application routes, components, and services
-│   ├── src/common/ui/        # V6 Table helpers, toolbar components, V6 form directives
-│   ├── angular.json          # Angular CLI workspace configuration
-│   └── package.json          # Frontend dependencies and npm scripts
-├── deploy/openshift/         # Kustomize base & overlays (rd, qc, prod) for OpenShift (replicas: 1)
-├── gradle/                   # Gradle wrapper and version catalog (libs.versions.toml)
-├── build.gradle              # Root build script
-├── docs/                     # Deployment and architecture documentation
-│   └── DEPLOYMENT.md         # Quick guide: local laptop & OpenShift deployment
-├── settings.gradle           # BBH Nexus repository configuration
-└── README.md
-```
+Tests are Groovy and Spock; the Angular unit tests stay in Vitest. Smoke and performance tests cover the key functions
+only, regression the most important journeys. `-PskipGui` builds the service without its GUI for API work,
+`-Dperformance.factor=2` relaxes the performance limits on a slow machine, `-Dsmoke.baseUrl=https://...` runs the
+backend smoke tests against a deployed portal, and `-Dfrontend.browser=<path to chrome>` runs the GUI suites in an
+installed Chrome or Edge.
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for a quick step-by-step run and deploy guide.
+## Running locally
 
----
-
-## Running Locally in BBH Network
-
-The project is configured for BBH developer laptops using local H2 file database in Oracle compatibility mode (`~/bbh-devsecops/dso-portal/dso-portal`).
-
-### Single Command (Backend + Bundled Frontend on Port 8080)
+On a BBH laptop the portal runs as a plain Java application on an embedded H2 database in Oracle mode.
 
 ```bash
-./gradlew :backend:bootRun
-```
-Open **`http://localhost:8080`**.
-
-### Independent Frontend Dev Server (Port 4200 with Hot Reload)
-
-**Terminal 1 — Backend:**
-```bash
-./gradlew :backend:bootRun -PskipGui=true
+./gradlew :backend:bootRun          # GUI and API on http://localhost:8080
 ```
 
-**Terminal 2 — Frontend:**
-```bash
-cd frontend
-npm start
-```
-Open **`http://localhost:4200`** (proxies `/api` to `http://localhost:8080`).
+or `java -jar backend/build/libs/dso-portal-0.1.0-SNAPSHOT.jar` after `bootJar`. The database is the file
+`~/bbh-devsecops/dso-portal/dso-portal.mv.db` (`DSO_DATA_DIR` moves the folder); Liquibase creates it on the first
+start with the five BBH Business Services and the BBH library defaults, and keeps the data between starts. Logs go to
+the console and to `logs/dso-portal.log` (10 MB per file, 30 days).
 
----
+For GUI work, run the service with `-PskipGui` and `npm start` in `frontend/`: the Angular development server on
+http://localhost:4200 rebuilds on every change and sends `/api` to port 8080.
 
-## Logging & Auditing
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `PORT` | `8080` | HTTP port |
+| `DSO_DATA_DIR` | `~/bbh-devsecops/dso-portal` | folder of the local H2 database |
+| `SPRING_PROFILES_ACTIVE` | `local` | `rd`, `qc` or `prod` switch to Oracle (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_POOL_SIZE`); `rd` logs at DEBUG |
+| `INFLUX_URL`, `INFLUX_TOKEN`, `INFLUX_ORG`, `INFLUX_BUCKET` | empty, empty, `DevSecOps`, `DORA-metrics` | the InfluxDB the pipelines report their runs to |
+| `GRAFANA_DASHBOARD_URL`, `GRAFANA_SECURITY_DASHBOARD_URL`, `GRAFANA_NAME` | empty, empty, `Grafana` | the DSOEnhanced dashboards linked from Pipeline Monitoring; `GRAFANA_2_*` for a second instance |
 
-- **Logback & SLF4J**: Configured in `backend/src/main/resources/logback-spring.xml` with `SizeAndTimeBasedRollingPolicy`.
-- **Rotation Policy**: Daily rollover (`%d{yyyy-MM-dd}.%i.log.gz`) or when log file reaches **10MB**, compressed as `.gz`, retaining 30 days of history up to 2GB total cap.
-- **Action History Audit Trail**: Every sensitive user action (pipeline key creation, key invalidation, service config updates, product changes) is logged and stored in `DSO_ACTION_LOG` table, viewable via the filterable and sortable **Action History** grid.
+The InfluxDB and Grafana settings can also be set in the GUI under Admin, Library defaults, Portal monitoring; values
+saved there win over the variables. The InfluxDB token saved there is never shown again.
 
----
+## Containers and OpenShift
 
-## Testing Suites (Groovy & Spock)
+`backend/Dockerfile` builds the image from the boot jar (Red Hat UBI 9 with Java 21, any non-root UID). The test
+environments are Docker and OpenShift: in OpenShift every application of the team runs in one project, each in its own
+pod, and the portal is the `dso-portal` Deployment. RD, QC and prod use Oracle; Liquibase updates the schema at
+start-up. [deploy/openshift/README.md](deploy/openshift/README.md) has the commands.
 
-| Suite | Description | Minimum Coverage |
-|-------|-------------|------------------|
-| `test` | Domain rules, use cases, controller MockMvc, architecture rules (ArchUnit) | **>= 60% line coverage** (JaCoCo gate) |
-| `regressionTest` | Full API end-to-end on H2 in Oracle mode | 30–40% |
-| `smokeTest` | Application startup, health liveness/readiness, key endpoints | 30–40% |
-| `performanceTest` | P95 latency measurements for product, service and pipeline operations | 30–40% |
+## How DSOEnhanced reads its configuration
 
-Run all backend suites:
-```bash
-./gradlew :backend:check
-```
+Each Jenkinsfile holds only a pipeline key. Before the stages start, the library sends
+`GET $DSO_PORTAL_URL/api/dso/config/<key>?format=json` from a Jenkins agent; `DSO_PORTAL_URL` is a global
+environment variable of Jenkins, for example `https://dso-portal.apps.bbh.com`. Jenkins needs no database account and
+no other setting.
 
----
+| Answer | Meaning for the build |
+|--------|-----------------------|
+| 200 with the configuration | the portal renders it from its database at that moment and records the key's last use |
+| 403 `Pipeline key invalidated` | the key was invalidated; the build stops before its stages |
+| 404 `Unknown DevSecOps pipeline key` | the key was never issued; the build stops before its stages |
 
-## OpenShift & Oracle Database Deployment
+The configuration names Jenkins credentials IDs, never passwords. The library writes its run metrics to InfluxDB, and
+the portal reads them back for Pipeline Monitoring. A Nexus IQ GoldenFix pipeline is accepted only for a service with a
+Nexus IQ application, because the library refuses to scan without one. `GET /api/pipelines/{id}/config` shows the same
+configuration in the GUI without recording a use.
 
-- **Test & Production Profiles**: OpenShift environments (`rd`, `qc`, `prod`) activate the `oracle` Spring profile group, connecting to Oracle database via HikariCP (`com.oracle.database.jdbc:ojdbc11`) with Liquibase automated migrations.
-- **Single-Instance Deployment**: The base deployment (`deploy/openshift/dso-portal/base/deployment.yaml`) runs **1 replica** (`replicas: 1`). No redundancy is needed; OpenShift automatically respawns the pod if it becomes unavailable.
+## Architecture
+
+The service is hexagonal with MVC at its edge, and ArchUnit tests keep the layers apart:
+
+- `adapter/in/web`: REST controllers and their request and response records; every change is recorded in the action
+  history by `ActionRecorder`.
+- `application/<feature>`: use cases (`@UseCase`, transactional) behind the ports in `port/in` and `port/out`.
+- `domain/<feature>`: the business rules, with no framework.
+- `adapter/out/{persistence,influx,grafana,key}`: JPA on H2 or Oracle, InfluxDB Flux queries, Grafana links, key
+  generation.
+
+The GUI calls the groups of products Business Services; the API, the code and the database keep their older name,
+department (`/api/departments`, `DSO_DEPARTMENT`).
+
+Logging is SLF4J with Logback (`logback-spring.xml`); each line carries the correlation id of its API call. Lombok
+replaces constructors, builders and copies wherever it can. Every change made in the GUI is stored in `DSO_ACTION_LOG`
+with who, what, when and the result, and shown under Action history.
+
+## Known gaps
+
+- The portal has no sign-in yet, so every action is recorded as the default administrator. BBH single sign-on and
+  roles come later; until then the portal must stay inside the test network.

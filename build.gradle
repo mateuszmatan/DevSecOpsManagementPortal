@@ -27,6 +27,13 @@ subprojects {
         }
     }
 
+    // check (and so build) runs the smoke, regression and performance suites too, not only the unit tests
+    pluginManager.withPlugin('jvm-test-suite') {
+        tasks.named('check') {
+            dependsOn project.testing.suites.matching { it.name != 'test' }
+        }
+    }
+
     ext.performanceFactor = performanceFactor
     ext.forward = { Test task, String... names ->
         names.each { name ->
