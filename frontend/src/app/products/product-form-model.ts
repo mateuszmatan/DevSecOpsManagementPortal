@@ -279,6 +279,19 @@ export function createUrbanCodeApplicationForm(
 
 export type UrbanCodeApplicationForm = ReturnType<typeof createUrbanCodeApplicationForm>;
 
+const DV_APPLICATION =
+  'Add an UrbanCode Deploy application for DV: the Full pipeline uses it to deploy to the lower test region';
+
+export const deploysToDv = (environments: readonly string[]) =>
+  !environments.length || environments.some((name) => name.trim().toUpperCase() === 'DV');
+
+export const dvApplication: ValidatorFn = (control) =>
+  (control.value as { environments: string }[]).some(({ environments }) =>
+    deploysToDv(words(environments)),
+  )
+    ? null
+    : { rule: DV_APPLICATION };
+
 function toUrbanCodeApplication(form: UrbanCodeApplicationForm): UrbanCodeApplicationSettings {
   const v = form.getRawValue();
   return {

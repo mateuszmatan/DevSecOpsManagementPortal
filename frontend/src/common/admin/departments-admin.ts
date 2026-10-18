@@ -21,7 +21,6 @@ export interface DepartmentUsage<D extends Department = Department> {
   subject: string;
   counts?: readonly DepartmentCount<D>[];
   columns?: readonly GridColumn<D>[];
-  blocker?: (department: D) => string | null;
 }
 
 @Component({
@@ -95,7 +94,7 @@ export class DepartmentsAdmin<D extends Department = Department> {
         `${counted(department.productCount, 'product')}: move ${them} to another business service first.`
       );
     }
-    return this.usage().blocker?.(department) ?? null;
+    return null;
   }
 
   protected add(): void {

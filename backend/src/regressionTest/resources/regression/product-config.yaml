@@ -277,7 +277,7 @@ projects:
           - applicationName: LEDGER
             order: 1
             environments:
-            - RD-UAT
+            - DV
             - QC-UAT
             snapshotName: ledger-snapshot
             deployProcess: ledger-process

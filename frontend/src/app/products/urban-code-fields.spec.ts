@@ -3,7 +3,12 @@ import { GlobalSettings } from '../core/models';
 import { buttonOf, fieldOf, text } from '@common/testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { applyFieldProblems } from '@common/shared/form-controls';
-import { ServiceForm, createServiceForm, toServiceRequest } from './product-form-model';
+import {
+  ServiceForm,
+  createServiceForm,
+  dvApplication,
+  toServiceRequest,
+} from './product-form-model';
 import { UrbanCodeFields } from './urban-code-fields';
 
 describe('UrbanCodeFields', () => {
@@ -88,6 +93,18 @@ describe('UrbanCodeFields', () => {
       deployWithSnapshot: null,
       components: [{ charset: 'UTF-8', extensions: 'jar', versionProperties: null }],
     });
+  });
+
+  it('asks for an application for DV in place of the empty list when a Full pipeline needs one', async () => {
+    await render();
+    form.controls.urbanCodeApplications.addValidators(dvApplication);
+
+    await click(buttonOf(applications()[0], 'Remove'));
+
+    expect(text(page().querySelector('.list-error'))).toBe(
+      'Add an UrbanCode Deploy application for DV: the Full pipeline uses it to deploy to the lower test region',
+    );
+    expect(page().querySelector('.list-empty')).toBeNull();
   });
 
   it('shows a problem the API reports for the whole list', async () => {

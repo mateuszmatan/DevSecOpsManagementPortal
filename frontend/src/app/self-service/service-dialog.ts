@@ -14,6 +14,7 @@ import { revalidateAll } from '@common/shared/form-controls';
 import {
   ServiceForm,
   createServiceForm,
+  dvApplication,
   firstInvalidSection,
   followToolDefaults,
   nexusIqApplicationForm,
@@ -93,6 +94,11 @@ export class ServiceDialog {
         ? { rule: 'Another service of this product already has this name' }
         : null;
     });
+
+    if (this.data.pipeline === 'FULL') {
+      this.serviceForm.controls.urbanCodeApplications.addValidators(dvApplication);
+      this.serviceForm.controls.urbanCodeApplications.updateValueAndValidity();
+    }
 
     followToolDefaults(this.serviceForm, this.data.defaults.template);
 

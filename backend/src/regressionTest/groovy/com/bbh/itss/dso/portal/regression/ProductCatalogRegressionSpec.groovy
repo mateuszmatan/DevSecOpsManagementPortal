@@ -8,14 +8,17 @@ import java.util.concurrent.Callable
 
 import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
 import static com.bbh.itss.dso.portal.support.ApiJson.build
+import static com.bbh.itss.dso.portal.support.ApiJson.deployedBy
 import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
 import static com.bbh.itss.dso.portal.support.ApiJson.mavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.openShiftTarget
+import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.scannedByNexusIq
 import static com.bbh.itss.dso.portal.support.ApiJson.service
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Json.toJson
 import static java.util.concurrent.Executors.newFixedThreadPool
 
@@ -520,12 +523,12 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCT WHERE CODE = ?', Integer, unscanned) == 0
     }
 
-    def "a service that deploys to virtual machines gets a Full pipeline only with an UrbanCode Deploy application"() {
+    def "a service that deploys to virtual machines gets a Full pipeline only with an UrbanCode Deploy application for DV"() {
         given:
         def code = uniqueCode('UCD')
         def notDeployed = { String service ->
-            "Service $service deploys to virtual machines but has no UrbanCode Deploy application, so its Full " +
-                    'pipeline would fail at the lower test region deployment'
+            "Service $service deploys to virtual machines but has no UrbanCode Deploy application for DV, so its " +
+                    'Full pipeline would fail at the lower test region deployment'
         }
 
         when:
@@ -548,6 +551,21 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         emptied.status == 409
         emptied.json.detail == notDeployed('gui')
         api.get("/api/products/$created.json.id").json.services*.urbanCodeApplications*.size() == [1, 0]
+
+        when: 'the only UrbanCode Deploy application of a service deploys to RD'
+        def onlyRd = uniqueCode('RD')
+        def sast = api.post('/api/products?pipelineType=SAST', product(code: onlyRd, name: "Product $onlyRd",
+                services: [service(name: 'batch', urbanCodeApplications: [deployedBy('BATCH') + [environments: ['RD']]])]))
+        def full = api.post("/api/services/${sast.json.services[0].id}/pipelines", pipeline())
+
+        then: 'its Full pipeline is refused, and the refusal is recorded for the service and its business service'
+        sast.status == 201
+        full.status == 409
+        full.json.detail == notDeployed('batch')
+        def department = api.get('/api/departments').json.find { it.id == DEPARTMENT_ID }.name
+        api.get('/api/action-history').json.find { it.actionType == 'CREATE_PIPELINE' && it.details == full.json.detail }
+                .subMap('resourceName', 'status', 'departmentName') ==
+                [resourceName: 'batch \u00b7 Full', status: 'FAILURE', departmentName: department]
     }
 
     def "#refusal is a problem detail that keeps the portal's internals to itself"() {

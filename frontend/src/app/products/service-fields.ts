@@ -55,7 +55,7 @@ const NOTES: Record<ServiceSectionId, string> = {
     'The Jenkins jobs that run the smoke, regression and performance tests after a deployment. The pipeline starts them and waits for their results.',
   deployment: 'Where the service runs: on virtual machines or on OpenShift.',
   urbanCode:
-    'How the Full pipeline deploys the service to the lower test region (RD) with UrbanCode Deploy. A Full pipeline of a service on virtual machines needs at least one application.',
+    'How the Full pipeline deploys the service to the lower test region (RD) with UrbanCode Deploy. A Full pipeline of a service on virtual machines needs at least one application for the UrbanCode Deploy environment DV.',
   ssh: 'The virtual machines the service is deployed to over SSH, per test region. A blank value takes the library default; a region left empty is skipped.',
   openShift:
     'The OpenShift projects the service is built and deployed in, per test region. A region left empty is skipped.',

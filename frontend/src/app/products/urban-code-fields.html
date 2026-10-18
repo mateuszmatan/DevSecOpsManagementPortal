@@ -15,7 +15,8 @@
     </button>
   </header>
 
-  @if (f.controls.urbanCodeApplications.errors?.['server']; as message) {
+  @let problem = f.controls.urbanCodeApplications.errors;
+  @if (problem?.['server'] ?? problem?.['rule']; as message) {
     <div class="banner list-error" role="alert">{{ message }}</div>
   }
 
@@ -73,9 +74,11 @@
       </button>
     </div>
   } @empty {
-    <p class="list-empty">
-      No application: the full pipeline does not deploy this service with UrbanCode Deploy, and the
-      options above are not written.
-    </p>
+    @if (!problem) {
+      <p class="list-empty">
+        No application: the full pipeline does not deploy this service with UrbanCode Deploy, and
+        the options above are not written.
+      </p>
+    }
   }
 </section>

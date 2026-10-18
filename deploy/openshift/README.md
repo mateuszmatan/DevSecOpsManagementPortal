@@ -63,8 +63,9 @@ with one pod, its Service and its Route, so it sits next to the other applicatio
    oc create secret generic dso-portal-influx --from-literal=INFLUX_TOKEN='<token>'
    ```
 
-3. Apply the overlay from its folder, where step 1 left you. `oc rollout restart` is needed only when a rebuilt image
-   was pushed under the same tag: the new pod pulls it again.
+3. Apply the overlay from its folder, where step 1 left you. `oc rollout restart` starts a new pod, which pulls an image
+   rebuilt under the same tag and reads changed Secrets; `oc apply` alone rolls the pod only when the Deployment or the
+   ConfigMap changed.
 
    ```bash
    oc apply -k .

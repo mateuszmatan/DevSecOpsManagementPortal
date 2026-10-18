@@ -68,12 +68,17 @@ public class PipelineService implements PipelinesUseCase {
     }
 
     @Override
+    @ReadOnly
+    public Product productOfService(long serviceId) {
+        return products.findByServiceId(serviceId).orElseThrow(() -> notFound("Service", serviceId));
+    }
+
+    @Override
     public PipelineView create(long serviceId, PipelineType type, PipelineSettings settings) {
-        Product product = products.findByServiceId(serviceId)
-                .orElseThrow(() -> notFound("Service", serviceId));
+        Product product = productOfService(serviceId);
         Service service = product.service(serviceId).orElseThrow(() -> notFound("Service", serviceId));
         if (pipelines.existsForService(serviceId, type)) {
-            throw new IllegalStateException("Service " + service.name() + " already has a " + type.variant()
+            throw new IllegalStateException("Service " + service.name() + " already has the " + type.label()
                     + " pipeline");
         }
         return PipelineView.of(product, create(product, service, type, settings), jenkinsUrl());
@@ -122,9 +127,11 @@ public class PipelineService implements PipelinesUseCase {
             return Optional.of("Service " + service.name()
                     + " has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing");
         }
-        if (type == FULL && configured.deployment().target() == VM && configured.urbanCodeApplications().isEmpty()) {
+        if (type == FULL && configured.deployment().target() == VM
+                && configured.urbanCodeApplications().stream().noneMatch(app -> app.deploysTo("DV"))) {
             return Optional.of("Service " + service.name() + " deploys to virtual machines but has no UrbanCode"
-                    + " Deploy application, so its Full pipeline would fail at the lower test region deployment");
+                    + " Deploy application for DV, so its Full pipeline would fail at the lower test region"
+                    + " deployment");
         }
         return Optional.empty();
     }

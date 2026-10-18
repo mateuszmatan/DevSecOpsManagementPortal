@@ -12,7 +12,6 @@ import java.time.Instant;
 import java.util.List;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.AGENT_LABEL;
-import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.AGENT_LABELS_REQUIRED;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.AGENT_LABEL_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESSAGE;
@@ -20,6 +19,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.AGENT_LABELS_REQUIRED;
 
 @JsonIgnoreProperties(value = "updatedAt", allowGetters = true)
 public record ServiceTemplateDto(

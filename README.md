@@ -89,7 +89,8 @@ no other setting.
 The configuration names Jenkins credentials IDs, never passwords. The library writes its run metrics to InfluxDB, and
 the portal reads them back for Pipeline Monitoring. A Nexus IQ GoldenFix pipeline is accepted only for a service with a
 Nexus IQ application, because the library refuses to scan without one, and a Full pipeline of a service on virtual
-machines only with an UrbanCode Deploy application, because the library deploys it to RD through UrbanCode.
+machines only with an UrbanCode Deploy application for DV (environments left empty or including DV), because the
+library deploys the lower test region through UrbanCode Deploy environment DV.
 `GET /api/pipelines/{id}/config` shows the same configuration in the GUI without recording a use.
 
 ## Architecture

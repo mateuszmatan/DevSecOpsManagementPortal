@@ -40,6 +40,10 @@ public record UrbanCodeApplicationSettings(String applicationName, Integer order
                 .snapshotName(snapshotName).components(components).build();
     }
 
+    public boolean deploysTo(String environment) {
+        return environments.isEmpty() || environments.stream().anyMatch(environment::equalsIgnoreCase);
+    }
+
     public void validate(ValidationProblems problems) {
         problems.require("components", components,
                 "add at least one component: the deployment uploads the components of the application");

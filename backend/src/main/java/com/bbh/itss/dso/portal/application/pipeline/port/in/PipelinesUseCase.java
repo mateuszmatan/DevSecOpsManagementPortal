@@ -12,13 +12,16 @@ public interface PipelinesUseCase {
 
     PipelineView get(long id);
 
+    Product productOfService(long serviceId);
+
     PipelineView create(long serviceId, PipelineType type, PipelineSettings settings);
 
     List<PipelineView> createMissing(long productId, List<Long> serviceIds, PipelineType type);
 
     /**
      * Refuses a product whose service keeps a pipeline that would fail: a Nexus IQ GoldenFix pipeline without a Nexus
-     * IQ application to scan, or a Full pipeline deploying to virtual machines without an UrbanCode Deploy application.
+     * IQ application to scan, or a Full pipeline deploying to virtual machines without an UrbanCode Deploy application
+     * for DV.
      */
     void requireRunnablePipelines(Product product);
 

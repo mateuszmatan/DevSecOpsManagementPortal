@@ -37,9 +37,10 @@
     <dso-loading />
   }
 
-  @if (loadError(); as error) {
-    <div class="banner danger" role="alert">{{ error }}</div>
-    <a class="btn btn-outline-primary" [routerLink]="tab.path">Back to products</a>
+  @if (loadError(); as failure) {
+    <dso-load-error [what]="failure.what" [error]="failure.error" (retry)="load()">
+      <a class="btn btn-link" [routerLink]="tab.path">Back to products</a>
+    </dso-load-error>
   } @else if (!loading()) {
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <p class="required-note muted">Fields marked * are required.</p>

@@ -37,5 +37,4 @@ final class InputFormats {
     static final String AGENT_LABEL = "^[^,\\p{Cntrl}]{1,100}$";
     static final String AGENT_LABEL_MESSAGE = "must be a Jenkins label or label expression such as linux && docker,"
             + " without commas";
-    static final String AGENT_LABELS_REQUIRED = "add at least one Jenkins agent label";
 }

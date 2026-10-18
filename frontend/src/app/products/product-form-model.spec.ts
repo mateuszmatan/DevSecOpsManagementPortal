@@ -20,7 +20,9 @@ import {
   createTestJobForm,
   createToolCommandForm,
   createUrbanCodeApplicationForm,
+  deploysToDv,
   duplicateService,
+  dvApplication,
   firstInvalidSection,
   firstServiceWithProblem,
   followToolDefaults,
@@ -544,6 +546,36 @@ describe('UrbanCode applications', () => {
 
     application.controls.components.removeAt(0);
     expect(application.controls.components.errors).toEqual({ rule: 'Add at least one component' });
+  });
+
+  it('takes an application without environments or with DV as one that deploys to DV', () => {
+    expect(deploysToDv([])).toBe(true);
+    expect(deploysToDv(['RD', ' dv '])).toBe(true);
+    expect(deploysToDv(['RD', 'QC'])).toBe(false);
+  });
+
+  it('needs an application for DV while the service deploys to virtual machines', () => {
+    const form = createServiceForm(service());
+    const applications = form.controls.urbanCodeApplications;
+    applications.addValidators(dvApplication);
+    applications.at(0).controls.environments.setValue('rd, qc');
+
+    expect(applications.errors).toEqual({
+      rule: 'Add an UrbanCode Deploy application for DV: the Full pipeline uses it to deploy to the lower test region',
+    });
+    expect(firstInvalidSection(form)).toBe('urbanCode');
+
+    applications.push(
+      createUrbanCodeApplicationForm({ ...service().urbanCodeApplications[0], environments: [] }),
+    );
+    expect(applications.valid).toBe(true);
+
+    applications.clear();
+    expect(form.invalid).toBe(true);
+
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    expect(applications.errors).toBeNull();
+    expect(firstInvalidSection(form)).not.toBe('urbanCode');
   });
 });
 

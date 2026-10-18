@@ -68,12 +68,18 @@ class PlatformSettingsSpec extends Specification {
         def platform = PlatformSettings.builder().jenkinsUrl(' https://jenkins.bbh.com ')
                 .jenkinsLibrary(' DevSecOpsJenkinsLibrary ').asocUrl(' ').appScanClientLinuxUrl('')
                 .proxyHost(' tstproxy.bbh.com ').proxyPort(9090).proxyUser('  ').oisHost(' oisapi.bbh.com ')
-                .sonarServerUrl(' https://tools.bbh.com/sonar ').influxOrg(' ').grafanaName(' Grafana ').build()
+                .sonarServerUrl(' https://tools.bbh.com/sonar ').sonarInstallationName(' SonarQube ')
+                .nexusIqServerUrl(' https://tools.bbh.com/IQ ').nexusIqCredentialsId(' nexusiqP ')
+                .nexusSnapshotRepositoryUrl(' ').nexusSnapshotRepositoryId(' ').influxWriteUrl(' ')
+                .influxCredentialsId(' ').iosBuildAgent(' mac002.bbh.com ').influxOrg(' ').grafanaName(' Grafana ')
+                .build()
 
         then:
         platform == PlatformSettings.builder().jenkinsUrl('https://jenkins.bbh.com')
                 .jenkinsLibrary('DevSecOpsJenkinsLibrary').proxyHost('tstproxy.bbh.com').proxyPort(9090)
-                .oisHost('oisapi.bbh.com').sonarServerUrl('https://tools.bbh.com/sonar').grafanaName('Grafana').build()
+                .oisHost('oisapi.bbh.com').sonarServerUrl('https://tools.bbh.com/sonar')
+                .sonarInstallationName('SonarQube').nexusIqServerUrl('https://tools.bbh.com/IQ')
+                .nexusIqCredentialsId('nexusiqP').iosBuildAgent('mac002.bbh.com').grafanaName('Grafana').build()
     }
 
     def "changing the Jenkins URL keeps every other value and puts the URL first"() {

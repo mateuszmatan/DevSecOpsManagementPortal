@@ -132,7 +132,7 @@ testing {
                                 events 'failed'
                                 exceptionFormat = 'full'
                             }
-                            if (suiteName != 'regressionTest') {
+                            if (suiteName != 'regressionTest' || providers.systemProperty('frontend.screenshots').present) {
                                 outputs.upToDateWhen { false }
                                 outputs.cacheIf { false }
                             }

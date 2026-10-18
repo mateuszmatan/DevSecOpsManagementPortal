@@ -37,8 +37,6 @@ describe('DepartmentsAdmin', () => {
         numeric: true,
       },
     ],
-    blocker: (department) =>
-      department.taskCount ? `${department.name} still has open tasks.` : null,
   };
 
   function create(usage: DepartmentUsage<Busy>) {
@@ -136,13 +134,9 @@ describe('DepartmentsAdmin', () => {
     expect(rows().length).toBe(1);
   });
 
-  it('deletes only a department without products or anything the app counts', async () => {
+  it('deletes only a department without products', async () => {
     create(tasks);
-    await load([
-      busy(),
-      fundServices,
-      busy({ id: 4, name: 'Custody', productCount: 0, taskCount: 2 }),
-    ]);
+    await load();
 
     expect(buttonOf(row('Corporate Technology'), 'Delete').disabled).toBe(true);
     expect(
@@ -163,11 +157,6 @@ describe('DepartmentsAdmin', () => {
     expect(buttonOf(row('Fund Services'), 'Delete').disabled).toBe(false);
     expect(row('Fund Services').querySelector('.delete')?.hasAttribute('title')).toBe(false);
     expect(reason('Fund Services')).toBeNull();
-    expect(buttonOf(row('Custody'), 'Delete').disabled).toBe(true);
-    expect(row('Custody').querySelector('.delete')?.getAttribute('title')).toBe(
-      'Custody still has open tasks.',
-    );
-    expect(reason('Custody')).toBe('Custody still has open tasks.');
   });
 
   it('adds and renames a department and lists the departments again', async () => {

@@ -35,9 +35,16 @@ import { Notifier } from '@common/core/notifier';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { ConfirmDialogData, askToConfirm } from '@common/shared/confirm-dialog';
 import { Field, Fields, area, choice, line, mono } from '@common/shared/fields';
-import { addItem, moveItem, removeItem, revalidateAll } from '@common/shared/form-controls';
+import {
+  VALUES_NOT_ACCEPTED,
+  addItem,
+  moveItem,
+  removeItem,
+  revalidateAll,
+} from '@common/shared/form-controls';
 import { CountedPipe } from '@common/shared/formatting';
 import { buildDefaults } from '../shared/service-template';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
 import { PANEL } from '@common/ui/panel';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/build-options';
@@ -47,6 +54,7 @@ import {
   createProductForm,
   createServiceForm,
   duplicateService,
+  dvApplication,
   firstServiceWithProblem,
   followToolDefaults,
   patchProduct,
@@ -99,6 +107,7 @@ const APP_SCAN_ACCOUNT: Field[] = [
     PANEL,
     DsoLoading,
     DsoSpinner,
+    LoadError,
     CountedPipe,
     Fields,
     ServiceFields,
@@ -129,7 +138,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   private readonly template = signal<ServiceTemplate | null>(null);
   protected readonly departments = signal<Department[]>([]);
   protected readonly loading = signal(false);
-  protected readonly loadError = signal<string | null>(null);
+  protected readonly loadError = signal<{ what: string; error: unknown } | null>(null);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly unmatchedProblems = signal<FieldProblem[]>([]);
@@ -156,8 +165,13 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected readonly targetLabels = TARGET_LABELS;
 
   ngOnInit(): void {
+    this.load();
+  }
+
+  protected load(): void {
     const id = this.id();
     this.loading.set(true);
+    this.loadError.set(null);
     if (id === undefined) {
       this.departmentsApi
         .list<Department>()
@@ -199,8 +213,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
             this.form.markAsPristine();
             this.followNameWithCode();
           },
-          error: (error) =>
-            this.loadError.set(`The business services could not be loaded. ${errorMessage(error)}`),
+          error: (error) => this.loadError.set({ what: 'The business services', error }),
         });
       return;
     }
@@ -218,6 +231,14 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       .subscribe({
         next: ({ product, pipelines, settings, template, departments }) => {
           patchProduct(this.form, product);
+          const full = new Set(
+            pipelines
+              .filter((service) => service.pipelines.some(({ type }) => type === 'FULL'))
+              .map((service) => service.serviceId),
+          );
+          this.form.controls.services.controls
+            .filter((service) => full.has(service.controls.id.value!))
+            .forEach((service) => this.withFullPipeline(service));
           this.form.markAsPristine();
           this.product.set(product);
           this.settings.set(settings);
@@ -228,8 +249,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
           );
           this.expanded.set(product.services.length === 1 ? 0 : null);
         },
-        error: (error) =>
-          this.loadError.set(`The product could not be loaded. ${errorMessage(error)}`),
+        error: (error) => this.loadError.set({ what: 'The product', error }),
       });
   }
 
@@ -255,13 +275,13 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       delivery: { tasks: template?.deliveryTasks ?? '' },
     });
     followToolDefaults(service, template, this.destroyRef);
-    addItem(this.form.controls.services, service);
+    addItem(this.form.controls.services, this.withFullPipeline(service));
     this.expanded.set(this.form.controls.services.length - 1);
   }
 
   protected duplicate(index: number): void {
     const services = this.form.controls.services;
-    addItem(services, duplicateService(services.at(index)), index + 1);
+    addItem(services, this.withFullPipeline(duplicateService(services.at(index))), index + 1);
     this.expanded.set(index + 1);
   }
 
@@ -350,7 +370,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       return;
     }
     this.unmatchedProblems.set(applyProductProblems(this.form, problems));
-    this.saveError.set('The portal did not accept some values. They are marked in the form.');
+    this.saveError.set(VALUES_NOT_ACCEPTED);
     this.revealProblem(firstServiceWithProblem(problems));
   }
 
@@ -374,6 +394,12 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       },
       { injector: this.injector },
     );
+  }
+
+  private withFullPipeline(service: ServiceForm): ServiceForm {
+    service.controls.urbanCodeApplications.addValidators(dvApplication);
+    service.controls.urbanCodeApplications.updateValueAndValidity();
+    return service;
   }
 
   private followNameWithCode(): void {

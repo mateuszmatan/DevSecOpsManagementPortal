@@ -10,10 +10,10 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.AGENT_LABEL;
-import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.AGENT_LABELS_REQUIRED;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.AGENT_LABEL_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.JOB_PATH;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.JOB_PATH_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.AGENT_LABELS_REQUIRED;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.JENKINS_JOB_MAX;
 

@@ -75,7 +75,7 @@ final class ApiJson {
                                  skipWait                : true, deployWithSnapshot: false, updateSnapshotComponents: true,
                                  includeOnlyDeployVersions: false, deployOnlyChanged: true,
                                  deployDescription       : 'Ledger release', requestProperties: 'restart=true'],
-         urbanCodeApplications: [[applicationName: 'LEDGER', order: 1, environments: ['RD-UAT', 'QC-UAT'],
+         urbanCodeApplications: [[applicationName: 'LEDGER', order: 1, environments: ['DV', 'QC-UAT'],
                                   snapshotName   : 'ledger-snapshot', siteName: null, deployProcess: 'ledger-process',
                                   skipWait       : false, deployWithSnapshot: null, updateSnapshotComponents: null,
                                   includeOnlyDeployVersions: null, deployOnlyChanged: null,

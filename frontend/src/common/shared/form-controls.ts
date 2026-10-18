@@ -218,6 +218,9 @@ export function applyFieldProblems(
   return unmatched;
 }
 
+export const VALUES_NOT_ACCEPTED =
+  'The portal did not accept some values. They are marked in the form.';
+
 export interface SaveFailure {
   conflict: boolean;
   message: string;
@@ -238,7 +241,7 @@ export function saveFailure(
   }
   return {
     conflict: false,
-    message: 'The portal did not accept some values. They are marked in the form.',
+    message: VALUES_NOT_ACCEPTED,
     unmatched: applyFieldProblems(form, problems),
   };
 }
