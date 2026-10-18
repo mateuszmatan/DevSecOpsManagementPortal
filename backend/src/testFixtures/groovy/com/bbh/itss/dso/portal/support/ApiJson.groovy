@@ -19,10 +19,16 @@ final class ApiJson {
     }
 
     static Map service(Map overrides = [:]) {
-        [name      : 'gui',
-         build     : build(),
-         deployment: [target: 'VM'],
-         appScan   : [applicationId: APP_ID]] + overrides
+        [name                 : 'gui',
+         build                : build(),
+         deployment           : [target: 'VM'],
+         urbanCodeApplications: [deployedBy('CERT')],
+         appScan              : [applicationId: APP_ID]] + overrides
+    }
+
+    static Map deployedBy(String application) {
+        [applicationName: application,
+         components     : [[componentName: application.toLowerCase(), baseDir: 'build/libs', fileIncludePatterns: '*.jar']]]
     }
 
     static Map scannedByNexusIq(String application) {
@@ -69,7 +75,7 @@ final class ApiJson {
                                  skipWait                : true, deployWithSnapshot: false, updateSnapshotComponents: true,
                                  includeOnlyDeployVersions: false, deployOnlyChanged: true,
                                  deployDescription       : 'Ledger release', requestProperties: 'restart=true'],
-         urbanCodeApplications: [[applicationName: 'LEDGER', order: 1, environments: ['RD-UAT', 'QC-UAT'],
+         urbanCodeApplications: [[applicationName: 'LEDGER', order: 1, environments: ['DV', 'QC-UAT'],
                                   snapshotName   : 'ledger-snapshot', siteName: null, deployProcess: 'ledger-process',
                                   skipWait       : false, deployWithSnapshot: null, updateSnapshotComponents: null,
                                   includeOnlyDeployVersions: null, deployOnlyChanged: null,
@@ -84,19 +90,19 @@ final class ApiJson {
                                  QC: [host        : 'qcltaapps1.testbbh.com', user: 'taadmin', deployDir: '/opt/ledger',
                                       deployScript: 'scripts/deploy.sh', versionFile: 'version.properties']],
          openShiftTargets     : [:],
-         appScan              : [applicationId : APP_ID, sastScanName: 'ledger-sast', includedDirs: ['ledger/src/main'],
+         appScan              : [applicationId : APP_ID, includedDirs: ['ledger/src/main'],
                                  excludedDirs  : ['ledger/src/test'], compile: true, sourceCodeOnly: false,
                                  useConfigFile : false, insecureTls: false, clientPath: '/opt/saclient',
                                  compileCommand: command(['compile'], ['-q']),
-                                 dastEnabled   : true, dastScanName: 'ledger-dast',
-                                 dastTargetUrl : 'https://ledger-uat.testbbh.com', dastPresenceId: 'presence-1',
+                                 dastEnabled   : true, dastTargetUrl: 'https://ledger-uat.testbbh.com',
+                                 dastPresenceId: 'presence-1',
                                  secretCredentialsId: 'ledger-appscan-secret'],
          sonar                : [projectName           : 'Ledger', projectKey: 'ledger', installationName: 'SonarQube',
                                  credentialsId         : 'sonar-user', authTokenCredentialsId: 'sonar-token',
                                  badgeToken            : 'sqb_1a2b3c', addBadges: true, fullBadges: false,
                                  serverUrl             : 'https://sonar-ledger.bbh.com',
                                  command               : command(['sonar:sonar'], ['-Dsonar.branch.name=develop'])],
-         nexusIq              : [serverUrl: null, credentialsId: 'ledger-iq', scaScanName: 'ledger-sca'],
+         nexusIq              : [serverUrl: null, credentialsId: 'ledger-iq'],
          nexusIqApplications  : [[application: 'ledger', scanPatterns: ['**/target/*.war'], stage: 'stage-release',
                                   failOnNetworkError: true]],
          scm                  : [repositoryUrl: 'https://bitbucket.bbh.com/projects/LED/repos/ledger',
@@ -130,6 +136,7 @@ final class ApiJson {
          build     : [tool: 'FLUTTER', sourceDir: 'mobile', javaPath: JDK, autoSetup: false, buildPath: null,
                       command: command([], [])],
          deployment: [target: 'VM', appName: null, artifactName: null, baseArtifactName: null],
+         urbanCodeApplications: [deployedBy('LEDGER-MOBILE')],
          appScan   : [applicationId: APP_ID],
          flutter   : [platform                    : 'APK', modules: ['app'], testModules: ['app', 'core'],
                       testSubmodules              : ['core/model'], testSubplugins: ['plugins/camera'],

@@ -93,12 +93,12 @@ final class Fixtures {
 
     static AppScanSettings appScan(Map args = [:]) {
         AppScanSettings.builder().applicationId(args.applicationId as String ?: APP_ID)
-                .sastScanName(args.sastScanName as String).includedDirs(args.includedDirs as List<String>)
+                .includedDirs(args.includedDirs as List<String>)
                 .excludedDirs(args.excludedDirs as List<String>).compile(args.compile as Boolean)
                 .sourceCodeOnly(args.sourceCodeOnly as Boolean).useConfigFile(args.useConfigFile as Boolean)
                 .insecureTls(args.insecureTls as Boolean).clientPath(args.clientPath as String)
                 .compileCommand(args.compileCommand as ToolCommand).dastEnabled(args.dastEnabled as Boolean)
-                .dastScanName(args.dastScanName as String).dastTargetUrl(args.dastTargetUrl as String)
+                .dastTargetUrl(args.dastTargetUrl as String)
                 .dastPresenceId(args.dastPresenceId as String).secretCredentialsId(args.secretCredentialsId as String)
                 .build()
     }
@@ -166,15 +166,14 @@ final class Fixtures {
                                 'https://bitbucket.bbh.com/scm/ta/deploy.git', 'main', 'deploy-creds', '1.0.42',
                                 'image-registry.openshift-image-registry.svc:5000/cert'),
                         (QC): OpenShiftTarget.builder().projectDeployment('cert-qc').buildTag('1.0.41').build()])
-                .appScan(AppScanSettings.builder().applicationId(APP_ID).sastScanName('Cert scan')
-                        .includedDirs(['src']).excludedDirs(['test']).compile(false).sourceCodeOnly(true)
-                        .useConfigFile(true).insecureTls(true).clientPath('/opt/appscan')
-                        .compileCommand(fullCommand('compile')).dastEnabled(true).dastScanName('Cert DAST')
+                .appScan(AppScanSettings.builder().applicationId(APP_ID).includedDirs(['src']).excludedDirs(['test'])
+                        .compile(false).sourceCodeOnly(true).useConfigFile(true).insecureTls(true)
+                        .clientPath('/opt/appscan').compileCommand(fullCommand('compile')).dastEnabled(true)
                         .dastTargetUrl('https://cert.testbbh.com').dastPresenceId('presence-1')
                         .secretCredentialsId('cert-appscan-secret').build())
                 .sonar(new SonarSettings('CertScanner', "cert-${name}", 'SonarQube BBH', 'sonar-creds', 'sonar-token',
                         'badge', true, true, fullCommand('sonar'), 'https://sonar.cert.bbh.com'))
-                .nexusIq(new NexusIqSettings('https://iq.cert.bbh.com', 'cert-iq', 'Cert SCA'))
+                .nexusIq(new NexusIqSettings('https://iq.cert.bbh.com', 'cert-iq'))
                 .nexusIqApplications([new NexusIqApplication("cert-${name}", ['**/*.war', '**/*.jar'], 'release', true),
                                       NexusIqApplication.of("cert-${name}-batch", ['**/batch/*.jar'])])
                 .scm(new ScmSettings('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds', BEARER, SERVER, 'develop',

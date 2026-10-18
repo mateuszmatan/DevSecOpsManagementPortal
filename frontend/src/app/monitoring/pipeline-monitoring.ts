@@ -11,24 +11,24 @@ import { DatePipe } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MonitoringApi } from '../core/api';
-import { errorMessage } from '@common/core/errors';
-import { PipelineMonitoring, PipelineRun, pipelineTypeLabel } from '../core/models';
+import { PipelineMonitoring, pipelineTypeLabel } from '../core/models';
+import { MONITORING, monitoringProduct, pipelinePage } from '../core/sections';
 import { BuildLink } from '../shared/build-link';
 import {
   CountedPipe,
   DurationPipe,
   RelativeTimePipe,
   TIME_ZONE_NOTE,
-  formatDuration,
 } from '@common/shared/formatting';
-import { RUN_LOOK, StatusChip } from '../shared/status-chip';
-import { GRID, GridColumn } from '@common/ui/grid';
+import { StatusChip } from '../shared/status-chip';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 import { TOGGLES } from '@common/ui/toggle-group';
 import { ActivityChart } from './activity-chart';
 import { DoraTiles } from './dora-tiles';
 import { MetricsBanner } from './metrics-banner';
-import { stageSummary } from './stages';
+import { RunGrid } from './run-grid';
+import { stageSummary, stagesPassed } from './stages';
 
 const RANGES = ['7d', '30d', '90d', '180d'].map((value) => ({
   value,
@@ -40,8 +40,8 @@ const RANGES = ['7d', '30d', '90d', '180d'].map((value) => ({
   imports: [
     DatePipe,
     RouterLink,
-    GRID,
     DsoLoading,
+    LoadError,
     TOGGLES,
     ActivityChart,
     BuildLink,
@@ -50,6 +50,7 @@ const RANGES = ['7d', '30d', '90d', '180d'].map((value) => ({
     DurationPipe,
     MetricsBanner,
     RelativeTimePipe,
+    RunGrid,
     StatusChip,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -89,43 +90,11 @@ export class PipelineMonitoringPage {
     })),
   );
 
-  protected readonly runId = (run: PipelineRun) => `${run.time} ${run.build}`;
-  protected readonly runColumns: GridColumn<PipelineRun>[] = [
-    { key: 'time', header: 'Finished', value: (run) => run.time, width: 130 },
-    { key: 'result', header: 'Result', value: (run) => RUN_LOOK[run.result]?.label, width: 140 },
-    { key: 'build', header: 'Build', value: (run) => run.build, width: 90 },
-    {
-      key: 'branch',
-      header: 'Branch',
-      value: (run) => run.branch ?? '–',
-      cellClass: 'mono',
-      wrap: true,
-      minWidth: 140,
-    },
-    {
-      key: 'commit',
-      header: 'Commit',
-      value: (run) => (run.commit ? run.commit.slice(0, 10) : '–'),
-      cellClass: 'mono',
-      width: 130,
-    },
-    {
-      key: 'duration',
-      header: 'Duration',
-      value: (run) => formatDuration(run.durationSeconds),
-      sortValue: (run) => run.durationSeconds ?? -1,
-      width: 110,
-    },
-    {
-      key: 'stages',
-      header: 'Stages passed',
-      value: (run) => (run.stagesTotal ? `${run.passed ?? 0} of ${run.stagesTotal}` : '–'),
-      width: 140,
-    },
-  ];
-  protected readonly errorMessage = errorMessage;
-
+  protected readonly section = MONITORING;
+  protected readonly monitoringProduct = monitoringProduct;
+  protected readonly pipelinePage = pipelinePage;
   protected readonly typeLabel = pipelineTypeLabel;
+  protected readonly stagesPassed = stagesPassed;
   protected readonly stageSummary = stageSummary;
   protected readonly timeZoneNote = TIME_ZONE_NOTE;
 

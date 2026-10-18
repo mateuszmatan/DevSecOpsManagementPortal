@@ -108,9 +108,15 @@
   }
 
   .menu {
+    order: 2;
     width: 100%;
     margin-left: 0;
     border-top: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  .user-badge {
+    order: 1;
+    margin-left: auto;
   }
 
   .brand {

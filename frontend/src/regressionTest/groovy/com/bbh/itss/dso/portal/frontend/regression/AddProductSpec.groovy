@@ -85,6 +85,14 @@ class AddProductSpec extends EditorSpecification {
                                'Gradle tasks': 'clean build'])
         showSection('AppScan SAST and DAST')
         input(openService(), 'AppScan application ID').fill(GUI_APPLICATION)
+        showSection('UrbanCode Deploy')
+
+        then:
+        assertThat(openService().locator('.list-error'))
+                .hasText('Add an UrbanCode Deploy application for DV: the Full pipeline uses it to deploy to the lower test region')
+
+        when:
+        addUrbanCodeApplication('CERT-GUI', 'build/libs')
         button('Add service', true).click()
 
         then:
@@ -99,12 +107,13 @@ class AddProductSpec extends EditorSpecification {
                                'Maven goals': 'clean verify'])
         showSection('Deployment')
         input(openService(), 'Maven goals').fill('deploy')
+        addUrbanCodeApplication('CERT-API', 'target')
         showSection('AppScan SAST and DAST')
         input(openService(), 'AppScan application ID').fill(TAKEN_APPLICATION)
         button('Add product', true).click()
 
         then:
-        assertThat(saveError()).hasText('The portal did not accept some values. They are marked below.')
+        assertThat(saveError()).hasText('The portal did not accept some values. They are marked in the form.')
         assertThat(errorOf(productFields(), 'Code')).hasText('another product already uses this code')
         assertThat(openService().locator('.service-name')).hasText('backend-api')
         assertThat(servicePanel('backend-api').locator('.tag.error')).hasText('Needs attention')

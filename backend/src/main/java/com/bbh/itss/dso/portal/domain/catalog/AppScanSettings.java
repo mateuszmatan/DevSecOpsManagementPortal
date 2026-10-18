@@ -20,15 +20,13 @@ import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @Builder
-public record AppScanSettings(String applicationId, String sastScanName, List<String> includedDirs,
-                              List<String> excludedDirs, Boolean compile, Boolean sourceCodeOnly, Boolean useConfigFile,
-                              Boolean insecureTls, String clientPath, ToolCommand compileCommand, Boolean dastEnabled,
-                              String dastScanName, String dastTargetUrl, String dastPresenceId,
-                              String secretCredentialsId) {
+public record AppScanSettings(String applicationId, List<String> includedDirs, List<String> excludedDirs,
+                              Boolean compile, Boolean sourceCodeOnly, Boolean useConfigFile, Boolean insecureTls,
+                              String clientPath, ToolCommand compileCommand, Boolean dastEnabled, String dastTargetUrl,
+                              String dastPresenceId, String secretCredentialsId) {
 
     public AppScanSettings {
         applicationId = lowerCase(trim(applicationId), ROOT);
-        sastScanName = trimToNull(sastScanName);
         includedDirs = clean(includedDirs);
         excludedDirs = clean(excludedDirs);
         compile = isNotFalse(compile);
@@ -38,7 +36,6 @@ public record AppScanSettings(String applicationId, String sastScanName, List<St
         clientPath = trimToNull(clientPath);
         compileCommand = getIfNull(compileCommand, NONE);
         dastEnabled = isTrue(dastEnabled);
-        dastScanName = trimToNull(dastScanName);
         dastTargetUrl = trimToNull(dastTargetUrl);
         dastPresenceId = trimToNull(dastPresenceId);
         secretCredentialsId = trimToNull(secretCredentialsId);
@@ -59,9 +56,7 @@ public record AppScanSettings(String applicationId, String sastScanName, List<St
                 .flag("asoc.useAppScanConfig", useConfigFile)
                 .flag("asoc.insecureTls", insecureTls);
         compileCommand.writeTo(config, "asoc", tool);
-        config.set("sast.scanName", sastScanName)
-                .set("dast.enabled", dastEnabled)
-                .set("dast.scanName", dastScanName)
+        config.set("dast.enabled", dastEnabled)
                 .set("dast.targetUrl", dastTargetUrl)
                 .set("dast.presenceId", dastPresenceId);
     }

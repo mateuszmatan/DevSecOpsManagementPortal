@@ -19,14 +19,12 @@ import { Field, Fields, area, choice, mono } from '@common/shared/fields';
 import {
   applyFieldProblems,
   commaItems,
-  eachItem,
-  filled,
-  fitsColumn,
   joinWords,
   max,
   setEnabled,
   text,
 } from '@common/shared/form-controls';
+import { agentLabels } from '../shared/build-options';
 import { fillTemplate } from '../shared/service-template';
 import { DIALOG } from '@common/ui/dialog';
 import { DsoSpinner } from '@common/ui/loading';
@@ -37,11 +35,9 @@ export interface PipelineDialogData {
   pipeline?: Pipeline;
 }
 
-export const AGENT_LABEL = /^.{1,100}$/;
 export const JENKINS_JOB = /^(https?:\/\/\S+|[^\s:?#][^:?#]*)$/;
 export const JOB_PATH = /^(?!.*\.\.)[A-Za-z0-9._ /-]+$/;
 const JOB_PATH_ERROR = "A job path such as DevSecOps/CERT/backend-api-extended, without '..'";
-const MAX_LABELS = 20;
 const STALE =
   'Not saved: someone else changed the settings of this pipeline after you opened them. ' +
   'The form now shows their settings: make your change again, then save.';
@@ -87,14 +83,7 @@ export class PipelineDialog {
       { value: this.data.pipeline?.type ?? this.types[0]?.value ?? 'FULL', disabled: this.editing },
       { nonNullable: true },
     ),
-    agentLabels: text(
-      this.stored.agentLabels,
-      filled,
-      (control) =>
-        commaItems(control.value).length > MAX_LABELS ? { maxItems: { max: MAX_LABELS } } : null,
-      eachItem(commaItems, AGENT_LABEL, 'At most 100 characters per label'),
-      fitsColumn(commaItems, ',', 1000),
-    ),
+    agentLabels: agentLabels(this.stored.agentLabels),
     jenkinsJob: text(this.stored.jenkinsJob, Validators.pattern(JENKINS_JOB), max(1000)),
     extendedPipelineJob: text(
       this.stored.extendedPipelineJob,

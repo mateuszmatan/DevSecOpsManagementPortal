@@ -1,11 +1,14 @@
-package com.bbh.itss.dso.portal.domain.monitoring
+package com.bbh.itss.dso.portal.adapter.out.influx
 
+import com.bbh.itss.dso.portal.domain.monitoring.DoraPoint
+import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
+import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun
 import spock.lang.Specification
 
 import java.time.Instant
 
-import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.doraPoint
-import static com.bbh.itss.dso.portal.domain.monitoring.MetricsRow.tag
+import static com.bbh.itss.dso.portal.adapter.out.influx.MetricsRow.doraPoint
+import static com.bbh.itss.dso.portal.adapter.out.influx.MetricsRow.tag
 import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.NO_DATA
 import static com.bbh.itss.dso.portal.domain.monitoring.RunResult.UNSTABLE
 
@@ -15,14 +18,14 @@ class MetricsRowSpec extends Specification {
         when:
         def run = MetricsRow.run([_time       : '2026-10-01T10:00:00Z', result: 'unstable', branch: 'develop',
                                   build       : '42', duration_s: '1260.0', commit: 'a1b2c3', job: 'CERT/gui',
-                                  stages_total: '12', passed: '11', warned: '1', failed: '0', blocked: '0',
-                                  skipped     : ''])
+                                  stages_total: '12', passed: '10', not_required: '1', warned: '1', failed: '0',
+                                  blocked     : '0', skipped: ''])
 
         then:
         run == new PipelineRun(Instant.parse('2026-10-01T10:00:00Z'), UNSTABLE, 'develop', 42, 1260,
-                'a1b2c3', 'CERT/gui', 12, 11, 1, 0, 0, null)
+                'a1b2c3', 'CERT/gui', 12, 10, 1, 1, 0, 0, null)
         MetricsRow.run([_time: '2026-10-01T10:00:00Z', branch: ' ']) == new PipelineRun(
-                Instant.parse('2026-10-01T10:00:00Z'), NO_DATA, *([null] * 11))
+                Instant.parse('2026-10-01T10:00:00Z'), NO_DATA, *([null] * 12))
         tag([project: 'CERT-gui', env: 'test', _time: '2026-10-01T10:00:00Z']) == new MetricsTag('CERT-gui', 'test')
     }
 

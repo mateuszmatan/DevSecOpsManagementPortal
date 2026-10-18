@@ -27,8 +27,6 @@ dependencies {
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-    testCompileOnly 'org.projectlombok:lombok'
-    testAnnotationProcessor 'org.projectlombok:lombok'
 
     // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
@@ -48,15 +46,7 @@ dependencies {
     runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
 
     // Testing
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-    testImplementation platform(libs.groovy.bom)
-    testImplementation libs.groovy
-    testImplementation libs.groovy.json
-    testImplementation platform(libs.spock.bom)
-    testImplementation libs.spock.core
-    testImplementation libs.spock.spring
     testImplementation libs.archunit.junit5
 
     // Test Fixtures
@@ -67,7 +57,6 @@ dependencies {
     testFixturesApi platform(libs.spock.bom)
     testFixturesApi libs.spock.core
     testFixturesApi libs.spock.spring
-    testFixturesApi libs.archunit.junit5
 }
 
 def skipGui = providers.gradleProperty('skipGui').map { it != 'false' }.getOrElse(false)
@@ -94,6 +83,7 @@ testing {
             targets.configureEach {
                 testTask.configure {
                     jvmArgs '-XX:+EnableDynamicAgentLoading', '-Duser.language=en', '-Duser.country=US'
+                    systemProperty 'LOG_PATH', layout.buildDirectory.dir('logs').get().asFile.absolutePath
                     testLogging {
                         events 'failed'
                         exceptionFormat = 'full'
@@ -126,7 +116,10 @@ testing {
                             extensions.getByType(JacocoTaskExtension).enabled = false
                             systemProperty 'regression.expectedDir', file('src/regressionTest/resources/regression').absolutePath
                             systemProperty 'performance.report', layout.buildDirectory.file("reports/performance/backend-performance-report.md").get().asFile.absolutePath
-                            forward(it, 'regression.updateExpected', 'smoke.baseUrl', 'smoke.ui')
+                            forward(it, 'regression.updateExpected', 'smoke.ui')
+                            if (suiteName == 'smokeTest') {
+                                forward(it, 'smoke.baseUrl')
+                            }
                             systemProperty 'performance.factor', performanceFactor
                             if (suiteName != 'regressionTest') {
                                 outputs.upToDateWhen { false }

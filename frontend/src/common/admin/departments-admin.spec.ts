@@ -37,8 +37,6 @@ describe('DepartmentsAdmin', () => {
         numeric: true,
       },
     ],
-    blocker: (department) =>
-      department.taskCount ? `${department.name} still has open tasks.` : null,
   };
 
   function create(usage: DepartmentUsage<Busy>) {
@@ -123,8 +121,8 @@ describe('DepartmentsAdmin', () => {
     http.expectOne('/api/departments').flush(null, { status: 0, statusText: 'Unknown Error' });
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.banner'))).toContain(
-      'The business services could not be loaded: The portal cannot be reached.',
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
+      'The business services could not be loaded. The portal cannot be reached. Check your network connection and try again.',
     );
 
     buttonOf(page().querySelector('.banner')!, 'Try again').click();
@@ -136,13 +134,9 @@ describe('DepartmentsAdmin', () => {
     expect(rows().length).toBe(1);
   });
 
-  it('deletes only a department without products or anything the app counts', async () => {
+  it('deletes only a department without products', async () => {
     create(tasks);
-    await load([
-      busy(),
-      fundServices,
-      busy({ id: 4, name: 'Custody', productCount: 0, taskCount: 2 }),
-    ]);
+    await load();
 
     expect(buttonOf(row('Corporate Technology'), 'Delete').disabled).toBe(true);
     expect(
@@ -163,11 +157,6 @@ describe('DepartmentsAdmin', () => {
     expect(buttonOf(row('Fund Services'), 'Delete').disabled).toBe(false);
     expect(row('Fund Services').querySelector('.delete')?.hasAttribute('title')).toBe(false);
     expect(reason('Fund Services')).toBeNull();
-    expect(buttonOf(row('Custody'), 'Delete').disabled).toBe(true);
-    expect(row('Custody').querySelector('.delete')?.getAttribute('title')).toBe(
-      'Custody still has open tasks.',
-    );
-    expect(reason('Custody')).toBe('Custody still has open tasks.');
   });
 
   it('adds and renames a department and lists the departments again', async () => {

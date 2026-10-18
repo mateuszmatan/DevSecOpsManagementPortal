@@ -16,8 +16,3 @@ export interface DepartmentRequest {
   name: string;
   version: number | null;
 }
-
-export interface LookupItem {
-  value: string;
-  detail: string | null;
-}

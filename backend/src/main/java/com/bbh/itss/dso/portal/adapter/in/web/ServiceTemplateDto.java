@@ -11,21 +11,22 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.AGENT_LABEL;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.AGENT_LABEL_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings.AGENT_LABELS_REQUIRED;
 
 @JsonIgnoreProperties(value = "updatedAt", allowGetters = true)
 public record ServiceTemplateDto(
         Long version,
         Instant updatedAt,
-        @NotEmpty(message = "add at least one Jenkins agent label") @Size(max = 20)
-        List<@Pattern(regexp = "^[^,\\p{Cntrl}]{1,100}$",
-                message = "must be a Jenkins label or label expression such as linux && docker, without commas")
-                String> agentLabels,
+        @NotEmpty(message = AGENT_LABELS_REQUIRED) @Size(max = 20)
+        List<@Pattern(regexp = AGENT_LABEL, message = AGENT_LABEL_MESSAGE) String> agentLabels,
         @Size(max = 500)
         @Pattern(regexp = "^((?!.*\\.\\.)[A-Za-z0-9._ /{}-]+)?$",
                 message = "must be a Jenkins job path such as DevSecOps/{CODE}/{service}-{type}, with letters,"

@@ -1,8 +1,8 @@
 <div class="page">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a routerLink="/admin">DevSecOps Admin</a>
+    <a [routerLink]="section.path">{{ section.heading }}</a>
     <span class="sep" aria-hidden="true">/</span>
-    <a routerLink="/admin/products">Products</a>
+    <a [routerLink]="tab.path">{{ tab.label }}</a>
     <span class="sep" aria-hidden="true">/</span>
     @if (departmentName(); as department) {
       <span>{{ department }}</span>
@@ -16,13 +16,9 @@
   }
 
   @if (product.error(); as error) {
-    <div class="banner danger" role="alert">
-      The product could not be loaded. {{ errorMessage(error) }}
-    </div>
-    <div class="row-wrap">
-      <button type="button" class="btn btn-outline-primary" (click)="reload()">Try again</button>
-      <a class="btn btn-link" routerLink="/admin/products">Back to products</a>
-    </div>
+    <dso-load-error what="The product" [error]="error" (retry)="reload()">
+      <a class="btn btn-link" [routerLink]="tab.path">Back to products</a>
+    </dso-load-error>
   } @else if (product.hasValue()) {
     @let p = product.value();
     <header class="page-header">
@@ -80,7 +76,7 @@
         }
       </div>
       <div class="actions">
-        <a class="btn btn-outline-primary" [routerLink]="['/monitoring/products', p.id]"
+        <a class="btn btn-outline-primary" [routerLink]="monitoringProduct(p.id)"
           >View monitoring</a
         >
         <button
@@ -113,7 +109,7 @@
             </button>
           </div>
         </ng-template>
-        <a class="btn btn-primary" [routerLink]="['/admin/products', p.id, 'edit']">Edit product</a>
+        <a class="btn btn-primary" [routerLink]="adminProduct(p.id, 'edit')">Edit product</a>
       </div>
     </header>
 
@@ -127,12 +123,11 @@
     }
 
     @if (services.error(); as error) {
-      <div class="banner danger" role="alert">
-        <span>The services and pipelines could not be loaded. {{ errorMessage(error) }}</span>
-        <button type="button" class="btn btn-outline-primary retry" (click)="services.reload()">
-          Try again
-        </button>
-      </div>
+      <dso-load-error
+        what="The services and pipelines"
+        [error]="error"
+        (retry)="services.reload()"
+      />
     } @else if (services.hasValue()) {
       @if (services.value().length === 0) {
         <div class="card empty-state">
@@ -141,9 +136,7 @@
             Add its services, for example its API or its web front end. Each new service gets a Full
             pipeline with its own key.
           </p>
-          <a class="btn btn-primary" [routerLink]="['/admin/products', p.id, 'edit']"
-            >Add services</a
-          >
+          <a class="btn btn-primary" [routerLink]="adminProduct(p.id, 'edit')">Add services</a>
         </div>
       } @else {
         <div class="services-intro">
@@ -373,7 +366,7 @@
                     <a
                       cdkMenuItem
                       class="dropdown-item"
-                      [routerLink]="['/monitoring/pipelines', pipeline.id]"
+                      [routerLink]="monitoringPipeline(pipeline.id)"
                       >View monitoring</a
                     >
                     <button

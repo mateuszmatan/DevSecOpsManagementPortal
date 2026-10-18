@@ -130,13 +130,6 @@ public class ServiceEntity extends AuditedEntity {
         name = "~" + id;
     }
 
-    private static <T> void replace(Map<Region, T> current, Map<Region, T> replacement) {
-        if (!current.equals(replacement)) {
-            current.clear();
-            current.putAll(replacement);
-        }
-    }
-
     private static <S, T> Map<Region, T> regions(Map<Region, S> targets, Class<T> type) {
         Map<Region, T> mapped = new EnumMap<>(Region.class);
         targets.forEach((region, target) -> mapped.put(region, RecordMapper.map(target, type)));
@@ -248,7 +241,6 @@ public class ServiceEntity extends AuditedEntity {
     @Embeddable
     public record AppScanSettingsEmbeddable(
             @Column(name = "APPSCAN_APP_ID") String applicationId,
-            String sastScanName,
             @Column(name = "SAST_INCLUDED_DIRS") List<String> includedDirs,
             @Column(name = "SAST_EXCLUDED_DIRS") List<String> excludedDirs,
             @Column(name = "APPSCAN_COMPILE") Boolean compile,
@@ -257,7 +249,7 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "APPSCAN_INSECURE_TLS") Boolean insecureTls,
             @Column(name = "APPSCAN_CLIENT_PATH") String clientPath,
             @EmbeddedColumnNaming("APPSCAN_COMPILE_%s") ToolCommandEmbeddable compileCommand,
-            Boolean dastEnabled, String dastScanName, String dastTargetUrl, String dastPresenceId,
+            Boolean dastEnabled, String dastTargetUrl, String dastPresenceId,
             @Column(name = "APPSCAN_SECRET_CREDENTIALS_ID") String secretCredentialsId) {
     }
 
@@ -270,8 +262,7 @@ public class ServiceEntity extends AuditedEntity {
     @Embeddable
     public record NexusIqSettingsEmbeddable(
             @Column(name = "NEXUS_IQ_SERVER_URL") String serverUrl,
-            @Column(name = "NEXUS_IQ_CREDENTIALS_ID") String credentialsId,
-            String scaScanName) {
+            @Column(name = "NEXUS_IQ_CREDENTIALS_ID") String credentialsId) {
     }
 
     @Embeddable

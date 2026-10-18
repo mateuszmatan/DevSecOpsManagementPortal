@@ -5,6 +5,7 @@ import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { Pipeline, Product } from '../core/models';
+import { ServiceConfigDialog } from '../pipelines/service-config-dialog';
 import { CodeDialog } from '../shared/code-dialog';
 import { ConfirmDialog } from '@common/shared/confirm-dialog';
 import {
@@ -175,7 +176,7 @@ describe('ProductDetail', () => {
     http.expectOne('/api/departments').flush(null, { status: 500, statusText: 'Error' });
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.banner'))).toBe(
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
       'The product could not be loaded. Product 1 does not exist',
     );
     expect(page().querySelector<HTMLAnchorElement>('a[href="/admin/products"].btn')).not.toBeNull();
@@ -320,6 +321,18 @@ describe('ProductDetail', () => {
         },
       });
       expect(opened(1).data['fileName']).toBe('cert-gui-full.yaml');
+    });
+
+    it('configures the whole service, not only the sections of its first pipeline', async () => {
+      await load();
+
+      buttonOf(page(), 'Configure service').click();
+      await fixture.whenStable();
+
+      expect(opened()).toMatchObject({
+        component: ServiceConfigDialog,
+        data: { pipeline: { id: 100 }, allSections: true },
+      });
     });
 
     it('names a Nexus IQ GoldenFix pipeline in its labels, configuration and delete question', async () => {

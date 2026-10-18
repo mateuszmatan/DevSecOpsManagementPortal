@@ -28,8 +28,8 @@ const SAMPLE_LOGS: ActionLog[] = [
     departmentName: 'Corporate Technology',
     actionType: 'REVOKE_KEY',
     resourceType: 'PIPELINE_KEY',
-    resourceName: 'backend-api (FULL)',
-    details: 'Invalidated active key. Reason: Security breach',
+    resourceName: 'backend-api · Full',
+    details: 'Invalidated the active key: Security breach',
     status: 'SUCCESS',
   },
 ];
@@ -70,13 +70,13 @@ describe('ActionHistoryPage', () => {
     const cells = (column: string) =>
       [...page.querySelectorAll(`[col-id="${column}"].ag-cell`)].map((cell) => cell.textContent!.trim());
 
-    expect(cells('action')).toEqual(['Create product', 'Revoke key']);
-    expect(cells('resource')).toEqual(['Product CertScanner', 'Pipeline key backend-api (FULL)']);
+    expect(cells('action')).toEqual(['Create product', 'Invalidate key']);
+    expect(cells('resource')).toEqual(['Product CertScanner', 'Pipeline key backend-api · Full']);
     expect(cells('status')).toEqual(['Success', 'Success']);
   });
 
   it('finds a row by the words of its action', () => {
-    component['filters'].controls.search.setValue('revoke');
+    component['filters'].controls.search.setValue('invalidate key');
     fixture.detectChanges();
     expect(component['filteredRows']().map((row) => row.id)).toEqual([2]);
   });

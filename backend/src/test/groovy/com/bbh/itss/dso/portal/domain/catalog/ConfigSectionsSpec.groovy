@@ -97,12 +97,12 @@ class ConfigSectionsSpec extends Specification {
 
     def "AppScan settings store the application ID in lower case and start at the library's defaults"() {
         when:
-        def appScan = new AppScanSettings(' 109F44AC-CC06-4CA0-884E-D944904F7019 ', ' ', [' src ', '', 'src', null],
-                null, null, null, null, null, ' ', null, null, ' ', ' ', ' ', null)
+        def appScan = new AppScanSettings(' 109F44AC-CC06-4CA0-884E-D944904F7019 ', [' src ', '', 'src', null], null,
+                null, null, null, null, ' ', null, null, ' ', ' ', null)
 
         then:
-        appScan == new AppScanSettings(APP_ID, null, ['src'], [], true, false, false, false, null, NONE, false, null,
-                null, null, null)
+        appScan == new AppScanSettings(APP_ID, ['src'], [], true, false, false, false, null, NONE, false, null, null,
+                null)
         written { appScan.writeTo(it, GRADLE) } == [appId: APP_ID, includedDirs: 'src', dast: [enabled: false]]
         written { AppScanSettings.of(APP_ID).writeTo(it, MAVEN) } == [appId: APP_ID, dast: [enabled: false]]
         AppScanSettings.of(null).applicationId() == null
@@ -112,9 +112,8 @@ class ConfigSectionsSpec extends Specification {
         given:
         def compileCommand = ToolCommand.builder().tasks(['compileJava']).flags(['--offline']).directory('gui')
                 .mavenHome('/opt/maven').environment(['JAVA_OPTS=-Xmx2g']).build()
-        def appScan = new AppScanSettings(APP_ID, ' cert-gui ', ['src/main', ' lib '], ['src/test'], false, true, true,
-                true, ' /opt/appscan ', compileCommand, true, ' cert-gui-dast ', ' https://rdl1.testbbh.com ', ' p-1 ',
-                null)
+        def appScan = new AppScanSettings(APP_ID, ['src/main', ' lib '], ['src/test'], false, true, true, true,
+                ' /opt/appscan ', compileCommand, true, ' https://rdl1.testbbh.com ', ' p-1 ', null)
 
         expect:
         written { appScan.writeTo(it, GRADLE) } ==
@@ -122,9 +121,7 @@ class ConfigSectionsSpec extends Specification {
                  asoc       : [doCompile: false, sourceCodeOnly: true, useAppScanConfig: true, insecureTls: true,
                                gradle   : [tasks: ['compileJava'], flags: ['--offline'], dir: 'gui',
                                            env  : [JAVA_OPTS: '-Xmx2g']]],
-                 sast       : [scanName: 'cert-gui'],
-                 dast       : [enabled: true, scanName: 'cert-gui-dast', targetUrl: 'https://rdl1.testbbh.com',
-                               presenceId: 'p-1']]
+                 dast       : [enabled: true, targetUrl: 'https://rdl1.testbbh.com', presenceId: 'p-1']]
     }
 
     def "the AppScan compile command goes under asoc.#key for #tool"() {
@@ -238,17 +235,16 @@ class ConfigSectionsSpec extends Specification {
         new NexusIqApplication(' cert ', ['**/*.jar', ' ', '**/*.jar', ' **/*.war '], ' ', null) ==
                 new NexusIqApplication('cert', ['**/*.jar', '**/*.war'], 'build', false)
         NexusIqApplication.of(' cert ', null) == new NexusIqApplication('cert', [], 'build', false)
-        new NexusIqSettings(' ', ' ', ' ') == NexusIqSettings.NONE
+        new NexusIqSettings(' ', ' ') == NexusIqSettings.NONE
     }
 
-    def "one Nexus IQ application is written in the string form, with the server override and the SCA scan name"() {
+    def "one Nexus IQ application is written in the string form, with the server override"() {
         expect:
         written {
-            new NexusIqSettings(' https://iq.bbh.com ', null, ' cert-sca ')
+            new NexusIqSettings(' https://iq.bbh.com ', null)
                     .writeTo(it, [new NexusIqApplication('cert', ['**/*.jar'], ' stage-release ', true)])
         } == [tools: [nexusIq: [serverUrl: 'https://iq.bbh.com', application: 'cert', scanPatterns: ['**/*.jar'],
-                                stage    : 'stage-release', failOnNetworkError: true]],
-              sca  : [scanName: 'cert-sca']]
+                                stage    : 'stage-release', failOnNetworkError: true]]]
         written { NexusIqSettings.NONE.writeTo(it, []) } == [:]
     }
 
@@ -260,7 +256,7 @@ class ConfigSectionsSpec extends Specification {
         when:
         def nexusIq = written {
             it.set('tools.nexusIq.serverUrl', 'https://tools.bbh.com/IQ').set('tools.nexusIq.credentialsId', 'nexusiqP')
-            new NexusIqSettings(null, 'cert-iq', null).writeTo(it, applications)
+            new NexusIqSettings(null, 'cert-iq').writeTo(it, applications)
         }.tools.nexusIq
 
         then:

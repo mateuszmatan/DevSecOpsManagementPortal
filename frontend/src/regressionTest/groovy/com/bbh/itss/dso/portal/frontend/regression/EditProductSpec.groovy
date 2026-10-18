@@ -107,6 +107,7 @@ class EditProductSpec extends EditorSpecification {
         input(openService(), 'Service name').fill('worker')
         showSection('Build')
         fillIn(openService(), ['JDK path': '/usr/lib/jvm/java-21-openjdk', 'Gradle tasks': 'clean build'])
+        addUrbanCodeApplication('CERT-WORKER', 'build/libs')
         showSection('AppScan SAST and DAST')
         input(openService(), 'AppScan application ID').fill('5b1e9c2d-7a3f-4d6e-8b0a-1c2d3e4f5a6b')
         expandService('gui')

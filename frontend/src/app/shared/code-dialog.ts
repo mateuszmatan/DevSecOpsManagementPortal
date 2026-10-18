@@ -1,4 +1,4 @@
-import { DIALOG_DATA } from '@angular/cdk/dialog';
+import { DIALOG_DATA, Dialog } from '@angular/cdk/dialog';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Notifier } from '@common/core/notifier';
@@ -41,10 +41,6 @@ export interface CodeDialogData {
     </div>
   `,
   styles: `
-    .subtitle {
-      margin: 0 0 8px;
-      color: var(--dso-muted);
-    }
     .code-block {
       max-height: 60vh;
     }
@@ -66,4 +62,8 @@ export class CodeDialog {
     link.click();
     URL.revokeObjectURL(url);
   }
+}
+
+export function showCode(dialog: Dialog, data: CodeDialogData): void {
+  dialog.open(CodeDialog, { data, width: '760px', maxWidth: '95vw' });
 }

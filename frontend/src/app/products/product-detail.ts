@@ -6,19 +6,27 @@ import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, of, switchMap, tap } from 'rxjs';
 import { PipelinesApi, ProductsApi } from '../core/api';
-import { errorMessage } from '@common/core/errors';
 import {
   PIPELINE_TYPES,
   Pipeline,
   Product,
   ServicePipelines,
   pipelineTypeLabel,
+  pipelineTypeOrder,
 } from '../core/models';
 import { Notifier } from '@common/core/notifier';
-import { pipelinePage } from '../core/sections';
+import {
+  ADMIN,
+  ADMIN_PRODUCTS,
+  adminProduct,
+  monitoringPipeline,
+  monitoringProduct,
+  pipelinePage,
+} from '../core/sections';
 import { PipelineActions, typeName } from '../pipelines/pipeline-actions';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { RelativeTimePipe, counted } from '@common/shared/formatting';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 import { MENU_AT_END } from '@common/ui/menu';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/build-options';
@@ -36,6 +44,7 @@ import { DepartmentsApi } from '@common/core/api';
     CdkMenuTrigger,
     DatePipe,
     DsoLoading,
+    LoadError,
     RelativeTimePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -109,12 +118,16 @@ export class ProductDetail {
       ? `Pipeline key generated for the new service ${names[0]}.`
       : `Pipeline keys generated for ${names.length} new services: ${names.join(', ')}.`;
   });
-  protected readonly errorMessage = errorMessage;
   protected readonly menuAtEnd = MENU_AT_END;
 
   protected readonly typeLabel = pipelineTypeLabel;
   protected readonly typeName = typeName;
+  protected readonly section = ADMIN;
+  protected readonly tab = ADMIN_PRODUCTS;
+  protected readonly adminProduct = adminProduct;
   protected readonly pipelinePage = pipelinePage;
+  protected readonly monitoringProduct = monitoringProduct;
+  protected readonly monitoringPipeline = monitoringPipeline;
   protected readonly toolLabels = TOOL_LABELS;
   protected readonly targetLabels = TARGET_LABELS;
 
@@ -238,7 +251,7 @@ export class ProductDetail {
       .subscribe({
         next: () => {
           this.notifier.success(`${product.name} was deleted with its services and pipelines.`);
-          this.router.navigate(['/admin/products']);
+          this.router.navigate([ADMIN_PRODUCTS.path]);
         },
         error: (error) => this.notifier.error(error),
       });
@@ -252,14 +265,14 @@ export class ProductDetail {
   protected editServiceConfig(product: Product, service: ServicePipelines): void {
     const pipeline = service.pipelines[0];
     if (pipeline) {
-      this.actions.editService(pipeline).subscribe((saved) => {
+      this.actions.editService(pipeline, true).subscribe((saved) => {
         if (saved) {
           this.services.reload();
           this.product.reload();
         }
       });
     } else {
-      this.router.navigate(['/admin/products', product.id, 'edit']);
+      this.router.navigate(adminProduct(product.id, 'edit'));
     }
   }
 
@@ -293,9 +306,7 @@ export class ProductDetail {
         const pipelines = exists
           ? service.pipelines.map((p) => (p.id === pipeline.id ? pipeline : p))
           : [...service.pipelines, pipeline].sort(
-              (a, b) =>
-                PIPELINE_TYPES.findIndex((t) => t.value === a.type) -
-                PIPELINE_TYPES.findIndex((t) => t.value === b.type),
+              (a, b) => pipelineTypeOrder(a.type) - pipelineTypeOrder(b.type),
             );
         return { ...service, pipelines };
       }),

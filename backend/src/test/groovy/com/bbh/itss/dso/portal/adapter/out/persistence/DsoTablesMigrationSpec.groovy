@@ -18,6 +18,7 @@ class DsoTablesMigrationSpec extends MigrationSpecification {
     static final List<String> GONE = ['DSO_CHANGE_PROFILE', 'DSO_CHANGE_PROFILE_PRIVILEGED_USER', 'DSO_CHANGE_PROFILE_TASK',
                                       'DSO_METRIC_POINT', 'DSO_PRODUCTION_CHANGE', 'DSO_PRODUCTION_CHANGE_PRIVILEGED_USER',
                                       'DSO_PRODUCTION_CHANGE_STAGE', 'DSO_PRODUCTION_CHANGE_TASK']
+    static final List<String> SCAN_NAMES = ['SAST_SCAN_NAME', 'DAST_SCAN_NAME', 'SCA_SCAN_NAME']
 
     @Override
     protected String changelogFile() {
@@ -34,5 +35,25 @@ class DsoTablesMigrationSpec extends MigrationSpecification {
         tables().intersect(GONE) == []
         jdbc.queryForList('SELECT NAME FROM DSO_DEPARTMENT ORDER BY ID', String) ==
                 ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services']
+    }
+
+    def "030 drops the scan names the DevSecOps library never reads, and its rollback adds them back"() {
+        when:
+        liquibase.update('')
+
+        then:
+        columns('DSO_SERVICE').intersect(SCAN_NAMES) == []
+
+        when:
+        rollBackSince('030-')
+
+        then:
+        columns('DSO_SERVICE').containsAll(SCAN_NAMES)
+
+        when:
+        liquibase.update('')
+
+        then:
+        columns('DSO_SERVICE').intersect(SCAN_NAMES) == []
     }
 }

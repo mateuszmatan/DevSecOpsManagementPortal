@@ -6,10 +6,8 @@ import com.bbh.itss.dso.portal.domain.settings.StoredServiceTemplate;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.NoArgsConstructor;
-import org.springframework.data.domain.Persistable;
 
 import java.util.List;
 
@@ -18,24 +16,9 @@ import static lombok.AccessLevel.PROTECTED;
 @Entity
 @Table(name = "DSO_SERVICE_TEMPLATE")
 @NoArgsConstructor(access = PROTECTED)
-public class ServiceTemplateEntity extends AuditedEntity implements Persistable<Long> {
-
-    static final long ID = 1L;
-
-    @Id
-    private Long id = ID;
+public class ServiceTemplateEntity extends SingletonEntity {
 
     private TemplateEmbeddable template;
-
-    @Override
-    public Long getId() {
-        return id;
-    }
-
-    @Override
-    public boolean isNew() {
-        return createdAt() == null;
-    }
 
     StoredServiceTemplate toDomain() {
         return new StoredServiceTemplate(RecordMapper.map(template, ServiceTemplate.class), version(), updatedAt());

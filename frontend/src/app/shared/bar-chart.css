@@ -7,18 +7,15 @@
   font-size: 12px;
 }
 
-.dso-bar-chart .highcharts-series.success .highcharts-point,
-.dso-bar-chart .highcharts-series.passed .highcharts-point {
+.dso-bar-chart .highcharts-series.success .highcharts-point {
   fill: var(--dso-run-success);
 }
 
-.dso-bar-chart .highcharts-series.unstable .highcharts-point,
-.dso-bar-chart .highcharts-series.warned .highcharts-point {
+.dso-bar-chart .highcharts-series.unstable .highcharts-point {
   fill: var(--dso-run-unstable);
 }
 
-.dso-bar-chart .highcharts-series.failure .highcharts-point,
-.dso-bar-chart .highcharts-series.failed .highcharts-point {
+.dso-bar-chart .highcharts-series.failure .highcharts-point {
   fill: var(--dso-run-failure);
 }
 
@@ -31,13 +28,8 @@
   fill: var(--dso-run-idle);
 }
 
-.dso-bar-chart .highcharts-series.no_data .highcharts-point,
-.dso-bar-chart .highcharts-series.skipped .highcharts-point {
+.dso-bar-chart .highcharts-series.no_data .highcharts-point {
   fill: var(--dso-run-none);
-}
-
-.dso-bar-chart .highcharts-series.deployment .highcharts-point {
-  fill: var(--dso-run-deploy);
 }
 
 .dso-bar-chart .highcharts-series.active .highcharts-point {

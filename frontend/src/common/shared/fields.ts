@@ -1,28 +1,10 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  Signal,
-  effect,
-  inject,
-  input,
-  signal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Dialog } from '@angular/cdk/dialog';
+import { ChangeDetectionStrategy, Component, Signal, effect, input, signal } from '@angular/core';
 import { AbstractControl, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { SvgIconComponent } from 'angular-svg-icon';
 import { DsoCheckbox } from '../ui/checkbox';
 import { FORM_FIELD } from '../ui/form-field';
 import { filled } from './form-controls';
 import { errorText } from './form-errors';
-import { capitalized } from './formatting';
-import { Lookup, openLookup, pickInto } from './lookup-dialog';
-
-export interface FieldOption {
-  value: unknown;
-  label: string;
-}
+import { Option, capitalized } from './formatting';
 
 export interface Field {
   key: string;
@@ -36,19 +18,18 @@ export interface Field {
   mono?: boolean;
   type?: string;
   maxLength?: number;
-  options?: readonly FieldOption[];
+  options?: readonly Option[];
   multiple?: boolean;
   min?: number;
   max?: number;
   step?: number;
   readonly?: boolean;
-  lookup?: Lookup;
 }
 
-export const optionsOf = (labels: Record<string, string>): FieldOption[] =>
+export const optionsOf = (labels: Record<string, string>): Option[] =>
   Object.entries(labels).map(([value, label]) => ({ value, label }));
 
-export const tristate = (unset: string, yes: string, no: string): FieldOption[] => [
+export const tristate = (unset: string, yes: string, no: string): Option[] => [
   { value: null, label: unset },
   { value: true, label: yes },
   { value: false, label: no },
@@ -82,7 +63,7 @@ export const count = (key: string, label: string, code = '', span = 6, more: Mor
 export const choice = (
   key: string,
   label: string,
-  options: readonly FieldOption[],
+  options: readonly Option[],
   code = '',
   span = 6,
   more: More = {},
@@ -111,7 +92,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
 
 @Component({
   selector: 'dso-fields',
-  imports: [ReactiveFormsModule, SvgIconComponent, DsoCheckbox, FORM_FIELD],
+  imports: [ReactiveFormsModule, DsoCheckbox, FORM_FIELD],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @for (field of fields(); track field.key) {
@@ -176,17 +157,6 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
               />
             }
           }
-          @if (field.lookup; as lookup) {
-            <button
-              dsoSuffix
-              type="button"
-              class="btn btn-link btn-icon lookup"
-              [attr.aria-label]="'Find ' + field.label"
-              (click)="find(field, lookup)"
-            >
-              <svg-icon name="search" />
-            </button>
-          }
           @if (field.code || field.hint) {
             <dso-hint><span [innerHTML]="hint(field)"></span></dso-hint>
           }
@@ -210,20 +180,7 @@ export class Fields {
   readonly group = input.required<AbstractControl>();
   readonly fields = input.required<readonly Field[]>();
 
-  private readonly dialog = inject(Dialog);
-  private readonly destroyRef = inject(DestroyRef);
-
   protected readonly errorText = errorText;
-
-  protected find(field: Field, lookup: Lookup): void {
-    openLookup(this.dialog, { kind: lookup.kind, label: field.label })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((item) => {
-        if (item) {
-          pickInto(this.group(), field.key, lookup, item);
-        }
-      });
-  }
 
   protected controlOf(field: Field): FormControl {
     return this.group().get(field.key) as FormControl;

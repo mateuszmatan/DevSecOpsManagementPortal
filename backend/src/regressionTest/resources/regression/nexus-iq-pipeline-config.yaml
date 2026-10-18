@@ -127,8 +127,6 @@ projects:
             credentialsId: nexusiqP
             stage: release
             failOnNetworkError: true
-    sast:
-      scanName: payhub-gateway
     dast:
       enabled: true
       targetUrl: https://payhub-uat.testbbh.com

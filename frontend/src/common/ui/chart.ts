@@ -9,19 +9,12 @@ import {
   input,
 } from '@angular/core';
 import Highcharts, { Chart, HighchartsStatic } from 'highcharts/js/highcharts';
+import { plainText } from '../shared/formatting';
 
 export const HIGHCHARTS = new InjectionToken<HighchartsStatic>('Highcharts', {
   providedIn: 'root',
   factory: () => Highcharts,
 });
-
-const ENTITIES: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-};
 
 interface Axis {
   categories?: string[];
@@ -29,10 +22,6 @@ interface Axis {
 
 interface Series {
   name?: string;
-}
-
-export function plainText(text: string): string {
-  return text.replace(/[&<>"']/g, (character) => ENTITIES[character]);
 }
 
 function axisText(axis: Axis): Axis {

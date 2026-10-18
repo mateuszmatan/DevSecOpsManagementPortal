@@ -36,8 +36,7 @@ class RunResultSpec extends Specification {
         given:
         def enabled = pipeline()
         def disabled = pipeline(keys: [revokedKey(reason: 'retired')])
-        def failed = new PipelineRun(Instant.parse('2026-10-01T10:00:00Z'), FAILURE, null, null, null, null, null,
-                null, null, null, null, null, null)
+        def failed = new PipelineRun(Instant.parse('2026-10-01T10:00:00Z'), FAILURE, *([null] * 12))
 
         expect:
         RunResult.of(enabled, failed) == FAILURE
@@ -45,7 +44,7 @@ class RunResultSpec extends Specification {
         RunResult.of(disabled, failed) == DISABLED
 
         when:
-        new PipelineRun(null, SUCCESS, *([null] * 11))
+        new PipelineRun(null, SUCCESS, *([null] * 12))
 
         then:
         thrown(NullPointerException)

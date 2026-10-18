@@ -73,6 +73,14 @@ describe('PipelineMonitoringPage', () => {
     expect(text('.page')).not.toContain('The key of this pipeline is invalidated');
   });
 
+  it('lists the stages that were not required next to the passed ones', async () => {
+    const run = pipelineRun({ stagesTotal: 13, passed: 12, notRequired: 1, warned: 0, failed: 0 });
+    await load(pipelineMonitoring({ lastRun: run, recentRuns: [run] }));
+
+    expect(text('.last-run')).toContain('12 passed, 1 not required');
+    expect(gridCell(gridRows(page())[0], 'stages').textContent?.trim()).toBe('13 of 13');
+  });
+
   it('links every run to the build address the API sent for it', async () => {
     await load();
 

@@ -51,6 +51,13 @@ abstract class EditorSpecification extends DsoSpecification {
         assertThat(openService().locator('.pane-header h3')).hasText(label)
     }
 
+    void addUrbanCodeApplication(String name, String baseDir) {
+        showSection('UrbanCode Deploy')
+        buttonIn(openService(), 'Add application').click()
+        fillIn(openService(), ['Application name': name, 'Component name': "$name-app".toString(),
+                               'Base folder'     : baseDir, 'Files to include': '*.jar'])
+    }
+
     void showAdvancedSettings() {
         openService().locator('dso-advanced-settings .accordion-header button').click()
         assertThat(openService().locator('dso-advanced-settings dso-panel')).hasClass(~/\bexpanded\b/)

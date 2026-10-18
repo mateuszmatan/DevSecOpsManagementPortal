@@ -49,10 +49,10 @@ class ApiExceptionHandlerSpec extends Specification {
         'a concurrent change'      | { it.staleData(new ObjectOptimisticLockingFailureException(Object, 1L)) } || 409 | 'Conflict'
         'a broken business rule'   | { it.invalid(new InvalidRequestException([PROBLEM])) } || 400   | 'Validation failed'
         'an unexpected failure'    | { it.unexpected(new IllegalStateException('at com.bbh')) } || 500 | 'Request failed'
-        'an unreachable system'    | { it.unavailable(new UncheckedIOException('ProTech timed out', new IOException())) } || 503 | 'Service Unavailable'
+        'an unreachable system'    | { it.unavailable(new UncheckedIOException('InfluxDB timed out', new IOException())) } || 503 | 'Service Unavailable'
 
         detail << ['Product 7 does not exist', 'code clash', STALE_VERSION, 'is required', UNEXPECTED,
-                   'ProTech timed out']
+                   'InfluxDB timed out']
         errors << [null, null, null, [PROBLEM], null, null]
     }
 
@@ -68,7 +68,7 @@ class ApiExceptionHandlerSpec extends Specification {
 
     def "bean validation errors are listed per field"() {
         when:
-        def response = mvc.perform(json(toJson([day: 'FRIDAY', labels: labels]))).andReturn().response
+        def response = mvc.perform(json(toJson([type: 'FULL', agentLabels: labels]))).andReturn().response
 
         then:
         response.status == 400
@@ -79,9 +79,9 @@ class ApiExceptionHandlerSpec extends Specification {
         }
 
         where:
-        labels       || detail                   | fields
-        []           || 'add at least one label' | ['labels']
-        ['a', 'b,c'] || 'must not contain commas' | ['labels[1]']
+        labels       || detail                                                                               | fields
+        []           || 'add at least one Jenkins agent label'                                               | ['agentLabels']
+        ['a', 'b,c'] || 'must be a Jenkins label or label expression such as linux && docker, without commas' | ['agentLabels[1]']
     }
 
     def "#request answers #status #title without naming a class or a method"() {
@@ -102,12 +102,12 @@ class ApiExceptionHandlerSpec extends Specification {
         'a failing controller'   | get('/api/samples/7')                             || 500    | 'Request failed'         | UNEXPECTED
         'no body'                | json('')                                          || 400    | 'Malformed request'      | 'The request body is missing.'
         'a body that is no JSON' | json('{"type":')                                  || 400    | 'Malformed request'      | 'The request body is not valid JSON.'
-        'a body of another shape'| json('["FRIDAY"]')                                  || 400    | 'Malformed request'      | 'The request body does not have the shape this endpoint expects.'
+        'a body of another shape'| json('["FULL"]')                                    || 400    | 'Malformed request'      | 'The request body does not have the shape this endpoint expects.'
         'a path value'           | get('/api/samples/undefined')                     || 400    | 'Malformed request'      | "The value given for 'id' is not one this endpoint can read."
         'a query value'          | get('/api/samples').param('size', 'big')          || 400    | 'Malformed request'      | "The value given for 'size' is not one this endpoint can read."
         'no query value'         | get('/api/samples')                               || 400    | 'Bad Request'            | "Required parameter 'size' is not present."
         'another method'         | post('/api/samples/7')                            || 405    | 'Method Not Allowed'     | "Method 'POST' is not supported."
-        'another content type'   | post('/api/samples').contentType(TEXT_PLAIN).content('FRIDAY') || 415 | 'Unsupported Media Type' | "Content-Type 'text/plain' is not supported."
+        'another content type'   | post('/api/samples').contentType(TEXT_PLAIN).content('FULL') || 415 | 'Unsupported Media Type' | "Content-Type 'text/plain' is not supported."
     }
 
     private static MockHttpServletRequestBuilder json(String body) {
@@ -128,8 +128,8 @@ class ApiExceptionHandlerSpec extends Specification {
         }
 
         @PostMapping('/api/samples')
-        String create(@jakarta.validation.Valid @RequestBody SampleRequest request) {
-            request.day().name()
+        String create(@jakarta.validation.Valid @RequestBody PipelineRequest request) {
+            request.type().name()
         }
     }
 }

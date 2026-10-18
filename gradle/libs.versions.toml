@@ -1,7 +1,6 @@
 [versions]
 spring-boot = "4.1.1"
 spring-dependency-management = "1.1.7"
-sonarqube = "6.3.1.5724"
 groovy = "5.0.8"
 spock = "2.4-groovy-5.0"
 junit = "6.0.3"
@@ -17,8 +16,6 @@ groovy-json = { module = "org.apache.groovy:groovy-json" }
 spock-bom = { module = "org.spockframework:spock-bom", version.ref = "spock" }
 spock-core = { module = "org.spockframework:spock-core" }
 spock-spring = { module = "org.spockframework:spock-spring" }
-junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 commons-collections4 = { module = "org.apache.commons:commons-collections4", version.ref = "commons-collections4" }
@@ -26,4 +23,3 @@ commons-collections4 = { module = "org.apache.commons:commons-collections4", ver
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
-sonarqube = { id = "org.sonarqube", version.ref = "sonarqube" }

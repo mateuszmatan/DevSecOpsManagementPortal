@@ -3,10 +3,8 @@ package com.bbh.itss.dso.portal.domain.shared
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.shared.UriEncoding.pathSegment
-import static com.bbh.itss.dso.portal.domain.shared.UriEncoding.queryParam
 import static java.nio.charset.StandardCharsets.UTF_8
 import static org.springframework.web.util.UriUtils.encodePathSegment
-import static org.springframework.web.util.UriUtils.encodeQueryParam
 
 class UriEncodingSpec extends Specification {
 
@@ -26,23 +24,8 @@ class UriEncodingSpec extends Specification {
         '\u007f'                      || '%7F'
     }
 
-    def "a query parameter also keeps slashes and question marks but encodes the separators of parameters"() {
-        expect:
-        queryParam(value) == encoded
-
-        where:
-        value                 || encoded
-        'cert-gui'            || 'cert-gui'
-        'com.bbh:cert gui'    || 'com.bbh:cert%20gui'
-        'a/b?c'               || 'a/b?c'
-        'a&b=c#d'             || 'a%26b%3Dc%23d'
-        "+!\$'()*,;@"         || "+!\$'()*,;@"
-        'Zażółć'              || 'Za%C5%BC%C3%B3%C5%82%C4%87'
-    }
-
-    def "the encodings match the ones Spring applies to path segments and query parameters"() {
+    def "the encoding matches the one Spring applies to path segments"() {
         expect:
         pathSegment(EVERY_SYMBOL) == encodePathSegment(EVERY_SYMBOL, UTF_8)
-        queryParam(EVERY_SYMBOL) == encodeQueryParam(EVERY_SYMBOL, UTF_8)
     }
 }

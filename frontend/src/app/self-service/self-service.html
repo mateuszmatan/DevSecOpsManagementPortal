@@ -314,6 +314,13 @@
             {{ unscanned().join(', ') }}
           </p>
         }
+        @if (checked() && undeployable().length) {
+          <p class="choice-error">
+            Use Change to add an UrbanCode Deploy application for DV to these services, which the
+            Full pipeline uses to deploy them to the lower test region:
+            {{ undeployable().join(', ') }}
+          </p>
+        }
       }
       @case (3) {
         <h2>Is everything right?</h2>
@@ -494,7 +501,7 @@
             <li>
               <h3>Follow the results</h3>
               <p>
-                <a [routerLink]="['/monitoring/products', done.product.id]">Pipeline Monitoring</a>
+                <a [routerLink]="monitoringProduct(done.product.id)">Pipeline Monitoring</a>
                 shows whether each run passed and how often changes reach production.
               </p>
             </li>

@@ -55,8 +55,7 @@ class DsoStubApi extends StubApi {
         get('/api/monitoring/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
         get('/api/action-history') { json(fixture('action-history.json')) }
         get('/api/user/me') {
-            json([id   : 1, username: 'mateusz.matan', displayName: 'Mateusz Matan', email: 'mateusz.matan@bbh.com',
-                  roles: ['ROLE_ADMIN'], departmentNames: [], admin: true])
+            json([username: 'mateusz.matan', displayName: 'Mateusz Matan', email: 'mateusz.matan@bbh.com', admin: true])
         }
     }
 }

@@ -12,6 +12,7 @@ import lombok.Setter;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.time.temporal.ChronoUnit.MICROS;
@@ -52,6 +53,13 @@ public abstract class AuditedEntity {
         if (!current.equals(replacement)) {
             current.clear();
             current.addAll(replacement);
+        }
+    }
+
+    static <K, V> void replace(Map<K, V> current, Map<K, V> replacement) {
+        if (!current.equals(replacement)) {
+            current.clear();
+            current.putAll(replacement);
         }
     }
 

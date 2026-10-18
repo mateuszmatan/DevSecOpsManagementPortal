@@ -6,7 +6,6 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -18,7 +17,6 @@ import java.util.Set;
 import static com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity.current;
 import static com.bbh.itss.dso.portal.adapter.out.persistence.Counts.perId;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 class ProductPersistenceAdapter implements ProductRepositoryPort {

@@ -70,16 +70,14 @@ class GlobalSettingsValuesSpec extends Specification {
         BBH.withPlatform(platform) == copy(BBH, platform: platform)
     }
 
-    def "validation reports the proxy pair, every scanner without limits and an incomplete GoldenFix policy"() {
+    def "validation reports every scanner without limits and an incomplete GoldenFix policy"() {
         given:
-        def values = copy(BBH, platform: copy(BBH.platform(), proxyPort: null),
-                limits: [(SAST): ZERO, (SCA): ZERO], goldenFix: GoldenFixPolicy.inherit(true))
+        def values = copy(BBH, limits: [(SAST): ZERO, (SCA): ZERO], goldenFix: GoldenFixPolicy.inherit(true))
         def required = ['onlyDirectDependencies', 'minThreatLevel', 'verifyEnabled', 'verifyMaxAttempts',
                         'verifyTimeoutMinutes', 'commitAuthorName', 'commitAuthorEmail']
 
         expect:
-        problems(values) == [new FieldProblem('platform.proxyPort', 'is required with a proxy host'),
-                             new FieldProblem('limits.NEXUS_IQ', 'set the limits of every scanner'),
+        problems(values) == [new FieldProblem('limits.NEXUS_IQ', 'set the limits of every scanner'),
                              new FieldProblem('limits.DAST', 'set the limits of every scanner')] +
                 required.collect { new FieldProblem("goldenFix.$it".toString(), 'is required in the global settings') } +
                 [new FieldProblem('goldenFix.ecosystems', 'select at least one ecosystem'),

@@ -11,14 +11,13 @@ import java.util.Set;
 
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
-public record NexusIqSettings(String serverUrl, String credentialsId, String scaScanName) {
+public record NexusIqSettings(String serverUrl, String credentialsId) {
 
-    public static final NexusIqSettings NONE = new NexusIqSettings(null, null, null);
+    public static final NexusIqSettings NONE = new NexusIqSettings(null, null);
 
     public NexusIqSettings {
         serverUrl = trimToNull(serverUrl);
         credentialsId = trimToNull(credentialsId);
-        scaScanName = trimToNull(scaScanName);
     }
 
     public void validate(ValidationProblems problems, List<NexusIqApplication> applications) {
@@ -50,6 +49,5 @@ public record NexusIqSettings(String serverUrl, String credentialsId, String sca
                     .set("failOnNetworkError", application.failOnNetworkError()).toMap()));
             config.set(path + "application", entries);
         }
-        config.set("sca.scanName", scaScanName);
     }
 }

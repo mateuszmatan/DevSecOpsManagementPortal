@@ -57,6 +57,12 @@ class RecordMapperSpec extends Specification {
         dto.appScan().applicationId() == service.settings().appScan().applicationId()
     }
 
+    def "a component no source has as a method is read from a field"() {
+        expect:
+        RecordMapper.map(Named, new Object(), new Holder('Grace')) == new Named('Grace')
+        RecordMapper.map(Named, null, new Holder(null)) == new Named(null as String)
+    }
+
     def "a record that refuses its components fails the mapping"() {
         when:
         RecordMapper.map(service([:]), ServiceSettings)
@@ -68,5 +74,17 @@ class RecordMapperSpec extends Specification {
 
     private static ServiceDto service(Map targets) {
         ServiceDto.builder().name('gui').sshTargets(targets).build()
+    }
+
+    record Named(String name) {
+    }
+
+    static class Holder {
+
+        private final String name
+
+        Holder(String name) {
+            this.name = name
+        }
     }
 }

@@ -34,4 +34,7 @@ final class InputFormats {
     static final String MODULE_MESSAGE = "must be a module folder name";
     static final String NO_WHITESPACE = "^\\S*$";
     static final String NO_WHITESPACE_MESSAGE = "must not contain whitespace";
+    static final String AGENT_LABEL = "^[^,\\p{Cntrl}]{1,100}$";
+    static final String AGENT_LABEL_MESSAGE = "must be a Jenkins label or label expression such as linux && docker,"
+            + " without commas";
 }

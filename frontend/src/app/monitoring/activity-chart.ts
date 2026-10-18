@@ -9,7 +9,7 @@ import { DailyActivity } from '../core/models';
 import { counted } from '@common/shared/formatting';
 import { DsoChart } from '@common/ui/chart';
 
-const dayFormat = new Intl.DateTimeFormat('en', {
+const dayFormat = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'short',
   timeZone: 'UTC',

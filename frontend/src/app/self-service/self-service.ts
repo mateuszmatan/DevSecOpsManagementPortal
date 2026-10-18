@@ -35,10 +35,17 @@ import { PipelinesApi, ProductsApi, ServiceTemplateApi, SettingsApi } from '../c
 import { errorMessage, fieldProblems } from '@common/core/errors';
 import { Department, Product } from '../core/models';
 import { Notifier } from '@common/core/notifier';
-import { ADMIN, SELF_SERVICE, adminProduct, pipelinePage } from '../core/sections';
+import {
+  ADMIN,
+  SELF_SERVICE,
+  adminProduct,
+  monitoringProduct,
+  pipelinePage,
+} from '../core/sections';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { byDepartment } from '@common/departments/departments';
 import { jenkinsfile } from '../products/jenkinsfile';
+import { deploysToDv } from '../products/product-form-model';
 import { filled, max, text } from '@common/shared/form-controls';
 import { errorText } from '@common/shared/form-errors';
 import { counted } from '@common/shared/formatting';
@@ -105,6 +112,7 @@ export class SelfService implements HasUnsavedChanges {
   protected readonly section = SELF_SERVICE;
   protected readonly admin = ADMIN.heading;
   protected readonly adminProduct = adminProduct;
+  protected readonly monitoringProduct = monitoringProduct;
   protected readonly pipelinePage = pipelinePage;
   protected readonly steps = STEPS;
   protected readonly modes = PRODUCT_MODES;
@@ -157,6 +165,21 @@ export class SelfService implements HasUnsavedChanges {
     this.pipeline() === 'NEXUS_IQ'
       ? this.kept()
           .filter((service) => !service.nexusIqApplication || !service.repositoryUrl)
+          .map((service) => service.name)
+      : [],
+  );
+  protected readonly undeployable = computed(() =>
+    this.pipeline() === 'FULL'
+      ? this.kept()
+          .filter((service) => {
+            const settings =
+              service.serviceRequest ??
+              this.existing()?.services.find((stored) => stored.id === service.id);
+            return (
+              service.target === 'VM' &&
+              !settings?.urbanCodeApplications.some(({ environments }) => deploysToDv(environments))
+            );
+          })
           .map((service) => service.name)
       : [],
   );
@@ -446,9 +469,13 @@ export class SelfService implements HasUnsavedChanges {
       case 2:
         return (
           this.kept().length > 0 &&
-          [this.unplaced(), this.unscanned(), this.duplicated(), this.untemplated()].every(
-            (names) => names.length === 0,
-          )
+          [
+            this.unplaced(),
+            this.unscanned(),
+            this.undeployable(),
+            this.duplicated(),
+            this.untemplated(),
+          ].every((names) => names.length === 0)
         );
       default:
         return !this.saving();

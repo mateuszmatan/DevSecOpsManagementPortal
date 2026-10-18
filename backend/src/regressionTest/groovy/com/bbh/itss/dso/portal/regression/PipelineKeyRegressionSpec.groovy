@@ -62,6 +62,19 @@ class PipelineKeyRegressionSpec extends PortalSpecification {
         refused.json.detail.endsWith(': Leaked in a build log')
     }
 
+    def "the action history names a pipeline by its service and type"() {
+        given:
+        def created = pipelineFor(gui, pipeline(type: 'SAST'))
+        def reason = "Retired with $code".toString()
+
+        when:
+        api.post("/api/pipelines/$created.id/keys/revoke", [reason: reason])
+
+        then:
+        api.get('/api/action-history').json.find { it.details == "Invalidated the active key: $reason" }
+                .resourceName == 'gui \u00b7 SAST scanning'
+    }
+
     def "a pipeline links its Jenkins job given as a URL; a path needs the Jenkins URL of the global settings"() {
         when:
         def byUrl = pipelineFor(gui, pipeline(jenkinsJob: 'https://jenkins.bbh.com/job/DevSecOps/job/gui-full/',

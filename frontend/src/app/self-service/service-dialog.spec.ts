@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
-import { serviceTemplate } from '../testing/fixtures';
+import { text } from '@common/testing/dom';
+import { service, serviceTemplate } from '../testing/fixtures';
+import { createUrbanCodeApplicationForm } from '../products/product-form-model';
 import { WizardDefaults, WizardService } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
@@ -84,6 +86,9 @@ describe('ServiceDialog', () => {
     component['serviceForm'].controls.name.setValue('new-service');
     component['serviceForm'].controls.appScan.controls.applicationId.setValue(APP_ID);
     component['serviceForm'].controls.scm.controls.repositoryUrl.setValue(REPOSITORY);
+    component['serviceForm'].controls.urbanCodeApplications.push(
+      createUrbanCodeApplicationForm(service().urbanCodeApplications[0]),
+    );
     component['save']();
 
     expect(close).toHaveBeenCalledWith(
@@ -93,6 +98,34 @@ describe('ServiceDialog', () => {
         repositoryUrl: REPOSITORY,
       }),
     );
+  });
+
+  it('asks for an UrbanCode Deploy application for DV before adding a service with a Full pipeline', async () => {
+    await open({ pipeline: 'FULL' });
+    const form = component['serviceForm'];
+    form.patchValue({ name: 'archive-api', appScan: { applicationId: APP_ID } });
+    component['save']();
+    fixture.detectChanges();
+
+    expect(close).not.toHaveBeenCalled();
+    expect(text(fixture.nativeElement.querySelector('.rail-item.active.problem'))).toBe(
+      'UrbanCode Deploy',
+    );
+
+    form.controls.urbanCodeApplications.push(
+      createUrbanCodeApplicationForm({ ...service().urbanCodeApplications[0], environments: [] }),
+    );
+    component['save']();
+
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it('needs no UrbanCode Deploy application for a Security pipeline', async () => {
+    await open({ pipeline: 'SECURITY' });
+    component['serviceForm'].patchValue({ name: 'archive-api', appScan: { applicationId: APP_ID } });
+    component['save']();
+
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it.each([

@@ -1,0 +1,45 @@
+# A build of 18.10.2026 (c9c2f47) created a copy of the departments, DSO_BUSINESS_SERVICE, with columns pointing at it.
+# The portal never reads them, so they go wherever they exist. YAML because formatted SQL cannot check for a column.
+# Dropping DSO_PRODUCT.BUSINESS_SERVICE_ID also drops its index and foreign key.
+databaseChangeLog:
+  - changeSet:
+      id: 029-drop-product-business-service
+      author: dso-portal
+      dbms: oracle,h2
+      preConditions:
+        - onFail: MARK_RAN
+        - columnExists:
+            tableName: DSO_PRODUCT
+            columnName: BUSINESS_SERVICE_ID
+      changes:
+        - dropColumn:
+            tableName: DSO_PRODUCT
+            columnName: BUSINESS_SERVICE_ID
+      rollback: empty
+  - changeSet:
+      id: 029-drop-action-log-business-service
+      author: dso-portal
+      dbms: oracle,h2
+      preConditions:
+        - onFail: MARK_RAN
+        - columnExists:
+            tableName: DSO_ACTION_LOG
+            columnName: BUSINESS_SERVICE_NAME
+      changes:
+        - dropColumn:
+            tableName: DSO_ACTION_LOG
+            columnName: BUSINESS_SERVICE_NAME
+      rollback: empty
+  - changeSet:
+      id: 029-drop-business-service-table
+      author: dso-portal
+      dbms: oracle,h2
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: DSO_BUSINESS_SERVICE
+      changes:
+        - dropTable:
+            tableName: DSO_BUSINESS_SERVICE
+            cascadeConstraints: true
+      rollback: empty

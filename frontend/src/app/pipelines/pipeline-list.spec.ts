@@ -198,8 +198,10 @@ describe('PipelineList', () => {
       '6f1c2d3e…9abc',
       'Passed',
     ]);
-    expect(text(gridCell(first, 'actions'))).toContain('Config');
-    expect(text(gridCell(first, 'actions'))).toContain('Pipeline');
+    expect([...gridCell(first, 'actions').querySelectorAll('button')].map(text)).toEqual([
+      'Configure service',
+      'Edit settings',
+    ]);
     expect(text(gridCell(second, 'key'))).toBe('Invalidated');
     expect(second.classList).toContain('muted');
     expect(first.classList).not.toContain('muted');

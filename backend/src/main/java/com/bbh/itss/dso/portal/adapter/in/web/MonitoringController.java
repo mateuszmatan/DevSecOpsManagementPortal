@@ -37,8 +37,7 @@ public class MonitoringController {
     @GetMapping("/status")
     public StatusResponse status() {
         MonitoringStatus status = monitoring.status();
-        return new StatusResponse(status.metricsConfigured(), status.metricsReachable(), status.metricsError(),
-                status.dashboards().stream().map(Grafana::of).toList());
+        return new StatusResponse(status.metricsConfigured(), status.metricsReachable(), status.metricsError());
     }
 
     @GetMapping("/products")
@@ -73,8 +72,7 @@ public class MonitoringController {
         return monitoring.activity(range);
     }
 
-    public record StatusResponse(boolean influxConfigured, boolean influxReachable, String influxError,
-                                 List<Grafana> grafana) {
+    public record StatusResponse(boolean influxConfigured, boolean influxReachable, String influxError) {
     }
 
     public record OverviewResponse(List<ProductHealthResponse> products, String metricsError) {
@@ -111,13 +109,13 @@ public class MonitoringController {
     }
 
     public record RunResponse(Instant time, RunResult result, String branch, Long build, Long durationSeconds,
-                              String commit, String job, String buildUrl, Long stagesTotal, Long passed, Long warned,
-                              Long failed, Long blocked, Long skipped) {
+                              String commit, String job, String buildUrl, Long stagesTotal, Long passed,
+                              Long notRequired, Long warned, Long failed, Long blocked, Long skipped) {
 
         static RunResponse of(PipelineRun run, PipelineView view) {
             return run == null ? null : new RunResponse(run.time(), run.result(), run.branch(), run.build(),
                     run.durationSeconds(), run.commit(), run.job(), view.buildUrl(run), run.stagesTotal(),
-                    run.passed(), run.warned(), run.failed(), run.blocked(), run.skipped());
+                    run.passed(), run.notRequired(), run.warned(), run.failed(), run.blocked(), run.skipped());
         }
     }
 

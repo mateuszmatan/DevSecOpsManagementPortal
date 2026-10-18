@@ -89,12 +89,44 @@
         "deployDescription": null,
         "requestProperties": null
       },
-      "urbanCodeApplications": [],
+      "urbanCodeApplications": [
+        {
+          "applicationName": "CERT-GUI",
+          "order": null,
+          "environments": [],
+          "snapshotName": null,
+          "siteName": null,
+          "deployProcess": null,
+          "skipWait": null,
+          "deployWithSnapshot": null,
+          "updateSnapshotComponents": null,
+          "includeOnlyDeployVersions": null,
+          "deployOnlyChanged": null,
+          "deployDescription": null,
+          "description": null,
+          "requestProperties": null,
+          "components": [
+            {
+              "componentName": "CERT-GUI-app",
+              "baseDir": "build/libs",
+              "fileIncludePatterns": "*.jar",
+              "fileExcludePatterns": null,
+              "versionPrefix": null,
+              "version": null,
+              "incrementalVersion": true,
+              "extensions": null,
+              "charset": null,
+              "pushDescription": null,
+              "versionProperties": null,
+              "versionDescription": null
+            }
+          ]
+        }
+      ],
       "sshTargets": {},
       "openShiftTargets": {},
       "appScan": {
         "applicationId": "7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31",
-        "sastScanName": null,
         "includedDirs": [],
         "excludedDirs": [],
         "compile": true,
@@ -112,7 +144,6 @@
           "returnStdout": false
         },
         "dastEnabled": false,
-        "dastScanName": null,
         "dastTargetUrl": null,
         "dastPresenceId": null,
         "secretCredentialsId": null
@@ -139,8 +170,7 @@
       },
       "nexusIq": {
         "serverUrl": null,
-        "credentialsId": null,
-        "scaScanName": null
+        "credentialsId": null
       },
       "nexusIqApplications": [],
       "scm": {
@@ -264,12 +294,44 @@
         "deployDescription": null,
         "requestProperties": null
       },
-      "urbanCodeApplications": [],
+      "urbanCodeApplications": [
+        {
+          "applicationName": "CERT-API",
+          "order": null,
+          "environments": [],
+          "snapshotName": null,
+          "siteName": null,
+          "deployProcess": null,
+          "skipWait": null,
+          "deployWithSnapshot": null,
+          "updateSnapshotComponents": null,
+          "includeOnlyDeployVersions": null,
+          "deployOnlyChanged": null,
+          "deployDescription": null,
+          "description": null,
+          "requestProperties": null,
+          "components": [
+            {
+              "componentName": "CERT-API-app",
+              "baseDir": "target",
+              "fileIncludePatterns": "*.jar",
+              "fileExcludePatterns": null,
+              "versionPrefix": null,
+              "version": null,
+              "incrementalVersion": true,
+              "extensions": null,
+              "charset": null,
+              "pushDescription": null,
+              "versionProperties": null,
+              "versionDescription": null
+            }
+          ]
+        }
+      ],
       "sshTargets": {},
       "openShiftTargets": {},
       "appScan": {
         "applicationId": "7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b32",
-        "sastScanName": null,
         "includedDirs": [],
         "excludedDirs": [],
         "compile": true,
@@ -287,7 +349,6 @@
           "returnStdout": false
         },
         "dastEnabled": false,
-        "dastScanName": null,
         "dastTargetUrl": null,
         "dastPresenceId": null,
         "secretCredentialsId": null
@@ -314,8 +375,7 @@
       },
       "nexusIq": {
         "serverUrl": null,
-        "credentialsId": null,
-        "scaScanName": null
+        "credentialsId": null
       },
       "nexusIqApplications": [],
       "scm": {

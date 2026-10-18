@@ -156,7 +156,7 @@ describe('PipelinePage', () => {
     expect(text(product)).toBe('Open CertScanner in Admin');
     expect(product.getAttribute('href')).toBe('/admin/products/1');
     expect([...document.querySelectorAll('.dso-menu button')].map(text)).toEqual([
-      'Edit service configuration',
+      'Configure service',
       'Settings sent to Jenkins (config.yaml)',
       'Key history',
       'Replace key',
@@ -339,10 +339,10 @@ describe('PipelinePage', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/pipelines']);
   });
 
-  it('opens ServiceConfigDialog when clicking Edit service configuration', async () => {
+  it('opens ServiceConfigDialog when clicking Configure service', async () => {
     await load();
     open.mockReturnValueOnce(closed(false));
-    await menu('Edit service configuration');
+    await menu('Configure service');
     await fixture.whenStable();
 
     expect(open).toHaveBeenCalled();
@@ -359,7 +359,7 @@ describe('PipelinePage', () => {
       .flush(null, { status: 404, statusText: 'Not Found' });
     await fixture.whenStable();
 
-    expect(text(page().querySelector('.banner'))).toBe(
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
       'The pipeline could not be loaded. Pipeline 100 does not exist',
     );
     expect(page().querySelector('a.btn')?.getAttribute('href')).toBe('/pipelines');

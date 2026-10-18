@@ -3,10 +3,11 @@ package com.bbh.itss.dso.portal.application.catalog
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentRepositoryPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentUsagePort
+import com.bbh.itss.dso.portal.domain.catalog.CatalogUsage
 import com.bbh.itss.dso.portal.domain.catalog.Department
-import com.bbh.itss.dso.portal.domain.catalog.DepartmentUsage
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.CatalogUsage.UNUSED
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static org.spockframework.mock.EmptyOrDummyResponse.INSTANCE
 
@@ -14,20 +15,16 @@ class DepartmentServiceSpec extends Specification {
 
     static final Department AI_LAB = new Department(1L, 'AI Lab', 0)
     static final Department CORPORATE = new Department(3L, 'corporate Technology', 1)
-    static final Department CUSTODY = new Department(4L, 'Custody', 0)
     static final Department FUND_SERVICES = new Department(5L, 'Fund Services', 0)
-    static final DepartmentUsage UNUSED = new Usage(0, null)
-    static final DepartmentUsage TWO_PRODUCTS = new Usage(2, null)
-    static final DepartmentUsage IN_USE = new Usage(0, 'Custody is still in use')
+    static final CatalogUsage TWO_PRODUCTS = new CatalogUsage(2, 3, 4, 1)
 
     DepartmentRepositoryPort departments = Mock(defaultResponse: INSTANCE)
     DepartmentUsagePort usage = Stub() {
-        perDepartment() >> [3L: TWO_PRODUCTS, 4L: IN_USE]
-        unused() >> UNUSED
+        perDepartment() >> [3L: TWO_PRODUCTS]
     }
     def service = new DepartmentService(departments, usage)
 
-    def "departments are listed by name in any case with what the application counts for them"() {
+    def "departments are listed by name in any case with what the application counts for them, and one is found by its id"() {
         given:
         departments.findAll() >> [FUND_SERVICES, AI_LAB, CORPORATE, new Department(2L, 'Capital Partners', 0)]
 
@@ -36,6 +33,7 @@ class DepartmentServiceSpec extends Specification {
                            new DepartmentView(2, 'Capital Partners', 0, UNUSED),
                            new DepartmentView(3, 'corporate Technology', 1, TWO_PRODUCTS),
                            new DepartmentView(5, 'Fund Services', 0, UNUSED)]
+        service.get(3L) == new DepartmentView(3, 'corporate Technology', 1, TWO_PRODUCTS)
     }
 
     def "a new department is stored under its trimmed name and shown unused"() {
@@ -75,7 +73,7 @@ class DepartmentServiceSpec extends Specification {
 
     def "#refusal is refused before anything is stored"() {
         given:
-        departments.findAll() >> [AI_LAB, CORPORATE, CUSTODY, FUND_SERVICES]
+        departments.findAll() >> [AI_LAB, CORPORATE, FUND_SERVICES]
         departments.load(3L) >> Optional.of(CORPORATE)
         departments.findByName('fund services') >> Optional.of(FUND_SERVICES)
 
@@ -94,7 +92,6 @@ class DepartmentServiceSpec extends Specification {
         'a rename to a name in use'                 | { it.rename(3L, 1L, 'fund services') }        || 'A business service named Fund Services already exists'
         'a rename of an old version'                | { it.rename(3L, 0L, 'Corporate Technology') } || STALE_VERSION
         'deleting a department with products'       | { it.delete(3L) }                             || 'corporate Technology still has 2 product(s). Move them to another business service first.'
-        'deleting a department the application uses' | { it.delete(4L) }                            || 'Custody is still in use'
     }
 
     def "an unknown department is not found, renamed or deleted"() {
@@ -108,14 +105,6 @@ class DepartmentServiceSpec extends Specification {
         0 * departments.delete(_)
 
         where:
-        action << [{ it.rename(9L, 0L, 'Custody') }, { it.delete(9L) }]
-    }
-
-    record Usage(long productCount, String refusal) implements DepartmentUsage {
-
-        @Override
-        Optional<String> deletionRefusal(String department) {
-            Optional.ofNullable(refusal)
-        }
+        action << [{ it.get(9L) }, { it.rename(9L, 0L, 'Custody') }, { it.delete(9L) }]
     }
 }

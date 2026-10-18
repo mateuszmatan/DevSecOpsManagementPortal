@@ -63,20 +63,19 @@ class PipelineMonitoringServiceSpec extends Specification {
         products.load(1L) >> Optional.of(certScanner)
     }
 
-    def "the status says whether InfluxDB answers and which Grafana instances there are"() {
+    def "the status says whether InfluxDB answers"() {
         given:
         runs.configured(platform) >> configured
         runs.ping(platform) >> { if (failure) { throw new UncheckedIOException(failure, new IOException()) } }
-        dashboards.instances(platform) >> grafana
 
         expect:
-        monitoring.status() == new MonitoringStatus(configured, reachable, failure, grafana)
+        monitoring.status() == new MonitoringStatus(configured, reachable, failure)
 
         where:
-        configured | failure                         | grafana                                                                                              || reachable
-        false      | null                            | []                                                                                                   || false
-        true       | null                            | [new DashboardLink('Test', 'https://grafana.bbh.com'), new DashboardLink('Prod', 'https://grafana-prod.bbh.com')] || true
-        true       | 'InfluxDB could not be read: x' | []                                                                                                   || false
+        configured | failure                         || reachable
+        false      | null                            || false
+        true       | null                            || true
+        true       | 'InfluxDB could not be read: x' || false
     }
 
     def "the overview rates each product by its worst pipeline"() {
@@ -226,7 +225,7 @@ class PipelineMonitoringServiceSpec extends Specification {
 
         then:
         1 * runs.recentRuns(platform, tag, null, 30, 25) >> [newest, run('2026-10-03T09:00:00Z', FAILURE)]
-        1 * runs.doraPoints(platform, [tag], 30) >> [(tag): [new DoraPoint(newest.time(), true, false, 3600, 600)]]
+        1 * runs.doraPoints(platform, [tag], null, 30) >> [(tag): [new DoraPoint(newest.time(), true, false, 3600, 600)]]
         1 * dashboards.dashboards(platform, tag, guiFull.type(), 30) >> [new DashboardLink('Test', 'https://grafana/d/x'), new DashboardLink('Prod', 'https://grafana-prod/d/x')]
         0 * runs.latestRuns(*_)
         details.pipeline().pipeline().keys().size() == 1
@@ -353,7 +352,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         product.pipelines()*.status() == [SUCCESS, FAILURE, NO_DATA]
     }
 
-    def "a pipeline of a shared tag lists only the runs of its Jenkins job, and none without a job"() {
+    def "a pipeline of a shared tag lists only the runs and DORA points of its Jenkins job, and none without a job"() {
         given:
         pipelines.load(id) >> Optional.of(id == 100L ? guiFull : apiFull)
         pipelines.sharedMetricsTags() >> ([tag(guiFull), tag(apiFull)] as Set)
@@ -363,7 +362,7 @@ class PipelineMonitoringServiceSpec extends Specification {
 
         then:
         queries * runs.recentRuns(platform, _, job, 30, 25) >> [run('2026-10-04T09:00:00Z', SUCCESS, 'DevSecOps/CERT/gui-full')]
-        queries * runs.doraPoints(*_) >> [:]
+        queries * runs.doraPoints(platform, _, job, 30) >> [:]
         details.recentRuns().size() == queries
 
         where:
@@ -381,7 +380,7 @@ class PipelineMonitoringServiceSpec extends Specification {
         def activity = monitoring.activity('7d')
 
         then:
-        1 * runs.doraPoints(platform, { it.size() == 4 }, 7) >> [
+        1 * runs.doraPoints(platform, { it.size() == 4 }, null, 7) >> [
                 (tag(guiFull)): [new DoraPoint(NOW.minusSeconds(86_400), true, false, 3600, 600)],
                 (tag(apiFull)): [new DoraPoint(NOW.minusSeconds(3600), true, true, 7200, 900),
                                  new DoraPoint(NOW.minusSeconds(1800), false, false, 0, 300)]]
@@ -421,7 +420,7 @@ class PipelineMonitoringServiceSpec extends Specification {
     }
 
     private static PipelineRun run(String time, RunResult result, String job = null) {
-        new PipelineRun(Instant.parse(time), result, 'develop', 1, 600, null, job, null, null, null, null, null, null)
+        new PipelineRun(Instant.parse(time), result, 'develop', 1, 600, null, job, *([null] * 7))
     }
 
     private static LatestRuns latest(Map<MetricsTag, PipelineRun> runs, Set<MetricsTag> shared = [] as Set) {

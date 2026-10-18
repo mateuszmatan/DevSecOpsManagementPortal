@@ -24,7 +24,7 @@ def npmEnvironment = ['npm.registry'   : 'npm_config_registry',
 def designSystemPackages = (findProperty('designSystem.packages') ?: '@v6/v6-themes@21 @v6/v6-table @v6/v6-icons').toString().tokenize()
 def npmInstalled = layout.buildDirectory.file('npm/installed.txt')
 def distDir = layout.projectDirectory.dir('dist')
-def npmFiles = files('package.json', 'package-lock.json', '.npmrc')
+def npmFiles = files('package.json', 'package-lock.json')
 def sources = files(fileTree('src') { exclude 'smokeTest/**', 'regressionTest/**', 'performanceTest/**', 'testFixtures/**' },
         fileTree('public'), npmFiles, 'angular.json', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.spec.json')
 
@@ -117,7 +117,10 @@ testing {
                             systemProperty 'frontend.dist', distDir.asFile.absolutePath
                             systemProperty 'frontend.reports', layout.buildDirectory.dir('reports/frontend').get().asFile.absolutePath
                             systemProperty 'performance.report', layout.buildDirectory.file('reports/performance/frontend-performance-report.md').get().asFile.absolutePath
-                            forward(it, 'frontend.browser', 'frontend.headed', 'smoke.baseUrl')
+                            forward(it, 'frontend.browser', 'frontend.headed', 'frontend.screenshots')
+                            if (suiteName == 'smokeTest') {
+                                forward(it, 'smoke.baseUrl')
+                            }
                             // an installed browser needs no download; Playwright downloads its Chromium through njproxy
                             if (providers.systemProperty('frontend.browser').present) {
                                 environment 'PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD', '1'
@@ -129,7 +132,7 @@ testing {
                                 events 'failed'
                                 exceptionFormat = 'full'
                             }
-                            if (suiteName != 'regressionTest') {
+                            if (suiteName != 'regressionTest' || providers.systemProperty('frontend.screenshots').present) {
                                 outputs.upToDateWhen { false }
                                 outputs.cacheIf { false }
                             }

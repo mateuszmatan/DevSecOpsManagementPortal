@@ -73,7 +73,6 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
     }
 
     public void validate(ValidationProblems problems) {
-        platform.validate(problems.at("platform"));
         for (Scanner scanner : Scanner.values()) {
             if (!limits.containsKey(scanner)) {
                 problems.add("limits." + scanner.name(), "set the limits of every scanner");

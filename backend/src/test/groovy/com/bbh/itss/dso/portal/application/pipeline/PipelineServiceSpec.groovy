@@ -5,6 +5,8 @@ import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryP
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageServiceTemplateUseCase
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
+import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
@@ -14,6 +16,7 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
@@ -23,6 +26,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.Fixtures.KEY
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
+import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.product
@@ -39,6 +43,8 @@ class PipelineServiceSpec extends Specification {
     static final String NEW_KEY = '9b2e2a52-2f0d-4f53-9b55-4f0b9a8f6c11'
     static final String NOTHING_TO_SCAN =
             'Service batch has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing'
+    static final String NOT_DEPLOYED = 'Service batch deploys to virtual machines but has no UrbanCode Deploy ' +
+            'application for DV, so its Full pipeline would fail at the lower test region deployment'
 
     PipelineRepositoryPort pipelines = Mock(defaultResponse: INSTANCE)
     ProductRepositoryPort products = Mock(defaultResponse: INSTANCE)
@@ -52,8 +58,10 @@ class PipelineServiceSpec extends Specification {
     }
     def service = new PipelineService(pipelines, products, settings, templates, keys, fixed(NOW, UTC))
 
-    def certScanner = product(id: 1, services: [[name: 'gui', id: 10, nexusIqApplications: [scanned('cert-gui')]],
-                                                [name: 'backend-api', id: 11, nexusIqApplications: [scanned('cert-api')]]])
+    def certScanner = product(id: 1, services: [[name: 'gui', id: 10, nexusIqApplications: [scanned('cert-gui')],
+                                                 urbanCodeApplications: [deployed('Cert')]],
+                                                [name: 'backend-api', id: 11, nexusIqApplications: [scanned('cert-api')],
+                                                 urbanCodeApplications: [deployed('Cert API')]]])
     def batch = product(id: 2, services: [[name: 'batch', id: 20]])
 
     def "each service of a product is listed with its pipelines, and one pipeline comes with its product and service"() {
@@ -194,6 +202,8 @@ class PipelineServiceSpec extends Specification {
         given:
         products.findByServiceId(10L) >> Optional.of(certScanner)
         products.findByServiceId(20L) >> Optional.of(batch)
+        products.findByServiceId(21L) >> Optional.of(product(id: 3, services: [[name: 'batch', id: 21,
+                                                                                 urbanCodeApplications: [deployed('Batch', ['RD'])]]]))
         products.load(2L) >> Optional.of(batch)
         pipelines.existsForService(10L, FULL) >> true
         pipelines.load(100L) >> Optional.of(pipeline(id: 100, version: 4))
@@ -208,41 +218,53 @@ class PipelineServiceSpec extends Specification {
 
         where:
         refusal                       | action                                              || message
-        'a second pipeline of a type' | { it.create(10L, FULL, pipelineSettings()) }        || 'Service gui already has a full pipeline'
+        'a second pipeline of a type' | { it.create(10L, FULL, pipelineSettings()) }        || 'Service gui already has the Full pipeline'
         'a change of the type'        | { it.update(100L, 4L, SAST, pipelineSettings()) }   || 'The type of a pipeline cannot change; add a new pipeline instead'
         'a change read at version 3'  | { it.update(100L, 3L, FULL, pipelineSettings()) }   || STALE_VERSION
         'a change read at version 5'  | { it.update(100L, 5L, FULL, pipelineSettings()) }   || STALE_VERSION
         'a Nexus IQ pipeline for a service with no Nexus IQ application' | { it.create(20L, NEXUS_IQ, pipelineSettings()) } || NOTHING_TO_SCAN
         'the same pipeline started by a save'                           | { it.createMissing(2L, [20L], NEXUS_IQ) }         || NOTHING_TO_SCAN
+        'a Full pipeline for a VM service with no UrbanCode application' | { it.create(20L, FULL, pipelineSettings()) }     || NOT_DEPLOYED
+        'the same Full pipeline started by a save'                      | { it.createMissing(2L, [20L], FULL) }             || NOT_DEPLOYED
+        'a Full pipeline whose only UrbanCode application skips DV'     | { it.create(21L, FULL, pipelineSettings()) }     || NOT_DEPLOYED
     }
 
-    def "a product whose service keeps a Nexus IQ pipeline but loses its last Nexus IQ application is refused"() {
+    def "a product whose service keeps a #type pipeline it can no longer run is refused"() {
         given:
-        pipelines.existsForService(20L, NEXUS_IQ) >> true
+        pipelines.existsForService(20L, type) >> true
 
         when:
-        service.requireNexusIqApplications(product(id: 2, services: [[name: 'batch', id: 20], [name: 'new']]))
+        service.requireRunnablePipelines(product(id: 2, services: [[name: 'batch', id: 20], [name: 'new']]))
 
         then:
         def e = thrown(IllegalStateException)
-        e.message == NOTHING_TO_SCAN
+        e.message == message
+
+        where:
+        type     || message
+        NEXUS_IQ || NOTHING_TO_SCAN
+        FULL     || NOT_DEPLOYED
     }
 
     def "a product is accepted when #reason"() {
         given:
         pipelines.existsForService(20L, NEXUS_IQ) >> hasPipeline
+        pipelines.existsForService(20L, FULL) >> hasPipeline
 
         when:
-        service.requireNexusIqApplications(product(id: 2, services: [[name: 'batch', id: 20, nexusIqApplications: applications],
-                                                                     [name: 'new']]))
+        service.requireRunnablePipelines(product(id: 2, services: [[name: 'batch', id: 20] + batch, [name: 'new']]))
 
         then:
         noExceptionThrown()
 
         where:
-        reason                                              | hasPipeline | applications
-        'its Nexus IQ pipeline has an application to scan' | true        | [scanned('cert-batch')]
-        'no service has a Nexus IQ pipeline'               | false       | []
+        reason << ['its pipelines have an application to scan and one to deploy', 'one application deploys to DV',
+                   'its Full pipeline deploys to OpenShift', 'no service has a Nexus IQ or Full pipeline']
+        hasPipeline << [true, true, true, false]
+        batch << [[nexusIqApplications: [scanned('cert-batch')], urbanCodeApplications: [deployed('Batch')]],
+                  [nexusIqApplications  : [scanned('cert-batch')],
+                   urbanCodeApplications: [deployed('Batch', ['RD']), deployed('Batch DV', ['QC', ' dv '])]],
+                  [nexusIqApplications: [scanned('cert-batch')], deployment: deployment(target: OPENSHIFT)], [:]]
     }
 
     def "a pipeline's settings can change at the version they were read at"() {
@@ -373,5 +395,10 @@ class PipelineServiceSpec extends Specification {
 
     private static NexusIqApplication scanned(String application) {
         NexusIqApplication.of(application, ['**/*.jar'])
+    }
+
+    private static UrbanCodeApplicationSettings deployed(String application, List<String> environments = []) {
+        UrbanCodeApplicationSettings.of(application, 1, environments, null,
+                [UrbanCodeComponent.of('app', 'build/libs', '*.jar')])
     }
 }

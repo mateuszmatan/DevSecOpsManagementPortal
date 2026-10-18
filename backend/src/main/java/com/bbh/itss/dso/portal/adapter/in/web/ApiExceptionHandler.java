@@ -138,7 +138,9 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     static ProblemDetail problem(HttpStatus status, String title, String message) {
-        log.warn("{} {}: {}", status.value(), title, message);
+        if (status != INTERNAL_SERVER_ERROR) {
+            log.warn("{} {}: {}", status.value(), title, message);
+        }
         ProblemDetail detail = forStatusAndDetail(status, message);
         detail.setTitle(title);
         return detail;

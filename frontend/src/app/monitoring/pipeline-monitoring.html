@@ -1,11 +1,9 @@
 <div class="page">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a routerLink="/monitoring">DevSecOps Pipeline Monitoring</a>
+    <a [routerLink]="section.path">{{ section.heading }}</a>
     <span class="sep" aria-hidden="true">/</span>
     @if (data(); as d) {
-      <a [routerLink]="['/monitoring/products', d.pipeline.productId]">{{
-        d.pipeline.productName
-      }}</a>
+      <a [routerLink]="monitoringProduct(d.pipeline.productId)">{{ d.pipeline.productName }}</a>
       <span class="sep" aria-hidden="true">/</span>
       <span>{{ d.pipeline.serviceName }} · {{ typeLabel(d.pipeline.type) }}</span>
     } @else {
@@ -14,12 +12,9 @@
   </nav>
 
   @if (resource.error(); as error) {
-    <div class="banner">
-      <span>The pipeline could not be loaded. {{ errorMessage(error) }}</span>
-      <span class="spacer"></span>
-      <button type="button" class="btn btn-link" (click)="resource.reload()">Try again</button>
-    </div>
-    <a class="btn btn-outline-primary" routerLink="/monitoring">Back to monitoring</a>
+    <dso-load-error what="The pipeline" [error]="error" (retry)="resource.reload()">
+      <a class="btn btn-link" [routerLink]="section.path">Back to monitoring</a>
+    </dso-load-error>
   } @else if (data(); as d) {
     <header class="page-header">
       <div>
@@ -42,7 +37,7 @@
         </p>
       </div>
       <div class="actions">
-        <a class="btn btn-outline-primary" [routerLink]="['/pipelines', d.pipeline.id]"
+        <a class="btn btn-outline-primary" [routerLink]="pipelinePage(d.pipeline.id)"
           >Manage pipeline</a
         >
         @if (d.pipeline.jenkinsJobUrl; as job) {
@@ -128,7 +123,7 @@
               <dt>Stages</dt>
               <dd>
                 <div class="stage-bar" aria-hidden="true">
-                  <span class="swatch passed" [style.flex-grow]="run.passed ?? 0"></span>
+                  <span class="swatch passed" [style.flex-grow]="stagesPassed(run)"></span>
                   <span class="swatch warned" [style.flex-grow]="run.warned ?? 0"></span>
                   <span
                     class="swatch failed"
@@ -186,17 +181,7 @@
       @if (d.recentRuns.length === 0) {
         <div class="empty-state small-empty"><p>No runs in this period.</p></div>
       } @else {
-        <dso-grid label="Recent runs" [rows]="d.recentRuns" [columns]="runColumns" [rowId]="runId">
-          <ng-template dsoCell="time" let-run>
-            <span [title]="run.time | date: 'medium'">{{ run.time | date: 'd MMM, HH:mm' }}</span>
-          </ng-template>
-          <ng-template dsoCell="result" let-run>
-            <dso-status-chip [status]="run.result" />
-          </ng-template>
-          <ng-template dsoCell="build" let-run>
-            <dso-build-link [run]="run" />
-          </ng-template>
-        </dso-grid>
+        <dso-run-grid label="Recent runs" [runs]="d.recentRuns" [details]="['commit', 'stages']" />
       }
     </section>
   } @else {

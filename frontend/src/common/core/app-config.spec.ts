@@ -89,9 +89,7 @@ describe('appConfig', () => {
     expect(TestBed.inject(DEFAULT_DIALOG_CONFIG)).toEqual(
       expect.objectContaining({ panelClass: 'dso-dialog' }),
     );
-    const svg = await firstValueFrom(
-      TestBed.inject(SvgIconRegistryService).getSvgByName('search')!,
-    );
+    const svg = await firstValueFrom(TestBed.inject(SvgIconRegistryService).getSvgByName('badge')!);
     expect(svg?.tagName.toLowerCase()).toBe('svg');
   });
 });

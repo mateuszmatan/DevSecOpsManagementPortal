@@ -17,7 +17,7 @@ spec:
       containers:
         - name: dso-portal
           image: dso-portal
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
@@ -30,9 +30,6 @@ spec:
             - secretRef:
                 name: dso-portal-influx
                 optional: true
-          env:
-            - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
-              value: "true"
           resources:
             requests:
               cpu: 250m
@@ -76,4 +73,4 @@ spec:
       volumes:
         - name: logs
           emptyDir:
-            sizeLimit: 2Gi
+            sizeLimit: 3Gi

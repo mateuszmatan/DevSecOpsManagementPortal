@@ -31,7 +31,7 @@ describe('App', () => {
   it('shows the user the portal reports as signed in', async () => {
     TestBed.inject(HttpTestingController)
       .expectOne('/api/user/me')
-      .flush({ id: 1, username: 'ann', displayName: 'Ann Lee', roles: [], departmentNames: [], admin: false });
+      .flush({ username: 'ann', displayName: 'Ann Lee', email: 'ann.lee@bbh.com', admin: false });
     await fixture.whenStable();
 
     expect(page().querySelector('.user-badge')?.textContent?.trim()).toBe('Ann Lee');

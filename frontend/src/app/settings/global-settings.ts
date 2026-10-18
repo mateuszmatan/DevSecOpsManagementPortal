@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -14,16 +13,16 @@ import { Dialog } from '@angular/cdk/dialog';
 import { ReactiveFormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { SettingsApi } from '../core/api';
-import { errorMessage, fieldProblems } from '@common/core/errors';
 import { GlobalSettings, SCANNERS, Scanner } from '../core/models';
 import { Notifier } from '@common/core/notifier';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { GoldenFixFields } from '../products/golden-fix-fields';
-import { CodeDialog, CodeDialogData } from '../shared/code-dialog';
+import { showCode } from '../shared/code-dialog';
 import { Fields, chips } from '@common/shared/fields';
-import { applyFieldProblems, revalidateAll } from '@common/shared/form-controls';
+import { revalidateAll, saveFailure } from '@common/shared/form-controls';
 import { errorText } from '@common/shared/form-errors';
 import { RelativeTimePipe } from '@common/shared/formatting';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
 import { TOGGLES } from '@common/ui/toggle-group';
 import {
@@ -78,6 +77,7 @@ const SCANNER_INFO: Record<
     TOGGLES,
     DsoLoading,
     DsoSpinner,
+    LoadError,
     Fields,
     GoldenFixFields,
     RelativeTimePipe,
@@ -96,7 +96,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
   protected readonly form = createSettingsForm();
   protected readonly settings = signal<GlobalSettings | null>(null);
   protected readonly loading = signal(false);
-  protected readonly loadError = signal<string | null>(null);
+  protected readonly loadError = signal<unknown>(null);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly conflict = signal(false);
@@ -188,18 +188,14 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
       )
       .subscribe({
         next: (code) =>
-          this.dialog.open<void, CodeDialogData, CodeDialog>(CodeDialog, {
-            width: '880px',
-            maxWidth: '95vw',
-            data: {
-              title: 'Shared settings sent to Jenkins (config.yaml)',
-              subtitle:
-                'The part of config.yaml every pipeline receives along with the settings of its ' +
-                'own service, built from the saved library defaults.' +
-                (this.form.dirty ? ' Your unsaved changes are not included.' : ''),
-              code,
-              fileName: 'devsecops-global.yaml',
-            },
+          showCode(this.dialog, {
+            title: 'Shared settings sent to Jenkins (config.yaml)',
+            subtitle:
+              'The part of config.yaml every pipeline receives along with the settings of its ' +
+              'own service, built from the saved library defaults.' +
+              (this.form.dirty ? ' Your unsaved changes are not included.' : ''),
+            code,
+            fileName: 'devsecops-global.yaml',
           }),
         error: (error) => this.notifier.error(error),
       });
@@ -216,7 +212,7 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
       )
       .subscribe({
         next: (settings) => this.apply(settings),
-        error: (error) => this.loadError.set(errorMessage(error)),
+        error: (error) => this.loadError.set(error),
       });
   }
 
@@ -230,9 +226,15 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
   }
 
   private showSaveError(error: unknown): void {
-    if (error instanceof HttpErrorResponse && error.status === 409) {
-      this.conflict.set(true);
-      this.saveError.set('Not saved: the settings were changed by someone else.');
+    const failure = saveFailure(
+      this.form,
+      error,
+      'Not saved: the settings were changed by someone else.',
+    );
+    this.conflict.set(failure.conflict);
+    this.saveError.set(failure.message);
+    this.unmatchedProblems.set(failure.unmatched);
+    if (failure.conflict) {
       afterNextRender(
         () =>
           document
@@ -240,16 +242,9 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
             ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }),
         { injector: this.injector },
       );
-      return;
+    } else {
+      this.revealProblem();
     }
-    const problems = fieldProblems(error);
-    if (problems.length === 0) {
-      this.saveError.set(errorMessage(error));
-      return;
-    }
-    this.unmatchedProblems.set(applyFieldProblems(this.form, problems));
-    this.saveError.set('The portal did not accept some values. They are marked below.');
-    this.revealProblem();
   }
 
   private revealProblem(): void {

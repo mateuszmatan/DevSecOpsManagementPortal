@@ -24,7 +24,6 @@ import {
   ColDef,
   ColumnApiModule,
   ColumnAutoSizeModule,
-  CsvExportModule,
   CustomFilterModule,
   GridOptions,
   ICellRendererParams,
@@ -36,7 +35,7 @@ import {
   RowClickedEvent,
   RowStyleModule,
 } from 'ag-grid-community';
-import { LicenseManager } from 'ag-grid-enterprise';
+import { Option, plainText } from '../shared/formatting';
 import { GRID_THEME } from './design-system';
 
 ModuleRegistry.registerModules([
@@ -47,19 +46,12 @@ ModuleRegistry.registerModules([
   RowStyleModule,
   RowAutoHeightModule,
   CustomFilterModule,
-  CsvExportModule,
 ]);
-LicenseManager.setLicenseKey(AG_GRID_LICENSE_KEY);
-
-export interface GridOption {
-  value: unknown;
-  label: string;
-}
 
 export interface GridFilter {
   control: FormControl;
   label: string;
-  options?: readonly GridOption[];
+  options?: readonly Option[];
 }
 
 export interface GridColumn<T> {
@@ -235,7 +227,7 @@ export class DsoGrid<T> {
   protected readonly theme = GRID_THEME;
   protected readonly rowData = computed(() => [...this.rows()]);
   protected readonly emptyTemplate = computed(
-    () => `<span class="dso-grid-empty">${escapeHtml(this.empty())}</span>`,
+    () => `<span class="dso-grid-empty">${plainText(this.empty())}</span>`,
   );
 
   protected readonly options: GridOptions<T> = {
@@ -327,10 +319,6 @@ function columnDef<T>(
 function sortKey<T>(read: (row: T) => unknown, row: T | undefined): string | number {
   const value = row === undefined ? '' : read(row);
   return typeof value === 'number' ? value : String(value ?? '');
-}
-
-function escapeHtml(text: string): string {
-  return text.replace(/[&<>"]/g, (character) => `&#${character.charCodeAt(0)};`);
 }
 
 export const GRID = [DsoGrid, DsoCell] as const;

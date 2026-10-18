@@ -9,7 +9,9 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.ServicePipelinesView;
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
+import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -57,9 +59,11 @@ public class PipelineController {
     @PostMapping("/services/{serviceId}/pipelines")
     @ResponseStatus(CREATED)
     public PipelineResponse create(@PathVariable long serviceId, @Valid @RequestBody PipelineRequest request) {
-        return withKeys(actions.record(ActionRecord.of("CREATE_PIPELINE", PIPELINE, "service #" + serviceId, null),
-                () -> pipelines.create(serviceId, request.type(), request.toSettings()),
-                (action, view) -> described(action, view).done("Created pipeline")));
+        Product product = pipelines.productOfService(serviceId);
+        ActionRecord action = described(ActionRecord.of("CREATE_PIPELINE", PIPELINE, null, null), product,
+                product.service(serviceId).orElseThrow(), request.type());
+        return withKeys(actions.record(action, () -> pipelines.create(serviceId, request.type(), request.toSettings()),
+                "Created pipeline"));
     }
 
     @GetMapping("/pipelines/{id}")
@@ -98,8 +102,11 @@ public class PipelineController {
     }
 
     private static ActionRecord described(ActionRecord action, PipelineView view) {
-        return action.withResourceName(view.service().name() + " (" + view.pipeline().type() + ")")
-                .withDepartmentId(view.product().departmentId());
+        return described(action, view.product(), view.service(), view.pipeline().type());
+    }
+
+    private static ActionRecord described(ActionRecord action, Product product, Service service, PipelineType type) {
+        return action.withResourceName(service.name() + " · " + type.label()).withDepartmentId(product.departmentId());
     }
 
     public record DepartmentPipelinesResponse(List<PipelineHealthResponse> pipelines, String metricsError) {

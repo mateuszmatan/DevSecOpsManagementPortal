@@ -30,14 +30,6 @@ class GrafanaDashboardLinksAdapter implements DashboardLinksPort {
     private final GrafanaProperties grafana;
 
     @Override
-    public List<DashboardLink> instances(PlatformSettings platform) {
-        return configuredInstances(platform).stream()
-                .map(instance -> new DashboardLink(instance.name(),
-                        getIfNull(instance.dashboardUrl(), instance.securityDashboardUrl())))
-                .toList();
-    }
-
-    @Override
     public List<DashboardLink> dashboards(PlatformSettings platform, MetricsTag tag, PipelineType type,
                                           int rangeDays) {
         return configuredInstances(platform).stream()

@@ -25,6 +25,27 @@ export function formatDuration(seconds: number | null | undefined): string {
   return rest ? `${days}d ${rest}h` : `${days}d`;
 }
 
+export interface Option<T = unknown> {
+  value: T;
+  label: string;
+}
+
+export function labelOf<T>(options: readonly Option<T>[], value: T): string {
+  return options.find((option) => option.value === value)?.label ?? String(value);
+}
+
+const ENTITIES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+export function plainText(text: string): string {
+  return text.replace(/[&<>"']/g, (character) => ENTITIES[character]);
+}
+
 export function capitalized(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

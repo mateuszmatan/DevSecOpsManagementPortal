@@ -1,7 +1,8 @@
+import { TestBed } from '@angular/core/testing';
 import { FormGroup } from '@angular/forms';
 import { applyFieldProblems, controlAt, revalidateAll } from '@common/shared/form-controls';
 import { ServiceDefaults } from '../core/models';
-import { anotherService, command, product, service } from '../testing/fixtures';
+import { anotherService, command, product, service, serviceTemplate } from '../testing/fixtures';
 import {
   NO_COMMAND,
   OPENSHIFT_RD_REQUIRED,
@@ -19,9 +20,12 @@ import {
   createTestJobForm,
   createToolCommandForm,
   createUrbanCodeApplicationForm,
+  deploysToDv,
   duplicateService,
+  dvApplication,
   firstInvalidSection,
   firstServiceWithProblem,
+  followToolDefaults,
   NO_GOLDEN_FIX_OVERRIDES,
   createGlobalGoldenFixForm,
   goldenFixControls,
@@ -335,21 +339,21 @@ describe('sections that apply to the build tool and deployment target', () => {
 describe('fields hidden while they do not apply', () => {
   it('turns the DAST fields off with DAST and sends only a valid hidden value', () => {
     const form = createServiceForm(service());
-    const { dastEnabled, dastTargetUrl, dastScanName } = form.controls.appScan.controls;
+    const { dastEnabled, dastTargetUrl, dastPresenceId } = form.controls.appScan.controls;
 
     dastEnabled.setValue(true);
     dastTargetUrl.setValue('cert-scanner.testbbh.com');
-    dastScanName.setValue('nightly');
+    dastPresenceId.setValue('presence-7');
     expect(form.invalid).toBe(true);
 
     dastEnabled.setValue(false);
 
-    expect(dastTargetUrl.disabled && dastScanName.disabled).toBe(true);
+    expect(dastTargetUrl.disabled && dastPresenceId.disabled).toBe(true);
     expect(form.valid).toBe(true);
     expect(toServiceRequest(form).appScan).toMatchObject({
       dastEnabled: false,
       dastTargetUrl: null,
-      dastScanName: 'nightly',
+      dastPresenceId: 'presence-7',
     });
 
     dastEnabled.setValue(true);
@@ -542,6 +546,36 @@ describe('UrbanCode applications', () => {
 
     application.controls.components.removeAt(0);
     expect(application.controls.components.errors).toEqual({ rule: 'Add at least one component' });
+  });
+
+  it('takes an application without environments or with DV as one that deploys to DV', () => {
+    expect(deploysToDv([])).toBe(true);
+    expect(deploysToDv(['RD', ' dv '])).toBe(true);
+    expect(deploysToDv(['RD', 'QC'])).toBe(false);
+  });
+
+  it('needs an application for DV while the service deploys to virtual machines', () => {
+    const form = createServiceForm(service());
+    const applications = form.controls.urbanCodeApplications;
+    applications.addValidators(dvApplication);
+    applications.at(0).controls.environments.setValue('rd, qc');
+
+    expect(applications.errors).toEqual({
+      rule: 'Add an UrbanCode Deploy application for DV: the Full pipeline uses it to deploy to the lower test region',
+    });
+    expect(firstInvalidSection(form)).toBe('urbanCode');
+
+    applications.push(
+      createUrbanCodeApplicationForm({ ...service().urbanCodeApplications[0], environments: [] }),
+    );
+    expect(applications.valid).toBe(true);
+
+    applications.clear();
+    expect(form.invalid).toBe(true);
+
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    expect(applications.errors).toBeNull();
+    expect(firstInvalidSection(form)).not.toBe('urbanCode');
   });
 });
 
@@ -954,5 +988,25 @@ describe('field problems reported by the API', () => {
       ]),
     ).toBe(1);
     expect(firstServiceWithProblem([{ field: 'code', message: 'x' }])).toBeNull();
+  });
+});
+
+describe('followToolDefaults', () => {
+  it('swaps the template build for that of the new build tool unless it was changed', () => {
+    const form = createServiceForm();
+    const build = form.controls.build.controls;
+    build.tool.setValue('GRADLE');
+    build.buildPath.setValue('build/libs/*.jar');
+    build.command.controls.tasks.setValue('clean build');
+    TestBed.runInInjectionContext(() => followToolDefaults(form, serviceTemplate()));
+    const values = () => [build.command.controls.tasks.value, build.buildPath.value];
+
+    build.tool.setValue('MAVEN');
+    expect(values()).toEqual(['clean verify', 'target/*.jar']);
+
+    build.command.controls.tasks.setValue('clean package');
+    build.buildPath.setValue('');
+    build.tool.setValue('GRADLE');
+    expect(values()).toEqual(['clean package', 'build/libs/*.jar']);
   });
 });

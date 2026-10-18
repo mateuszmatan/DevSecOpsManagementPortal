@@ -146,7 +146,6 @@ export function service(overrides: Partial<Service> = {}): Service {
     openShiftTargets: {},
     appScan: {
       applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019',
-      sastScanName: null,
       includedDirs: [],
       excludedDirs: [],
       compile: true,
@@ -156,7 +155,6 @@ export function service(overrides: Partial<Service> = {}): Service {
       clientPath: null,
       compileCommand: command(),
       dastEnabled: false,
-      dastScanName: null,
       dastTargetUrl: null,
       dastPresenceId: null,
       secretCredentialsId: null,
@@ -173,7 +171,7 @@ export function service(overrides: Partial<Service> = {}): Service {
       command: command({ tasks: ['sonarqube'] }),
       serverUrl: null,
     },
-    nexusIq: { serverUrl: null, credentialsId: null, scaScanName: null },
+    nexusIq: { serverUrl: null, credentialsId: null },
     nexusIqApplications: [
       {
         application: 'cert-gui',
@@ -498,6 +496,7 @@ export function pipelineRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
     buildUrl: 'https://jenkins.bbh.com/job/DevSecOps/job/CERT/job/gui-full/job/develop/42/',
     stagesTotal: 12,
     passed: 10,
+    notRequired: 0,
     warned: 1,
     failed: 1,
     blocked: 0,

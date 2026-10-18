@@ -21,5 +21,6 @@ public interface PipelineRunsPort {
 
     List<PipelineRun> recentRuns(PlatformSettings platform, MetricsTag tag, String job, int days, int limit);
 
-    Map<MetricsTag, List<DoraPoint>> doraPoints(PlatformSettings platform, Collection<MetricsTag> tags, int days);
+    Map<MetricsTag, List<DoraPoint>> doraPoints(PlatformSettings platform, Collection<MetricsTag> tags, String job,
+                                                int days);
 }

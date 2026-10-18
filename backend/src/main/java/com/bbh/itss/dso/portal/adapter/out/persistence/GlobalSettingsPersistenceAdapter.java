@@ -7,8 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-import static com.bbh.itss.dso.portal.adapter.out.persistence.GlobalSettingsEntity.ID;
-import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
+import static com.bbh.itss.dso.portal.adapter.out.persistence.SingletonEntity.ID;
 
 @Component
 @RequiredArgsConstructor
@@ -24,8 +23,8 @@ class GlobalSettingsPersistenceAdapter implements GlobalSettingsRepositoryPort {
     @Override
     public GlobalSettings save(GlobalSettings settings) {
         GlobalSettingsEntity entity = repository.findById(ID).orElseGet(GlobalSettingsEntity::new);
-        if (!entity.isNew() && entity.version() != settings.version()) {
-            throw staleVersion();
+        if (!entity.isNew()) {
+            entity.requireVersion(settings.version());
         }
         entity.apply(settings.values());
         return repository.saveAndFlush(entity).toDomain();

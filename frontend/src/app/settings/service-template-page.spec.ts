@@ -229,7 +229,7 @@ describe('ServiceTemplatePage', () => {
     });
     expect(text(page().querySelector('.problems'))).toBe('version: must not be negative');
     expect(text(page().querySelector('.save-error'))).toBe(
-      'The portal did not accept some values. They are marked above.',
+      'The portal did not accept some values. They are marked in the form.',
     );
   });
 
@@ -252,7 +252,7 @@ describe('ServiceTemplatePage', () => {
     await fixture.whenStable();
 
     expect(text(page().querySelector('.banner .banner-text'))).toBe(
-      'The service template could not be loaded: Database unavailable',
+      'The service template could not be loaded. Database unavailable',
     );
     expect(page().querySelector('form')).toBeNull();
 

@@ -33,11 +33,14 @@ describe('createSettingsForm', () => {
     });
   });
 
-  it('requires the tool servers, the deployment defaults and every limit', () => {
+  it('requires the tool servers, the AppScan proxy, the deployment defaults and every limit', () => {
     const form = createSettingsForm();
     const c = form.controls;
 
     expect(c.platform.controls.asocUrl.hasError('required')).toBe(true);
+    expect(c.platform.controls.proxyHost.hasError('required')).toBe(true);
+    expect(c.platform.controls.proxyPort.hasError('required')).toBe(true);
+    expect(c.platform.controls.proxyUser.hasError('required')).toBe(true);
     expect(c.platform.controls.sonarServerUrl.hasError('required')).toBe(true);
     expect(c.platform.controls.jenkinsUrl.valid).toBe(true);
     expect(c.deployment.controls.rdHost.hasError('required')).toBe(true);
@@ -124,9 +127,8 @@ describe('toSettingsRequest', () => {
       platform: {
         jenkinsUrl: '  ',
         jenkinsLibrary: ' BBHLibrary ',
-        proxyHost: '',
-        proxyPort: null,
-        proxyUser: ' ',
+        proxyUser: ' PROXY_ASOCJenk ',
+        oisHost: '',
         iosBuildAgent: ' mac-mini ',
       },
       deployment: { sshUser: ' taadmin ' },
@@ -140,9 +142,8 @@ describe('toSettingsRequest', () => {
     expect(request.platform).toMatchObject({
       jenkinsUrl: null,
       jenkinsLibrary: 'BBHLibrary',
-      proxyHost: null,
-      proxyPort: null,
-      proxyUser: null,
+      proxyUser: 'PROXY_ASOCJenk',
+      oisHost: null,
       iosBuildAgent: 'mac-mini',
     });
     expect(request.deployment.sshUser).toBe('taadmin');
@@ -182,7 +183,7 @@ describe('sections of the settings page', () => {
     const form = createSettingsForm(globalSettings());
     const unmatched = applyFieldProblems(form, [
       { field: 'limits[NEXUS_IQ].maxHigh', message: 'must be less than or equal to 100000' },
-      { field: 'platform.proxyPort', message: 'is required with a proxy host' },
+      { field: 'platform.proxyPort', message: 'must not be null' },
       { field: 'releaseGate.scanners[1]', message: 'must not be null' },
       { field: 'version', message: 'is stale' },
     ]);

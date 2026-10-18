@@ -33,7 +33,7 @@ describe('ActivityChart', () => {
     expect(chart().getAttribute('aria-label')).toBe('7 runs over 3 days');
     expect(options().chart.type).toBe('column');
     expect(options().plotOptions.column.stacking).toBe('normal');
-    expect(options().xAxis.categories).toEqual(['Oct 1', 'Oct 2', 'Oct 3']);
+    expect(options().xAxis.categories).toEqual(['1 Oct', '2 Oct', '3 Oct']);
     expect(series('Other runs')).toEqual([2, 0, 4]);
     expect(series('Failed deployments')).toEqual([1, 0, 0]);
     expect(series('Deployed that day')).toEqual([3, null, 4]);
@@ -45,9 +45,9 @@ describe('ActivityChart', () => {
     expect(
       [0, 1, 2].map((index) => options().tooltip.formatter.call({ point: { index } })),
     ).toEqual([
-      'Oct 1: 3 runs, 1 deployment, 1 failed deployment',
-      'Oct 2: 0 runs, 0 deployments, 0 failed deployments',
-      'Oct 3: 4 runs, 2 deployments, 0 failed deployments',
+      '1 Oct: 3 runs, 1 deployment, 1 failed deployment',
+      '2 Oct: 0 runs, 0 deployments, 0 failed deployments',
+      '3 Oct: 4 runs, 2 deployments, 0 failed deployments',
     ]);
   });
 

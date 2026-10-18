@@ -13,14 +13,12 @@ import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.MapKeyEnumerated;
 import jakarta.persistence.Table;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.EmbeddedColumnNaming;
-import org.springframework.data.domain.Persistable;
 
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -34,12 +32,7 @@ import static lombok.AccessLevel.PROTECTED;
 @Entity
 @Table(name = "DSO_GLOBAL_SETTINGS")
 @NoArgsConstructor(access = PROTECTED)
-public class GlobalSettingsEntity extends AuditedEntity implements Persistable<Long> {
-
-    static final long ID = 1L;
-
-    @Id
-    private Long id = ID;
+public class GlobalSettingsEntity extends SingletonEntity {
 
     private ValuesEmbeddable values;
 
@@ -48,16 +41,6 @@ public class GlobalSettingsEntity extends AuditedEntity implements Persistable<L
     @MapKeyEnumerated(STRING)
     @MapKeyColumn(name = "SCANNER")
     private Map<Scanner, SeverityLimitsEmbeddable> limits = new HashMap<>();
-
-    @Override
-    public Long getId() {
-        return id;
-    }
-
-    @Override
-    public boolean isNew() {
-        return createdAt() == null;
-    }
 
     GlobalSettings toDomain() {
         return new GlobalSettings(RecordMapper.map(GlobalSettingsValues.class, values, this), version(), updatedAt());
@@ -68,10 +51,7 @@ public class GlobalSettingsEntity extends AuditedEntity implements Persistable<L
         Map<Scanner, SeverityLimitsEmbeddable> replacement = new EnumMap<>(Scanner.class);
         source.limits().forEach((scanner, limit) -> replacement.put(scanner,
                 RecordMapper.map(limit, SeverityLimitsEmbeddable.class)));
-        if (!limits.equals(replacement)) {
-            limits.clear();
-            limits.putAll(replacement);
-        }
+        replace(limits, replacement);
     }
 
     @Embeddable

@@ -6,11 +6,13 @@ import { ActionHistoryApi } from '../core/api';
 import { ActionLog } from '../core/models';
 import { ACTION_HISTORY } from '../core/sections';
 import { text } from '@common/shared/form-controls';
+import { Option, counted, labelOf } from '@common/shared/formatting';
 import { FORM_FIELD } from '@common/ui/form-field';
 import { GRID, GridColumn } from '@common/ui/grid';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 
-export const ACTION_OPTIONS: { value: string; label: string }[] = [
+export const ACTION_OPTIONS: Option<string>[] = [
   { value: 'ALL', label: 'All actions' },
   { value: 'CREATE_PRODUCT', label: 'Create product' },
   { value: 'UPDATE_PRODUCT', label: 'Update product' },
@@ -19,7 +21,7 @@ export const ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: 'UPDATE_PIPELINE', label: 'Update pipeline' },
   { value: 'DELETE_PIPELINE', label: 'Delete pipeline' },
   { value: 'ROTATE_KEY', label: 'Issue new key' },
-  { value: 'REVOKE_KEY', label: 'Revoke key' },
+  { value: 'REVOKE_KEY', label: 'Invalidate key' },
   { value: 'CREATE_DEPARTMENT', label: 'Create business service' },
   { value: 'RENAME_DEPARTMENT', label: 'Rename business service' },
   { value: 'DELETE_DEPARTMENT', label: 'Delete business service' },
@@ -28,7 +30,7 @@ export const ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: 'INITIALIZE_PORTAL', label: 'Initialize portal' },
 ];
 
-export const RESOURCE_OPTIONS: { value: string; label: string }[] = [
+export const RESOURCE_OPTIONS: Option<string>[] = [
   { value: 'ALL', label: 'All resources' },
   { value: 'PRODUCT', label: 'Product' },
   { value: 'PIPELINE', label: 'Pipeline' },
@@ -38,18 +40,15 @@ export const RESOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: 'PORTAL', label: 'Portal' },
 ];
 
-export const STATUS_OPTIONS: { value: string; label: string }[] = [
+export const STATUS_OPTIONS: Option<string>[] = [
   { value: 'ALL', label: 'All statuses' },
   { value: 'SUCCESS', label: 'Success' },
   { value: 'FAILURE', label: 'Failure' },
 ];
 
-const labelOf = (options: { value: string; label: string }[], value: string) =>
-  options.find((option) => option.value === value)?.label ?? value;
-
 @Component({
   selector: 'dso-action-history',
-  imports: [ReactiveFormsModule, DatePipe, FORM_FIELD, GRID, DsoLoading],
+  imports: [ReactiveFormsModule, DatePipe, FORM_FIELD, GRID, DsoLoading, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -102,17 +101,17 @@ const labelOf = (options: { value: string; label: string }[], value: string) =>
       @if (logsResource.isLoading() && !logsResource.hasValue()) {
         <dso-loading />
       } @else if (logsResource.error(); as error) {
-        <div class="banner danger" role="alert">
-          Could not load action history.
-          <button type="button" class="btn btn-outline-primary" (click)="reload()">Try again</button>
-        </div>
+        <dso-load-error what="The action history" [error]="error" (retry)="reload()" />
       } @else {
-        @if (filteredRows().length) {
+        @if (all().length) {
           <section class="card list">
-            <header class="list-head">
-              <span class="shown">Operations: {{ filteredRows().length }}</span>
+            <header class="card-header">
+              <h2>Actions</h2>
+              <span class="muted shown">{{ shown() }}</span>
             </header>
             <dso-grid
+              label="Action history"
+              empty="No action matches the filters."
               [rows]="filteredRows()"
               [columns]="columns"
               [rowId]="rowId"
@@ -125,7 +124,7 @@ const labelOf = (options: { value: string; label: string }[], value: string) =>
               </ng-template>
               <ng-template dsoCell="resource" let-row>
                 <span class="resource-type">{{ resourceLabel(row) }}</span>
-                {{ row.resourceName || '—' }}
+                {{ row.resourceName || '–' }}
               </ng-template>
               <ng-template dsoCell="status" let-row>
                 <span class="status" [class.failure]="row.status !== 'SUCCESS'">{{ statusLabel(row) }}</span>
@@ -143,8 +142,8 @@ const labelOf = (options: { value: string; label: string }[], value: string) =>
   `,
   styles: `
     .toolbar {
-      margin-bottom: 16px;
-      padding: 12px 16px;
+      margin-bottom: 12px;
+      padding: 10px 12px;
     }
 
     .filters-row {
@@ -166,14 +165,8 @@ const labelOf = (options: { value: string; label: string }[], value: string) =>
       padding: 10px 14px 0;
     }
 
-    .list-head {
-      margin-bottom: 8px;
-    }
-
     .shown {
-      font-size: 13px;
-      color: var(--dso-muted);
-      font-weight: 500;
+      font-size: 12px;
     }
 
     .time-cell {
@@ -236,7 +229,7 @@ export class ActionHistoryPage {
     {
       key: 'department',
       header: 'Business Service',
-      value: (row) => row.departmentName || '—',
+      value: (row) => row.departmentName || '–',
       sortValue: (row) => (row.departmentName || '').toLowerCase(),
       width: 150,
     },
@@ -255,7 +248,7 @@ export class ActionHistoryPage {
     {
       key: 'details',
       header: 'Details',
-      value: (row) => row.details || '—',
+      value: (row) => row.details || '–',
       minWidth: 240,
     },
     {
@@ -270,11 +263,12 @@ export class ActionHistoryPage {
   protected readonly resourceLabel = (row: ActionLog) => labelOf(RESOURCE_OPTIONS, row.resourceType);
   protected readonly statusLabel = (row: ActionLog) => labelOf(STATUS_OPTIONS, row.status);
 
+  protected readonly all = computed(() =>
+    this.logsResource.hasValue() ? this.logsResource.value() : [],
+  );
+
   protected readonly filteredRows = computed(() => {
-    if (!this.logsResource.hasValue()) {
-      return [];
-    }
-    const all = this.logsResource.value();
+    const all = this.all();
     const f = this.filterValue();
     const query = (f.search ?? '').trim().toLowerCase();
     const action = f.actionType;
@@ -310,6 +304,13 @@ export class ActionHistoryPage {
       }
       return true;
     });
+  });
+
+  protected readonly shown = computed(() => {
+    const all = counted(this.all().length, 'action');
+    return this.filteredRows().length === this.all().length
+      ? all
+      : `${this.filteredRows().length} of ${all} shown`;
   });
 
   protected reload(): void {

@@ -16,6 +16,7 @@ import {
 } from '../testing/fixtures';
 import { buttonOf, inputOf, selectOf, text } from '@common/testing/dom';
 import { GeneratedKeys } from './generated-keys';
+import { createUrbanCodeApplicationForm } from './product-form-model';
 import { ProductEditor } from './product-editor';
 import { ProductNameDialog } from './product-name-dialog';
 
@@ -206,8 +207,8 @@ describe('ProductEditor', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/admin/products']);
   });
 
-  it('says why a new product cannot start without the departments', async () => {
-    const open = naming('CertScanner');
+  it('says why a new product cannot start without the departments and loads them again', async () => {
+    const open = naming(undefined);
     await fixture.whenStable();
     http
       .expectOne('/api/departments')
@@ -215,9 +216,35 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
 
     expect(open).not.toHaveBeenCalled();
-    expect(page().querySelector('.banner')?.textContent).toBe(
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
       'The business services could not be loaded. The database is not available',
     );
+    expect(page().querySelector('dso-load-error a')?.getAttribute('href')).toBe('/admin/products');
+
+    buttonOf(page().querySelector('dso-load-error')!, 'Try again').click();
+    await fixture.whenStable();
+    http.expectOne('/api/departments').flush(departments);
+    await fixture.whenStable();
+
+    expect(page().querySelector('dso-load-error')).toBeNull();
+    expect(open).toHaveBeenCalledOnce();
+  });
+
+  it('says why a stored product could not be loaded', async () => {
+    fixture.componentRef.setInput('id', '1');
+    await fixture.whenStable();
+    http.expectOne('/api/products/1/pipelines').flush([]);
+    http.expectOne('/api/settings').flush(globalSettings());
+    template();
+    http.expectOne('/api/departments').flush(departments);
+    http.expectOne('/api/products/1').flush(null, { status: 404, statusText: 'Not Found' });
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.banner .banner-text'))).toBe(
+      'The product could not be loaded. The portal could not complete the request (error 404 Not Found). ' +
+        'Try again in a moment; if it keeps failing, tell the portal administrator.',
+    );
+    expect(page().querySelector('form')).toBeNull();
   });
 
   it('keeps the code in step with the name until the code is changed by hand', async () => {
@@ -291,6 +318,73 @@ describe('ProductEditor', () => {
     expect(page().querySelector('.problems')?.textContent).toContain('appScanAccount: is unknown');
     expect(page().querySelector('.dso-panel.expanded .rail-item.active')?.textContent).toContain(
       'SonarQube',
+    );
+  });
+
+  it('asks for an UrbanCode Deploy application for DV before adding a service on virtual machines', async () => {
+    await start();
+    fillValidProduct();
+    const gui = editor()['form'].controls.services.at(0);
+    gui.controls.deployment.controls.target.setValue('VM');
+    await submit();
+
+    http.expectNone('/api/products');
+    expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
+    expect(text(panels()[0].querySelector('.tag.error'))).toBe('Needs attention');
+    expect(text(page().querySelector('.dso-panel.expanded .list-error'))).toBe(
+      'Add an UrbanCode Deploy application for DV: the Full pipeline uses it to deploy to the lower test region',
+    );
+
+    gui.controls.urbanCodeApplications.push(
+      createUrbanCodeApplicationForm(service().urbanCodeApplications[0]),
+    );
+    await submit();
+
+    const request = http.expectOne({ method: 'POST', url: '/api/products' });
+    expect(request.request.body.services[0].urbanCodeApplications[0].environments).toEqual([
+      'DV',
+      'RD',
+    ]);
+    request.flush(product({ id: 5 }));
+    await fixture.whenStable();
+  });
+
+  it('asks for an UrbanCode Deploy application for DV only for stored services with a Full pipeline', async () => {
+    await edit([
+      service({ urbanCodeApplications: [] }),
+      anotherService({ urbanCodeApplications: [] }),
+    ]);
+    await submit();
+
+    http.expectNone({ method: 'PUT', url: '/api/products/1' });
+    expect(panels().map((panel) => text(panel.querySelector('.tag.error')))).toEqual([
+      'Needs attention',
+      '',
+    ]);
+
+    editor()['form'].controls.services.at(0).controls.urbanCodeApplications.push(
+      createUrbanCodeApplicationForm({ ...service().urbanCodeApplications[0], environments: [] }),
+    );
+    await submit();
+
+    http.expectOne({ method: 'PUT', url: '/api/products/1' }).flush(product());
+    await fixture.whenStable();
+  });
+
+  it('shows why the portal refused the product', async () => {
+    await edit();
+    await submit();
+
+    const refusal =
+      'Service gui deploys to virtual machines but has no UrbanCode Deploy application for DV, ' +
+      'so its Full pipeline would fail at the lower test region deployment';
+    http
+      .expectOne({ method: 'PUT', url: '/api/products/1' })
+      .flush({ detail: refusal }, { status: 409, statusText: 'Conflict' });
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.save-error'))).toBe(
+      `The product could not be saved. ${refusal}`,
     );
   });
 

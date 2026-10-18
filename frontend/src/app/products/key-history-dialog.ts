@@ -12,13 +12,14 @@ import { pipelineName } from '../pipelines/pipeline-texts';
 import { RelativeTimePipe } from '@common/shared/formatting';
 import { DIALOG } from '@common/ui/dialog';
 import { GRID, GridColumn } from '@common/ui/grid';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 
 const status = (key: PipelineKey) => (key.status === 'ACTIVE' ? 'Active' : 'Invalidated');
 
 @Component({
   selector: 'dso-key-history-dialog',
-  imports: [ClipboardModule, DatePipe, DIALOG, GRID, DsoLoading, RelativeTimePipe],
+  imports: [ClipboardModule, DatePipe, DIALOG, GRID, DsoLoading, LoadError, RelativeTimePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
@@ -34,7 +35,7 @@ const status = (key: PipelineKey) => (key.status === 'ACTIVE' ? 'Active' : 'Inva
         <dso-loading />
       }
       @if (pipeline.error(); as error) {
-        <div class="banner">{{ errorMessage(error) }}</div>
+        <dso-load-error what="The key history" [error]="error" (retry)="pipeline.reload()" />
       } @else if (pipeline.hasValue()) {
         @if (pipeline.value().activeKey === null) {
           <div class="key-status row-wrap">
@@ -84,7 +85,7 @@ const status = (key: PipelineKey) => (key.status === 'ACTIVE' ? 'Active' : 'Inva
             }}</span>
           </ng-template>
           <ng-template dsoCell="issuedAt" let-key>
-            <span [title]="key.issuedAt | date: 'medium'">{{
+            <span [title]="key.issuedAt | date: 'd MMM y, HH:mm:ss'">{{
               key.issuedAt | date: 'd MMM y, HH:mm'
             }}</span>
           </ng-template>
@@ -161,7 +162,6 @@ export class KeyHistoryDialog {
   protected readonly regenerating = signal(false);
   protected readonly regenerateError = signal<string | null>(null);
   protected readonly issuedKey = signal<string | null>(null);
-  protected readonly errorMessage = errorMessage;
 
   protected regenerate(): void {
     this.regenerating.set(true);

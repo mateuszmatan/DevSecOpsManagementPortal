@@ -9,7 +9,6 @@ import {
   check,
   chips,
   choice,
-  count,
   defaulted,
   formRevision,
   line,
@@ -36,7 +35,6 @@ import {
   firstInvalidSection,
   sectionInvalid,
   sectionTouched,
-  visibleSections,
   visibleSectionsForPipeline,
 } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
@@ -57,7 +55,7 @@ const NOTES: Record<ServiceSectionId, string> = {
     'The Jenkins jobs that run the smoke, regression and performance tests after a deployment. The pipeline starts them and waits for their results.',
   deployment: 'Where the service runs: on virtual machines or on OpenShift.',
   urbanCode:
-    'How the Full pipeline deploys the service to the lower test region (RD) with UrbanCode Deploy.',
+    'How the Full pipeline deploys the service to the lower test region (RD) with UrbanCode Deploy. A Full pipeline of a service on virtual machines needs at least one application for the UrbanCode Deploy environment DV.',
   ssh: 'The virtual machines the service is deployed to over SSH, per test region. A blank value takes the library default; a region left empty is skipped.',
   openShift:
     'The OpenShift projects the service is built and deployed in, per test region. A region left empty is skipped.',
@@ -100,9 +98,6 @@ const APP_SCAN: Field[] = [
     hint: "the service's application in AppScan on Cloud",
     error: 'Must be the application UUID from AppScan on Cloud',
   }),
-  line('sastScanName', 'SAST scan name', 'sast.scanName', 6, {
-    hint: 'left empty: the service name',
-  }),
 ];
 
 const APP_SCAN_SECRET: Field[] = [
@@ -144,8 +139,7 @@ const DAST: Field[] = [
     placeholder: 'https://cert-scanner.testbbh.com',
     error: HTTP_URL_ERROR,
   }),
-  line('dastScanName', 'DAST scan name', 'dast.scanName', 3),
-  mono('dastPresenceId', 'Presence ID', 'dast.presenceId', 3, { hint: 'for internal hosts' }),
+  mono('dastPresenceId', 'Presence ID', 'dast.presenceId', 6, { hint: 'for internal hosts' }),
 ];
 
 const NEXUS_IQ_APPLICATION: Field[] = [
@@ -511,7 +505,9 @@ export class ServiceFields {
 
   protected sonarFields(): Field[] {
     return [
-      line('projectName', 'Project name', 'tools.sonar.projectName', 6),
+      line('projectName', 'Project name', 'tools.sonar.projectName', 6, {
+        hint: 'also names the AppScan scans and reports; left empty: the service name',
+      }),
       mono('projectKey', 'Project key', 'tools.sonar.projectKey', 6, {
         hint: 'the project in SonarQube; left empty, the check is skipped',
         error: "Letters, digits, '-', '_', '.' and ':' with at least one non-digit",
@@ -547,7 +543,7 @@ export class ServiceFields {
   protected nexusIqFields(): Field[] {
     const platform = this.defaults()?.platform;
     return [
-      line('serverUrl', 'Server URL', 'tools.nexusIq.serverUrl', 5, {
+      line('serverUrl', 'Server URL', 'tools.nexusIq.serverUrl', 8, {
         ...defaulted(platform?.nexusIqServerUrl),
         error: HTTP_URL_ERROR,
       }),
@@ -555,10 +551,9 @@ export class ServiceFields {
         'credentialsId',
         'Credentials ID',
         'tools.nexusIq.credentialsId',
-        3,
+        4,
         defaulted(platform?.nexusIqCredentialsId),
       ),
-      line('scaScanName', 'SCA scan name', 'sca.scanName', 4),
     ];
   }
 

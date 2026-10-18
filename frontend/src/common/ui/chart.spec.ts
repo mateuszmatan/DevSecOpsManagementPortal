@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { chartOptions } from '../testing/highcharts';
-import { DsoChart, plainText, withPlainText } from './chart';
+import { plainText } from '../shared/formatting';
+import { DsoChart, withPlainText } from './chart';
 
 @Component({
   imports: [DsoChart],

@@ -59,10 +59,7 @@
             ],
             "allowedCommonJsDependencies": [
               "highcharts/js/highcharts"
-            ],
-            "define": {
-              "AG_GRID_LICENSE_KEY": "''"
-            }
+            ]
           },
           "configurations": {
             "production": {

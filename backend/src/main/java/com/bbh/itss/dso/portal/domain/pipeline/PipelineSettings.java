@@ -27,6 +27,7 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
                                String jenkinsJob, String description) {
 
     public static final String DEFAULT_AGENT_LABEL = "linux-agent";
+    public static final String AGENT_LABELS_REQUIRED = "add at least one Jenkins agent label";
     public static final int JENKINS_JOB_MAX = 1000;
     public static final int DESCRIPTION_MAX = 1000;
 
@@ -39,9 +40,13 @@ public record PipelineSettings(List<String> agentLabels, String extendedPipeline
     }
 
     public void validate(ValidationProblems problems) {
-        problems.require("agentLabels", agentLabels, "add at least one Jenkins agent label");
-        COMMAS_1000.check(problems, "agentLabels", agentLabels);
+        validateAgentLabels(problems, agentLabels);
         problems.fits("jenkinsJob", jenkinsJob, JENKINS_JOB_MAX).fits("description", description, DESCRIPTION_MAX);
+    }
+
+    public static void validateAgentLabels(ValidationProblems problems, List<String> labels) {
+        problems.require("agentLabels", labels, AGENT_LABELS_REQUIRED);
+        COMMAS_1000.check(problems, "agentLabels", labels);
     }
 
     public PipelineSettings forType(PipelineType type) {

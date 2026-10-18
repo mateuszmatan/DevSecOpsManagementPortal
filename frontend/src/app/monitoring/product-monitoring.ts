@@ -2,15 +2,16 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { MonitoringApi } from '../core/api';
-import { errorMessage } from '@common/core/errors';
 import { PipelineHealth, RunResult, pipelineTypeLabel } from '../core/models';
+import { MONITORING, adminProduct, monitoringPipeline } from '../core/sections';
 import { BuildLink } from '../shared/build-link';
 import { CountedPipe, RelativeTimePipe, formatDuration } from '@common/shared/formatting';
 import { RUN_LOOK, StatusChip } from '../shared/status-chip';
 import { GRID, GridColumn } from '@common/ui/grid';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 import { MetricsBanner } from './metrics-banner';
-import { stageProblems } from './stages';
+import { stageProblems, stagesPassed } from './stages';
 import { StatusBar, statusSummary } from './status-bar';
 
 @Component({
@@ -19,6 +20,7 @@ import { StatusBar, statusSummary } from './status-bar';
     RouterLink,
     GRID,
     DsoLoading,
+    LoadError,
     BuildLink,
     CountedPipe,
     MetricsBanner,
@@ -52,6 +54,9 @@ export class ProductMonitoringPage {
   });
   protected readonly summary = computed(() => statusSummary(this.counts()));
 
+  protected readonly section = MONITORING;
+  protected readonly adminProduct = adminProduct;
+  protected readonly monitoringPipeline = monitoringPipeline;
   protected readonly typeLabel = pipelineTypeLabel;
   protected readonly pipelineId = (health: PipelineHealth) => health.pipeline.id;
   protected readonly clickable = () => 'clickable';
@@ -95,17 +100,17 @@ export class ProductMonitoringPage {
       header: 'Stages',
       value: (health) =>
         health.lastRun?.stagesTotal
-          ? `${health.lastRun.passed ?? 0} of ${health.lastRun.stagesTotal} passed`
+          ? `${stagesPassed(health.lastRun)} of ${health.lastRun.stagesTotal} passed`
           : '–',
       wrap: true,
       width: 150,
     },
     { key: 'jenkins', header: 'Jenkins', width: 140 },
   ];
-  protected readonly errorMessage = errorMessage;
+  protected readonly stagesPassed = stagesPassed;
   protected readonly stageProblems = stageProblems;
 
   protected open(health: PipelineHealth): void {
-    this.router.navigate(['/monitoring/pipelines', health.pipeline.id]);
+    this.router.navigate(monitoringPipeline(health.pipeline.id));
   }
 }

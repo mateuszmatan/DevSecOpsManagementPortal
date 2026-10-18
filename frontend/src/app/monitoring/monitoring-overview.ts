@@ -6,12 +6,13 @@ import { map } from 'rxjs';
 import { MonitoringApi } from '../core/api';
 import { RETRY, errorMessage } from '@common/core/errors';
 import { ProductHealth, RunResult } from '../core/models';
-import { MONITORING } from '../core/sections';
+import { ADMIN_PRODUCTS, MONITORING, monitoringProduct } from '../core/sections';
 import { byDepartment } from '@common/departments/departments';
 import { BarChart, BarRow } from '../shared/bar-chart';
 import { CountedPipe, RelativeTimePipe, counted } from '@common/shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import { FORM_FIELD } from '@common/ui/form-field';
+import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 import { ActivityChart } from './activity-chart';
 import { DoraTiles } from './dora-tiles';
@@ -28,6 +29,7 @@ const ACTIVITY_RANGE = '30d';
     RouterLink,
     FORM_FIELD,
     DsoLoading,
+    LoadError,
     ActivityChart,
     BarChart,
     CountedPipe,
@@ -46,6 +48,8 @@ export class MonitoringOverview {
   private readonly departmentsApi = inject(DepartmentsApi);
 
   protected readonly section = MONITORING;
+  protected readonly newProduct = `${ADMIN_PRODUCTS.path}/new`;
+  protected readonly monitoringProduct = monitoringProduct;
   protected readonly status = rxResource({ stream: () => this.api.status() });
   protected readonly overview = rxResource({ stream: () => this.api.overview() });
   protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
@@ -127,7 +131,6 @@ export class MonitoringOverview {
   });
 
   protected readonly statusOrder = STATUS_ORDER;
-  protected readonly errorMessage = errorMessage;
 
   protected refresh(): void {
     this.status.reload();

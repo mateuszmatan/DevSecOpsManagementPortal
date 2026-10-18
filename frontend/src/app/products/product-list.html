@@ -25,12 +25,7 @@
 }
 
 @if (products.error() ?? departments.error(); as error) {
-  <div class="banner danger" role="alert">
-    <span>The product list could not be loaded. {{ errorMessage(error) }}</span>
-    <button type="button" class="btn btn-outline-primary retry" (click)="reload()">
-      Try again
-    </button>
-  </div>
+  <dso-load-error what="The product list" [error]="error" (retry)="reload()" />
 } @else if (groups(); as shown) {
   @if (empty()) {
     <section class="card empty-state">

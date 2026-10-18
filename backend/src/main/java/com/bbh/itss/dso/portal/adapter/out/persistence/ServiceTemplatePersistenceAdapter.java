@@ -5,11 +5,9 @@ import com.bbh.itss.dso.portal.domain.settings.StoredServiceTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.Objects;
 import java.util.Optional;
 
-import static com.bbh.itss.dso.portal.adapter.out.persistence.ServiceTemplateEntity.ID;
-import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
+import static com.bbh.itss.dso.portal.adapter.out.persistence.SingletonEntity.ID;
 
 @Component
 @RequiredArgsConstructor
@@ -25,10 +23,7 @@ class ServiceTemplatePersistenceAdapter implements ServiceTemplateRepositoryPort
     @Override
     public StoredServiceTemplate save(StoredServiceTemplate template) {
         ServiceTemplateEntity entity = repository.findById(ID).orElseGet(ServiceTemplateEntity::new);
-        Long stored = entity.isNew() ? null : entity.version();
-        if (!Objects.equals(stored, template.version())) {
-            throw staleVersion();
-        }
+        entity.requireVersion(template.version());
         entity.apply(template.template());
         return repository.saveAndFlush(entity).toDomain();
     }

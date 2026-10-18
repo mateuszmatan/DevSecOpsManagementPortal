@@ -577,6 +577,28 @@ describe('SelfService', () => {
     expect(wizard()['step']()).toBe(4);
   });
 
+  it('asks for an UrbanCode Deploy application for DV of the services a Full pipeline deploys to virtual machines', async () => {
+    await chooseProduct(3, product({ services: [service({ urbanCodeApplications: [] })] }));
+    await next();
+    wizard()['pipeline'].set('FULL');
+    await next();
+    wizard()['services'].update((services) => [...services, added]);
+    await next();
+
+    expect(wizard()['step']()).toBe(2);
+    expect(all('.choice-error')).toEqual([
+      'Use Change to add an UrbanCode Deploy application for DV to these services, which the Full pipeline uses to deploy them to the lower test region: gui, archive-api',
+    ]);
+
+    wizard()['services'].update(([gui, api]) => [
+      { ...gui, serviceRequest: service() },
+      { ...api, target: 'OPENSHIFT', openShiftProject: 'cert' },
+    ]);
+    await next();
+
+    expect(wizard()['step']()).toBe(3);
+  });
+
   it('asks to rename a new service that has the name of a service of the product chosen after it', async () => {
     await chooseProduct(3, product({ id: 2, name: 'Payments Hub', services: [] }), []);
     wizard()['services'].set([{ ...added, name: 'GUI' }]);
