@@ -59,6 +59,16 @@ class DepartmentRegressionSpec extends PortalSpecification {
         deleted.status == 204
         api.get('/api/departments').json.every { it.id != created.json.id }
         api.delete("/api/departments/$created.json.id").status == 404
+
+        and: 'the action history has every change, the refused ones as failures'
+        def renamedName = "$name Services".toString()
+        api.get('/api/action-history').json.findAll { it.resourceName.startsWith(name) }
+                .collect { [it.actionType, it.resourceName, it.departmentName, it.status] }.sort() == [
+                ['CREATE_DEPARTMENT', name, name, 'SUCCESS'],
+                ['DELETE_DEPARTMENT', renamedName, null, 'SUCCESS'],
+                ['RENAME_DEPARTMENT', renamedName, renamedName, 'FAILURE'],
+                ['RENAME_DEPARTMENT', renamedName, renamedName, 'FAILURE'],
+                ['RENAME_DEPARTMENT', renamedName, renamedName, 'SUCCESS']].sort()
     }
 
     def "a department counts its products, their services, their DevSecOps pipelines and the active ones"() {

@@ -1,10 +1,10 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.application.actionlog.port.in.ActionLogUseCase;
+import com.bbh.itss.dso.portal.application.actionlog.port.in.ActionRecord;
+import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,65 +22,47 @@ import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.ResponseEntity.created;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequestUri;
 
-@Slf4j
 @RestController
 @RequestMapping("/api/departments")
 @RequiredArgsConstructor
 public class DepartmentController {
 
+    private static final String DEPARTMENT = "DEPARTMENT";
+
     private final DepartmentsUseCase departments;
-    private final ActionLogUseCase actionLog;
-    private final CurrentUserProvider currentUserProvider;
+    private final ActionRecorder actions;
 
     @GetMapping
     public List<DepartmentResponse> list() {
-        log.info("Listing all departments");
         return departments.list().stream().map(DepartmentResponse::of).toList();
     }
 
     @PostMapping
     public ResponseEntity<DepartmentResponse> create(@Valid @RequestBody DepartmentRequest request) {
-        log.info("Creating department with name='{}'", request.name());
-        DepartmentResponse created = DepartmentResponse.of(departments.create(request.name()));
-        log.info("Successfully created department id={}, name='{}'", created.id(), created.name());
-        recordLog("CREATE_DEPARTMENT", created.name(), "Created department " + created.name());
+        DepartmentResponse created = actions.record(ActionRecord.of("CREATE_DEPARTMENT", DEPARTMENT, request.name(), null),
+                () -> DepartmentResponse.of(departments.create(request.name())),
+                (action, department) -> action.withDepartmentId(department.id()).done("Created department"));
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
     public DepartmentResponse rename(@PathVariable long id, @Valid @RequestBody DepartmentRequest request) {
-        log.info("Renaming department id={} to name='{}'", id, request.name());
-        DepartmentResponse response = DepartmentResponse.of(departments.rename(id, request.version(), request.name()));
-        log.info("Successfully renamed department id={} to name='{}'", id, response.name());
-        recordLog("RENAME_DEPARTMENT", response.name(), "Renamed department #" + id + " to " + response.name());
-        return response;
+        String before = nameOf(id);
+        return actions.record(ActionRecord.of("RENAME_DEPARTMENT", DEPARTMENT, before, id),
+                () -> DepartmentResponse.of(departments.rename(id, request.version(), request.name())),
+                (action, department) -> action.withResourceName(department.name())
+                        .done("Renamed department " + before + " to " + department.name()));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
-        log.info("Deleting department id={}", id);
-        departments.delete(id);
-        log.info("Successfully deleted department id={}", id);
-        recordLog("DELETE_DEPARTMENT", "Department #" + id, "Deleted department #" + id);
+        actions.record(ActionRecord.of("DELETE_DEPARTMENT", DEPARTMENT, nameOf(id), null),
+                () -> departments.delete(id), "Deleted department");
     }
 
-    private void recordLog(String actionType, String resourceName, String details) {
-        try {
-            com.bbh.itss.dso.portal.domain.user.UserProfile user = currentUserProvider.getCurrentUser();
-            actionLog.log(
-                    user != null ? user.username() : "system",
-                    user != null ? user.displayName() : "System",
-                    user != null ? user.email() : null,
-                    user != null && !user.departmentNames().isEmpty() ? user.departmentNames().get(0) : null,
-                    actionType,
-                    "DEPARTMENT",
-                    resourceName,
-                    details,
-                    "SUCCESS"
-            );
-        } catch (Exception e) {
-            log.warn("Failed to record action log for actionType={}, resourceName={}: {}", actionType, resourceName, e.getMessage());
-        }
+    private String nameOf(long id) {
+        return departments.list().stream().filter(department -> department.id() == id).map(DepartmentView::name)
+                .findFirst().orElse("#" + id);
     }
 }

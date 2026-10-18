@@ -6,8 +6,8 @@ import java.util.List;
 
 public interface ActionLogUseCase {
 
-    List<ActionLog> listLogs(String search, String actionType, String resourceType, String status);
+    /** The newest first. */
+    List<ActionLog> list();
 
-    void log(String username, String userDisplayName, String userEmail, String departmentName,
-             String actionType, String resourceType, String resourceName, String details, String status);
+    void record(ActionRecord action);
 }

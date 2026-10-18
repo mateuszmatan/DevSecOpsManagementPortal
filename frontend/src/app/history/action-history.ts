@@ -20,15 +20,21 @@ export const ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: 'DELETE_PIPELINE', label: 'Delete pipeline' },
   { value: 'ROTATE_KEY', label: 'Rotate / issue key' },
   { value: 'REVOKE_KEY', label: 'Revoke key' },
+  { value: 'CREATE_DEPARTMENT', label: 'Create department' },
+  { value: 'RENAME_DEPARTMENT', label: 'Rename department' },
+  { value: 'DELETE_DEPARTMENT', label: 'Delete department' },
+  { value: 'UPDATE_SERVICE_TEMPLATE', label: 'Update service template' },
+  { value: 'UPDATE_GLOBAL_SETTINGS', label: 'Update library defaults' },
   { value: 'INITIALIZE_PORTAL', label: 'Initialize portal' },
 ];
 
 export const RESOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'All resources' },
   { value: 'PRODUCT', label: 'Product' },
-  { value: 'SERVICE', label: 'Service' },
   { value: 'PIPELINE', label: 'Pipeline' },
   { value: 'PIPELINE_KEY', label: 'Pipeline key' },
+  { value: 'DEPARTMENT', label: 'Department' },
+  { value: 'SETTINGS', label: 'Settings' },
   { value: 'PORTAL', label: 'Portal' },
 ];
 

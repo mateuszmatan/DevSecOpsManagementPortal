@@ -15,7 +15,6 @@ import com.bbh.itss.dso.portal.domain.monitoring.DoraSummary;
 import com.bbh.itss.dso.portal.domain.monitoring.PipelineRun;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,7 +27,6 @@ import java.util.Map;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.PipelineResponse.monitored;
 
-@Slf4j
 @RestController
 @RequestMapping("/api/monitoring")
 @RequiredArgsConstructor
@@ -38,7 +36,6 @@ public class MonitoringController {
 
     @GetMapping("/status")
     public StatusResponse status() {
-        log.info("Checking monitoring status (InfluxDB and Grafana)");
         MonitoringStatus status = monitoring.status();
         return new StatusResponse(status.metricsConfigured(), status.metricsReachable(), status.metricsError(),
                 status.dashboards().stream().map(Grafana::of).toList());
@@ -46,7 +43,6 @@ public class MonitoringController {
 
     @GetMapping("/products")
     public OverviewResponse overview() {
-        log.info("Fetching monitoring overview for all products");
         MonitoringOverview overview = monitoring.overview();
         return new OverviewResponse(overview.products().stream().map(ProductHealthResponse::of).toList(),
                 overview.metricsError());
@@ -54,7 +50,6 @@ public class MonitoringController {
 
     @GetMapping("/products/{id}")
     public ProductMonitoringResponse product(@PathVariable long id) {
-        log.info("Fetching monitoring details for product id={}", id);
         ProductMonitoring found = monitoring.product(id);
         Product product = found.product();
         return new ProductMonitoringResponse(product.id(), product.code(), product.name(), product.description(),
@@ -65,7 +60,6 @@ public class MonitoringController {
     @GetMapping("/pipelines/{id}")
     public PipelineMonitoringResponse pipeline(@PathVariable long id,
                                                @RequestParam(defaultValue = "30d") String range) {
-        log.info("Fetching monitoring details for pipeline id={}, range={}", id, range);
         PipelineMonitoring found = monitoring.pipeline(id, range);
         PipelineView view = found.pipeline();
         return new PipelineMonitoringResponse(monitored(view), found.status(),
@@ -76,7 +70,6 @@ public class MonitoringController {
 
     @GetMapping("/activity")
     public PortfolioActivity activity(@RequestParam(defaultValue = "30d") String range) {
-        log.info("Fetching portfolio activity for range={}", range);
         return monitoring.activity(range);
     }
 

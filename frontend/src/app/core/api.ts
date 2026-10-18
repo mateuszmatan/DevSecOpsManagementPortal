@@ -168,24 +168,12 @@ export class ServiceTemplateApi {
   }
 }
 
-export interface ActionHistoryFilters {
-  search?: string;
-  actionType?: string;
-  resourceType?: string;
-  status?: string;
-}
-
 @Injectable({ providedIn: 'root' })
 export class ActionHistoryApi {
   private readonly http = inject(HttpClient);
 
-  list(filters?: ActionHistoryFilters): Observable<ActionLog[]> {
-    let params = new HttpParams();
-    if (filters?.search) params = params.set('search', filters.search);
-    if (filters?.actionType && filters.actionType !== 'ALL') params = params.set('actionType', filters.actionType);
-    if (filters?.resourceType && filters.resourceType !== 'ALL') params = params.set('resourceType', filters.resourceType);
-    if (filters?.status && filters.status !== 'ALL') params = params.set('status', filters.status);
-    return this.http.get<ActionLog[]>('/api/action-history', { params });
+  list(): Observable<ActionLog[]> {
+    return this.http.get<ActionLog[]>('/api/action-history');
   }
 }
 
