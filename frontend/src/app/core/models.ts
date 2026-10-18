@@ -27,7 +27,6 @@ export type Scanner = 'SAST' | 'SCA' | 'NEXUS_IQ' | 'DAST';
 export const REGIONS: Region[] = ['RD', 'QC'];
 export const TEST_STAGES: TestStage[] = ['SMOKE', 'REGRESSION', 'PERFORMANCE'];
 export type TestSuite = 'UNIT' | TestStage;
-export const TEST_SUITES: TestSuite[] = ['UNIT', ...TEST_STAGES];
 export const SCANNERS: Scanner[] = ['SAST', 'SCA', 'NEXUS_IQ', 'DAST'];
 
 export interface Department extends PortalDepartment {
@@ -678,10 +677,6 @@ export function pipelineTypeLabel(type: PipelineType): string {
 
 export function pipelineTypeSlug(type: PipelineType): string {
   return type === 'NEXUS_IQ' ? 'nexusiq' : type.toLowerCase();
-}
-
-export function pipelineTypeName(type: PipelineType): string {
-  return type === 'NEXUS_IQ' ? pipelineTypeLabel(type) : type.toLowerCase();
 }
 
 export const DEFAULT_JENKINS_LIBRARY = 'DevSecOpsJenkinsLibrary';

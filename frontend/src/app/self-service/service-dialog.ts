@@ -25,6 +25,7 @@ import {
   WizardDefaults,
   WizardPipeline,
   WizardService,
+  deploys,
   namedDefaults,
   openShiftTargets,
   pipelineLabel,
@@ -149,7 +150,7 @@ export class ServiceDialog {
     const s = this.data.service;
     const def = this.data.defaults;
     const tool: BuildTool = s?.tool ?? def.tool ?? 'GRADLE';
-    const target: DeployTarget = s?.target ?? def.target ?? 'VM';
+    const target: DeployTarget = s?.target ?? (deploys(this.data.pipeline) ? def.target : null) ?? 'VM';
     const build = buildDefaults(def.template, tool);
 
     if (s?.serviceRequest) {

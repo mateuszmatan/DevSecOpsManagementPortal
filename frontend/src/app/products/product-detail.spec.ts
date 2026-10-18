@@ -381,35 +381,41 @@ describe('ProductDetail', () => {
       );
     });
 
-    it('joins only the extended pipelines that read the same security pipeline', async () => {
-      const extended = (id: number, serviceId: number, serviceName: string, job: string) =>
-        pipeline({
-          id,
-          serviceId,
-          serviceName,
-          type: 'EXTENDED',
-          securityPipelineJob: job,
-          activeKey: { ...pipeline().activeKey!, value: `${id}-0000-4abc-9def-123456789abc` },
-        });
-      await load(product(), [
-        servicePipelines({ pipelines: [extended(100, 10, 'gui', 'CERT/security')] }),
-        servicePipelines({
-          serviceId: 11,
-          serviceName: 'api',
-          pipelines: [extended(200, 11, 'api', 'CERT/security')],
-        }),
-        servicePipelines({
-          serviceId: 12,
-          serviceName: 'batch',
-          pipelines: [extended(300, 12, 'batch', 'CERT/batch-security')],
-        }),
-      ]);
+    it.each([
+      ['EXTENDED', 'securityPipelineJob', 'extended'],
+      ['SECURITY', 'extendedPipelineJob', 'security'],
+    ] as const)(
+      'joins only the %s pipelines that link the same %s',
+      async (type, link, label) => {
+        const linked = (id: number, serviceId: number, serviceName: string, job: string) =>
+          pipeline({
+            id,
+            serviceId,
+            serviceName,
+            type,
+            [link]: job,
+            activeKey: { ...pipeline().activeKey!, value: `${id}-0000-4abc-9def-123456789abc` },
+          });
+        await load(product(), [
+          servicePipelines({ pipelines: [linked(100, 10, 'gui', 'CERT/linked')] }),
+          servicePipelines({
+            serviceId: 11,
+            serviceName: 'api',
+            pipelines: [linked(200, 11, 'api', 'CERT/linked')],
+          }),
+          servicePipelines({
+            serviceId: 12,
+            serviceName: 'batch',
+            pipelines: [linked(300, 12, 'batch', 'CERT/batch-linked')],
+          }),
+        ]);
 
-      await menu('Jenkinsfile for several services', 'More actions of the extended pipeline');
-      http.expectOne('/api/settings').flush(globalSettings());
+        await menu('Jenkinsfile for several services', `More actions of the ${label} pipeline`);
+        http.expectOne('/api/settings').flush(globalSettings());
 
-      expect(opened().data['subtitle']).toContain('One run builds gui, api;');
-    });
+        expect(opened().data['subtitle']).toContain('One run builds gui, api;');
+      },
+    );
 
     it('replaces the key once confirmed and reveals the new one', async () => {
       await load();

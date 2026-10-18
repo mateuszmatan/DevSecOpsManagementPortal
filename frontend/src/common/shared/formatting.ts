@@ -25,10 +25,6 @@ export function formatDuration(seconds: number | null | undefined): string {
   return rest ? `${days}d ${rest}h` : `${days}d`;
 }
 
-export function durationOrNull(seconds: number | null): string | null {
-  return seconds === null ? null : formatDuration(seconds);
-}
-
 export function capitalized(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
