@@ -14,4 +14,8 @@ public record ActionLog(
         String resourceName,
         String details,
         String status
-) {}
+) {
+    public String businessServiceName() {
+        return departmentName;
+    }
+}

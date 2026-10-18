@@ -265,9 +265,9 @@ export class ActionHistoryPage {
     },
     {
       key: 'department',
-      header: 'Department',
-      value: (row) => row.departmentName || '—',
-      sortValue: (row) => (row.departmentName || '').toLowerCase(),
+      header: 'Business Service',
+      value: (row) => row.businessServiceName || row.departmentName || '—',
+      sortValue: (row) => (row.businessServiceName || row.departmentName || '').toLowerCase(),
       width: 150,
     },
     {
@@ -329,6 +329,7 @@ export class ActionHistoryPage {
           item.userEmail,
           item.resourceName,
           item.details,
+          item.businessServiceName,
           item.departmentName,
           item.actionType,
         ]

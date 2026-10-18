@@ -84,6 +84,11 @@ export const routes: Routes = [
           import('./departments/pipeline-departments').then((m) => m.PipelineDepartments),
       },
       {
+        path: 'business-services',
+        redirectTo: 'departments',
+        pathMatch: 'full',
+      },
+      {
         path: 'products',
         title: `${ADMIN_PRODUCTS.label} · ${ADMIN.heading}`,
         loadComponent: () => import('./products/product-list').then((m) => m.ProductList),

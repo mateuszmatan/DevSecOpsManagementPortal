@@ -45,6 +45,9 @@ public class ActionLogEntity {
     private String userEmail;
 
     @Column(length = 200)
+    private String businessServiceName;
+
+    @Column(length = 200)
     private String departmentName;
 
     @Column(nullable = false, length = 100)
@@ -65,7 +68,7 @@ public class ActionLogEntity {
     public ActionLogEntity(String username, String userDisplayName, String userEmail,
                            String departmentName, String actionType, String resourceType,
                            String resourceName, String details, String status) {
-        this(null, null, username, userDisplayName, userEmail, departmentName, actionType, resourceType, resourceName, details, status);
+        this(null, null, username, userDisplayName, userEmail, departmentName, departmentName, actionType, resourceType, resourceName, details, status);
     }
 
     @PrePersist
@@ -73,10 +76,16 @@ public class ActionLogEntity {
         if (createdAt == null) {
             createdAt = Timestamps.now();
         }
+        if (businessServiceName == null && departmentName != null) {
+            businessServiceName = departmentName;
+        } else if (departmentName == null && businessServiceName != null) {
+            departmentName = businessServiceName;
+        }
     }
 
     public ActionLog toDomain() {
         return new ActionLog(id, createdAt, username, userDisplayName, userEmail,
-                departmentName, actionType, resourceType, resourceName, details, status);
+                departmentName != null ? departmentName : businessServiceName,
+                actionType, resourceType, resourceName, details, status);
     }
 }

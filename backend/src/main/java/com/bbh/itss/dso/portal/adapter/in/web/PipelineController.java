@@ -41,7 +41,15 @@ public class PipelineController {
     private final ActionLogUseCase actionLog;
     private final CurrentUserProvider currentUserProvider;
 
-    @GetMapping("/pipelines")
+    @GetMapping(value = "/pipelines", params = "businessServiceId")
+    public DepartmentPipelinesResponse listForBusinessService(@RequestParam long businessServiceId) {
+        log.info("Listing pipelines for businessServiceId={}", businessServiceId);
+        DepartmentPipelines found = monitoring.department(businessServiceId);
+        return new DepartmentPipelinesResponse(found.pipelines().stream().map(PipelineHealthResponse::of).toList(),
+                found.metricsError());
+    }
+
+    @GetMapping(value = "/pipelines", params = "departmentId")
     public DepartmentPipelinesResponse listForDepartment(@RequestParam long departmentId) {
         log.info("Listing pipelines for departmentId={}", departmentId);
         DepartmentPipelines found = monitoring.department(departmentId);

@@ -7,7 +7,10 @@ import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -24,7 +27,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.DESCRIPTION_
 import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.NAME_MAX;
 import static com.bbh.itss.dso.portal.domain.catalog.ProductDetails.OWNER_TEAM_MAX;
 
-@JsonIgnoreProperties(value = {"id", "createdAt", "updatedAt"}, allowGetters = true)
+@JsonIgnoreProperties(value = {"id", "createdAt", "updatedAt"}, allowGetters = true, ignoreUnknown = true)
 public record ProductDto(
         Long id,
         @NotBlank @Pattern(regexp = CODE_PATTERN, message = CODE_RULE) String code,
@@ -38,6 +41,31 @@ public record ProductDto(
         Instant createdAt,
         Instant updatedAt,
         @NotNull List<@NotNull @Valid ServiceDto> services) {
+
+    @JsonCreator
+    public static ProductDto create(
+            @JsonProperty("id") Long id,
+            @JsonProperty("code") String code,
+            @JsonProperty("name") String name,
+            @JsonProperty("description") String description,
+            @JsonProperty("ownerTeam") String ownerTeam,
+            @JsonProperty("contactEmail") String contactEmail,
+            @JsonProperty("departmentId") Long departmentId,
+            @JsonProperty("businessServiceId") Long businessServiceId,
+            @JsonProperty("appScan") AppScanAccountDto appScan,
+            @JsonProperty("version") Long version,
+            @JsonProperty("createdAt") Instant createdAt,
+            @JsonProperty("updatedAt") Instant updatedAt,
+            @JsonProperty("services") List<ServiceDto> services) {
+        return new ProductDto(id, code, name, description, ownerTeam, contactEmail,
+                businessServiceId != null ? businessServiceId : departmentId,
+                appScan, version, createdAt, updatedAt, services);
+    }
+
+    @JsonIgnore
+    public Long businessServiceId() {
+        return departmentId;
+    }
 
     static ProductDto from(Product product) {
         return new ProductDto(product.id(), product.code(), product.name(), product.description(),

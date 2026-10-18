@@ -11,6 +11,10 @@ public record UserProfile(
         List<String> departmentNames,
         boolean admin
 ) {
+    public List<String> businessServiceNames() {
+        return departmentNames;
+    }
+
     public static UserProfile defaultAdmin() {
         return new UserProfile(
                 1L,
@@ -19,6 +23,11 @@ public record UserProfile(
                 "mateusz.matan@bbh.com",
                 List.of(
                         "ROLE_ADMIN",
+                        "ROLE_BS_AI_LAB",
+                        "ROLE_BS_CAPITAL_PARTNERS",
+                        "ROLE_BS_CORPORATE_TECHNOLOGY",
+                        "ROLE_BS_CUSTODY",
+                        "ROLE_BS_FUND_SERVICES",
                         "ROLE_DEPT_AI_LAB",
                         "ROLE_DEPT_CAPITAL_PARTNERS",
                         "ROLE_DEPT_CORPORATE_TECHNOLOGY",

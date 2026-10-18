@@ -108,4 +108,8 @@ public final class Product {
     public Long departmentId() {
         return details.departmentId();
     }
+
+    public Long businessServiceId() {
+        return details.businessServiceId();
+    }
 }

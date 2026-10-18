@@ -15,6 +15,7 @@ import static com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity.curr
 class DepartmentPersistenceAdapter implements DepartmentRepositoryPort {
 
     private final DepartmentJpaRepository departments;
+    private final BusinessServiceJpaRepository businessServices;
 
     @Override
     public List<Department> findAll() {
@@ -36,11 +37,25 @@ class DepartmentPersistenceAdapter implements DepartmentRepositoryPort {
         DepartmentEntity entity = department.id() == null ? new DepartmentEntity()
                 : current(departments.findById(department.id()), department.version());
         entity.rename(department.name());
-        return departments.saveAndFlush(entity).toDomain();
+        Department saved = departments.saveAndFlush(entity).toDomain();
+
+        try {
+            BusinessServiceEntity bsEntity = department.id() == null ? new BusinessServiceEntity()
+                    : businessServices.findById(department.id()).orElseGet(BusinessServiceEntity::new);
+            bsEntity.rename(department.name());
+            businessServices.saveAndFlush(bsEntity);
+        } catch (Exception ignored) {
+        }
+
+        return saved;
     }
 
     @Override
     public void delete(long id) {
         departments.findById(id).ifPresent(departments::delete);
+        try {
+            businessServices.findById(id).ifPresent(businessServices::delete);
+        } catch (Exception ignored) {
+        }
     }
 }

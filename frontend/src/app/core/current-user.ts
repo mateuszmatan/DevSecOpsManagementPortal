@@ -11,6 +11,11 @@ export const DEFAULT_USER: UserProfile = {
   email: 'mateusz.matan@bbh.com',
   roles: [
     'ROLE_ADMIN',
+    'ROLE_BS_AI_LAB',
+    'ROLE_BS_CAPITAL_PARTNERS',
+    'ROLE_BS_CORPORATE_TECHNOLOGY',
+    'ROLE_BS_CUSTODY',
+    'ROLE_BS_FUND_SERVICES',
     'ROLE_DEPT_AI_LAB',
     'ROLE_DEPT_CAPITAL_PARTNERS',
     'ROLE_DEPT_CORPORATE_TECHNOLOGY',
@@ -18,6 +23,13 @@ export const DEFAULT_USER: UserProfile = {
     'ROLE_DEPT_FUND_SERVICES',
   ],
   departmentNames: [
+    'AI Lab',
+    'Capital Partners',
+    'Corporate Technology',
+    'Custody',
+    'Fund Services',
+  ],
+  businessServiceNames: [
     'AI Lab',
     'Capital Partners',
     'Corporate Technology',

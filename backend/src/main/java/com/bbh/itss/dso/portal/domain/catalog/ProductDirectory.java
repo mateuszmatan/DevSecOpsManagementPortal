@@ -10,6 +10,10 @@ public interface ProductDirectory {
 
     boolean departmentExists(long id);
 
+    default boolean businessServiceExists(long id) {
+        return departmentExists(id);
+    }
+
     record ProductIdentity(long id, String name) {
 
         boolean isProduct(Long productId) {

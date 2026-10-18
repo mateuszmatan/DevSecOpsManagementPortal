@@ -24,7 +24,7 @@ import static org.springframework.web.servlet.support.ServletUriComponentsBuilde
 
 @Slf4j
 @RestController
-@RequestMapping("/api/departments")
+@RequestMapping({"/api/departments", "/api/business-services"})
 @RequiredArgsConstructor
 public class DepartmentController {
 
