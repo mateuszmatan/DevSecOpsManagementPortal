@@ -71,7 +71,7 @@ describe('AppShell', () => {
     await fixture.whenStable();
 
     expect(text(page().querySelector('.user-name'))).toBe('Ann Lee');
-    expect(text(page().querySelector('.user-role'))).toBe('Admin');
+    expect(text(page().querySelector('.user-role'))).toBe('Administrator');
     expect(page().querySelector('.user-badge')?.getAttribute('title')).toBe('ann@bbh.com');
 
     fixture.componentRef.setInput('user', { displayName: 'Bob Day' });

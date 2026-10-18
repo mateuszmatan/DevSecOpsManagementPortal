@@ -101,7 +101,7 @@ describe('ProductDetail', () => {
   it('shows the AppScan key ID only of a product that has one', async () => {
     await load();
     expect(text(page().querySelector('.technical'))).toBe(
-      'Security scans sign in to HCL AppScan with the API key bbh_key',
+      'Security scans sign in to HCL AppScan with the API key ID bbh_key',
     );
 
     fixture.componentInstance['product'].set(product({ appScan: null, services: [] }));

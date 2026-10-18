@@ -139,7 +139,7 @@ describe('PipelineMonitoringPage', () => {
     expect(text('.page')).toContain('No runs in this period.');
     expect(text('.grafana h2')).toBe('Grafana dashboard');
     expect(text('.grafana .missing')?.replace(/\s+/g, ' ')).toBe(
-      'No Grafana dashboard is linked to the portal, so the detailed charts of this pipeline are not shown here. For the administrator: set GRAFANA_DASHBOARD_URL, and GRAFANA_2_DASHBOARD_URL for a second Grafana.',
+      'No Grafana dashboard is linked to the portal, so the detailed charts of this pipeline are not shown here. For the administrator: link the Grafana dashboards under Admin, Library defaults.',
     );
     expect(text('.page')).toContain('InfluxDB timed out');
     expect(page().querySelector('a.jenkins')).toBeNull();

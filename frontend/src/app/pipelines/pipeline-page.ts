@@ -151,9 +151,9 @@ const RECENT_RUNS = 5;
         @if (!p.activeKey) {
           <div class="banner danger" role="status">
             <span class="banner-text">
-              <strong>The pipeline key is invalidated.</strong> Jenkins is refused the settings of
-              this pipeline, so the pipeline stops at its next start. Regenerate the key, then put
-              the new Jenkinsfile in the service's repository.
+              <strong>The pipeline key is invalidated.</strong> The portal no longer gives Jenkins
+              the settings of this pipeline, so the pipeline stops at its next start. Regenerate the
+              key, then put the new Jenkinsfile in the service's repository.
             </span>
             <button
               type="button"
