@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Logback behind SLF4J. Every profile logs to the console, which Docker and OpenShift collect.
-  The local profile also keeps rolling files in logs/ (LOG_PATH): 10 MB each, 30 days, 2 GB in all.
+  Logback behind SLF4J, the same in every profile and in Beadle: the console, which Docker and OpenShift collect,
+  and rolling files in logs/ (LOG_PATH, /application/logs in the image): 10 MB each, 30 days, 2 GB in all.
   Each line carries the correlation id of its API call.
 -->
 <configuration>
@@ -11,18 +11,14 @@
     <property name="FILE_LOG_PATTERN" value="${CONSOLE_LOG_PATTERN}"/>
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
 
-    <springProfile name="local">
-        <property name="LOG_FILE" value="${LOG_PATH:-logs}/dso-portal.log"/>
-        <property name="LOGBACK_ROLLINGPOLICY_MAX_FILE_SIZE" value="10MB"/>
-        <property name="LOGBACK_ROLLINGPOLICY_MAX_HISTORY" value="30"/>
-        <property name="LOGBACK_ROLLINGPOLICY_TOTAL_SIZE_CAP" value="2GB"/>
-        <include resource="org/springframework/boot/logging/logback/file-appender.xml"/>
-        <root>
-            <appender-ref ref="FILE"/>
-        </root>
-    </springProfile>
+    <property name="LOG_FILE" value="${LOG_PATH:-logs}/dso-portal.log"/>
+    <property name="LOGBACK_ROLLINGPOLICY_MAX_FILE_SIZE" value="10MB"/>
+    <property name="LOGBACK_ROLLINGPOLICY_MAX_HISTORY" value="30"/>
+    <property name="LOGBACK_ROLLINGPOLICY_TOTAL_SIZE_CAP" value="2GB"/>
+    <include resource="org/springframework/boot/logging/logback/file-appender.xml"/>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
     </root>
 </configuration>

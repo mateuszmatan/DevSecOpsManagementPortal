@@ -71,7 +71,7 @@ with one pod, its Service and its Route, so it sits next to the other applicatio
    oc get route dso-portal
    ```
 
-Liquibase automatically migrates the Oracle schema when the pod starts, and Hibernate validates the schema (`ddl-auto: validate`). Because the database is external Oracle, the Deployment uses `RollingUpdate` for zero-downtime rollouts.
+Liquibase automatically migrates the Oracle schema when the pod starts, and Hibernate validates the schema (`ddl-auto: validate`). Because the database is external Oracle, the Deployment uses `RollingUpdate` for zero-downtime rollouts. The pod logs to its console, which OpenShift collects, and to `/application/logs` on an `emptyDir` of 2 GB that lives as long as the pod.
 
 | Variable | Source | Purpose |
 | --- | --- | --- |

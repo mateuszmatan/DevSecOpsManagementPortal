@@ -47,7 +47,7 @@ On a BBH laptop the portal runs as a plain Java application on an embedded H2 da
 or `java -jar backend/build/libs/dso-portal-0.1.0-SNAPSHOT.jar` after `bootJar`. The database is the file
 `~/bbh-devsecops/dso-portal/dso-portal.mv.db` (`DSO_DATA_DIR` moves the folder); Liquibase creates it on the first
 start with the five BBH Business Services and the BBH library defaults, and keeps the data between starts. Logs go to
-the console and to `logs/dso-portal.log` (10 MB per file, 30 days).
+the console and to `logs/dso-portal.log` (10 MB per file, 30 days, 2 GB in all; `LOG_PATH` moves the folder).
 
 For GUI work, run the service with `-PskipGui` and `npm start` in `frontend/`: the Angular development server on
 http://localhost:4200 rebuilds on every change and sends `/api` to port 8080.
@@ -69,7 +69,8 @@ only to `INFLUX_URL`, never to another InfluxDB saved in the GUI.
 `backend/Dockerfile` builds the image from the boot jar (Red Hat UBI 9 with Java 21, any non-root UID). The test
 environments are Docker and OpenShift: in OpenShift every application of the team runs in one project, each in its own
 pod, and the portal is the `dso-portal` Deployment. RD, QC and prod use Oracle; Liquibase updates the schema at
-start-up. [deploy/openshift/README.md](deploy/openshift/README.md) has the commands.
+start-up. In the image the logs are written to the console and to `/application/logs`, which the pod keeps on an
+`emptyDir` of 2 GB. [deploy/openshift/README.md](deploy/openshift/README.md) has the commands.
 
 ## How DSOEnhanced reads its configuration
 

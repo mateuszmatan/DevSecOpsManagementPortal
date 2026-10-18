@@ -58,6 +58,9 @@ spec:
               port: http
             periodSeconds: 5
             failureThreshold: 3
+          volumeMounts:
+            - name: logs
+              mountPath: /application/logs
           lifecycle:
             preStop:
               exec:
@@ -70,3 +73,7 @@ spec:
             capabilities:
               drop:
                 - ALL
+      volumes:
+        - name: logs
+          emptyDir:
+            sizeLimit: 2Gi
