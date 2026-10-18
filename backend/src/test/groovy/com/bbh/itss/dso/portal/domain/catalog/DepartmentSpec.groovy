@@ -45,7 +45,7 @@ class DepartmentSpec extends Specification {
 
         then:
         def e = thrown(IllegalStateException)
-        e.message == 'A department named Custody already exists'
+        e.message == 'A business service named Custody already exists'
 
         where:
         change << [{ Department.create(' custody ', custody) },

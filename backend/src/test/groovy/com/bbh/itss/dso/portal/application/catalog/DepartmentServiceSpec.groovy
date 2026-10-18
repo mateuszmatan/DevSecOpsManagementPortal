@@ -90,10 +90,10 @@ class DepartmentServiceSpec extends Specification {
 
         where:
         refusal                                     | action                                        || message
-        'a new name in use'                         | { it.create('fund services') }                || 'A department named Fund Services already exists'
-        'a rename to a name in use'                 | { it.rename(3L, 1L, 'fund services') }        || 'A department named Fund Services already exists'
+        'a new name in use'                         | { it.create('fund services') }                || 'A business service named Fund Services already exists'
+        'a rename to a name in use'                 | { it.rename(3L, 1L, 'fund services') }        || 'A business service named Fund Services already exists'
         'a rename of an old version'                | { it.rename(3L, 0L, 'Corporate Technology') } || STALE_VERSION
-        'deleting a department with products'       | { it.delete(3L) }                             || 'corporate Technology still has 2 product(s). Move them to another department first.'
+        'deleting a department with products'       | { it.delete(3L) }                             || 'corporate Technology still has 2 product(s). Move them to another business service first.'
         'deleting a department the application uses' | { it.delete(4L) }                            || 'Custody is still in use'
     }
 
@@ -103,7 +103,7 @@ class DepartmentServiceSpec extends Specification {
 
         then:
         def e = thrown(NoSuchElementException)
-        e.message == 'Department 9 does not exist'
+        e.message == 'Business service 9 does not exist'
         0 * departments.save(_)
         0 * departments.delete(_)
 

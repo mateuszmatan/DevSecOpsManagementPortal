@@ -4,7 +4,7 @@
       dsoInput
       class="search"
       [formControl]="search"
-      placeholder="Search by name, code, team, department or description"
+      placeholder="Search by name, code, team, business service or description"
       aria-label="Search products"
     />
     @if (groups()) {
@@ -36,7 +36,7 @@
     <section class="card empty-state">
       @if (query()) {
         <h3>No product matches "{{ query() }}"</h3>
-        <p>Try another name, code, team or department.</p>
+        <p>Try another name, code, team or business service.</p>
         <button type="button" class="btn btn-outline-primary" (click)="clearSearch()">
           Clear the search
         </button>
@@ -57,7 +57,7 @@
           }
         }
         @if (!group.department) {
-          <p class="muted hint">Edit these products to choose their department.</p>
+          <p class="muted hint">Edit these products to choose their business service.</p>
         }
       </header>
 

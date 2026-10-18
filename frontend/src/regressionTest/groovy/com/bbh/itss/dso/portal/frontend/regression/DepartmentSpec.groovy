@@ -10,7 +10,7 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 class DepartmentSpec extends DsoSpecification {
 
     static final String HAS_A_PRODUCT =
-            'Only an empty department can be deleted. Fund Services still has 1 product: move it to another department first.'
+            'Only an empty business service can be deleted. Fund Services still has 1 product: move it to another business service first.'
 
     def "the departments are listed with their products, services and pipelines, and charted by their pipelines"() {
         when:
@@ -18,14 +18,14 @@ class DepartmentSpec extends DsoSpecification {
 
         then:
         assertThat(names()).hasText(DEPARTMENTS as String[])
-        assertThat(gridHeaders()).hasText(['Department', 'Products', 'Services', 'Pipelines', ''] as String[])
-        assertThat(page.locator('.list-header h2')).hasText('Departments')
-        assertThat(summary()).hasText('5 departments with 2 products and 6 services')
-        assertThat(page.locator('section.departments .section-help')).containsText('Only an empty department can be deleted.')
+        assertThat(gridHeaders()).hasText(['Business Service', 'Products', 'Services', 'Pipelines', ''] as String[])
+        assertThat(page.locator('.list-header h2')).hasText('Business Services')
+        assertThat(summary()).hasText('5 business services with 2 products and 6 services')
+        assertThat(page.locator('section.departments .section-help')).containsText('Only an empty business service can be deleted.')
         assertThat(cells('Fund Services')).hasText(['Fund Services', '1', '4', '6, 1 key invalidated'] as String[])
         assertThat(cells('Corporate Technology')).hasText(['Corporate Technology', '1', '2', '3, all active'] as String[])
         assertThat(cells('AI Lab')).hasText(['AI Lab', '0', '0', 'None yet'] as String[])
-        assertThat(page.locator('section.chart h2')).hasText('Pipelines per department')
+        assertThat(page.locator('section.chart h2')).hasText('Pipelines per business service')
         assertThat(page.locator('section.chart .legend span')).hasText(['Active', 'Key invalidated'] as String[])
         assertThat(page.locator('section.chart .highcharts-xaxis-labels').nth(1).locator('text')).hasText(
                 ['0 pipelines', '0 pipelines', '3 pipelines', '0 pipelines', '6 pipelines, 1 key invalidated'] as String[])
@@ -42,17 +42,17 @@ class DepartmentSpec extends DsoSpecification {
         open('/admin/departments')
 
         when:
-        button('Add department', true).click()
-        dialogButton('Add department').click()
+        button('Add business service', true).click()
+        dialogButton('Add business service').click()
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Add a department')
+        assertThat(dialog().locator('h2')).hasText('Add a business service')
         assertThat(errorOf(dialog(), 'Name')).hasText('Required')
         api.requests('POST', '/api/departments').isEmpty()
 
         when:
         input(dialog(), 'Name').fill('  Treasury ')
-        dialogButton('Add department').click()
+        dialogButton('Add business service').click()
 
         then:
         assertThat(dialog()).hasCount(0)
@@ -60,17 +60,17 @@ class DepartmentSpec extends DsoSpecification {
         awaitRequest('POST', '/api/departments').json() == [name: 'Treasury']
         assertThat(names()).hasText((DEPARTMENTS + 'Treasury') as String[])
         assertThat(cells('Treasury')).hasText(['Treasury', '0', '0', 'None yet'] as String[])
-        assertThat(summary()).hasText('6 departments with 2 products and 6 services')
+        assertThat(summary()).hasText('6 business services with 2 products and 6 services')
 
         when:
-        api.respond('PUT', '/api/departments/6', problem(409, 'Conflict', 'A department named Custody already exists'))
+        api.respond('PUT', '/api/departments/6', problem(409, 'Conflict', 'A business service named Custody already exists'))
         buttonIn(row('Treasury'), 'Rename Treasury').click()
         input(dialog(), 'Name').fill('custody')
-        dialogButton('Rename department').click()
+        dialogButton('Rename business service').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Rename Treasury')
-        assertThat(dialog().locator('[role=alert]')).hasText('A department named Custody already exists')
+        assertThat(dialog().locator('[role=alert]')).hasText('A business service named Custody already exists')
         awaitRequest('PUT', '/api/departments/6').json() == [name: 'custody', version: 0]
 
         when:
@@ -82,7 +82,7 @@ class DepartmentSpec extends DsoSpecification {
 
         when:
         input(dialog(), 'Name').fill('Capital Partners Group')
-        dialogButton('Rename department').click()
+        dialogButton('Rename business service').click()
 
         then:
         assertThat(dialog()).hasCount(0)

@@ -42,7 +42,7 @@ public class DepartmentService implements DepartmentsUseCase {
 
     @Override
     public DepartmentView rename(long id, Long version, String name) {
-        Department department = departments.load(id).orElseThrow(() -> notFound("Department", id));
+        Department department = departments.load(id).orElseThrow(() -> notFound("Business service", id));
         departments.save(department.rename(version, name, departments::findByName));
         return view(id);
     }
@@ -53,7 +53,7 @@ public class DepartmentService implements DepartmentsUseCase {
         long products = department.usage().productCount();
         if (products > 0) {
             throw new IllegalStateException(department.name() + " still has " + products
-                    + " product(s). Move them to another department first.");
+                    + " product(s). Move them to another business service first.");
         }
         department.usage().deletionRefusal(department.name()).ifPresent(refusal -> {
             throw new IllegalStateException(refusal);
@@ -63,6 +63,6 @@ public class DepartmentService implements DepartmentsUseCase {
 
     private DepartmentView view(long id) {
         return list().stream().filter(department -> department.id() == id).findFirst()
-                .orElseThrow(() -> notFound("Department", id));
+                .orElseThrow(() -> notFound("Business service", id));
     }
 }

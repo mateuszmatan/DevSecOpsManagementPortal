@@ -143,7 +143,7 @@ describe('MonitoringOverview', () => {
 
     expect(page().querySelector('dso-dora-tiles')).toBeNull();
     expect(page().querySelector('.portfolio')).toBeNull();
-    expect(headings()).toEqual(['Not in a department']);
+    expect(headings()).toEqual(['Not in a business service']);
     expect(cards().length).toBe(1);
   });
 

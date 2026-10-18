@@ -28,11 +28,11 @@ export interface NamedProduct {
     <form [formGroup]="form" (ngSubmit)="next()" novalidate>
       <div class="modal-body">
         <p>
-          Start with the department the product belongs to and its name. The portal makes the
+          Start with the business service the product belongs to and its name. The portal makes the
           product's code from the name; you can change it on the next page.
         </p>
         <dso-form-field class="full-width">
-          <dso-label>Department</dso-label>
+          <dso-label>Business Service</dso-label>
           <select dsoInput formControlName="departmentId">
             @for (department of data.departments; track department.id) {
               <option [ngValue]="department.id">{{ department.name }}</option>

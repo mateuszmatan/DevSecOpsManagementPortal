@@ -191,7 +191,7 @@ class ProductSpec extends Specification {
         then:
         def e = thrown(InvalidRequestException)
         e.problems()*.field == ['code', 'name', 'departmentId', 'appScan.keyId', 'services[0].name']
-        e.problems()*.message.unique() == ['must not be blank', "choose the product's department"]
+        e.problems()*.message.unique() == ['must not be blank', "choose the product's business service"]
 
         when:
         Product.create(details(), null, [draft()], nobody)
@@ -278,8 +278,8 @@ class ProductSpec extends Specification {
 
         where:
         departmentId || message
-        null         || "choose the product's department"
-        99L          || 'department 99 does not exist'
+        null         || "choose the product's business service"
+        99L          || 'business service 99 does not exist'
     }
 
     def "a service and a draft trim their name and store a blank description as null"() {

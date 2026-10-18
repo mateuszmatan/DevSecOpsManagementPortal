@@ -27,7 +27,7 @@ class DsoStubApi extends StubApi {
         get('/api/pipelines') { RecordedRequest request ->
             def departmentId = request.params().departmentId as Integer
             if (!departments.any { it.id == departmentId }) {
-                return problem(404, 'Not found', "Department $departmentId does not exist")
+                return problem(404, 'Not found', "Business service $departmentId does not exist")
             }
             def products = (fixture('products.json') as List<Map>).findAll { it.departmentId == departmentId }
             def pipelines = products.collectMany { product ->

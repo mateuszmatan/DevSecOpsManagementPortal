@@ -112,7 +112,7 @@ class MonitoringTargetsServiceSpec extends Specification {
 
         where:
         what                   | message                        | read
-        'department'           | 'Department 7 does not exist'  | { MonitoringTargetsService it -> it.ofDepartment(7L) }
+        'department'           | 'Business service 7 does not exist'  | { MonitoringTargetsService it -> it.ofDepartment(7L) }
         'product'              | 'Product 5 does not exist'     | { MonitoringTargetsService it -> it.ofProduct(5L) }
         'pipeline'             | 'Pipeline 101 does not exist'  | { MonitoringTargetsService it -> it.ofPipeline(101L) }
         "pipeline's product"   | 'Product 1 does not exist'     | { MonitoringTargetsService it -> it.ofPipeline(100L) }

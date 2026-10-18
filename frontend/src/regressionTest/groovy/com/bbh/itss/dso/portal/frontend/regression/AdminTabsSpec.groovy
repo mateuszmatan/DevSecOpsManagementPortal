@@ -7,8 +7,8 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 
 class AdminTabsSpec extends DsoSpecification {
 
-    static final Map<String, String> TABS = [Departments       : '/admin/departments', Products: '/admin/products',
-                                             'Service template': '/admin/template', 'Library defaults': '/admin/settings']
+    static final Map<String, String> TABS = ['Business Services': '/admin/departments', Products: '/admin/products',
+                                             'Service template' : '/admin/template', 'Library defaults': '/admin/settings']
 
     def "the Admin page shows its heading, its description and the four tabs with the open one marked"() {
         when:
@@ -17,15 +17,15 @@ class AdminTabsSpec extends DsoSpecification {
         then:
         assertThat(page.locator('h1')).hasText('DevSecOps Admin')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.')
+                .hasText('Set up the portal for everyone: business services, products and their services, what a new service gets, and the settings every pipeline shares.')
         assertThat(tabs()).hasText(TABS.keySet() as String[])
         TABS.every { label, path ->
             assertThat(tab(label)).hasAttribute('href', path)
             true
         }
         assertThat(page.locator('nav.tab-bar')).hasAttribute('aria-label', 'DevSecOps Admin')
-        isOpen('Departments')
-        assertThat(page).hasTitle('Departments · DevSecOps Admin · BBH DevSecOps Management Portal')
+        isOpen('Business Services')
+        assertThat(page).hasTitle('Business Services · DevSecOps Admin · BBH DevSecOps Management Portal')
         assertThat(activeMenuLink()).hasText('Admin')
         ownErrors().isEmpty()
     }
@@ -35,13 +35,13 @@ class AdminTabsSpec extends DsoSpecification {
         open('/admin/products')
 
         when:
-        tab('Departments').click()
+        tab('Business Services').click()
         page.waitForURL('**/admin/departments')
 
         then:
-        isOpen('Departments')
+        isOpen('Business Services')
         assertThat(gridRows().locator('.name').first()).hasText('AI Lab')
-        assertThat(page).hasTitle(~'^Departments · DevSecOps Admin')
+        assertThat(page).hasTitle(~'^Business Services · DevSecOps Admin')
 
         when:
         tab('Library defaults').click()

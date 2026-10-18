@@ -41,7 +41,7 @@ public class DepartmentController {
     public ResponseEntity<DepartmentResponse> create(@Valid @RequestBody DepartmentRequest request) {
         DepartmentResponse created = actions.record(ActionRecord.of("CREATE_DEPARTMENT", DEPARTMENT, request.name(), null),
                 () -> DepartmentResponse.of(departments.create(request.name())),
-                (action, department) -> action.withDepartmentId(department.id()).done("Created department"));
+                (action, department) -> action.withDepartmentId(department.id()).done("Created business service"));
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
@@ -51,14 +51,14 @@ public class DepartmentController {
         return actions.record(ActionRecord.of("RENAME_DEPARTMENT", DEPARTMENT, before, id),
                 () -> DepartmentResponse.of(departments.rename(id, request.version(), request.name())),
                 (action, department) -> action.withResourceName(department.name())
-                        .done("Renamed department " + before + " to " + department.name()));
+                        .done("Renamed business service " + before + " to " + department.name()));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
         actions.record(ActionRecord.of("DELETE_DEPARTMENT", DEPARTMENT, nameOf(id), null),
-                () -> departments.delete(id), "Deleted department");
+                () -> departments.delete(id), "Deleted business service");
     }
 
     private String nameOf(long id) {

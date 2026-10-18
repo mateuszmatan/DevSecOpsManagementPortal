@@ -9,7 +9,7 @@ abstract class EditorSpecification extends DsoSpecification {
 
     void startProduct(String name, String department = 'Corporate Technology') {
         open('/admin/products/new')
-        choose(dialog(), 'Department', department)
+        choose(dialog(), 'Business Service', department)
         input(dialog(), 'Product name').fill(name)
         dialogButton('Continue').click()
         assertThat(dialog()).hasCount(0)

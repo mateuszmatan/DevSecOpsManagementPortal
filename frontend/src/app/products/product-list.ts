@@ -92,8 +92,8 @@ export class ProductList {
     const placed = groups.filter((group) => group.department);
     const products = placed.reduce((sum, group) => sum + group.products.length, 0);
     const unassigned = groups.find((group) => !group.department)?.products.length ?? 0;
-    const total = `${counted(products, 'product')} in ${counted(placed.length, 'department')}`;
-    return unassigned ? `${total}, ${unassigned} not in a department` : total;
+    const total = `${counted(products, 'product')} in ${counted(placed.length, 'business service')}`;
+    return unassigned ? `${total}, ${unassigned} not in a business service` : total;
   });
 
   protected readonly errorMessage = errorMessage;

@@ -70,7 +70,7 @@ describe('App', () => {
     expect(SECTIONS.map((section) => [section.heading, section.description])).toEqual([
       [
         'DevSecOps Pipelines',
-        "Every automated build, test and security pipeline of your department's products. Open one to see its key, its Jenkinsfile and its latest runs.",
+        "Every automated build, test and security pipeline of your business service's products. Open one to see its key, its Jenkinsfile and its latest runs.",
       ],
       [
         'DevSecOps Self-service',
@@ -86,7 +86,7 @@ describe('App', () => {
       ],
       [
         'DevSecOps Admin',
-        'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
+        'Set up the portal for everyone: business services, products and their services, what a new service gets, and the settings every pipeline shares.',
       ],
     ]);
   });

@@ -44,7 +44,7 @@ public class MonitoringTargetsService implements ReadMonitoringTargetsUseCase {
     @ReadOnly
     public MonitoringTargets ofDepartment(long departmentId) {
         if (!products.departmentExists(departmentId)) {
-            throw notFound("Department", departmentId);
+            throw notFound("Business service", departmentId);
         }
         return targets(products.findByDepartmentId(departmentId), pipelines.findByDepartmentId(departmentId));
     }

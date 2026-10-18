@@ -28,17 +28,17 @@ class AddProductSpec extends EditorSpecification {
         dialogButton('Continue').click()
 
         then:
-        assertThat(errorOf(dialog(), 'Department')).hasText('Required')
+        assertThat(errorOf(dialog(), 'Business Service')).hasText('Required')
         assertThat(errorOf(dialog(), 'Product name')).hasText('Required')
 
         when:
-        choose(dialog(), 'Department', 'Fund Services')
+        choose(dialog(), 'Business Service', 'Fund Services')
         input(dialog(), 'Product name').fill('Cert Scanner')
         dialogButton('Continue').click()
 
         then:
         assertThat(dialog()).hasCount(0)
-        assertThat(selected(productFields(), 'Department')).hasText('Fund Services')
+        assertThat(selected(productFields(), 'Business Service')).hasText('Fund Services')
         assertThat(input(productFields(), 'Name')).hasValue('Cert Scanner')
         assertThat(input(productFields(), 'Code')).hasValue('CERTSCANNER')
 

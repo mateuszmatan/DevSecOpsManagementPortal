@@ -68,7 +68,7 @@ const productFields = (departments: readonly Department[]): Field[] => [
   line('name', 'Name', '', 5, { placeholder: 'CertScanner' }),
   choice(
     'departmentId',
-    'Department',
+    'Business Service',
     departments.map(({ id, name }) => ({ value: id, label: name })),
     '',
     4,
@@ -197,7 +197,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
             this.followNameWithCode();
           },
           error: (error) =>
-            this.loadError.set(`The departments could not be loaded. ${errorMessage(error)}`),
+            this.loadError.set(`The business services could not be loaded. ${errorMessage(error)}`),
         });
       return;
     }

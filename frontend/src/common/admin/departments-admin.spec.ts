@@ -81,12 +81,12 @@ describe('DepartmentsAdmin', () => {
     create(tasks);
     await load();
 
-    expect(text(page().querySelector('.list-header h2'))).toBe('Departments');
-    expect(text(page().querySelector('.summary'))).toBe('2 departments with 1 product and 2 tasks');
+    expect(text(page().querySelector('.list-header h2'))).toBe('Business Services');
+    expect(text(page().querySelector('.summary'))).toBe('2 business services with 1 product and 2 tasks');
     expect(text(page().querySelector('.departments .section-help'))).toBe(
-      'Every product belongs to one department, and people choose their department to see its products and tasks. Only an empty department can be deleted.',
+      'Every product belongs to one business service, and people choose their business service to see its products and tasks. Only an empty business service can be deleted.',
     );
-    expect(headers()).toEqual(['Department', 'Products', 'Tasks', '']);
+    expect(headers()).toEqual(['Business Service', 'Products', 'Tasks', '']);
     expect(text(gridCell(row('Corporate Technology'), 'tasks'))).toBe('2');
     expect(shown.at(-1)?.map((department) => department.name)).toEqual([
       'Corporate Technology',
@@ -99,10 +99,10 @@ describe('DepartmentsAdmin', () => {
     fixture.componentRef.setInput('cells', undefined);
     await load();
 
-    expect(headers()).toEqual(['Department', 'Products', '']);
-    expect(text(page().querySelector('.summary'))).toBe('2 departments with 1 product');
+    expect(headers()).toEqual(['Business Service', 'Products', '']);
+    expect(text(page().querySelector('.summary'))).toBe('2 business services with 1 product');
     expect(text(page().querySelector('.departments .section-help'))).toBe(
-      'Every product belongs to one department, and people choose their department to see its changes. Only an empty department can be deleted.',
+      'Every product belongs to one business service, and people choose their business service to see its changes. Only an empty business service can be deleted.',
     );
   });
 
@@ -110,11 +110,11 @@ describe('DepartmentsAdmin', () => {
     create(plain);
     await load([]);
 
-    expect(text(page().querySelector('.empty-state h3'))).toBe('No departments yet');
-    expect(text(page().querySelector('.summary'))).toBe('0 departments with 0 products');
+    expect(text(page().querySelector('.empty-state h3'))).toBe('No business services yet');
+    expect(text(page().querySelector('.summary'))).toBe('0 business services with 0 products');
     expect(
-      [...page().querySelectorAll('button')].filter((button) => text(button) === 'Add department'),
-    ).toEqual([buttonOf(page().querySelector('.empty-state')!, 'Add department')]);
+      [...page().querySelectorAll('button')].filter((button) => text(button) === 'Add business service'),
+    ).toEqual([buttonOf(page().querySelector('.empty-state')!, 'Add business service')]);
   });
 
   it('shows why the departments could not be loaded', async () => {
@@ -124,7 +124,7 @@ describe('DepartmentsAdmin', () => {
     await fixture.whenStable();
 
     expect(text(page().querySelector('.banner'))).toContain(
-      'The departments could not be loaded: The portal cannot be reached.',
+      'The business services could not be loaded: The portal cannot be reached.',
     );
 
     buttonOf(page().querySelector('.banner')!, 'Try again').click();
@@ -155,7 +155,7 @@ describe('DepartmentsAdmin', () => {
       return id ? text(page().querySelector(`#${id}`)) : null;
     };
     const productsLeft =
-      'Only an empty department can be deleted. Corporate Technology still has 1 product: move it to another department first.';
+      'Only an empty business service can be deleted. Corporate Technology still has 1 product: move it to another business service first.';
     expect(row('Corporate Technology').querySelector('.delete')?.getAttribute('title')).toBe(
       productsLeft,
     );
@@ -176,7 +176,7 @@ describe('DepartmentsAdmin', () => {
     const added = busy({ id: 6, name: 'Treasury', productCount: 0 });
     const open = dialogClosing(added, { ...fundServices, name: 'Fund Administration' }, undefined);
 
-    buttonOf(page(), 'Add department').click();
+    buttonOf(page(), 'Add business service').click();
     fixture.detectChanges();
     http.expectOne('/api/departments').flush([busy(), fundServices, added]);
     await fixture.whenStable();
@@ -207,10 +207,10 @@ describe('DepartmentsAdmin', () => {
     buttonOf(row('Fund Services'), 'Delete').click();
     expect(open.mock.calls[0][0]).toBe(ConfirmDialog);
     expect(open.mock.calls[0][1]?.data).toMatchObject({
-      title: 'Delete the department Fund Services?',
+      title: 'Delete the business service Fund Services?',
       message:
-        'Fund Services has no products, so nothing else is deleted with it. It disappears from every list of departments in the portal. This cannot be undone.',
-      confirmLabel: 'Delete department',
+        'Fund Services has no products, so nothing else is deleted with it. It disappears from every list of business services in the portal. This cannot be undone.',
+      confirmLabel: 'Delete business service',
       danger: true,
     });
     http.expectOne({ method: 'DELETE', url: '/api/departments/5' }).flush(null);

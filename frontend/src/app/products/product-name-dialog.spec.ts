@@ -55,11 +55,11 @@ describe('ProductNameDialog', () => {
     expect(close).not.toHaveBeenCalled();
     expect(text(page().querySelector('dso-error'))).toBe('Required');
 
-    expect(optionsOf(selectOf(page(), 'Department'))).toEqual([
+    expect(optionsOf(selectOf(page(), 'Business Service'))).toEqual([
       'Corporate Technology',
       'Fund Services',
     ]);
-    choose(selectOf(page(), 'Department'), 'Corporate Technology');
+    choose(selectOf(page(), 'Business Service'), 'Corporate Technology');
     await submit('CertScanner');
 
     expect(close).toHaveBeenCalledWith({ name: 'CertScanner', departmentId: 3 });

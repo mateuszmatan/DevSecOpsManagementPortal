@@ -5,7 +5,7 @@ export const PIPELINES: PortalSection = {
   label: 'Pipelines',
   heading: 'DevSecOps Pipelines',
   description:
-    "Every automated build, test and security pipeline of your department's products. Open one to see its key, its Jenkinsfile and its latest runs.",
+    "Every automated build, test and security pipeline of your business service's products. Open one to see its key, its Jenkinsfile and its latest runs.",
 };
 
 export const SELF_SERVICE: PortalSection = {
@@ -37,7 +37,7 @@ export const ADMIN: PortalSection = {
   label: 'Admin',
   heading: 'DevSecOps Admin',
   description:
-    'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
+    'Set up the portal for everyone: business services, products and their services, what a new service gets, and the settings every pipeline shares.',
 };
 
 export const SECTIONS: readonly PortalSection[] = [
@@ -48,7 +48,10 @@ export const SECTIONS: readonly PortalSection[] = [
   ADMIN,
 ];
 
-export const ADMIN_DEPARTMENTS: PortalTab = { path: '/admin/departments', label: 'Departments' };
+export const ADMIN_DEPARTMENTS: PortalTab = {
+  path: '/admin/departments',
+  label: 'Business Services',
+};
 export const ADMIN_PRODUCTS: PortalTab = { path: '/admin/products', label: 'Products' };
 export const ADMIN_TEMPLATE: PortalTab = { path: '/admin/template', label: 'Service template' };
 export const ADMIN_SETTINGS: PortalTab = { path: '/admin/settings', label: 'Library defaults' };

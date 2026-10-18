@@ -40,7 +40,7 @@
       </div>
       @if (departmentStatus().length) {
         <div class="by-department">
-          <h3>By department</h3>
+          <h3>By business service</h3>
           <dso-bar-chart [rows]="departmentStatus()" />
           <div class="legend" aria-label="What the colours mean">
             @for (entry of statusOrder; track entry.status) {

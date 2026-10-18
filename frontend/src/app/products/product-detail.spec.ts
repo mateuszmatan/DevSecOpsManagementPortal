@@ -83,7 +83,7 @@ describe('ProductDetail', () => {
     expect(
       [...page().querySelectorAll('.breadcrumb > :not(.sep)')].map((part) => part.textContent),
     ).toEqual(['DevSecOps Admin', 'Products', 'Corporate Technology', 'CertScanner']);
-    expect(fact('Department')).toBe('Corporate Technology');
+    expect(fact('Business Service')).toBe('Corporate Technology');
     expect(fact('Services')).toBe('1');
     expect(fact('Pipelines')).toBe('1, active');
     expect(page().querySelector('.stats')).toBeNull();
@@ -95,7 +95,7 @@ describe('ProductDetail', () => {
     await load(product({ departmentId: null }));
 
     expect(page().querySelector('.breadcrumb')?.textContent).not.toContain('Corporate');
-    expect(page().querySelector('.facts')?.textContent).not.toContain('Department');
+    expect(page().querySelector('.facts')?.textContent).not.toContain('Business Service');
   });
 
   it('shows the AppScan key ID only of a product that has one', async () => {
