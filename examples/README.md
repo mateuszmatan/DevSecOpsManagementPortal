@@ -24,6 +24,7 @@ product page, or from `api/pipeline-key.sh`.
 | [api/rotate-key.sh](api/rotate-key.sh) | a new key for a pipeline |
 | [api/revoke-key.sh](api/revoke-key.sh) | invalidating a pipeline's key with a reason |
 | [api/dso-config.sh](api/dso-config.sh) | the configuration the library reads for a key, as JSON and as YAML |
+| [api/import-config.sh](api/import-config.sh) | a `config.yaml` or a rendered configuration read back into new service forms |
 | [api/monitoring.sh](api/monitoring.sh) | the monitoring status, every product, all pipelines together, one product and one pipeline |
 | [config/payhub-gateway-full.json](config/payhub-gateway-full.json), [.yaml](config/payhub-gateway-full.yaml) | the configuration of the full pipeline of the sample product Payments Hub, service `gateway` |
 
@@ -92,8 +93,9 @@ examples/api/dso-config.sh "$KEY"
   the RD and QC targets the wizard derives from the OpenShift project `cus-archive`, and `archive-gui`, a Gradle build
   that the UrbanCode Deploy application `TRADEARCHIVE-GUI` deploys to virtual machines. It carries the values the
   wizard fills in; the fields the wizard sends empty (`null`, `[]` or their defaults) are left out, which the API reads
-  the same way. Each service gets a full pipeline with an active key. A second run answers 409, because the product
-  code is taken.
+  the same way. Each service signs in to AppScan with its own key ID (`appScan.keyId`), and each gets a full pipeline
+  with an active key that runs on the Jenkins agents named in `agentLabels`. A second run answers 409, because the
+  product code is taken.
 - `product-pipelines.sh PRODUCT_ID` calls `GET /api/products/{id}/pipelines` and shows each pipeline's ID, type,
   entry point, Jenkins job and active key.
 - `pipeline-key.sh CODE SERVICE [TYPE]` finds the product by its code and prints the active key of the service's
@@ -105,6 +107,11 @@ examples/api/dso-config.sh "$KEY"
   is disabled until a new key is issued; a pipeline without an active key answers 409.
 - `dso-config.sh KEY` calls `GET /api/dso/config/{key}?format=json` and `GET /api/dso/config/{key}`, the requests the
   library sends, and records the key's last use. A revoked key answers 403, an unknown one 404.
+- `import-config.sh CONFIG_FILE [SERVICE_NAME]` posts the file to `POST /api/service-configs/import`, which stores
+  nothing, and shows each project with the notes on what the portal did not take over; `.services[].service` holds
+  the service in the shape `POST /api/products` takes. `SERVICE_NAME` names the service of a file that holds one
+  project without a `projects` map. Try it with
+  `examples/api/import-config.sh examples/config/payhub-gateway-full.yaml`.
 - `monitoring.sh PRODUCT_ID PIPELINE_ID [RANGE]` calls `GET /api/monitoring/status`, `/products`,
   `/activity?range=`, `/products/{id}` and `/pipelines/{id}?range=` (`30d` by default) and shortens each answer;
   without `INFLUX_URL` the status says that the metrics store is not configured and the runs stay empty.

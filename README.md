@@ -93,6 +93,22 @@ machines only with an UrbanCode Deploy application for DV (environments left emp
 library deploys the lower test region through UrbanCode Deploy environment DV.
 `GET /api/pipelines/{id}/config` shows the same configuration in the GUI without recording a use.
 
+Every service signs in to AppScan with its own API key ID (`asoc.keyId`) and, optionally, the Jenkins credential that
+holds its secret (`asoc.token`); without that credential the library takes the key ID as the credential's ID. A
+service scans one Nexus IQ application. A service whose build is not delivered to Nexus renders
+`deploy.<vm|openshift>.rd.nexusDeliveryEnabled: false`, and the forms then ask for none of the delivery settings. A
+product saved with `agentLabels` runs the pipelines that save creates on those Jenkins agents instead of the service
+template's.
+
+## Importing a service from a config file
+
+`POST /api/service-configs/import` reads a `config.yaml`, a configuration the portal rendered, or its JSON form, and
+returns one service form per project with notes on what it did not take over: settings the portal has no field for,
+global and pipeline settings, and secrets such as `asoc.keySecret`, `influx.token` or a test job's `token`, which are
+never echoed. A value equal to the global settings comes back empty, so the service keeps inheriting it. The file may
+hold at most 262,144 characters; a malformed one is refused with the line and column of the problem. The call stores
+nothing, so the action history does not record it.
+
 ## Architecture
 
 The service is hexagonal with MVC at its edge, and ArchUnit tests keep the layers apart:
