@@ -5,8 +5,10 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
+import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
 import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.APK
 import static com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy.INHERITED
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
@@ -150,6 +152,41 @@ class ServiceSettingsSpec extends Specification {
                 ['is required for OpenShift: the Nexus snapshot delivery builds the image in the RD project']
     }
 
+    def "a service that does not deliver to Nexus needs none of the fields only the delivery reads and renders the switch at #path"() {
+        given:
+        def undelivered = settings(build: build(tool: tool), delivery: NONE,
+                deployment: deployment(target: target, appName: 'cert', nexusDeliveryDisabled: true),
+                flutter: FlutterSettings.builder().modules(['app']).testModules(['app']).signingPasswordCredentialsId('sign')
+                        .prodLicenseCredentialsId('prod-license').testLicenseCredentialsId('test-license').build())
+
+        expect:
+        reported(undelivered) == []
+        written(undelivered).get(path) == [nexusDeliveryEnabled: false]
+        written(settings(deployment: deployment(target: target))).get(path + '.nexusDeliveryEnabled') == null
+
+        where:
+        tool    | target    || path
+        MAVEN   | VM        || 'deploy.vm.rd'
+        FLUTTER | VM        || 'deploy.vm.rd'
+        GRADLE  | OPENSHIFT || 'deploy.openshift.rd'
+    }
+
+    def "an OpenShift QC target that sets any field needs what the QC deployment reads: #fields"() {
+        expect:
+        reported(settings(deployment: deployment(target: OPENSHIFT, appName: 'cert', artifactName: 'cert.jar'),
+                openShiftTargets: [(RD): fullSettings().openShiftTargets()[RD], (QC): qc]))
+                .collect { [it.field, it.message] } ==
+                fields.collect { ["openShiftTargets[QC].$it" as String, 'is required once any QC field is set: the QC deployment uses it'] }
+
+        where:
+        qc                                                                                       || fields
+        OpenShiftTarget.builder().buildTag('1.0.41').build()                                     || ['projectDeployment', 'deployConfigPath', 'dockerRepoPull', 'configPath']
+        OpenShiftTarget.builder().projectDeployment('cert-qc').skipConfigDeploy(true).build()   || ['deployConfigPath', 'dockerRepoPull']
+        OpenShiftTarget.builder().projectDeployment('cert-qc').deployConfigPath('oc/deploy.yaml')
+                .dockerRepoPull('pull.bbh.com/cert').configPath('oc/config').build()             || []
+        OpenShiftTarget.builder().routeHostname(' ').build()                                     || []
+    }
+
     def "every Nexus IQ application of the service needs its name and scan patterns"() {
         expect:
         reported(settings(nexusIqApplications: applications))*.field == fields
@@ -204,8 +241,8 @@ class ServiceSettingsSpec extends Specification {
 
         when:
         def problems = reported(settings(build: build(command: command),
-                appScan: AppScanSettings.builder().applicationId(APP_ID).includedDirs(longDirs).excludedDirs(['test'])
-                        .compile(false).compileCommand(command).build(),
+                appScan: AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key').includedDirs(longDirs)
+                        .excludedDirs(['test']).compile(false).compileCommand(command).build(),
                 scm: ScmSettings.builder().repositoryUrl(REPO).credentialsId('bb-creds').reviewers(reviewers).build(),
                 goldenFix: GoldenFixPolicy.builder().excludeDirs(longDirs).build()))
 

@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Transactional
 
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
-import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED
@@ -52,8 +51,9 @@ class BusinessServiceCopyMigrationSpec extends MigrationSpecification {
         given:
         jdbc.execute('DROP ALL OBJECTS')
         liquibase.update('')
-        def saved = inTransaction { products.save(Product.create(details(), account(),
-                [new ServiceDraft(null, 'gui', null, settings())], products)) }
+        def saved = inTransaction {
+            products.save(Product.create(details(), [new ServiceDraft(null, 'gui', null, settings())], products))
+        }
         COPY.each { jdbc.execute(it) }
         jdbc.update("DELETE FROM DATABASECHANGELOG WHERE ID LIKE '029-%'")
         reopen()

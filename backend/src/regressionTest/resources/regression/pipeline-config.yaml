@@ -109,28 +109,21 @@ projects:
         installationName: SonarQube
         projectName: PayHub Gateway
         projectKey: payhub-gateway
+        badgeCredentialsId: payhub-sonar-badge
         maven:
           goals:
           - sonar:sonar
       nexusIq:
         serverUrl: https://tools.bbh.com/IQ
         credentialsId: nexusiqP
-        application:
-          payhub-gateway:
-            scanPatterns:
-            - '**/target/*.jar'
-            - '**/target/*.war'
-            serverUrl: https://tools.bbh.com/IQ
-            credentialsId: nexusiqP
-            stage: build
-            failOnNetworkError: false
-          payhub-gateway-batch:
-            scanPatterns:
-            - '**/batch/*.jar'
-            serverUrl: https://tools.bbh.com/IQ
-            credentialsId: nexusiqP
-            stage: release
-            failOnNetworkError: true
+        application: payhub-gateway
+        scanPatterns:
+        - '**/target/*.jar'
+        - '**/target/*.war'
+        stage: release
+        failOnNetworkError: true
+    sast:
+      scanName: payhub-gateway-sast
     dast:
       enabled: true
       targetUrl: https://payhub-uat.testbbh.com

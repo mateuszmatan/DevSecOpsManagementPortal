@@ -95,8 +95,8 @@ class DepartmentRegressionSpec extends PortalSpecification {
         api.get("/api/products?search=${URLEncoder.encode(department.name.toUpperCase(), 'UTF-8')}").json*.id as Set ==
                 [ledger.id, payments.id] as Set
         api.get("/api/products/$ledger.id").json.keySet() as List ==
-                ['id', 'code', 'name', 'description', 'ownerTeam', 'contactEmail', 'departmentId', 'appScan', 'version',
-                 'createdAt', 'updatedAt', 'services']
+                ['id', 'code', 'name', 'description', 'ownerTeam', 'contactEmail', 'departmentId', 'version', 'createdAt',
+                 'updatedAt', 'services']
     }
 
     def "a department with products is deleted only once they moved to another department"() {

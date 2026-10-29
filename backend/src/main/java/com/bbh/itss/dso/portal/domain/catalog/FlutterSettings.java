@@ -61,7 +61,7 @@ public record FlutterSettings(FlutterPlatform platform, List<String> modules, Li
                 .flag("tools.sonar.flutterPlugin", sonarFlutterPlugin);
     }
 
-    public void validate(ValidationProblems problems, DeployTarget target) {
+    public void validate(ValidationProblems problems, DeploymentSettings deployment) {
         problems.require("modules", modules, "add at least one module: the build stage prepares each of them");
         problems.require("testModules", testModules, "add at least one test module: the unit tests stage runs them");
         LINES_1000.check(problems, "modules", modules);
@@ -72,7 +72,7 @@ public record FlutterSettings(FlutterPlatform platform, List<String> modules, Li
         problems.require("signingPasswordCredentialsId", signingPasswordCredentialsId, message)
                 .require("prodLicenseCredentialsId", prodLicenseCredentialsId, message)
                 .require("testLicenseCredentialsId", testLicenseCredentialsId, message);
-        if (target == VM) {
+        if (deployment.deliversToNexus(VM)) {
             String delivery = "is required for Flutter on VMs: the Nexus delivery uploads the build under it";
             problems.require("deliveryGroup", deliveryGroup, delivery).require("deliveryArtifact", deliveryArtifact, delivery)
                     .require("deliveryPlugin", deliveryPlugin, delivery);

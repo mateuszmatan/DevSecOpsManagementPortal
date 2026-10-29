@@ -1,11 +1,9 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.adapter.RecordMapper;
-import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.ProductDetails;
 import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -16,7 +14,6 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.EmbeddedColumnNaming;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,9 +51,6 @@ public class ProductEntity extends AuditedEntity {
     @JoinColumn(name = "DEPARTMENT_ID", insertable = false, updatable = false)
     private DepartmentEntity department;
 
-    @EmbeddedColumnNaming("ASOC_%s")
-    private AppScanAccountEmbeddable appScanAccount;
-
     @OneToMany(mappedBy = "product", cascade = ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC, name ASC")
     private List<ServiceEntity> services = new ArrayList<>();
@@ -67,7 +61,6 @@ public class ProductEntity extends AuditedEntity {
 
     Product toDomain() {
         return Product.restore(id, RecordMapper.map(ProductDetails.class, this),
-                RecordMapper.map(appScanAccount, AppScanAccount.class),
                 services.stream().map(ServiceEntity::toDomain).toList(), version(), createdAt(), updatedAt());
     }
 
@@ -79,7 +72,6 @@ public class ProductEntity extends AuditedEntity {
         ownerTeam = details.ownerTeam();
         contactEmail = details.contactEmail();
         departmentId = details.departmentId();
-        appScanAccount = RecordMapper.map(product.appScanAccount(), AppScanAccountEmbeddable.class);
     }
 
     List<ServiceEntity> services() {
@@ -98,9 +90,5 @@ public class ProductEntity extends AuditedEntity {
 
     void removeService(ServiceEntity service) {
         services.remove(service);
-    }
-
-    @Embeddable
-    public record AppScanAccountEmbeddable(String keyId, String secretCredentialsId) {
     }
 }

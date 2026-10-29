@@ -1,15 +1,10 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
-import com.bbh.itss.dso.portal.domain.catalog.Product
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
-import org.springframework.context.annotation.Import
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.transaction.annotation.Transactional
 
-import static com.bbh.itss.dso.portal.support.Fixtures.account
-import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED
 
@@ -19,17 +14,13 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
         'spring.liquibase.enabled=false'])
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
-@Import(ProductPersistenceAdapter)
 class ProductAppScanKeyMigrationSpec extends MigrationSpecification {
-
-    @Autowired
-    ProductPersistenceAdapter products
 
     def "a product without an AppScan key is stored after 018, gets a placeholder key on rollback and none again after update"() {
         given:
         liquibase.update('')
-        def keyless = store(Product.create(details(), null, [], products))
-        def keyed = store(Product.create(details(code: 'PAY', name: 'Payments Hub'), account(), [], products))
+        insert('DSO_PRODUCT', [CODE: 'CERT', NAME: 'CertScanner'])
+        insert('DSO_PRODUCT', [CODE: 'PAY', NAME: 'Payments Hub', ASOC_KEY_ID: 'bbh_key-id'])
 
         expect:
         nullable('DSO_PRODUCT', 'ASOC_KEY_ID')
@@ -54,12 +45,7 @@ class ProductAppScanKeyMigrationSpec extends MigrationSpecification {
 
         then:
         nullable('DSO_PRODUCT', 'ASOC_KEY_ID')
-        inTransaction { products.load(keyless.id()).get().appScanAccount() } == null
-        inTransaction { products.load(keyed.id()).get().appScanAccount() } == account()
-    }
-
-    private Product store(Product product) {
-        inTransaction { products.save(product) }
+        keyIds() == [CERT: null, PAY: 'bbh_key-id']
     }
 
     private Map<String, String> keyIds() {

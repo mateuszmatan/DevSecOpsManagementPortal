@@ -6,7 +6,7 @@ import com.bbh.itss.dso.portal.support.PortalSpecification
 
 import java.util.concurrent.Callable
 
-import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
+import static com.bbh.itss.dso.portal.support.ApiJson.appScan
 import static com.bbh.itss.dso.portal.support.ApiJson.build
 import static com.bbh.itss.dso.portal.support.ApiJson.deployedBy
 import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
@@ -275,7 +275,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                 service(name: 'gui', build: [tool: 'GRADLE']),
                 service(name: 'api', deployment: [target: 'OPENSHIFT'], sonar: [projectKey: "sonar-$code"]),
                 mavenService(name: 'batch', delivery: null,
-                        appScan: [applicationId: APP_ID, dastEnabled: true],
+                        appScan: appScan(dastEnabled: true),
                         scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/X/repos/batch'],
                         testJobs: [[stage: 'REGRESSION', type: 'REMOTE', job: 'batch/regression']]),
                 service(name: 'gui', metrics: [influxProject: other.services[0].metrics.influxProject])]))
@@ -333,9 +333,13 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         'Nexus IQ needs both'        | service(nexusIqApplications: [[scanPatterns: ['**/*.war']]])                             || ['services[0].nexusIqApplications[0].application']
         'Maven on VMs needs a path'  | mavenService(build: build(tool: 'MAVEN', command: [tasks: ['verify']]))                  || ['services[0].build.buildPath']
         'OpenShift needs RD'         | fullOpenShiftService(openShiftTargets: [RD: openShiftTarget('x') + [nexusAuthFile: null, buildContext: ' ']]) || ['services[0].openShiftTargets[RD].buildContext', 'services[0].openShiftTargets[RD].nexusAuthFile']
+        'a set QC needs its deploy'  | fullOpenShiftService(openShiftTargets: [RD: openShiftTarget('x'), QC: [buildTag: '1.0.41', skipConfigDeploy: true]]) || ['services[0].openShiftTargets[QC].projectDeployment', 'services[0].openShiftTargets[QC].deployConfigPath', 'services[0].openShiftTargets[QC].dockerRepoPull']
+        'one SonarQube badge source' | service(sonar: [badgeToken: 'sqb_1a2b', badgeCredentialsId: 'sonar-badge'])             || ['services[0].sonar.badgeCredentialsId']
+        'an AppScan key ID'          | service(appScan: appScan(keyId: null))                                                   || ['services[0].appScan.keyId']
+        'one Nexus IQ application'   | service(nexusIqApplications: scannedByNexusIq('a').nexusIqApplications * 2)               || ['services[0].nexusIqApplications']
         'UrbanCode needs components' | service(urbanCodeApplications: [[applicationName: 'LEDGER', components: []], [applicationName: 'BATCH', components: [[componentName: 'batch']]]]) || ['services[0].urbanCodeApplications[0].components', 'services[0].urbanCodeApplications[1].components[0].baseDir', 'services[0].urbanCodeApplications[1].components[0].fileIncludePatterns']
         'test job parameters'        | service(testJobs: [[stage: 'SMOKE', job: 'smoke', parameters: 'ENV=rd\nSUITE critical']])  || ['services[0].testJobs[0].parameters']
-        'lists fit their columns'    | service(build: build(command: [tasks: ['build'], flags: (1..12).collect { "-Dp$it=${'v' * 200}".toString() }]), appScan: [applicationId: APP_ID, includedDirs: (1..20).collect { "${'d' * 150}/$it".toString() }]) || ['services[0].build.command.flags', 'services[0].appScan.includedDirs']
+        'lists fit their columns'    | service(build: build(command: [tasks: ['build'], flags: (1..12).collect { "-Dp$it=${'v' * 200}".toString() }]), appScan: appScan(includedDirs: (1..20).collect { "${'d' * 150}/$it".toString() })) || ['services[0].build.command.flags', 'services[0].appScan.includedDirs']
     }
 
     def "test job parameters are stored one NAME=value per line as they were entered"() {
@@ -371,34 +375,37 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                  [code: 'X']]
     }
 
-    def "a product needs its AppScan key once it has services, and not before"() {
+    def "every service signs in to AppScan with its own key, and a product without services needs none"() {
         given:
         def code = uniqueCode()
 
         when:
-        def created = api.post('/api/products', product(code: code, name: "Product $code", appScan: null, services: []))
+        def created = api.post('/api/products', product(code: code, name: "Product $code", services: []))
         def id = created.json.id
         def withoutKey = api.put("/api/products/$id", product(code: code, name: "Product $code", version: 0,
-                appScan: [keyId: ' ', secretCredentialsId: null], services: [service(name: 'gui')]))
+                services: [service(name: 'gui'), service(name: 'api', appScan: appScan(keyId: ' '))]))
 
         then:
         created.status == 201
-        created.json.appScan == null
+        !created.json.containsKey('appScan')
         created.json.services == []
         api.get("/api/products/$id/pipelines").json == []
         withoutKey.status == 400
-        withoutKey.json.errors == [[field: 'appScan.keyId', message: 'must not be blank']]
-        api.post('/api/products', product(code: uniqueCode(), name: "Other $code", appScan: null)).json.errors ==
-                [[field: 'appScan.keyId', message: 'must not be blank']]
+        withoutKey.json.errors == [[field: 'services[1].appScan.keyId', message: 'is required']]
 
         when:
-        def withKey = api.put("/api/products/$id", product(code: code, name: "Product $code", version: 0,
-                services: [service(name: 'gui')]))
+        def withKeys = api.put("/api/products/$id", product(code: code, name: "Product $code", version: 0,
+                services: [service(name: 'gui'), service(name: 'api', appScan: appScan(keyId: 'bbh_api',
+                        secretCredentialsId: 'api-appscan-secret', scanName: 'api-sast'))]))
+        def keys = pipelinesOf(id as long)*.activeKey*.value
+        def configs = keys.collect { api.get("/api/dso/config/$it?format=json").json.projects }
 
         then:
-        withKey.status == 200
-        withKey.json.appScan == [keyId: 'bbh_key-id', secretCredentialsId: 'hcl-app-scan-account']
-        api.get("/api/products/$id/pipelines").json*.pipelines*.type == [['FULL']]
+        withKeys.status == 200
+        withKeys.json.services*.appScan*.keyId == ['bbh_key-id', 'bbh_api']
+        configs[0].gui.asoc.subMap(['keyId', 'token']) == [keyId: 'bbh_key-id']
+        configs[1].api.asoc.subMap(['keyId', 'token']) == [keyId: 'bbh_api', token: 'api-appscan-secret']
+        configs[1].api.sast == [scanName: 'api-sast']
     }
 
     def "every service a save creates starts with a full pipeline named by the service template and a key that reads its configuration"() {
@@ -466,6 +473,52 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         expect:
         api.post('/api/products?pipelineType=NIGHTLY', product(code: uniqueCode(), name: 'Nightly',
                 services: [service(name: 'gui')])).status == 400
+    }
+
+    def "the Jenkins agents named with a save run the pipelines it creates and are not returned"() {
+        given:
+        def code = uniqueCode()
+
+        when:
+        def created = api.post('/api/products', product(code: code, name: "Product $code", services: [service(name: 'gui')],
+                agentLabels: ['linux && docker', 'windows-agent']))
+        def updated = api.put("/api/products/$created.json.id", product(code: code, name: "Product $code",
+                version: created.json.version,
+                services: [service(id: created.json.services[0].id, name: 'gui'), service(name: 'worker')]))
+
+        then:
+        created.status == 201
+        !created.json.containsKey('agentLabels')
+        updated.status == 200
+        pipelinesOf(created.json.id as long)*.agentLabels == [['linux && docker', 'windows-agent'], ['linux-agent']]
+
+        expect:
+        api.post('/api/products', product(code: uniqueCode(), name: "Agents ${uniqueCode()}",
+                agentLabels: (10..20).collect { 'l' * 98 + it })).json.errors ==
+                [[field: 'agentLabels', message: 'is too long: all entries together may take at most 1000 bytes']]
+        api.post('/api/products', product(code: uniqueCode(), name: "Agents ${uniqueCode()}",
+                agentLabels: ['linux', 'docker,windows'])).json.errors*.field == ['agentLabels[1]']
+    }
+
+    def "a service that does not deliver to Nexus needs none of the delivery settings and tells the library"() {
+        given:
+        def code = uniqueCode()
+
+        when:
+        def created = api.post('/api/products', product(code: code, name: "Product $code", services: [
+                mavenService(name: 'ledger', build: build(tool: 'MAVEN', command: [tasks: ['verify']]), delivery: null,
+                        deployment: [target: 'VM', nexusDeliveryDisabled: true]),
+                fullOpenShiftService(name: 'api', openShiftTargets: [:],
+                        deployment: [target: 'OPENSHIFT', appName: 'api', nexusDeliveryDisabled: true])]))
+        def projects = pipelinesOf(created.json.id as long).collect {
+            api.get("/api/dso/config/$it.activeKey.value?format=json").json.projects
+        }
+
+        then:
+        created.status == 201
+        created.json.services*.deployment*.nexusDeliveryDisabled == [true, true]
+        projects[0].ledger.deploy.vm.rd.nexusDeliveryEnabled == false
+        projects[1].api.deploy == [openshift: [rd: [nexusDeliveryEnabled: false]]]
     }
 
     def "a product onboarded for Nexus IQ GoldenFix gives each scanned service a pipeline whose key reads the nexusiq config"() {

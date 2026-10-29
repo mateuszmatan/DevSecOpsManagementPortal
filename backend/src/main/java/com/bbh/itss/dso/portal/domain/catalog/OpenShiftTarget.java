@@ -50,6 +50,20 @@ public record OpenShiftTarget(String projectBuild, String buildConfigPath, Strin
                 .require("dockerRepoPush", dockerRepoPush, message).require("nexusAuthFile", nexusAuthFile, message);
     }
 
+    /** Once a QC target is set, the QC deployment needs its project, its templates and the image to pull. */
+    public void validateQcDeploy(ValidationProblems problems) {
+        if (isEmpty()) {
+            return;
+        }
+        String message = "is required once any QC field is set: the QC deployment uses it";
+        problems.require("projectDeployment", projectDeployment, message)
+                .require("deployConfigPath", deployConfigPath, message)
+                .require("dockerRepoPull", dockerRepoPull, message);
+        if (!skipConfigDeploy) {
+            problems.require("configPath", configPath, message);
+        }
+    }
+
     public boolean isEmpty() {
         return toConfig().isEmpty();
     }

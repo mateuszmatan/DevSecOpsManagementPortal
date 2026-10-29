@@ -9,6 +9,7 @@ import liquibase.database.jvm.JdbcConnection
 import liquibase.resource.ClassLoaderResourceAccessor
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.core.simple.SimpleJdbcInsert
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import spock.lang.Specification
@@ -41,8 +42,8 @@ abstract class MigrationSpecification extends Specification {
         'db/changelog/history.yaml'
     }
 
-    protected Liquibase changelog() {
-        new Liquibase(changelogFile(), new ClassLoaderResourceAccessor(),
+    protected Liquibase changelog(String file = changelogFile()) {
+        new Liquibase(file, new ClassLoaderResourceAccessor(),
                 DatabaseFactory.instance.findCorrectDatabaseImplementation(new JdbcConnection(dataSource.connection)))
     }
 
@@ -66,6 +67,13 @@ abstract class MigrationSpecification extends Specification {
 
     protected <T> T inTransaction(Closure<T> work) {
         new TransactionTemplate(transactionManager).execute { work() }
+    }
+
+    /** Inserts a row with its timestamps, for the schema of a changeset that the entities no longer map. */
+    protected long insert(String table, Map<String, ?> values) {
+        Map<String, ?> row = [CREATED_AT: new Date(), UPDATED_AT: new Date()] + values
+        new SimpleJdbcInsert(jdbc).withTableName(table).usingColumns(row.keySet() as String[])
+                .usingGeneratedKeyColumns('ID').executeAndReturnKey(row).longValue()
     }
 
     protected List<String> tables() {

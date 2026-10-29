@@ -8,7 +8,7 @@ import spock.lang.Specification
 import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
-import static com.bbh.itss.dso.portal.support.Fixtures.account
+import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.directory
@@ -33,7 +33,7 @@ class ProductSpec extends Specification {
 
     def "a new product places its services in the requested order and names their metrics after itself"() {
         when:
-        def product = Product.create(details(description: ' TLS '), account(),
+        def product = Product.create(details(description: ' TLS '),
                 [draft(name: ' gui ', description: ' '), draft(name: 'backend-api', description: 'REST API')], nobody)
 
         then:
@@ -42,14 +42,13 @@ class ProductSpec extends Specification {
         product.version() == 0
         product.details() == details(description: 'TLS')
         product.departmentId() == DEPARTMENT_ID
-        product.appScanAccount() == account()
         product.services()*.name() == ['gui', 'backend-api']
         product.services()*.displayOrder() == [0, 1]
         product.services()*.description() == [null, 'REST API']
         product.services()*.id() == [null, null]
         product.services()*.settings()*.metrics()*.influxProject() == ['CERT-gui', 'CERT-backend-api']
         product.serviceIds() == [] as Set
-        Product.create(details(), account(), [draft(metrics: new MetricsSettings(true, 'cert-scanner', 'uat', null, null))], nobody)
+        Product.create(details(), [draft(metrics: new MetricsSettings(true, 'cert-scanner', 'uat', null, null))], nobody)
                 .services()[0].settings().metrics() == new MetricsSettings(true, 'cert-scanner', 'uat', null, null)
     }
 
@@ -74,19 +73,19 @@ class ProductSpec extends Specification {
         thrown(UnsupportedOperationException)
     }
 
-    def "a service writes its config.yaml entry with the product's AppScan account"() {
+    def "a service writes its config.yaml entry with its own AppScan key"() {
         given:
         def product = product(services: [[name: 'gui', id: 10, testJobs: [
                 TestJob.of(SMOKE, 'smoke', null, 'CERT/gui-smoke', null)]]])
         def tree = new ConfigTree()
 
         when:
-        product.writeConfig(product.services()[0], tree)
+        product.services()[0].settings().writeTo(tree)
 
         then:
         tree.get('buildTool') == 'gradle'
         tree.get('tests.smoke.jobs') == [[name: 'smoke', job: 'CERT/gui-smoke']]
-        tree.get('asoc') == [keyId: 'bbh_key-id', token: 'hcl-app-scan-account']
+        tree.get('asoc') == [keyId: 'bbh_key-id']
         tree.get('influx.project') == 'CERT-gui'
         tree.get('appId') == '109f44ac-cc06-4ca0-884e-d944904f7019'
     }
@@ -94,10 +93,9 @@ class ProductSpec extends Specification {
     def "an update replaces the details and the service list: kept services change, new ones come, missing ones go"() {
         given:
         def product = product(id: 5, services: [[name: 'gui', id: 10], [name: 'api', id: 11], [name: 'batch', id: 12]])
-        def newAccount = new AppScanAccount('bbh_other', null)
 
         when:
-        product.update(0L, details(name: 'CertScanner 2'), newAccount, [
+        product.update(0L, details(name: 'CertScanner 2'), [
                 draft(id: 11, name: 'api', description: 'REST API'),
                 draft(name: 'worker'),
                 draft(id: 10, name: 'web')], nobody)
@@ -105,7 +103,6 @@ class ProductSpec extends Specification {
         then:
         product.id() == 5
         product.name() == 'CertScanner 2'
-        product.appScanAccount() == newAccount
         product.services()*.name() == ['api', 'worker', 'web']
         product.services()*.id() == [11L, null, 10L]
         product.services()*.displayOrder() == [0, 1, 2]
@@ -118,7 +115,7 @@ class ProductSpec extends Specification {
         def product = product(version: 4, services: [[name: 'gui', id: 10]])
 
         when:
-        product.update(readAt, details(name: 'Other'), account(), [], nobody)
+        product.update(readAt, details(name: 'Other'), [], nobody)
 
         then:
         def e = thrown(IllegalStateException)
@@ -132,7 +129,7 @@ class ProductSpec extends Specification {
 
     def "a product #value used by another product is refused"() {
         when:
-        Product.create(details(), account(), [draft()], directory(lookup))
+        Product.create(details(), [draft()], directory(lookup))
 
         then:
         def e = thrown(IllegalStateException)
@@ -146,7 +143,7 @@ class ProductSpec extends Specification {
 
     def "every invalid service is reported at once"() {
         when:
-        Product.create(details(), account(), [
+        Product.create(details(), [
                 draft(name: 'gui', build: build(javaPath: null)),
                 draft(name: 'GUI '),
                 draft(name: 'api', id: 77)], nobody)
@@ -161,7 +158,7 @@ class ProductSpec extends Specification {
 
     def "services may share metrics tags and a SonarQube key, within the product and with other products"() {
         when:
-        def product = Product.create(details(), account(), [draft(name: 'gui', sonar: CERT_SONAR, metrics: SHARED_METRICS),
+        def product = Product.create(details(), [draft(name: 'gui', sonar: CERT_SONAR, metrics: SHARED_METRICS),
                                                             draft(name: 'api', sonar: CERT_SONAR, metrics: SHARED_METRICS)],
                 nobody)
 
@@ -176,42 +173,35 @@ class ProductSpec extends Specification {
         def itself = new ProductIdentity(5, 'CertScanner')
 
         when:
-        product.update(0L, details(), account(), [draft(id: 10, name: 'gui', sonar: CERT_SONAR)],
+        product.update(0L, details(), [draft(id: 10, name: 'gui', sonar: CERT_SONAR)],
                 directory(byCode: [CERT: itself], byName: [CertScanner: itself]))
 
         then:
         noExceptionThrown()
     }
 
-    def "a product needs a code, a name, a department and named services, and an AppScan key once it has services"() {
+    def "a product needs a code, a name, a department and named services, each with its own AppScan key"() {
         when:
-        Product.create(new ProductDetails(' ', null, null, null, null, null), new AppScanAccount(' ', null),
-                [draft(name: ' ')], nobody)
+        Product.create(new ProductDetails(' ', null, null, null, null, null), [draft(name: ' ')], nobody)
 
         then:
         def e = thrown(InvalidRequestException)
-        e.problems()*.field == ['code', 'name', 'departmentId', 'appScan.keyId', 'services[0].name']
+        e.problems()*.field == ['code', 'name', 'departmentId', 'services[0].name']
         e.problems()*.message.unique() == ['must not be blank', "choose the product's business service"]
 
         when:
-        Product.create(details(), null, [draft()], nobody)
+        product(services: [[name: 'gui', id: 10]]).update(0L, details(), [
+                draft(id: 10, name: 'gui'), draft(name: 'api', appScan: appScan(keyId: ' '))], nobody)
 
         then:
         def missing = thrown(InvalidRequestException)
-        missing.problems()*.field == ['appScan.keyId']
-
-        when:
-        product(appScan: null).update(0L, details(), new AppScanAccount(' ', 'hcl-app-scan-account'), [draft()],
-                nobody)
-
-        then:
-        def added = thrown(InvalidRequestException)
-        added.problems()*.field == ['appScan.keyId']
+        missing.problems()*.field == ['services[1].appScan.keyId']
+        missing.problems()*.message == ['is required']
     }
 
     def "texts that fit their column in characters but not in UTF-8 bytes are refused on their fields"() {
         when:
-        Product.create(details(name: 'Ł' * 101, description: 'ą' * 2001, ownerTeam: 'ś' * 101), account(),
+        Product.create(details(name: 'Ł' * 101, description: 'ą' * 2001, ownerTeam: 'ś' * 101),
                 [draft(description: 'ż' * 1001)], nobody)
 
         then:
@@ -222,7 +212,7 @@ class ProductSpec extends Specification {
                                   'is too long: it may take at most 200 bytes']
 
         when:
-        Product.create(details(), account(), [draft(name: 'gui'), draft(name: 'api', description: '–' * 667)], nobody)
+        Product.create(details(), [draft(name: 'gui'), draft(name: 'api', description: '–' * 667)], nobody)
 
         then:
         def service = thrown(InvalidRequestException)
@@ -231,23 +221,16 @@ class ProductSpec extends Specification {
 
         when:
         def fitting = Product.create(details(name: 'Ł' * 100, description: 'ą' * 2000, ownerTeam: 'ś' * 100),
-                account(), [draft(description: '–' * 666)], nobody)
+                [draft(description: '–' * 666)], nobody)
 
         then:
         fitting.description().length() == 2000
         fitting.services()[0].description().length() == 666
     }
 
-    def "a product without services needs no AppScan key: #account"() {
-        when:
-        def product = Product.create(details(), account, [], nobody)
-
-        then:
-        product.appScanAccount() == account
-        product.services().isEmpty()
-
-        where:
-        account << [null, new AppScanAccount(' ', null), new AppScanAccount('bbh_key-id', null)]
+    def "a product may start without services"() {
+        expect:
+        Product.create(details(), [], nobody).services().isEmpty()
     }
 
     def "a product without a department or in one that does not exist is refused, also when an older product is edited: #departmentId"() {
@@ -255,7 +238,7 @@ class ProductSpec extends Specification {
         def older = product(departmentId: null, services: [[name: 'gui', id: 10]])
 
         when:
-        Product.create(details(departmentId: departmentId), account(), [draft()], nobody)
+        Product.create(details(departmentId: departmentId), [draft()], nobody)
 
         then:
         def created = thrown(InvalidRequestException)
@@ -263,7 +246,7 @@ class ProductSpec extends Specification {
         created.problems()*.message == [message]
 
         when:
-        older.update(0L, details(departmentId: departmentId), account(), [draft(id: 10, name: 'gui')], nobody)
+        older.update(0L, details(departmentId: departmentId), [draft(id: 10, name: 'gui')], nobody)
 
         then:
         def updated = thrown(InvalidRequestException)
@@ -271,7 +254,7 @@ class ProductSpec extends Specification {
         older.departmentId() == null
 
         when:
-        older.update(0L, details(), account(), [draft(id: 10, name: 'gui')], nobody)
+        older.update(0L, details(), [draft(id: 10, name: 'gui')], nobody)
 
         then:
         older.departmentId() == DEPARTMENT_ID
