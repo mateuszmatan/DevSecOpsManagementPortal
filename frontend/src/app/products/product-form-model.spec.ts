@@ -434,16 +434,20 @@ describe('switches between dependent settings', () => {
     const form = createServiceForm(service({ build: { ...service().build, tool: 'MAVEN' } }));
     const { delivery, build, deployment } = form.controls;
     delivery.controls.tasks.setValue('deploy:deploy-file');
+    deployment.controls.artifactName.setValue('cert-gui.jar');
     build.controls.buildPath.setValue('');
 
     expect(build.controls.buildPath.hasError('required')).toBe(true);
 
     deployment.controls.nexusDeliveryDisabled.setValue(true);
+    const request = toServiceRequest(form);
 
     expect(delivery.disabled).toBe(true);
     expect(build.controls.buildPath.valid).toBe(true);
     expect(deployment.controls.artifactName.disabled).toBe(true);
-    expect(toServiceRequest(form).deployment.nexusDeliveryDisabled).toBe(true);
+    expect(request.deployment.nexusDeliveryDisabled).toBe(true);
+    expect(request.delivery.tasks).toEqual(['deploy:deploy-file']);
+    expect(request.deployment.artifactName).toBe('cert-gui.jar');
 
     deployment.controls.nexusDeliveryDisabled.setValue(false);
 
@@ -473,17 +477,24 @@ describe('switches between dependent settings', () => {
     expect(toServiceRequest(form).openShiftTargets.RD?.addFile).toBe('kept.txt');
   });
 
-  it('hides the Flutter delivery coordinates while Nexus delivery is disabled', () => {
+  it('hides and keeps the Flutter delivery coordinates while Nexus delivery is disabled', () => {
     const form = createServiceForm(service());
     form.controls.build.controls.tool.setValue('FLUTTER');
     const flutter = form.controls.flutter.controls;
 
     expect(flutter.deliveryGroup.hasError('required')).toBe(true);
 
+    form.controls.flutter.patchValue({
+      deliveryGroup: 'com.bbh.cert',
+      deliveryArtifact: 'cert-app',
+    });
     form.controls.deployment.controls.nexusDeliveryDisabled.setValue(true);
 
     expect(flutter.deliveryGroup.disabled).toBe(true);
     expect(flutter.modules.enabled).toBe(true);
+    expect(toServiceRequest(form).flutter).toEqual(
+      expect.objectContaining({ deliveryGroup: 'com.bbh.cert', deliveryArtifact: 'cert-app' }),
+    );
   });
 
   it('takes the badge token or its credentials ID, not both', () => {
@@ -494,11 +505,18 @@ describe('switches between dependent settings', () => {
 
     sonar.badgeToken.setValue('sqb_1a2b');
 
+    expect(sonar.badgeToken.errors).toEqual({ rule: BADGE_TWICE });
     expect(sonar.badgeCredentialsId.errors).toEqual({ rule: BADGE_TWICE });
-    expect(sonar.badgeToken.valid).toBe(true);
 
+    sonar.badgeCredentialsId.setValue('');
+
+    expect(sonar.badgeToken.valid).toBe(true);
+    expect(sonar.badgeCredentialsId.valid).toBe(true);
+
+    sonar.badgeCredentialsId.setValue('sonar-badge');
     sonar.badgeToken.setValue('');
 
+    expect(sonar.badgeToken.valid).toBe(true);
     expect(sonar.badgeCredentialsId.valid).toBe(true);
   });
 
@@ -1076,11 +1094,28 @@ describe('product form', () => {
   });
 
   it('duplicates a service as a new one without the values that identify the source', () => {
-    const copy = duplicateService(createServiceForm(service()), null);
+    const source = service({
+      appScan: { ...service().appScan, scanName: 'CertScanner-GUI-SAST' },
+      deployment: {
+        ...service().deployment,
+        target: 'OPENSHIFT',
+        appName: 'gui',
+        artifactName: 'gui.jar',
+      },
+    });
+    const form = createServiceForm(source);
+    form.controls.openShiftTargets.controls.RD.patchValue({
+      projectBuild: 'cert-build',
+      dockerRepoPush: 'nexus/cert/gui',
+    });
+    const copy = duplicateService(form, null);
     const value = copy.getRawValue();
 
     expect(value.id).toBeNull();
     expect(value.name).toBe('gui-copy');
+    expect(value.appScan.scanName).toBe('');
+    expect(value.deployment.appName).toBe('');
+    expect(value.deployment.artifactName).toBe('gui.jar');
     expect(value.sonar.projectName).toBe('');
     expect(value.sonar.projectKey).toBe('');
     expect(value.metrics.influxProject).toBe('');
@@ -1091,7 +1126,9 @@ describe('product form', () => {
     expect(value.appScan.keyId).toBe('bbh_key');
     expect(value.build.javaPath).toBe('/usr/lib/jvm/java-17-openjdk');
     expect(value.testJobs.map((job) => job.job)).toEqual(['CERT/gui-smoke']);
-    expect(value.sshTargets.QC.deployDir).toBe('/opt/cert/gui');
+    expect(value.openShiftTargets.RD).toEqual(
+      expect.objectContaining({ projectBuild: 'cert-build', dockerRepoPush: 'nexus/cert/gui' }),
+    );
     expect(copy.controls.nexusIqApplications.at(0).controls.application.hasError('required')).toBe(
       true,
     );

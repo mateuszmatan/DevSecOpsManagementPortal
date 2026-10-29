@@ -90,17 +90,38 @@ const REPOSITORY: Field[] = [
   }),
 ];
 
-const PINNED_IMAGE: Field[] = [
-  mono('buildTag', 'Build tag', 'buildTag', 4, {
-    placeholder: '1.4.2-20261006',
-    help: 'The image tag to deploy when the run builds no image. Left empty in QC, the RD build tag is used.',
-    ...TAG,
-  }),
-  mono('internalDockerUrl', 'Internal image URL', 'internalDockerUrl', 8, {
-    help: 'The image in the OpenShift registry that is copied to Nexus.',
-    ...TAG,
-  }),
-];
+const buildTag = (help: string) =>
+  mono('buildTag', 'Build tag', 'buildTag', 4, { placeholder: '1.4.2-20261006', help, ...TAG });
+
+const PINNED_IMAGE: Record<Region, Field[]> = {
+  RD: [
+    buildTag(
+      'The image tag RD deploys when the run builds no image. A run that builds the image replaces it.',
+    ),
+    mono('internalDockerUrl', 'Internal image URL', 'internalDockerUrl', 8, {
+      help: 'The image in the OpenShift registry that is copied to Nexus.',
+      ...TAG,
+    }),
+  ],
+  QC: [
+    buildTag(
+      'Pins the image tag QC deploys, also when the run builds a new image. Left empty, QC deploys the RD build tag, which is the image the run built.',
+    ),
+  ],
+};
+
+const PINNED_NOTE: Record<Region, { delivered: string; undelivered: string }> = {
+  RD: {
+    delivered: 'Optional; a run that builds the image replaces these values.',
+    undelivered:
+      'Nexus delivery is disabled, so the run builds no image: the RD deployment uses this build tag and is skipped without one.',
+  },
+  QC: {
+    delivered: 'Optional; a build tag set here wins over the image the run built.',
+    undelivered:
+      'Nexus delivery is disabled, so the run builds no image: the QC deployment uses this build tag or, without one, the RD build tag, and is skipped when neither is set.',
+  },
+};
 
 @Component({
   selector: 'dso-openshift-target-fields',
@@ -142,15 +163,8 @@ const PINNED_IMAGE: Field[] = [
       <h5 class="sub-heading span-12">Deployment repository</h5>
       <dso-fields [group]="t" [fields]="repository" />
       <h5 class="sub-heading span-12">Pinned image</h5>
-      <p class="note span-12">
-        @if (delivers()) {
-          Optional; a run that builds the image replaces these values.
-        } @else {
-          Nexus delivery is disabled, so the run builds no image: the deployment uses this build
-          tag, and is skipped without one.
-        }
-      </p>
-      <dso-fields [group]="t" [fields]="shown(pinnedImage(region()), region())" />
+      <p class="note span-12">{{ pinnedNote(region()) }}</p>
+      <dso-fields [group]="t" [fields]="shown(pinnedImage[region()], region())" />
     </div>
   `,
   styles: `
@@ -188,8 +202,11 @@ export class OpenShiftTargetFields {
     return this.form().controls.openShiftTargets.controls[region];
   }
 
-  protected pinnedImage(region: Region): Field[] {
-    return region === 'RD' ? PINNED_IMAGE : PINNED_IMAGE.slice(0, 1);
+  protected readonly pinnedImage = PINNED_IMAGE;
+
+  protected pinnedNote(region: Region): string {
+    const note = PINNED_NOTE[region];
+    return this.delivers() ? note.delivered : note.undelivered;
   }
 
   protected delivers(): boolean {

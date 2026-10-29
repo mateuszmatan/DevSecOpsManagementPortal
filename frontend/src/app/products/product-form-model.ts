@@ -409,15 +409,15 @@ export const inUse = (target: Record<string, unknown>) =>
   );
 
 function requireOnceUsed(target: OpenShiftTargetForm): void {
-  const required = OPENSHIFT_QC_REQUIRED.map((key) => {
-    const control = target.controls[key];
-    control.addValidators(
-      requiredWhen((t) => inUse(t) && (key !== 'configPath' || !t['skipConfigDeploy'])),
-    );
-    control.updateValueAndValidity();
-    return control;
-  });
-  revalidateOnChange(target, ...required);
+  OPENSHIFT_QC_REQUIRED.forEach((key) =>
+    requireWhile(
+      target.controls[key],
+      () =>
+        inUse(target.getRawValue()) &&
+        (key !== 'configPath' || !target.controls.skipConfigDeploy.value),
+      target,
+    ),
+  );
 }
 
 export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, complete = false) {
@@ -637,7 +637,12 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       installationName: text(s?.sonar?.installationName, max(200)),
       credentialsId: text(s?.sonar?.credentialsId, max(200)),
       authTokenCredentialsId: text(s?.sonar?.authTokenCredentialsId, max(200)),
-      badgeToken: text(s?.sonar?.badgeToken, Validators.pattern(BADGE_TOKEN), max(200)),
+      badgeToken: text(
+        s?.sonar?.badgeToken,
+        Validators.pattern(BADGE_TOKEN),
+        max(200),
+        notWith('badgeCredentialsId', BADGE_TWICE),
+      ),
       badgeCredentialsId: text(
         s?.sonar?.badgeCredentialsId,
         max(200),
@@ -722,6 +727,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   form.controls.delivery.controls.tasks.addValidators(filled);
   requireOnceUsed(form.controls.openShiftTargets.controls.QC);
   revalidateOnChange(sonar.controls.badgeToken, sonar.controls.badgeCredentialsId);
+  revalidateOnChange(sonar.controls.badgeCredentialsId, sonar.controls.badgeToken);
   requireWhile(
     build.controls.javaPath,
     () => tool.value === 'FLUTTER' || !build.controls.autoSetup.value,
@@ -966,11 +972,14 @@ export function patchProduct(form: ProductForm, product: Product): void {
   product.services.forEach((service) => form.controls.services.push(createServiceForm(service)));
 }
 
+/** The settings of a service without what identifies it: its name, projects, scan name and deployment name. */
 export function copiedService(source: Partial<ServiceRequest>): Partial<ServiceRequest> {
   return {
     ...source,
     id: null,
     name: '',
+    appScan: source.appScan && { ...source.appScan, scanName: null },
+    deployment: source.deployment && { ...source.deployment, appName: null },
     sonar: source.sonar && { ...source.sonar, projectKey: null, projectName: null },
     metrics: source.metrics && { ...source.metrics, influxProject: null },
     nexusIqApplications: source.nexusIqApplications?.map((app) => ({ ...app, application: '' })),
@@ -1231,5 +1240,8 @@ export function firstInvalidSection(
   form: ServiceForm,
   pipeline?: PipelineType | null,
 ): ServiceSectionId | null {
-  return visibleSectionsForPipeline(form, pipeline).find((section) => sectionInvalid(form, section))?.id ?? null;
+  return (
+    visibleSectionsForPipeline(form, pipeline).find((section) => sectionInvalid(form, section))
+      ?.id ?? null
+  );
 }

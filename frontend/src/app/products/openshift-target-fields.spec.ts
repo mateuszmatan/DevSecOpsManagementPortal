@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { fieldOf } from '@common/testing/dom';
+import { fieldOf, helpOf } from '@common/testing/dom';
 import { service } from '../testing/fixtures';
 import { OpenShiftTargetFields } from './openshift-target-fields';
 import {
@@ -103,6 +103,67 @@ describe('OpenShiftTargetFields', () => {
       expect(form.controls.openShiftTargets.controls.QC.valid, region).toBe(true);
       expect(sectionInvalid(form, section), region).toBe(false);
     }
+  });
+
+  it('marks what a started QC region needs as required, and only while it is needed', async () => {
+    const qc = form.controls.openShiftTargets.controls.QC;
+    const needed = [
+      'Deployment project',
+      'Deployment file',
+      'Image pulled from',
+      'Configuration file',
+    ];
+    const marked = () => needed.filter((label) => field(label)?.querySelector('.required-marker'));
+    await choose('QC region');
+
+    expect(marked()).toEqual([]);
+
+    qc.controls.healthCheckUrl.setValue('/health');
+    await fixture.whenStable();
+
+    expect(marked()).toEqual(needed);
+    expect(field('Deployment project')!.querySelector('input')!.required).toBe(true);
+
+    qc.controls.skipConfigDeploy.setValue(true);
+    await fixture.whenStable();
+
+    expect(marked()).toEqual(needed.slice(0, 3));
+
+    qc.patchValue({ healthCheckUrl: '', skipConfigDeploy: false });
+    await fixture.whenStable();
+
+    expect(marked()).toEqual([]);
+    expect(qc.valid).toBe(true);
+  });
+
+  it('explains which build tag each region deploys, with and without Nexus delivery', async () => {
+    const note = () => page().querySelector('.note')?.textContent?.trim();
+    const helpText = () => helpOf(field('Build tag')!);
+
+    expect(note()).toBe('Optional; a run that builds the image replaces these values.');
+    expect(helpText()).toBe(
+      'The image tag RD deploys when the run builds no image. A run that builds the image replaces it.',
+    );
+
+    await choose('QC region');
+
+    expect(note()).toBe('Optional; a build tag set here wins over the image the run built.');
+    expect(helpText()).toBe(
+      'Pins the image tag QC deploys, also when the run builds a new image. Left empty, QC deploys the RD build tag, which is the image the run built.',
+    );
+
+    form.controls.deployment.controls.nexusDeliveryDisabled.setValue(true);
+    await fixture.whenStable();
+
+    expect(note()).toBe(
+      'Nexus delivery is disabled, so the run builds no image: the QC deployment uses this build tag or, without one, the RD build tag, and is skipped when neither is set.',
+    );
+
+    await choose('RD region');
+
+    expect(note()).toBe(
+      'Nexus delivery is disabled, so the run builds no image: the RD deployment uses this build tag and is skipped without one.',
+    );
   });
 
   it('explains a deployment repository that is not a URL', async () => {
