@@ -63,6 +63,10 @@ public record ToolCommand(List<String> tasks, List<String> flags, String directo
     }
 
     public Map<String, String> environmentMap() {
+        return environmentMap(environment);
+    }
+
+    public static Map<String, String> environmentMap(List<String> environment) {
         Map<String, String> variables = new LinkedHashMap<>();
         for (String variable : environment) {
             int separator = variable.indexOf('=');

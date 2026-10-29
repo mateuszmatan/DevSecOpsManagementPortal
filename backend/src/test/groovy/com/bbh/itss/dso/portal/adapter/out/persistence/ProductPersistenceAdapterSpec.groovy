@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
+import com.bbh.itss.dso.portal.domain.catalog.NodeBuildSettings
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory.ProductIdentity
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
@@ -96,6 +97,15 @@ class ProductPersistenceAdapterSpec extends Specification {
                 [BUILD_TOOL: 'MAVEN', BUILD_TASKS: 'build-task\nsecond', DELIVERY_TASKS: 'delivery-task\nsecond',
                  BITBUCKET_REVIEWERS: 'alice,bob', GOLDEN_FIX_ENABLED: 0, INFLUX_PROJECT: 'cert-gui', REGRESSION_REQUIRED: 0,
                  BUILD_RETURN_STDOUT: 1, NEXUS_IQ_SERVER_URL: 'https://iq.cert.bbh.com']
+        jdbc.queryForMap('''SELECT NODE_ENABLED, NODE_DIRECTORY, NODE_COMMANDS, NODE_INSTALLATION_NAME, NODE_PATH,
+                NODE_ENVIRONMENT, NODE_REGISTRY, NODE_NPMRC_CREDENTIALS_ID, NODE_TIMEOUT_MINUTES, NODE_NEXUS_IQ_SCAN,
+                GOLDEN_FIX_VERSION_CATALOGS FROM DSO_SERVICE WHERE ID = ?''', serviceId) ==
+                [NODE_ENABLED             : 1, NODE_DIRECTORY: 'app/frontend',
+                 NODE_COMMANDS            : 'npm ci\nnpm run build:prod\nnpm ci', NODE_INSTALLATION_NAME: null,
+                 NODE_PATH                : '/opt/node-20', NODE_ENVIRONMENT: 'NODE_OPTIONS=--max-old-space-size=4096\nCI=true',
+                 NODE_REGISTRY            : 'https://nexus.bbh.com/repository/npm-group/',
+                 NODE_NPMRC_CREDENTIALS_ID: 'cert-gui-npmrc', NODE_TIMEOUT_MINUTES: 45, NODE_NEXUS_IQ_SCAN: 0,
+                 GOLDEN_FIX_VERSION_CATALOGS: 'gradle/libs.versions.toml\nplatform/**/pom.xml']
         jdbc.queryForList('''SELECT APPLICATION, SCAN_PATTERNS, STAGE, FAIL_ON_NETWORK_ERROR FROM DSO_SERVICE_NEXUS_IQ_APP
                 WHERE SERVICE_ID = ? ORDER BY POSITION''', serviceId) ==
                 [[APPLICATION: 'cert-gui', SCAN_PATTERNS: '**/*.war\n**/*.jar', STAGE: 'release', FAIL_ON_NETWORK_ERROR: 1]]
@@ -112,6 +122,24 @@ class ProductPersistenceAdapterSpec extends Specification {
                 serviceId)*.REGION == ['QC', 'RD']
         jdbc.queryForList('SELECT REGION FROM DSO_SERVICE_OPENSHIFT_TARGET WHERE SERVICE_ID = ? ORDER BY REGION',
                 serviceId)*.REGION == ['QC', 'RD']
+    }
+
+    def "a Node.js build that is switched off keeps its values and leaves the Nexus IQ scan to the library"() {
+        given:
+        def nodeBuild = new NodeBuildSettings(false, 'web', ['npm ci'], 'NodeJS-20', '/opt/node-20', [], null, null, 30,
+                null)
+
+        when:
+        def saved = adapter.save(Product.create(details(), [new ServiceDraft(null, 'gui', null,
+                settings(nodeBuild: nodeBuild))], adapter))
+        entities.clear()
+
+        then:
+        adapter.load(saved.id()).get().services()[0].settings().nodeBuild() == nodeBuild
+        jdbc.queryForMap('''SELECT NODE_ENABLED, NODE_INSTALLATION_NAME, NODE_PATH, NODE_NEXUS_IQ_SCAN,
+                GOLDEN_FIX_VERSION_CATALOGS FROM DSO_SERVICE WHERE ID = ?''', saved.services()[0].id()) ==
+                [NODE_ENABLED: 0, NODE_INSTALLATION_NAME: 'NodeJS-20', NODE_PATH: '/opt/node-20', NODE_NEXUS_IQ_SCAN: null,
+                 GOLDEN_FIX_VERSION_CATALOGS: null]
     }
 
     def "an update replaces the details and the service list, keeping the ids of the services it keeps"() {
