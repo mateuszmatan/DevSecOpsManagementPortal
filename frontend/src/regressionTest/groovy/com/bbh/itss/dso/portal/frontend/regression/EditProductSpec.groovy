@@ -57,8 +57,9 @@ class EditProductSpec extends EditorSpecification {
         assertThat(serviceNames()).hasText(['ledger', 'gateway', 'notifications', 'notifications-copy', 'mobile-app'] as String[])
         assertThat(openService().locator('.service-name')).hasText('notifications-copy')
         assertThat(servicePanel('notifications-copy').locator('.tag.new')).hasText('New')
+        assertThat(servicePanel('notifications-copy').locator('.tag.error')).hasText('Needs attention')
         assertThat(button('Add service', true)).isDisabled()
-        assertThat(page.locator('.blocked')).hasText('Complete the required settings of the services below to add another service.')
+        assertThat(page.locator('.blocked')).hasText('Complete these services before adding another: notifications-copy (Nexus IQ).')
 
         when:
         showSection('Nexus IQ')

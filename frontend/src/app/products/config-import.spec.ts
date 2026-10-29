@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
+import { FormControl } from '@angular/forms';
 import { of } from 'rxjs';
 import { ImportedService, ServiceConfigImport } from '../core/models';
 import { Notifier } from '@common/core/notifier';
@@ -13,7 +14,9 @@ import {
   ImportNotes,
   ImportedConfig,
   MAX_CONFIG_BYTES,
+  importedServiceForm,
   noteGroups,
+  prefillAgents,
 } from './config-import';
 
 const CONFIG = 'tools:\n  build:\n    tool: gradle\n';
@@ -168,6 +171,10 @@ describe('ImportNotes', () => {
         { field: 'tools.sonar.foo', message: 'not imported: the portal has no such setting' },
         { field: 'tools.build.dir', message: 'the path is outside the repository' },
         { field: 'pipeline.cron', message: 'Not imported, schedules are set in Jenkins' },
+        {
+          field: 'deploy.openshift.rd.buildTag',
+          message: 'check: a run that builds the image replaces it',
+        },
       ]),
     ).toEqual([
       {
@@ -179,7 +186,13 @@ describe('ImportNotes', () => {
       },
       {
         title: 'Check',
-        notes: [{ field: 'tools.build.dir', message: 'The path is outside the repository' }],
+        notes: [
+          { field: 'tools.build.dir', message: 'The path is outside the repository' },
+          {
+            field: 'deploy.openshift.rd.buildTag',
+            message: 'A run that builds the image replaces it',
+          },
+        ],
       },
     ]);
   });
@@ -199,5 +212,44 @@ describe('ImportNotes', () => {
     buttonOf(page, 'Dismiss').click();
 
     expect(closed).toHaveBeenCalledOnce();
+  });
+});
+
+describe('the import into a service form', () => {
+  const file: ImportedConfig = {
+    file: 'config.yaml',
+    name: 'gateway',
+    service: { ...service(), id: 4 },
+    notes: [],
+    agentLabels: ['docker-agent', 'linux-agent'],
+  };
+
+  it('starts a new service named as typed, or else as in the file', () => {
+    const form = importedServiceForm(file, null);
+
+    expect(form.controls.id.value).toBeNull();
+    expect(form.controls.name.value).toBe('gateway');
+    expect(form.controls.build.controls.javaPath.value).toBe(service().build.javaPath);
+    expect(importedServiceForm(file, null, ' portal ').controls.name.value).toBe('portal');
+  });
+
+  it('fills the Jenkins agents with those of the file until they are changed by hand', () => {
+    const agents = new FormControl('linux-agent', { nonNullable: true });
+
+    prefillAgents(agents, file.agentLabels);
+
+    expect(agents.value).toBe('docker-agent, linux-agent');
+
+    agents.setValue('mac-agent');
+    agents.markAsDirty();
+    prefillAgents(agents, ['docker-agent']);
+
+    expect(agents.value).toBe('mac-agent');
+
+    const stored = new FormControl('', { nonNullable: true });
+    stored.disable();
+    prefillAgents(stored, ['docker-agent']);
+
+    expect(stored.value).toBe('');
   });
 });

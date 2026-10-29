@@ -62,14 +62,26 @@ import {
   followToolDefaults,
   patchProduct,
   prefillNewService,
+  sectionInvalid,
   toProductRequest,
+  visibleSections,
 } from './product-form-model';
-import { ConfigImport, ImportNotes, ImportedConfig } from './config-import';
+import {
+  ConfigImport,
+  ImportNotes,
+  ImportedConfig,
+  importedServiceForm,
+  prefillAgents,
+} from './config-import';
 import { GeneratedKeys } from './generated-keys';
 import { NamedProduct, ProductNameDialog, ProductNameDialogData } from './product-name-dialog';
 import { ServiceFields } from './service-fields';
 import { DepartmentsApi } from '@common/core/api';
 import { FieldProblem } from '@common/core/models';
+
+/** A new service nobody has changed yet, such as the blank one a new product starts with: a copy or an import fills it. */
+const isPlaceholder = (service: ServiceForm) =>
+  service.controls.id.value === null && service.pristine;
 
 const productFields = (departments: readonly Department[], creating: boolean): Field[] => [
   mono('code', 'Code', '', 3, {
@@ -172,10 +184,23 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     this.formEvent();
     return [...this.form.controls.services.controls];
   });
-  protected readonly blocked = computed(() => {
-    this.formEvent();
-    return this.form.controls.services.invalid;
-  });
+  protected readonly copySources = computed(() =>
+    this.services()
+      .map((service, index) => ({ service, index }))
+      .filter(({ service }) => !isPlaceholder(service)),
+  );
+  protected readonly blockers = computed(() =>
+    this.services()
+      .filter((service) => service.invalid && !isPlaceholder(service))
+      .map((service) => {
+        const sections = visibleSections(service)
+          .filter((section) => sectionInvalid(service, section))
+          .map((section) => section.label);
+        const name = service.controls.name.value || 'new-service';
+        return sections.length ? `${name} (${sections.join(', ')})` : name;
+      }),
+  );
+  protected readonly blocked = computed(() => this.blockers().length > 0);
 
   private readonly pipelineCounts = signal(new Map<number, number>());
   private readonly serviceFields = viewChildren(ServiceFields);
@@ -269,6 +294,9 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
           this.form.controls.services.controls
             .filter((service) => full.has(service.controls.id.value!))
             .forEach((service) => this.withFullPipeline(service));
+          this.form.controls.services.controls
+            .filter((service) => service.invalid)
+            .forEach((service) => service.markAllAsTouched());
           this.form.markAsPristine();
           this.product.set(product);
           this.settings.set(settings);
@@ -304,28 +332,19 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       build: { buildPath: build.artifact, command: { tasks: build.tasks } },
       delivery: { tasks: template?.deliveryTasks ?? '' },
     });
-    this.addNew(service);
+    this.add(this.prepared(service));
   }
 
   protected importService(imported: ImportedConfig): void {
-    const service = createServiceForm(
-      { ...imported.service, id: null },
-      this.settings()?.serviceDefaults,
-    );
-    service.controls.name.setValue(imported.name);
-    this.addNew(service);
-    const agents = this.form.controls.agentLabels;
-    if (imported.agentLabels?.length && agents.enabled && !agents.dirty) {
-      agents.setValue(joinWords(imported.agentLabels, ', '));
-    }
+    this.fill(this.prepared(importedServiceForm(imported, this.settings()?.serviceDefaults)));
+    prefillAgents(this.form.controls.agentLabels, imported.agentLabels);
     this.imported.set(imported);
   }
 
   protected duplicate(index: number): void {
-    const services = this.form.controls.services;
-    const copy = duplicateService(services.at(index), this.settings());
-    addItem(services, this.withFullPipeline(copy), index + 1);
-    this.expanded.set(index + 1);
+    const source = this.form.controls.services.at(index);
+    const copy = duplicateService(source, this.settings());
+    this.fill(this.withFullPipeline(copy), index + 1, source);
   }
 
   protected move(index: number, offset: -1 | 1): void {
@@ -439,16 +458,42 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     );
   }
 
-  private addNew(service: ServiceForm): void {
-    const services = this.form.controls.services;
+  /** Prefills a new service with the Library defaults and the AppScan key, and its build with the tool's defaults. */
+  private prepared(service: ServiceForm): ServiceForm {
     prefillNewService(
       service,
       this.settings(),
-      services.controls.map((other) => other.controls.appScan.getRawValue()),
+      this.form.controls.services.controls.map((other) => other.controls.appScan.getRawValue()),
     );
     followToolDefaults(service, this.template(), this.destroyRef);
-    addItem(services, this.withFullPipeline(service));
-    this.expanded.set(services.length - 1);
+    return this.withFullPipeline(service);
+  }
+
+  private add(service: ServiceForm, index = this.form.controls.services.length): void {
+    addItem(this.form.controls.services, service, index);
+    this.expanded.set(index);
+  }
+
+  /**
+   * Adds a service filled from another or from a file, in place of a blank placeholder other than its source, and
+   * marks it at once, so the problems it brings show without a save.
+   */
+  private fill(
+    service: ServiceForm,
+    index = this.form.controls.services.length,
+    source?: ServiceForm,
+  ): void {
+    const services = this.form.controls.services;
+    const placeholder = services.controls.findIndex(
+      (other) => other !== source && isPlaceholder(other),
+    );
+    if (placeholder >= 0) {
+      removeItem(services, placeholder);
+      index = placeholder;
+    }
+    service.markAsDirty();
+    service.markAllAsTouched();
+    this.add(service, index);
   }
 
   private withFullPipeline(service: ServiceForm): ServiceForm {

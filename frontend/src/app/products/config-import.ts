@@ -8,14 +8,17 @@ import {
   signal,
 } from '@angular/core';
 import { DIALOG_DATA, Dialog } from '@angular/cdk/dialog';
+import { FormControl } from '@angular/forms';
 import { Observable, finalize, from, map, of, switchMap, throwError } from 'rxjs';
 import { ProductsApi } from '../core/api';
-import { ImportedService, ServiceRequest } from '../core/models';
+import { ImportedService, ServiceDefaults, ServiceRequest } from '../core/models';
 import { errorMessage, fieldProblems } from '@common/core/errors';
 import { FieldProblem } from '@common/core/models';
 import { Notifier } from '@common/core/notifier';
+import { joinWords } from '@common/shared/form-controls';
 import { capitalized } from '@common/shared/formatting';
 import { DIALOG } from '@common/ui/dialog';
+import { ServiceForm, createServiceForm } from './product-form-model';
 
 export const MAX_CONFIG_BYTES = 262_144;
 
@@ -27,18 +30,40 @@ export interface ImportedConfig {
   agentLabels: string[] | null;
 }
 
-const NOT_IMPORTED = /^not imported\b[:,]?\s*/i;
+const NOT_IMPORTED = /^not imported\b/i;
+const PREFIX = /^(not imported|check)\b[:,]?\s*/i;
 
 export function noteGroups(notes: readonly FieldProblem[]) {
   const group = (title: string, imported: boolean) => ({
     title,
     notes: notes
       .filter((note) => NOT_IMPORTED.test(note.message) !== imported)
-      .map((note) => ({ ...note, message: capitalized(note.message.replace(NOT_IMPORTED, '')) })),
+      .map((note) => ({ ...note, message: capitalized(note.message.replace(PREFIX, '')) })),
   });
   return [group('Not imported', false), group('Check', true)].filter(
     (candidate) => candidate.notes.length,
   );
+}
+
+/** The new service form an import fills, named as typed or, when nothing is typed, as in the file. */
+export function importedServiceForm(
+  imported: ImportedConfig,
+  defaults: ServiceDefaults | null | undefined,
+  typedName = '',
+): ServiceForm {
+  const form = createServiceForm({ ...imported.service, id: null }, defaults);
+  form.controls.name.setValue(typedName.trim() || imported.name);
+  return form;
+}
+
+/** Fills the Jenkins agents with the labels of the imported pipeline while the user has not changed them. */
+export function prefillAgents(
+  agents: FormControl<string> | undefined,
+  labels: readonly string[] | null,
+): void {
+  if (agents?.enabled && !agents.dirty && labels?.length) {
+    agents.setValue(joinWords(labels, ', '));
+  }
 }
 
 @Component({

@@ -82,7 +82,7 @@
             </p>
           </div>
           <div class="service-actions">
-            @if (services().length) {
+            @if (copySources().length) {
               <button
                 type="button"
                 class="btn btn-outline-primary"
@@ -94,14 +94,14 @@
               </button>
               <ng-template #copyMenu>
                 <div cdkMenu class="dropdown-menu dso-menu">
-                  @for (service of services(); track service; let i = $index) {
+                  @for (source of copySources(); track source.service) {
                     <button
                       type="button"
                       cdkMenuItem
                       class="dropdown-item mono"
-                      (cdkMenuItemTriggered)="duplicate(i)"
+                      (cdkMenuItemTriggered)="duplicate(source.index)"
                     >
-                      {{ service.controls.name.value || 'new-service' }}
+                      {{ source.service.controls.name.value || 'new-service' }}
                     </button>
                   }
                 </div>
@@ -118,8 +118,8 @@
             </button>
           </div>
           @if (blocked()) {
-            <p class="blocked muted">
-              Complete the required settings of the services below to add another service.
+            <p class="blocked muted" role="status">
+              Complete these services before adding another: {{ blockers().join('; ') }}.
             </p>
           }
         </header>
@@ -132,12 +132,15 @@
           <div class="card empty-state">
             <h3>No services yet</h3>
             <p>
-              Add the services of the product, for example its web front end and its API. Each one
-              gets its own pipeline when you save.
+              Add the services of the product, for example its web front end and its API, or import
+              one from a config.yaml. Each one gets its own pipeline when you save.
             </p>
-            <button type="button" class="btn btn-primary" (click)="addService()">
-              Add service
-            </button>
+            <div class="empty-actions">
+              <dso-config-import (imported)="importService($event)" />
+              <button type="button" class="btn btn-primary" (click)="addService()">
+                Add service
+              </button>
+            </div>
           </div>
         } @else {
           <div class="accordion">

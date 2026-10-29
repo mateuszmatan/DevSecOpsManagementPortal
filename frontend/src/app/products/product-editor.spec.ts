@@ -133,6 +133,7 @@ describe('ProductEditor', () => {
         openShiftTargets: imageBuild,
         appScan: { applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019', keyId: 'bbh_key' },
       });
+    editor()['form'].controls.services.at(0).markAsDirty();
   }
 
   it('starts a new product with one open service', async () => {
@@ -200,7 +201,9 @@ describe('ProductEditor', () => {
     expect(inputOf(page(), 'Code').value).toBe('PAYMENTSHUB2');
     expect(editor()['form'].controls.departmentId.value).toBe(5);
     expect(
-      text(selectOf(page().querySelector('.product-fields')!, 'Business Service').selectedOptions[0]),
+      text(
+        selectOf(page().querySelector('.product-fields')!, 'Business Service').selectedOptions[0],
+      ),
     ).toBe('Fund Services');
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
@@ -371,9 +374,11 @@ describe('ProductEditor', () => {
       '',
     ]);
 
-    editor()['form'].controls.services.at(0).controls.urbanCodeApplications.push(
-      createUrbanCodeApplicationForm({ ...service().urbanCodeApplications[0], environments: [] }),
-    );
+    editor()
+      ['form'].controls.services.at(0)
+      .controls.urbanCodeApplications.push(
+        createUrbanCodeApplicationForm({ ...service().urbanCodeApplications[0], environments: [] }),
+      );
     await submit();
 
     http.expectOne({ method: 'PUT', url: '/api/products/1' }).flush(product());
@@ -541,25 +546,39 @@ describe('ProductEditor', () => {
     expect(editor()['expanded']()).toBe(1);
   });
 
-  it('keeps the service actions disabled until the services are complete, then starts the next one with the AppScan key', async () => {
+  it('leaves the blank new service out of the service actions and names the services that block them', async () => {
     await start();
     const actions = () =>
-      ['Copy values from existing service', 'Import config.yaml', 'Add service'].map(
-        (label) => buttonOf(page().querySelector('.service-actions')!, label).disabled,
+      [...page().querySelectorAll<HTMLButtonElement>('.service-actions button')].map(
+        (button) => `${text(button)}${button.disabled ? ' (disabled)' : ''}`,
       );
+    const first = editor()['form'].controls.services.at(0);
 
-    expect(actions()).toEqual([true, true, true]);
+    expect(actions()).toEqual(['Import config.yaml', 'Add service']);
+    expect(page().querySelector('.blocked')).toBeNull();
+
+    first.controls.name.setValue('gui');
+    first.markAsDirty();
+    await fixture.whenStable();
+
+    expect(actions()).toEqual([
+      'Copy values from existing service (disabled)',
+      'Import config.yaml (disabled)',
+      'Add service (disabled)',
+    ]);
     expect(text(page().querySelector('.blocked'))).toBe(
-      'Complete the required settings of the services below to add another service.',
+      'Complete these services before adding another: gui (Build, Deployment, OpenShift targets, AppScan SAST and DAST).',
     );
 
     fillValidProduct();
-    editor()['form'].controls.services.at(0).controls.appScan.patchValue({
-      secretCredentialsId: 'asoc-secret',
-    });
+    first.controls.appScan.patchValue({ secretCredentialsId: 'asoc-secret' });
     await fixture.whenStable();
 
-    expect(actions()).toEqual([false, false, false]);
+    expect(actions()).toEqual([
+      'Copy values from existing service',
+      'Import config.yaml',
+      'Add service',
+    ]);
     expect(page().querySelector('.blocked')).toBeNull();
 
     buttonOf(page(), 'Add service').click();
@@ -568,7 +587,57 @@ describe('ProductEditor', () => {
 
     expect(panels().length).toBe(2);
     expect([added.keyId, added.secretCredentialsId]).toEqual(['bbh_key', 'asoc-secret']);
-    expect(actions()).toEqual([true, true, true]);
+    expect(actions()).toEqual([
+      'Copy values from existing service',
+      'Import config.yaml',
+      'Add service',
+    ]);
+  });
+
+  it('fills the blank new service from an imported config.yaml and marks what it lacks', async () => {
+    await start();
+
+    editor()['importService']({
+      file: 'config.yaml',
+      name: 'gateway',
+      service: { ...anotherService(), id: 11, nexusIqApplications: [] },
+      notes: [],
+      agentLabels: [],
+    });
+    await fixture.whenStable();
+    const filled = editor()['form'].controls.services.at(0);
+
+    expect(names()).toEqual(['gateway']);
+    expect(filled.controls.id.value).toBeNull();
+    expect(filled.controls.build.controls.tool.value).toBe(anotherService().build.tool);
+    expect(filled.touched).toBe(true);
+    expect(editor()['expanded']()).toBe(0);
+  });
+
+  it('offers the import in the empty list of services', async () => {
+    await start();
+    editor()['remove'](0);
+    await fixture.whenStable();
+
+    const empty = page().querySelector('.empty-state')!;
+    expect(empty.querySelector('dso-config-import')).not.toBeNull();
+    expect(buttonOf(empty as HTMLElement, 'Add service').disabled).toBe(false);
+  });
+
+  it('marks the stored services that load invalid and names them as the reason', async () => {
+    const twoApplications = service({
+      nexusIqApplications: [
+        ...service().nexusIqApplications,
+        { ...service().nexusIqApplications[0], application: 'cert-gui-legacy' },
+      ],
+    });
+    await edit([twoApplications, anotherService()]);
+
+    expect(text(panels()[0].querySelector('.tag.error'))).toBe('Needs attention');
+    expect(panels()[1].querySelector('.tag.error')).toBeNull();
+    expect(text(page().querySelector('.blocked'))).toBe(
+      'Complete these services before adding another: gui (Nexus IQ).',
+    );
   });
 
   it('copies the values of the service chosen in the menu, except those that identify it', async () => {
@@ -583,12 +652,29 @@ describe('ProductEditor', () => {
     const copy = editor()['form'].controls.services.at(2).getRawValue();
 
     expect(names()).toEqual(['gui', 'api', 'api-copy']);
+    expect(text(panels()[2].querySelector('.tag.error'))).toBe('Needs attention');
     expect(copy.id).toBeNull();
     expect(copy.build.tool).toBe(anotherService().build.tool);
     expect(copy.sonar.projectKey).toBe('');
     expect(copy.nexusIqApplications.map((app) => app.application)).toEqual(
       anotherService().nexusIqApplications.map(() => ''),
     );
+    expect(editor()['expanded']()).toBe(2);
+  });
+
+  it('puts a copy in place of the blank new service and lists only the other services to copy', async () => {
+    await edit();
+    buttonOf(page(), 'Add service').click();
+    await fixture.whenStable();
+
+    buttonOf(page(), 'Copy values from existing service').click();
+    await fixture.whenStable();
+    expect([...document.querySelectorAll('.dso-menu button')].map(text)).toEqual(['gui', 'api']);
+
+    buttonOf(document.querySelector('.dso-menu')!, 'gui').click();
+    await fixture.whenStable();
+
+    expect(names()).toEqual(['gui', 'api', 'gui-copy']);
     expect(editor()['expanded']()).toBe(2);
   });
 
@@ -638,7 +724,9 @@ describe('ProductEditor', () => {
       file: 'config.yaml',
       name: 'gateway',
       service: { ...anotherService(), id: 11 },
-      notes: [{ field: 'tools.sonar.foo', message: 'not imported: the portal has no such setting' }],
+      notes: [
+        { field: 'tools.sonar.foo', message: 'not imported: the portal has no such setting' },
+      ],
       agentLabels: ['docker-agent'],
     });
     await fixture.whenStable();
