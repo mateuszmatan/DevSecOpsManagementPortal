@@ -60,6 +60,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings.ONE_APPLICATION;
 
 @Builder
 public record ServiceDto(
@@ -81,7 +82,7 @@ public record ServiceDto(
         @NotNull @Valid AppScanSettingsDto appScan,
         @Valid SonarSettingsDto sonar,
         @Valid NexusIqSettingsDto nexusIq,
-        @Size(max = 20) List<@NotNull @Valid NexusIqApplicationDto> nexusIqApplications,
+        @Size(max = 1, message = ONE_APPLICATION) List<@NotNull @Valid NexusIqApplicationDto> nexusIqApplications,
         @Valid ScmSettingsDto scm,
         @Valid GoldenFixPolicyDto goldenFix,
         @Valid MetricsSettingsDto metrics,
@@ -151,7 +152,8 @@ public record ServiceDto(
             @Size(max = 200) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String appName,
             @Size(max = 300) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String artifactName,
             @Size(max = 300) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE)
-            String baseArtifactName) implements Mirrors<DeploymentSettings> {
+            String baseArtifactName,
+            Boolean nexusDeliveryDisabled) implements Mirrors<DeploymentSettings> {
     }
 
     @Builder
@@ -270,7 +272,11 @@ public record ServiceDto(
             Boolean dastEnabled,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String dastTargetUrl,
             @Size(max = 100) String dastPresenceId,
-            @Size(max = 200) String secretCredentialsId) implements Mirrors<AppScanSettings> {
+            @Size(max = 200) String secretCredentialsId,
+            @Size(max = 200) String keyId,
+            @Size(max = 200)
+            @Pattern(regexp = "^[A-Za-z0-9._-]*$", message = "may contain letters, digits, '.', '_' and '-'")
+            String scanName) implements Mirrors<AppScanSettings> {
     }
 
     public record SonarSettingsDto(
@@ -287,7 +293,8 @@ public record ServiceDto(
             Boolean addBadges,
             Boolean fullBadges,
             @Valid ToolCommandDto command,
-            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String serverUrl)
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String serverUrl,
+            @Size(max = 200) String badgeCredentialsId)
             implements Mirrors<SonarSettings> {
     }
 

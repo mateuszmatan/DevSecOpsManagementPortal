@@ -18,7 +18,6 @@ import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
-import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
@@ -46,8 +45,8 @@ class ProductPersistenceAdapterSpec extends Specification {
     def "a product with every section of every service is stored and read back unchanged"() {
         given:
         def created = Product.create(details(description: 'Scans certificates', ownerTeam: 'TA',
-                contactEmail: 'ta@bbh.com'), account(), [new ServiceDraft(null, 'gui', 'Angular', fullSettings('gui')),
-                                                         new ServiceDraft(null, 'api', null, settings())], adapter)
+                contactEmail: 'ta@bbh.com'), [new ServiceDraft(null, 'gui', 'Angular', fullSettings('gui')),
+                                              new ServiceDraft(null, 'api', null, settings())], adapter)
 
         when:
         def saved = adapter.save(created)
@@ -59,7 +58,6 @@ class ProductPersistenceAdapterSpec extends Specification {
         saved.updatedAt() == saved.createdAt()
         [loaded.version(), loaded.createdAt()] == [saved.version(), saved.createdAt()]
         loaded.details() == created.details()
-        loaded.appScanAccount() == account()
         loaded.services() == saved.services()
         loaded.services()*.description() == ['Angular', null]
         loaded.services()*.displayOrder() == [0, 1]
@@ -68,27 +66,30 @@ class ProductPersistenceAdapterSpec extends Specification {
         loaded.services()[0].settings().sshTargets().keySet() as List == [RD, QC]
     }
 
-    def "a product without services is stored and read back without an AppScan account"() {
+    def "a product without services is stored and read back without any"() {
         when:
-        def saved = adapter.save(Product.create(details(), null, [], adapter))
+        def saved = adapter.save(Product.create(details(), [], adapter))
         entities.clear()
 
         then:
-        adapter.load(saved.id()).get().appScanAccount() == null
-        jdbc.queryForMap('SELECT ASOC_KEY_ID, ASOC_SECRET_CREDENTIALS_ID FROM DSO_PRODUCT WHERE ID = ?', saved.id()) ==
-                [ASOC_KEY_ID: null, ASOC_SECRET_CREDENTIALS_ID: null]
+        adapter.load(saved.id()).get().services() == []
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_SERVICE WHERE PRODUCT_ID = ?', Integer, saved.id()) == 0
     }
 
     def "the columns hold the values the library view and the old rows use"() {
         when:
-        def saved = adapter.save(Product.create(details(), account(), [new ServiceDraft(null, 'gui', null,
-                fullSettings('gui'))], adapter))
+        def saved = adapter.save(Product.create(details(), [new ServiceDraft(null, 'gui', null, fullSettings('gui'))],
+                adapter))
         def serviceId = saved.services()[0].id()
 
         then:
-        jdbc.queryForMap('SELECT CODE, NAME, ASOC_KEY_ID, ASOC_SECRET_CREDENTIALS_ID, DEPARTMENT_ID FROM DSO_PRODUCT') ==
-                [CODE: 'CERT', NAME: 'CertScanner', ASOC_KEY_ID: 'bbh_key-id',
-                 ASOC_SECRET_CREDENTIALS_ID: 'hcl-app-scan-account', DEPARTMENT_ID: DEPARTMENT_ID]
+        jdbc.queryForMap('SELECT CODE, NAME, DEPARTMENT_ID FROM DSO_PRODUCT') ==
+                [CODE: 'CERT', NAME: 'CertScanner', DEPARTMENT_ID: DEPARTMENT_ID]
+        jdbc.queryForMap('''SELECT APPSCAN_KEY_ID, APPSCAN_SECRET_CREDENTIALS_ID, APPSCAN_SCAN_NAME,
+                SONAR_BADGE_CREDENTIALS_ID, NEXUS_DELIVERY_DISABLED FROM DSO_SERVICE WHERE ID = ?''', serviceId) ==
+                [APPSCAN_KEY_ID            : 'bbh_key-id', APPSCAN_SECRET_CREDENTIALS_ID: 'cert-appscan-secret',
+                 APPSCAN_SCAN_NAME         : 'cert-gui-sast', SONAR_BADGE_CREDENTIALS_ID: 'sonar-badge',
+                 NEXUS_DELIVERY_DISABLED   : 1]
         jdbc.queryForMap('''SELECT BUILD_TOOL, BUILD_TASKS, DELIVERY_TASKS, BITBUCKET_REVIEWERS, GOLDEN_FIX_ENABLED,
                 INFLUX_PROJECT, REGRESSION_REQUIRED, BUILD_RETURN_STDOUT, NEXUS_IQ_SERVER_URL FROM DSO_SERVICE WHERE ID = ?''',
                 serviceId) ==
@@ -97,8 +98,7 @@ class ProductPersistenceAdapterSpec extends Specification {
                  BUILD_RETURN_STDOUT: 1, NEXUS_IQ_SERVER_URL: 'https://iq.cert.bbh.com']
         jdbc.queryForList('''SELECT APPLICATION, SCAN_PATTERNS, STAGE, FAIL_ON_NETWORK_ERROR FROM DSO_SERVICE_NEXUS_IQ_APP
                 WHERE SERVICE_ID = ? ORDER BY POSITION''', serviceId) ==
-                [[APPLICATION: 'cert-gui', SCAN_PATTERNS: '**/*.war\n**/*.jar', STAGE: 'release', FAIL_ON_NETWORK_ERROR: 1],
-                 [APPLICATION: 'cert-gui-batch', SCAN_PATTERNS: '**/batch/*.jar', STAGE: 'build', FAIL_ON_NETWORK_ERROR: 0]]
+                [[APPLICATION: 'cert-gui', SCAN_PATTERNS: '**/*.war\n**/*.jar', STAGE: 'release', FAIL_ON_NETWORK_ERROR: 1]]
         jdbc.queryForMap('''SELECT BITBUCKET_API_URL, BITBUCKET_WORKSPACE, BITBUCKET_PROJECT_KEY, BITBUCKET_REPO_SLUG
                 FROM DSO_SERVICE WHERE ID = ?''', serviceId) ==
                 [BITBUCKET_API_URL    : 'https://bitbucket.bbh.com/rest/api/1.0', BITBUCKET_WORKSPACE: 'ta-workspace',
@@ -116,15 +116,13 @@ class ProductPersistenceAdapterSpec extends Specification {
 
     def "an update replaces the details and the service list, keeping the ids of the services it keeps"() {
         given:
-        def stored = adapter.save(Product.create(details(), account(), [draft('gui'), draft('api'), draft('batch')],
-                adapter))
+        def stored = adapter.save(Product.create(details(), [draft('gui'), draft('api'), draft('batch')], adapter))
         def (gui, api, batch) = stored.services()*.id()
 
         when:
         stored.update(stored.version(), details(name: 'CertScanner 2', ownerTeam: 'Architecture', departmentId: 5L),
-                account(), [new ServiceDraft(api, 'api', 'REST API', settings()),
-                            new ServiceDraft(null, 'batch', null, settings()), new ServiceDraft(gui, 'web', null, settings())],
-                adapter)
+                [new ServiceDraft(api, 'api', 'REST API', settings()), new ServiceDraft(null, 'batch', null, settings()),
+                 new ServiceDraft(gui, 'web', null, settings())], adapter)
         def saved = adapter.save(stored)
         entities.clear()
         def loaded = adapter.load(stored.id()).get()
@@ -148,8 +146,8 @@ class ProductPersistenceAdapterSpec extends Specification {
 
     def "changed lists of a kept service replace the stored rows and empty lists remove them"() {
         given:
-        def created = adapter.save(Product.create(details(), account(), [new ServiceDraft(null, 'gui', null,
-                fullSettings('gui'))], adapter))
+        def created = adapter.save(Product.create(details(), [new ServiceDraft(null, 'gui', null, fullSettings('gui'))],
+                adapter))
         entities.clear()
         def stored = adapter.load(created.id()).get()
         def gui = stored.services()[0].id()
@@ -158,7 +156,7 @@ class ProductPersistenceAdapterSpec extends Specification {
                 urbanCodeApplications: changed.urbanCodeApplications().drop(1), sshTargets: [(QC): changed.sshTargets()[QC]])
 
         when:
-        stored.update(stored.version(), details(), account(), [new ServiceDraft(gui, 'gui', null, trimmed)], adapter)
+        stored.update(stored.version(), details(), [new ServiceDraft(gui, 'gui', null, trimmed)], adapter)
         adapter.save(stored)
         entities.clear()
 
@@ -173,15 +171,15 @@ class ProductPersistenceAdapterSpec extends Specification {
 
     def "every update raises the version and the modification time, also one that changes only a service"() {
         given:
-        def stored = adapter.save(Product.create(details(), account(), [draft('gui'), draft('api')], adapter))
+        def stored = adapter.save(Product.create(details(), [draft('gui'), draft('api')], adapter))
         def (gui, api) = stored.services()*.id()
 
         when:
-        stored.update(stored.version(), details(), account(),
-                [new ServiceDraft(gui, 'gui', 'Edited', settings()), draft('api', api)], adapter)
+        stored.update(stored.version(), details(), [new ServiceDraft(gui, 'gui', 'Edited', settings()), draft('api', api)],
+                adapter)
         def edited = adapter.save(stored)
-        edited.update(edited.version(), details(), account(),
-                [new ServiceDraft(gui, 'gui', 'Edited', settings()), draft('api', api)], adapter)
+        edited.update(edited.version(), details(), [new ServiceDraft(gui, 'gui', 'Edited', settings()), draft('api', api)],
+                adapter)
         def unchanged = adapter.save(edited)
 
         then:
@@ -195,12 +193,12 @@ class ProductPersistenceAdapterSpec extends Specification {
 
     def "names, SonarQube keys and metrics tags move and swap between the services of one save"() {
         given:
-        def stored = adapter.save(Product.create(details(), account(), [
+        def stored = adapter.save(Product.create(details(), [
                 draft('gui', null, tagged('cert-gui')), draft('api', null, tagged('cert-api'))], adapter))
         def (gui, api) = stored.services()*.id()
 
         when:
-        stored.update(stored.version(), details(), account(), [
+        stored.update(stored.version(), details(), [
                 draft('api', gui, tagged('cert-api')), draft('gui-legacy', api, tagged('cert-gui')), draft('gui')],
                 adapter)
         adapter.save(stored)
@@ -218,8 +216,8 @@ class ProductPersistenceAdapterSpec extends Specification {
 
     def "a product #change is not written"() {
         given:
-        def stored = adapter.save(Product.create(details(), account(), [draft('gui')], adapter))
-        def stale = Product.restore(id ?: stored.id(), details(name: 'Stale'), account(), id ? [] : stored.services(),
+        def stored = adapter.save(Product.create(details(), [draft('gui')], adapter))
+        def stale = Product.restore(id ?: stored.id(), details(name: 'Stale'), id ? [] : stored.services(),
                 stored.version() + 3, stored.createdAt(), stored.updatedAt())
 
         when:
@@ -239,9 +237,9 @@ class ProductPersistenceAdapterSpec extends Specification {
     def "products are listed by name with their summaries, departments and service counts"() {
         given:
         def payments = adapter.save(Product.create(details(code: 'PAY', name: 'Payments Hub', description: 'Payments',
-                departmentId: 5L), account(), [draft('gateway'), draft('ledger'), draft('mobile')], adapter))
-        def cert = adapter.save(Product.create(details(ownerTeam: 'TA'), account(), [draft('gui')], adapter))
-        def empty = adapter.save(Product.create(details(code: 'EMPTY', name: 'Empty'), account(), [], adapter))
+                departmentId: 5L), [draft('gateway'), draft('ledger'), draft('mobile')], adapter))
+        def cert = adapter.save(Product.create(details(ownerTeam: 'TA'), [draft('gui')], adapter))
+        def empty = adapter.save(Product.create(details(code: 'EMPTY', name: 'Empty'), [], adapter))
         jdbc.update('UPDATE DSO_PRODUCT SET DEPARTMENT_ID = NULL WHERE ID = ?', empty.id())
         entities.clear()
 
@@ -276,7 +274,7 @@ class ProductPersistenceAdapterSpec extends Specification {
         given:
         def shared = settings(sonar: SonarSettings.of(null, 'cert', command(['sonarqube'])),
                 metrics: new MetricsSettings(true, 'Cert Scanner', 'test', null, null))
-        def stored = adapter.save(Product.create(details(), account(), [draft('gui', null, shared),
+        def stored = adapter.save(Product.create(details(), [draft('gui', null, shared),
                                                                        draft('api', null, shared)], adapter))
         entities.clear()
 
@@ -293,8 +291,8 @@ class ProductPersistenceAdapterSpec extends Specification {
 
     def "deleting a product removes its services and their rows"() {
         given:
-        def stored = adapter.save(Product.create(details(), account(), [new ServiceDraft(null, 'gui', null,
-                fullSettings('gui'))], adapter))
+        def stored = adapter.save(Product.create(details(), [new ServiceDraft(null, 'gui', null, fullSettings('gui'))],
+                adapter))
         entities.clear()
 
         when:

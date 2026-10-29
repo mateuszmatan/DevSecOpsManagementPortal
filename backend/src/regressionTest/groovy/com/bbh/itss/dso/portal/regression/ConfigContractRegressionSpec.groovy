@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.regression
 
 import com.bbh.itss.dso.portal.support.PortalSpecification
 
+import static com.bbh.itss.dso.portal.support.ApiJson.appScan
 import static com.bbh.itss.dso.portal.support.ApiJson.build
 import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
@@ -17,7 +18,6 @@ class ConfigContractRegressionSpec extends PortalSpecification {
 
     static final Map PAYMENTS = product(code: 'CONTRACT', name: 'Contract Payments Hub', description: 'Payment orchestration',
             ownerTeam: 'Payments Engineering', contactEmail: 'payments-eng@bbh.com',
-            appScan: [keyId: 'bbh_1c2d3e4f-0000-4abc-9def-123456789abc', secretCredentialsId: 'hcl-app-scan-account'],
             services: [
                     fullOpenShiftService(name: 'gateway', description: 'Public payment API',
                             build: build(tool: 'MAVEN', sourceDir: 'gateway', command: [tasks: ['clean', 'verify'], flags: ['-B']]),
@@ -25,11 +25,14 @@ class ConfigContractRegressionSpec extends PortalSpecification {
                             openShiftTargets: [RD: openShiftTarget('payhub-rd') + [buildTag: '2.3.1',
                                                        internalDockerUrl: 'image-registry.openshift-image-registry.svc:5000/payhub-rd'],
                                                QC: openShiftTarget('payhub-qc') + [buildTag: '2.3.0']],
-                            appScan: [applicationId: '3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d', dastEnabled: true,
-                                      dastTargetUrl: 'https://payhub-uat.testbbh.com', dastPresenceId: 'presence-7'],
-                            sonar: [projectName: 'PayHub Gateway', projectKey: 'payhub-gateway', command: [tasks: ['sonar:sonar']]],
-                            nexusIqApplications: [[application: 'payhub-gateway', scanPatterns: ['**/target/*.jar', '**/target/*.war']],
-                                                  [application: 'payhub-gateway-batch', scanPatterns: ['**/batch/*.jar'],
+                            appScan: appScan(applicationId: '3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d',
+                                    keyId: 'bbh_1c2d3e4f-0000-4abc-9def-123456789abc',
+                                    secretCredentialsId: 'hcl-app-scan-account', scanName: 'payhub-gateway-sast',
+                                    dastEnabled: true, dastTargetUrl: 'https://payhub-uat.testbbh.com',
+                                    dastPresenceId: 'presence-7'),
+                            sonar: [projectName: 'PayHub Gateway', projectKey: 'payhub-gateway', command: [tasks: ['sonar:sonar']],
+                                    badgeCredentialsId: 'payhub-sonar-badge'],
+                            nexusIqApplications: [[application: 'payhub-gateway', scanPatterns: ['**/target/*.jar', '**/target/*.war'],
                                                    stage: 'release', failOnNetworkError: true]],
                             scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/payhub-gateway',
                                   credentialsId: 'bitbucket-http-credentials'],
@@ -38,7 +41,7 @@ class ConfigContractRegressionSpec extends PortalSpecification {
                                         job: 'payhub/regression-tests', timeoutMinutes: 60]]),
                     fullMavenService(),
                     fullFlutterService(name: 'mobile-app', description: 'Flutter mobile application',
-                            goldenFix: [enabled: false])])
+                            deployment: [target: 'VM', nexusDeliveryDisabled: true], goldenFix: [enabled: false])])
 
     def "the pipeline and product configs keep the shape the DevSecOps library reads"() {
         given:

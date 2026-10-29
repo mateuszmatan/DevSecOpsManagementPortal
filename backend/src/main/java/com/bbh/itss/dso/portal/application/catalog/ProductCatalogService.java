@@ -52,17 +52,17 @@ public class ProductCatalogService implements ProductsUseCase {
 
     @Override
     public Product create(ProductCommand command) {
-        Product saved = products.save(Product.create(command.details(), command.appScan(), command.services(), products));
-        return withPipelines(saved, Set.of(), command.pipelineType());
+        Product saved = products.save(Product.create(command.details(), command.services(), products));
+        return withPipelines(saved, Set.of(), command);
     }
 
     @Override
     public Product update(long id, ProductCommand command) {
         Product product = find(id);
         Set<Long> known = product.serviceIds();
-        product.update(command.version(), command.details(), command.appScan(), command.services(), products);
+        product.update(command.version(), command.details(), command.services(), products);
         pipelines.requireRunnablePipelines(product);
-        return withPipelines(products.save(product), known, command.pipelineType());
+        return withPipelines(products.save(product), known, command);
     }
 
     @Override
@@ -77,10 +77,11 @@ public class ProductCatalogService implements ProductsUseCase {
         return suggest(name, products);
     }
 
-    private Product withPipelines(Product saved, Set<Long> known, PipelineType type) {
+    private Product withPipelines(Product saved, Set<Long> known, ProductCommand command) {
+        PipelineType type = command.pipelineType();
         pipelines.createMissing(saved.id(), saved.serviceIds().stream()
                 .filter(serviceId -> type != null || !known.contains(serviceId))
-                .toList(), getIfNull(type, FULL));
+                .toList(), getIfNull(type, FULL), command.agentLabels());
         return saved;
     }
 

@@ -31,13 +31,13 @@ public final class DsoConfigBuilder {
     public Map<String, Object> productConfig(Product product) {
         Map<String, Object> projects = new LinkedHashMap<>();
         product.services().forEach(service ->
-                projects.put(service.name(), serviceTree(product, service).toMap(KEY_ORDER)));
+                projects.put(service.name(), serviceTree(service).toMap(KEY_ORDER)));
         return Map.of("projects", projects);
     }
 
     public Map<String, Object> pipelineConfig(Product product, Service service, Pipeline pipeline) {
         PipelineSettings pipelineSettings = pipeline.settings();
-        ConfigTree serviceTree = serviceTree(product, service);
+        ConfigTree serviceTree = serviceTree(service);
         if (pipeline.type() == SECURITY) {
             serviceTree.set("jenkins.pipeline.extendedPipeline", pipelineSettings.extendedPipelineJob());
         }
@@ -66,10 +66,10 @@ public final class DsoConfigBuilder {
         return root;
     }
 
-    private ConfigTree serviceTree(Product product, Service service) {
+    private ConfigTree serviceTree(Service service) {
         ConfigTree tree = new ConfigTree();
         global.platform().writeProjectDefaults(tree);
-        product.writeConfig(service, tree);
+        service.settings().writeTo(tree);
         global.deployment().fillIn(tree, service.settings().deployment().target());
         return tree;
     }

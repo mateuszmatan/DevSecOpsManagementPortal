@@ -16,7 +16,12 @@ public interface PipelinesUseCase {
 
     PipelineView create(long serviceId, PipelineType type, PipelineSettings settings);
 
-    List<PipelineView> createMissing(long productId, List<Long> serviceIds, PipelineType type);
+    /**
+     * Creates the pipelines of this type that the services lack, with the given agent labels or, without any, with the
+     * service template's.
+     */
+    List<PipelineView> createMissing(long productId, List<Long> serviceIds, PipelineType type,
+                                     List<String> agentLabels);
 
     /**
      * Refuses a product whose service keeps a pipeline that would fail: a Nexus IQ GoldenFix pipeline without a Nexus

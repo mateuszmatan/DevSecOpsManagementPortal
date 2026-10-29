@@ -22,8 +22,8 @@ final class ProductRules {
         this.directory = requireNonNull(directory, "the product rules need the product directory");
     }
 
-    void check(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> services) {
-        requireIdentity(details, appScanAccount, services);
+    void check(ProductDetails details, List<ServiceDraft> services) {
+        requireIdentity(details, services);
         details.requireUnique(productId, directory);
 
         ValidationProblems problems = new ValidationProblems();
@@ -43,11 +43,8 @@ final class ProductRules {
         problems.throwIfAny();
     }
 
-    private void requireIdentity(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> services) {
+    private void requireIdentity(ProductDetails details, List<ServiceDraft> services) {
         ValidationProblems problems = details.validate(new ValidationProblems(), directory);
-        if (!services.isEmpty() && (appScanAccount == null || appScanAccount.keyId() == null)) {
-            problems.add("appScan.keyId", "must not be blank");
-        }
         for (int i = 0; i < services.size(); i++) {
             if (isBlank(services.get(i).name())) {
                 problems.add("services[" + i + "].name", "must not be blank");

@@ -62,7 +62,7 @@ class DsoConfigBuilderSpec extends Specification {
         Map entry = builder.productConfig(certScanner).projects.gui
 
         then:
-        entry.asoc == [url: 'https://bbh.cloud.appscan.com', keyId: 'bbh_key-id', token: 'hcl-app-scan-account']
+        entry.asoc == [url: 'https://bbh.cloud.appscan.com', keyId: 'bbh_key-id']
         entry.influx == [url: 'http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s',
                          credentialsId: 'influxdb-token', enabled: true, project: 'CERT-gui', env: 'test']
         entry.tools.sonar == [serverUrl: 'https://tools.bbh.com/sonar', installationName: 'SonarQube',
@@ -71,21 +71,22 @@ class DsoConfigBuilderSpec extends Specification {
                                 scanPatterns: ['**/build/libs/*.jar'], stage: 'build', failOnNetworkError: false]
     }
 
-    def "a service's own servers, credentials and AppScan secret replace the global and product values"() {
+    def "a service's own servers, credentials and AppScan key replace the global values"() {
         when:
         Map entry = builder.productConfig(product(services: [[id: 10L, name: 'gui', settings: fullSettings('gui')]]))
                 .projects.gui
 
         then:
-        entry.asoc.token == 'cert-appscan-secret'
+        entry.asoc.subMap(['url', 'keyId', 'token']) ==
+                [url: 'https://bbh.cloud.appscan.com', keyId: 'bbh_key-id', token: 'cert-appscan-secret']
+        entry.sast == [scanName: 'cert-gui-sast']
         entry.influx.subMap(['url', 'credentialsId']) ==
                 [url: 'https://influx.cert.bbh.com/api/v2/write', credentialsId: 'cert-influx']
-        entry.tools.sonar.serverUrl == 'https://sonar.cert.bbh.com'
-        entry.tools.nexusIq.subMap(['serverUrl', 'credentialsId']) ==
-                [serverUrl: 'https://iq.cert.bbh.com', credentialsId: 'cert-iq']
-        entry.tools.nexusIq.application.keySet() as List == ['cert-gui', 'cert-gui-batch']
-        entry.tools.nexusIq.application.values()*.serverUrl.unique() == ['https://iq.cert.bbh.com']
-        entry.tools.nexusIq.application.values()*.credentialsId.unique() == ['cert-iq']
+        entry.tools.sonar.subMap(['serverUrl', 'badgeCredentialsId']) ==
+                [serverUrl: 'https://sonar.cert.bbh.com', badgeCredentialsId: 'sonar-badge']
+        entry.tools.nexusIq.subMap(['serverUrl', 'credentialsId', 'application']) ==
+                [serverUrl: 'https://iq.cert.bbh.com', credentialsId: 'cert-iq', application: 'cert-gui']
+        entry.deploy.vm.rd.nexusDeliveryEnabled == false
     }
 
     def "the global deployment defaults fill in what a VM deployment leaves out"() {

@@ -193,7 +193,7 @@ public class ServiceEntity extends AuditedEntity {
     @Embeddable
     public record DeploymentSettingsEmbeddable(
             @Enumerated(STRING) @Column(name = "DEPLOY_TARGET") DeployTarget target,
-            String appName, String artifactName, String baseArtifactName) {
+            String appName, String artifactName, String baseArtifactName, Boolean nexusDeliveryDisabled) {
     }
 
     @Embeddable
@@ -250,13 +250,15 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "APPSCAN_CLIENT_PATH") String clientPath,
             @EmbeddedColumnNaming("APPSCAN_COMPILE_%s") ToolCommandEmbeddable compileCommand,
             Boolean dastEnabled, String dastTargetUrl, String dastPresenceId,
-            @Column(name = "APPSCAN_SECRET_CREDENTIALS_ID") String secretCredentialsId) {
+            @Column(name = "APPSCAN_SECRET_CREDENTIALS_ID") String secretCredentialsId,
+            @Column(name = "APPSCAN_KEY_ID") String keyId,
+            @Column(name = "APPSCAN_SCAN_NAME") String scanName) {
     }
 
     @Embeddable
     public record SonarSettingsEmbeddable(String projectName, String projectKey, String installationName,
             String credentialsId, String authTokenCredentialsId, String badgeToken, Boolean addBadges,
-            Boolean fullBadges, ToolCommandEmbeddable command, String serverUrl) {
+            Boolean fullBadges, ToolCommandEmbeddable command, String serverUrl, String badgeCredentialsId) {
     }
 
     @Embeddable

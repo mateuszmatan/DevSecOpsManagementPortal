@@ -144,6 +144,9 @@ class ServiceDtoSpec extends Specification {
         'a Flutter plugin with $()'   | [flutter: [deliveryPlugin: 'deploy:deploy-file$(id)']]        || 'flutter.deliveryPlugin'                         | SHELL_SAFE_MESSAGE
         'an AppScan client with a ;'  | [appScan: [applicationId: APP_ID, clientPath: 'bin/appscan.bat;id']] || 'appScan.clientPath'                    | POWERSHELL_PATH_MESSAGE
         'a folder with a quote'       | [appScan: [applicationId: APP_ID, includedDirs: ["it's"]]]    || 'appScan.includedDirs[0].<list element>'        | 'one folder per entry, without commas or quotes'
+        'a SAST scan name with a /'   | [appScan: [applicationId: APP_ID, scanName: 'cert/gui']]      || 'appScan.scanName'                               | "may contain letters, digits, '.', '_' and '-'"
+        'a long AppScan key ID'       | [appScan: [applicationId: APP_ID, keyId: 'k' * 201]]          || 'appScan.keyId'                                  | 'size must be between 0 and 200'
+        'two Nexus IQ applications'   | [nexusIqApplications: [[application: 'a', scanPatterns: ['*.jar']], [application: 'b', scanPatterns: ['*.war']]]] || 'nexusIqApplications' | 'a service scans one Nexus IQ application'
     }
 
     def "an AppScan client path may use Windows separators"() {
@@ -169,7 +172,7 @@ class ServiceDtoSpec extends Specification {
                         .performanceMaxParallel(3).smokeRequired(true).regressionRequired(true)
                         .performanceRequired(true).build())
                 .testJobs([TestJob.of(SMOKE, 'smoke', null, 'CERT/gui-smoke', 10)])
-                .deployment(deployment(appName: 'gui'))
+                .deployment(deployment(appName: 'gui', nexusDeliveryDisabled: true))
                 .delivery(command(['deploy:deploy-file']))
                 .urbanCode(new UrbanCodeSettings('BBH-RD', 'Deploy', true, false, true, false, true, 'desc', 'a=b'))
                 .urbanCodeApplications([UrbanCodeApplicationSettings.of('Cert', 1, ['RD'], 'snap',
@@ -180,11 +183,11 @@ class ServiceDtoSpec extends Specification {
                 .openShiftTargets([(QC): OpenShiftTarget.builder().dockerRepoPull('pull/cert')
                         .projectDeployment('cert-qc').skipConfigDeploy(true).build()])
                 .appScan(appScan(dastEnabled: true, dastTargetUrl: 'https://rdl1.testbbh.com',
-                        compileCommand: command(['compile'])))
-                .sonar(SonarSettings.of('Cert', 'cert-gui', command(['sonar:sonar'])))
+                        compileCommand: command(['compile']), scanName: 'cert-gui-sast'))
+                .sonar(SonarSettings.builder().projectName('Cert').projectKey('cert-gui').command(command(['sonar:sonar']))
+                        .badgeCredentialsId('sonar-badge').build())
                 .nexusIq(new NexusIqSettings('https://iq.bbh.com', 'iq-creds'))
-                .nexusIqApplications([NexusIqApplication.of('cert', ['**/*.war']),
-                                      NexusIqApplication.of('cert-batch', ['**/batch/*.jar'])])
+                .nexusIqApplications([NexusIqApplication.of('cert', ['**/*.war'])])
                 .scm(ScmSettings.builder().repositoryUrl('https://bitbucket.bbh.com/scm/ta/cert.git')
                         .credentialsId('bb-creds').apiUrl('https://bitbucket.bbh.com/rest/api/1.0')
                         .workspace('ta-workspace').projectKey('TA').repoSlug('cert-gui').build())

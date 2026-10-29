@@ -6,6 +6,7 @@ import static com.bbh.itss.dso.portal.support.Fixtures.JDK
 final class ApiJson {
 
     static final String APP_ID = Fixtures.APP_ID
+    static final String KEY_ID = Fixtures.KEY_ID
 
     private ApiJson() {
     }
@@ -14,7 +15,6 @@ final class ApiJson {
         [code        : 'CERT',
          name        : 'CertScanner',
          departmentId: DEPARTMENT_ID,
-         appScan     : [keyId: 'bbh_key-id', secretCredentialsId: 'hcl-app-scan-account'],
          services    : [service()]] + overrides
     }
 
@@ -23,7 +23,11 @@ final class ApiJson {
          build                : build(),
          deployment           : [target: 'VM'],
          urbanCodeApplications: [deployedBy('CERT')],
-         appScan              : [applicationId: APP_ID]] + overrides
+         appScan              : appScan()] + overrides
+    }
+
+    static Map appScan(Map overrides = [:]) {
+        [applicationId: APP_ID, keyId: KEY_ID] + overrides
     }
 
     static Map deployedBy(String application) {
@@ -69,7 +73,8 @@ final class ApiJson {
                                   credentialsId   : 'perf-jenkins-token'] + remoteOptions(pollIntervalSec: 20,
                                          tokenCredentialsId: 'perf-jenkins-trigger', trustAllCertificates: true,
                                          useCrumbCache: true)],
-         deployment           : [target: 'VM', appName: 'ledger', artifactName: 'ledger.war', baseArtifactName: 'ledger'],
+         deployment           : [target          : 'VM', appName: 'ledger', artifactName: 'ledger.war',
+                                 baseArtifactName: 'ledger', nexusDeliveryDisabled: false],
          delivery             : command(['deploy:deploy-file'], ['-DrepositoryId=bbh-snapshots']),
          urbanCode            : [siteName                : 'deploy.bbh.com', deployProcess: 'tomcat-app-process',
                                  skipWait                : true, deployWithSnapshot: false, updateSnapshotComponents: true,
@@ -90,16 +95,17 @@ final class ApiJson {
                                  QC: [host        : 'qcltaapps1.testbbh.com', user: 'taadmin', deployDir: '/opt/ledger',
                                       deployScript: 'scripts/deploy.sh', versionFile: 'version.properties']],
          openShiftTargets     : [:],
-         appScan              : [applicationId : APP_ID, includedDirs: ['ledger/src/main'],
+         appScan              : [applicationId : APP_ID, keyId: KEY_ID, includedDirs: ['ledger/src/main'],
                                  excludedDirs  : ['ledger/src/test'], compile: true, sourceCodeOnly: false,
                                  useConfigFile : false, insecureTls: false, clientPath: '/opt/saclient',
                                  compileCommand: command(['compile'], ['-q']),
                                  dastEnabled   : true, dastTargetUrl: 'https://ledger-uat.testbbh.com',
                                  dastPresenceId: 'presence-1',
-                                 secretCredentialsId: 'ledger-appscan-secret'],
+                                 secretCredentialsId: 'ledger-appscan-secret', scanName: 'ledger-sast'],
          sonar                : [projectName           : 'Ledger', projectKey: 'ledger', installationName: 'SonarQube',
                                  credentialsId         : 'sonar-user', authTokenCredentialsId: 'sonar-token',
-                                 badgeToken            : 'sqb_1a2b3c', addBadges: true, fullBadges: false,
+                                 badgeToken            : 'sqb_1a2b3c', badgeCredentialsId: null, addBadges: true,
+                                 fullBadges            : false,
                                  serverUrl             : 'https://sonar-ledger.bbh.com',
                                  command               : command(['sonar:sonar'], ['-Dsonar.branch.name=develop'])],
          nexusIq              : [serverUrl: null, credentialsId: 'ledger-iq'],
@@ -126,18 +132,19 @@ final class ApiJson {
          build           : [tool: 'GRADLE', sourceDir: 'api', javaPath: JDK, autoSetup: false, buildPath: null,
                             command: command(['clean', 'bootJar'], ['--no-daemon'])],
          deployment      : [target: 'OPENSHIFT', appName: 'ledger-api', artifactName: 'ledger-api.jar',
-                            baseArtifactName: null],
+                            baseArtifactName: null, nexusDeliveryDisabled: false],
          openShiftTargets: [RD: openShiftTarget('ledger-rd'), QC: openShiftTarget('ledger-qc')],
-         appScan         : [applicationId: APP_ID]] + overrides
+         appScan         : appScan()] + overrides
     }
 
     static Map fullFlutterService(Map overrides = [:]) {
         [name      : 'ledger-mobile',
          build     : [tool: 'FLUTTER', sourceDir: 'mobile', javaPath: JDK, autoSetup: false, buildPath: null,
                       command: command([], [])],
-         deployment: [target: 'VM', appName: null, artifactName: null, baseArtifactName: null],
+         deployment: [target: 'VM', appName: null, artifactName: null, baseArtifactName: null,
+                      nexusDeliveryDisabled: false],
          urbanCodeApplications: [deployedBy('LEDGER-MOBILE')],
-         appScan   : [applicationId: APP_ID],
+         appScan   : appScan(),
          flutter   : [platform                    : 'APK', modules: ['app'], testModules: ['app', 'core'],
                       testSubmodules              : ['core/model'], testSubplugins: ['plugins/camera'],
                       signingPasswordCredentialsId: 'flutter-signing', prodLicenseCredentialsId: 'flutter-prod-license',

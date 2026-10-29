@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import lombok.Getter;
 
 import java.time.Instant;
@@ -28,45 +27,40 @@ public final class Product {
     private final Instant createdAt;
     private final Instant updatedAt;
     private ProductDetails details;
-    private AppScanAccount appScanAccount;
     private List<Service> services;
 
-    private Product(Long id, ProductDetails details, AppScanAccount appScanAccount, List<Service> services, long version,
-                    Instant createdAt, Instant updatedAt) {
+    private Product(Long id, ProductDetails details, List<Service> services, long version, Instant createdAt,
+                    Instant updatedAt) {
         this.id = id;
         this.details = details;
-        this.appScanAccount = appScanAccount;
         this.services = services.stream().sorted(DISPLAY_ORDER).toList();
         this.version = version;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
-    public static Product create(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> services,
-                                 ProductDirectory directory) {
-        Product product = new Product(null, details, appScanAccount, List.of(), 0, null, null);
-        product.change(details, appScanAccount, services, directory);
+    public static Product create(ProductDetails details, List<ServiceDraft> services, ProductDirectory directory) {
+        Product product = new Product(null, details, List.of(), 0, null, null);
+        product.change(details, services, directory);
         return product;
     }
 
-    public static Product restore(Long id, ProductDetails details, AppScanAccount appScanAccount, List<Service> services,
-                                  long version, Instant createdAt, Instant updatedAt) {
-        return new Product(id, requireNonNull(details), appScanAccount, services, version, createdAt, updatedAt);
+    public static Product restore(Long id, ProductDetails details, List<Service> services, long version,
+                                  Instant createdAt, Instant updatedAt) {
+        return new Product(id, requireNonNull(details), services, version, createdAt, updatedAt);
     }
 
-    public void update(Long expectedVersion, ProductDetails details, AppScanAccount appScanAccount,
-                       List<ServiceDraft> services, ProductDirectory directory) {
+    public void update(Long expectedVersion, ProductDetails details, List<ServiceDraft> services,
+                       ProductDirectory directory) {
         requireReadAt(expectedVersion, version);
-        change(details, appScanAccount, services, directory);
+        change(details, services, directory);
     }
 
-    private void change(ProductDetails details, AppScanAccount appScanAccount, List<ServiceDraft> drafts,
-                        ProductDirectory directory) {
+    private void change(ProductDetails details, List<ServiceDraft> drafts, ProductDirectory directory) {
         requireNonNull(details, "a product needs its details");
         requireNonNull(drafts, "a product needs its list of services");
-        new ProductRules(id, serviceIds(), directory).check(details, appScanAccount, drafts);
+        new ProductRules(id, serviceIds(), directory).check(details, drafts);
         this.details = details;
-        this.appScanAccount = appScanAccount;
         this.services = range(0, drafts.size()).mapToObj(order -> drafts.get(order).place(order,
                 details.code())).toList();
     }
@@ -78,11 +72,6 @@ public final class Product {
     public Set<Long> serviceIds() {
         return services.stream().map(Service::id).filter(Objects::nonNull)
                 .collect(toCollection(LinkedHashSet::new));
-    }
-
-    public void writeConfig(Service service, ConfigTree config) {
-        service.settings().writeTo(config);
-        appScanAccount.writeTo(config);
     }
 
     public String code() {

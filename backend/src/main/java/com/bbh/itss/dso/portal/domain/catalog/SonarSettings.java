@@ -13,7 +13,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @Builder
 public record SonarSettings(String projectName, String projectKey, String installationName, String credentialsId,
                             String authTokenCredentialsId, String badgeToken, Boolean addBadges, Boolean fullBadges,
-                            ToolCommand command, String serverUrl) {
+                            ToolCommand command, String serverUrl, String badgeCredentialsId) {
 
     public static final SonarSettings NONE = builder().build();
 
@@ -28,6 +28,7 @@ public record SonarSettings(String projectName, String projectKey, String instal
         fullBadges = isTrue(fullBadges);
         command = getIfNull(command, ToolCommand.NONE);
         serverUrl = trimToNull(serverUrl);
+        badgeCredentialsId = trimToNull(badgeCredentialsId);
     }
 
     public static SonarSettings of(String projectName, String projectKey, ToolCommand command) {
@@ -42,6 +43,7 @@ public record SonarSettings(String projectName, String projectKey, String instal
                 .set("tools.sonar.credentialsId", credentialsId)
                 .set("tools.sonar.authToken", authTokenCredentialsId)
                 .set("tools.sonar.badgeToken", badgeToken)
+                .set("tools.sonar.badgeCredentialsId", badgeCredentialsId)
                 .flag("tools.sonar.addBadges", addBadges)
                 .flag("tools.sonar.fullBadges", fullBadges);
         command.writeTo(config, "tools.sonar", tool);
@@ -52,6 +54,9 @@ public record SonarSettings(String projectName, String projectKey, String instal
             problems.add("command.tasks", tool == MAVEN
                     ? "add the Maven goals of the analysis, for example sonar:sonar"
                     : "add the Gradle tasks of the analysis, for example sonarqube");
+        }
+        if (badgeToken != null && badgeCredentialsId != null) {
+            problems.add("badgeCredentialsId", "give the badge token or its credentials ID, not both");
         }
         command.validate(problems.at("command"));
     }

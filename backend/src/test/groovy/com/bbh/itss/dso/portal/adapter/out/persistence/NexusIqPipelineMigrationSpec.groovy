@@ -1,11 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
-import com.bbh.itss.dso.portal.domain.catalog.Product
-import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
-import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
-import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
-import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
-import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -13,14 +7,9 @@ import org.springframework.context.annotation.Import
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.transaction.annotation.Transactional
 
-import java.time.Instant
-
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
-import static com.bbh.itss.dso.portal.support.Fixtures.account
-import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
-import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
-import static com.bbh.itss.dso.portal.support.Fixtures.settings
+import static com.bbh.itss.dso.portal.support.Fixtures.APP_ID
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED
 
@@ -30,63 +19,66 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
         'spring.liquibase.enabled=false'])
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
-@Import([PipelinePersistenceAdapter, ProductPersistenceAdapter])
+@Import(PipelinePersistenceAdapter)
 class NexusIqPipelineMigrationSpec extends MigrationSpecification {
-
-    static final Instant ISSUED = Instant.parse('2026-10-08T08:00:00Z')
 
     @Autowired
     PipelinePersistenceAdapter pipelines
 
-    @Autowired
-    ProductPersistenceAdapter products
-
-    int issued
-    KeyGenerator generator = { -> "key-${++issued}".toString() } as KeyGenerator
-
     def "a Nexus IQ pipeline is stored after 015, removed with its key on rollback and accepted again after update"() {
         given:
         liquibase.update('')
-        def product = inTransaction { products.save(Product.create(details(), account(),
-                [new ServiceDraft(null, 'gui', null, settings())], products)) }
-        def gui = new ServiceRef(product.id(), product.services()[0].id())
-        def nexusIq = store(gui, NEXUS_IQ)
-        long sast = store(gui, SAST).id()
+        long product = insert('DSO_PRODUCT', [CODE: 'CERT', NAME: 'CertScanner'])
+        long gui = insert('DSO_SERVICE', [PRODUCT_ID: product, NAME: 'gui', BUILD_TOOL: 'GRADLE', SOURCE_DIR: '.',
+                                          DEPLOY_TARGET: 'VM', APPSCAN_APP_ID: APP_ID, INFLUX_PROJECT: 'CERT-gui'])
+        long nexusIq = store(gui, 'NEXUS_IQ')
+        long sast = store(gui, 'SAST')
 
         expect:
         types() == ['NEXUS_IQ', 'SAST']
-        keysOf(nexusIq.id()) == 1
+        keysOf(nexusIq) == 1
 
         when:
         liquibase.rollback(executedSince('015-'), '')
 
         then:
         types() == ['SAST']
-        keysOf(nexusIq.id()) == 0
+        keysOf(nexusIq) == 0
         keysOf(sast) == 1
 
         when:
-        insert(gui, 'NEXUS_IQ')
+        pipeline(gui, 'NEXUS_IQ')
 
         then:
         thrown(DataIntegrityViolationException)
 
         when:
         liquibase.update('')
-        insert(gui, 'NEXUS_IQ')
+        pipeline(gui, 'NEXUS_IQ')
+        upgradeToCurrentSchema()
 
         then:
         types() == ['NEXUS_IQ', 'SAST']
         inTransaction { pipelines.findAll()*.type() } == [NEXUS_IQ, SAST]
     }
 
-    private Pipeline store(ServiceRef service, PipelineType type) {
-        inTransaction { pipelines.save(Pipeline.create(service, type, pipelineSettings(), generator, ISSUED)) }
+    /** Stores a pipeline with its active key, as a pipeline the portal created before the rollback. */
+    private long store(long serviceId, String type) {
+        long id = pipeline(serviceId, type)
+        jdbc.update("""INSERT INTO DSO_PIPELINE_KEY (PIPELINE_ID, KEY_VALUE, STATUS, ISSUED_AT)
+                VALUES (?, ?, 'ACTIVE', CURRENT_TIMESTAMP)""", id, "key-$type".toString())
+        id
     }
 
-    private void insert(ServiceRef service, String type) {
-        jdbc.update('''INSERT INTO DSO_PIPELINE (SERVICE_ID, PIPELINE_TYPE, AGENT_LABELS, CREATED_AT, UPDATED_AT)
-                VALUES (?, ?, 'linux-agent', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)''', service.serviceId(), type)
+    private long pipeline(long serviceId, String type) {
+        insert('DSO_PIPELINE', [SERVICE_ID: serviceId, PIPELINE_TYPE: type, AGENT_LABELS: 'linux-agent'])
+    }
+
+    /** The entities map the current schema, which only the master changelog reaches past 026. */
+    private void upgradeToCurrentSchema() {
+        liquibase.close()
+        liquibase = changelog('db/changelog/db.changelog-master.yaml')
+        liquibase.update('')
     }
 
     private List<String> types() {
