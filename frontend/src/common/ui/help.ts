@@ -3,13 +3,14 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  afterNextRender,
   afterRenderEffect,
   inject,
   input,
   signal,
   viewChild,
 } from '@angular/core';
-import { AriaDescriber } from '@angular/cdk/a11y';
+import { AriaDescriber, FocusMonitor } from '@angular/cdk/a11y';
 import { CdkConnectedOverlay, CdkOverlayOrigin, ConnectedPosition } from '@angular/cdk/overlay';
 import { SvgIconComponent } from 'angular-svg-icon';
 
@@ -21,6 +22,22 @@ const POSITIONS: ConnectedPosition[] = [
 
 const HOVER_GRACE_MS = 150;
 
+/** The label of the form field or check box around the icon, without its config key chips. */
+function fieldLabel(host: HTMLElement): string {
+  const label = host.closest('.dso-form-field, .dso-checkbox')?.querySelector('label');
+  const copy = label?.cloneNode(true) as HTMLElement | undefined;
+  copy?.querySelectorAll('code').forEach((code) => code.remove());
+  return (copy?.textContent ?? '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * An info icon whose help opens on hover or on keyboard focus, never on a click or a focus set by code, such as a
+ * dialog's first focus. Help opened by the keyboard stays until the focus leaves. The icon is named after the field
+ * it belongs to: the label input, or else the label of the surrounding form field or check box.
+ */
 @Component({
   selector: 'dso-help',
   imports: [CdkConnectedOverlay, CdkOverlayOrigin, SvgIconComponent],
@@ -36,8 +53,6 @@ const HOVER_GRACE_MS = 150;
       #origin="cdkOverlayOrigin"
       (mouseenter)="show()"
       (mouseleave)="leave()"
-      (focus)="show()"
-      (blur)="hide()"
     >
       <svg-icon name="info" aria-hidden="true" />
     </button>
@@ -56,21 +71,44 @@ const HOVER_GRACE_MS = 150;
 })
 export class DsoHelp {
   readonly text = input.required<string>();
+  readonly label = input<string>();
 
   protected readonly open = signal(false);
   protected readonly positions = POSITIONS;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
+  private focused = false;
   private timer?: ReturnType<typeof setTimeout>;
 
   constructor() {
     const describer = inject(AriaDescriber);
+    const focusMonitor = inject(FocusMonitor);
+    const destroyRef = inject(DestroyRef);
     afterRenderEffect((onCleanup) => {
       const element = this.trigger().nativeElement;
       const text = this.text();
+      const label = this.label() ?? fieldLabel(this.host);
+      element.setAttribute(
+        'aria-label',
+        label ? `More information about ${label}` : 'More information',
+      );
       describer.describe(element, text);
       onCleanup(() => describer.removeDescription(element, text));
     });
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
+    afterNextRender(() => {
+      const element = this.trigger().nativeElement;
+      focusMonitor.monitor(element).subscribe((origin) => {
+        if (origin === 'keyboard') {
+          this.focused = true;
+          this.show();
+        } else if (origin === null) {
+          this.focused = false;
+          this.hide();
+        }
+      });
+      destroyRef.onDestroy(() => focusMonitor.stopMonitoring(element));
+    });
+    destroyRef.onDestroy(() => clearTimeout(this.timer));
   }
 
   protected show(): void {
@@ -85,6 +123,8 @@ export class DsoHelp {
 
   protected leave(): void {
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.open.set(false), HOVER_GRACE_MS);
+    if (!this.focused) {
+      this.timer = setTimeout(() => this.open.set(false), HOVER_GRACE_MS);
+    }
   }
 }

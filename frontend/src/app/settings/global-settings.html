@@ -106,7 +106,9 @@
                       <div class="scanner">
                         <strong
                           >{{ scannerInfo[scanner].label }}
-                          <dso-help [text]="scannerInfo[scanner].help"
+                          <dso-help
+                            [label]="scannerInfo[scanner].label"
+                            [text]="scannerInfo[scanner].help"
                         /></strong>
                         <span class="muted">{{ scannerInfo[scanner].tool }}</span>
                         <code
@@ -127,6 +129,7 @@
                     <span class="field-label"
                       >Scans the gate checks
                       <dso-help
+                        label="Scans the gate checks"
                         text="The scans whose findings the gate compares with their security limits. A scan above its limits also turns its own stage orange, which blocks the release whether or not the scan is selected here."
                     /></span>
                     <dso-toggle-group

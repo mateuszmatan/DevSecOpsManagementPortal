@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Fields, check, line } from '../shared/fields';
-import { buttonOf, fieldOf, helpOf, text, unexplained } from '../testing/dom';
+import { fieldOf, helpOf, text, unexplained } from '../testing/dom';
 import { FORM_FIELD } from './form-field';
 
 @Component({
@@ -42,7 +42,7 @@ describe('DsoHelp', () => {
   });
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const trigger = (root: ParentNode) => buttonOf(root, 'More information');
+  const trigger = (root: ParentNode) => root.querySelector<HTMLButtonElement>('.dso-help-trigger')!;
   const popover = () => document.querySelector<HTMLElement>('.dso-help-popover');
 
   async function fire(element: HTMLElement, type: string) {
@@ -55,6 +55,12 @@ describe('DsoHelp', () => {
     await fixture.whenStable();
   }
 
+  async function focusWithKeyboard(element: HTMLElement) {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    element.focus();
+    await fixture.whenStable();
+  }
+
   it('puts an info icon after the label of the fields that have help, and none on the others', () => {
     const field = fieldOf(page(), 'Owner team')!;
 
@@ -64,10 +70,14 @@ describe('DsoHelp', () => {
     expect(popover()).toBeNull();
   });
 
-  it('describes the icon with the help text for assistive technology', () => {
+  it('names the icon after its field and describes it with the help text for assistive technology', () => {
     const button = trigger(fieldOf(page(), 'Owner team')!);
 
     expect(button.type).toBe('button');
+    expect(button.getAttribute('aria-label')).toBe('More information about Owner team');
+    expect(trigger(page().querySelector('dso-checkbox')!).getAttribute('aria-label')).toBe(
+      'More information about Write metrics',
+    );
     expect(helpOf(fieldOf(page(), 'Owner team')!)).toBe('The team that looks after the product.');
     expect(unexplained(page())).toEqual(['Plain']);
   });
@@ -85,11 +95,41 @@ describe('DsoHelp', () => {
 
     expect(popover()).toBeNull();
 
-    await fire(button, 'focus');
+    await focusWithKeyboard(button);
 
     expect(text(popover())).toBe('The team that looks after the product.');
 
-    await fire(button, 'blur');
+    button.blur();
+    await fixture.whenStable();
+
+    expect(popover()).toBeNull();
+  });
+
+  it('keeps help opened by the keyboard while the pointer passes over the icon', async () => {
+    const button = trigger(fieldOf(page(), 'Owner team')!);
+    await focusWithKeyboard(button);
+    await fire(button, 'mouseenter');
+    await fire(button, 'mouseleave');
+    await pause();
+
+    expect(text(popover())).toBe('The team that looks after the product.');
+
+    button.blur();
+    await fixture.whenStable();
+  });
+
+  it('shows no help when the icon gets the focus from code or a click', async () => {
+    await pause();
+    const button = trigger(fieldOf(page(), 'Owner team')!);
+    button.focus();
+    await fixture.whenStable();
+
+    expect(popover()).toBeNull();
+
+    button.blur();
+    button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, buttons: 1, detail: 1 }));
+    button.focus();
+    await fixture.whenStable();
 
     expect(popover()).toBeNull();
   });

@@ -19,9 +19,11 @@ let nextId = 0;
 
 export const uniqueId = (prefix: string) => `${prefix}-${nextId++}`;
 
+/** A form control. The first one takes the initial focus of a dialog, ahead of the help icons before it. */
 @Directive({
   selector: 'input[dsoInput], textarea[dsoInput], select[dsoInput]',
   host: {
+    cdkFocusInitial: '',
     '[id]': 'id',
     '[class.form-control]': '!select',
     '[class.form-control-sm]': '!select',
