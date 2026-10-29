@@ -114,7 +114,7 @@ export class GoldenFixFields {
           'Only components with a policy violation that Nexus IQ rates at least this high, from 0 to 10',
           'minThreatLevel',
         ),
-        help: 'Waived violations do not count. 2 and above is medium, 4 and above high, 8 and above critical.',
+        help: 'Waived violations do not count. 2 and above is moderate, 4 and above severe, 8 and above critical.',
       }),
       this.complete()
         ? check('onlyDirectDependencies', 'Direct dependencies only', 'onlyDirectDependencies', 4, {

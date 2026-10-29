@@ -74,8 +74,7 @@ const REMOTE: Field[] = [
     help: 'How often the stage asks the remote Jenkins for the result of the build.',
   }),
   mono('tokenCredentialsId', 'Token credentials ID', 'tokenCredentialsId', 3, {
-    hint: 'Secret text',
-    help: 'The ID of the Jenkins credential that holds the security token of the remote job. Leave it empty when the job needs no token.',
+    help: 'The ID of a Jenkins Secret text credential with the security token of the remote job. Left empty, the job is started without a token.',
   }),
   check('abortTriggeredJob', 'Abort the remote job with this run', 'abortTriggeredJob', 4, {
     help: 'When this run is aborted, the triggered build on the remote Jenkins is stopped or removed from its queue.',

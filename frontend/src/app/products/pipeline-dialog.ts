@@ -135,7 +135,7 @@ export class PipelineDialog {
           '',
           'DevSecOps/CERT/backend-api-full',
           'Where the pipeline runs in Jenkins: the path of its job, which the portal links under the ' +
-            'Jenkins URL of the library defaults, or the full address of the job',
+            'Jenkins URL on the Library defaults page, or the full address of the job',
           'The portal links the pipeline and its runs to this job. When several pipelines write metrics with the same project tag, it also tells their runs apart.',
         ),
         error: 'A job path such as DevSecOps/CERT/backend-api-full, or an http or https URL',
@@ -147,7 +147,7 @@ export class PipelineDialog {
               'Extended pipeline job',
               'jenkins.pipeline.extendedPipeline',
               'CERT/backend-api-extended',
-              'Optional. The extended pipeline this pipeline starts after its scans',
+              'Optional. The Extended pipeline this pipeline starts after its scans',
               'Started when a run succeeds or is unstable and its RUN_EXTENDED_PIPELINE parameter is ticked, on the same AGENT_NAME. The Security pipeline does not wait for it.',
             ),
           ]
@@ -159,7 +159,7 @@ export class PipelineDialog {
               'Security pipeline job',
               'pipeline.securityPipeline',
               'CERT/backend-api-security',
-              'The security pipeline whose build this pipeline deploys and tests',
+              'The Security pipeline whose build this pipeline deploys and tests',
               'The Extended pipeline takes the build tags and the release gate result from the last successful build of this job.',
             ),
           ]

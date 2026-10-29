@@ -307,7 +307,7 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
 
       expect(text(pane().querySelector('.list-empty'))).toBe(
-        'No application: the Nexus IQ stage passes with no findings. A Nexus IQ pipeline requires an application.',
+        'No application: the Nexus IQ stage passes with no findings. A Nexus IQ GoldenFix pipeline requires an application.',
       );
 
       buttonOf(pane(), 'Add application').click();
@@ -462,7 +462,7 @@ describe('ServiceFields', () => {
       expect(pane().querySelector('.note')?.textContent).toContain(
         'maven, npm, pypi, threat level 2 and above, direct dependencies only, each fix verified by a build.',
       );
-      expect(buttonOf(pane(), 'Inherit the library defaults').getAttribute('aria-checked')).toBe(
+      expect(buttonOf(pane(), 'Inherit the Library defaults').getAttribute('aria-checked')).toBe(
         'true',
       );
       buttonOf(pane(), 'Override for this service').click();
@@ -503,7 +503,7 @@ describe('ServiceFields', () => {
 
       expect(hints()).toContain('goldenFix.enabled');
       expect(pane().querySelector('.note')?.textContent).toBe(
-        'The service follows the GoldenFix defaults of the DSOEnhanced library.',
+        'The service follows the GoldenFix defaults on the Library defaults page.',
       );
     });
   });

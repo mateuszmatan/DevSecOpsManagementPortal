@@ -270,8 +270,8 @@
             </div>
           } @empty {
             <p class="list-empty">
-              No application: the Nexus IQ stage passes with no findings. A Nexus IQ pipeline
-              requires an application.
+              No application: the Nexus IQ stage passes with no findings. A Nexus IQ GoldenFix
+              pipeline requires an application.
             </p>
           }
         </section>
@@ -308,7 +308,7 @@
               [formControl]="f.controls.goldenFix.controls.inherit"
               aria-label="GoldenFix policy"
             >
-              <button [dsoToggle]="true">Inherit the library defaults</button>
+              <button [dsoToggle]="true">Inherit the Library defaults</button>
               <button [dsoToggle]="false">Override for this service</button>
             </dso-toggle-group>
             <dso-help

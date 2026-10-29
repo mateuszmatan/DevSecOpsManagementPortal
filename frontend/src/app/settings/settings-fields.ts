@@ -321,7 +321,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             'sastPrepareTimeoutMinutes',
             'Longest preparation (minutes)',
             'sast.prepareTimeoutMin',
-            'How long the preparation of the code for the static scan may take before the SAST stage fails.',
+            'Not applied yet: the library allows 120 minutes for the preparation whatever this value is.',
           ),
           minutes(
             'sastPollTimeoutMinutes',

@@ -86,7 +86,7 @@ const REPOSITORY: Field[] = [
     help: 'The branch of the deployment repository.',
   }),
   mono('deploymentRepoCredentialsId', 'Credentials ID', 'deploymentRepo.credentials', 3, {
-    help: 'The ID of the Jenkins credential that reads the deployment repository.',
+    help: 'The ID of a Jenkins Username with password or SSH key credential that can read the deployment repository.',
   }),
 ];
 

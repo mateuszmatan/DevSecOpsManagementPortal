@@ -124,7 +124,7 @@ const SECTIONS: TemplateSection[] = [
   },
   {
     heading: 'Build',
-    note: 'How a new service is built, by its build tool, and what the security pipeline publishes.',
+    note: 'How a new service is built, by its build tool, and how its snapshot is delivered to Nexus.',
     fields: [
       mono('gradleTasks', 'Gradle tasks', '', 6, {
         placeholder: 'clean build',
