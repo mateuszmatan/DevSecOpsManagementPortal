@@ -172,17 +172,24 @@ export class SelfService implements HasUnsavedChanges {
   protected readonly undeployable = computed(() =>
     this.pipeline() === 'FULL'
       ? this.kept()
-          .filter((service) => {
-            const settings =
-              service.serviceRequest ??
-              this.existing()?.services.find((stored) => stored.id === service.id);
-            return (
+          .filter(
+            (service) =>
               service.target === 'VM' &&
-              !settings?.urbanCodeApplications.some(({ environments }) => deploysToDv(environments))
-            );
-          })
+              !this.settingsOf(service)?.urbanCodeApplications.some(({ environments }) =>
+                deploysToDv(environments),
+              ),
+          )
           .map((service) => service.name)
       : [],
+  );
+  /** The services whose stored or changed settings lack the AppScan API key ID every pipeline signs in with. */
+  protected readonly keyless = computed(() =>
+    this.kept()
+      .filter((service) => {
+        const settings = this.settingsOf(service);
+        return settings && !settings.appScan.keyId?.trim();
+      })
+      .map((service) => service.name),
   );
   protected readonly existing = signal<Product | null>(null);
   protected readonly productError = signal<string | null>(null);
@@ -480,6 +487,7 @@ export class SelfService implements HasUnsavedChanges {
             this.unplaced(),
             this.unscanned(),
             this.undeployable(),
+            this.keyless(),
             this.duplicated(),
             this.untemplated(),
           ].every((names) => names.length === 0)
@@ -526,6 +534,11 @@ export class SelfService implements HasUnsavedChanges {
         );
         this.changed.set(true);
       });
+  }
+
+  /** The settings of a service: as changed in this request, or as stored. */
+  private settingsOf(service: WizardService) {
+    return service.serviceRequest ?? this.storedOf(service);
   }
 
   private storedOf(service: WizardService) {

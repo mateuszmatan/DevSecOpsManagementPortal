@@ -11,10 +11,16 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { AbstractControl, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { BuildTool, DeployTarget, ServiceRequest } from '../core/models';
 import { formRevision } from '@common/shared/fields';
-import { joinWords, revalidateAll } from '@common/shared/form-controls';
+import { revalidateAll } from '@common/shared/form-controls';
 import { DIALOG } from '@common/ui/dialog';
 import { FORM_FIELD } from '@common/ui/form-field';
-import { ConfigImport, ImportNotes, ImportedConfig } from '../products/config-import';
+import {
+  ConfigImport,
+  ImportNotes,
+  ImportedConfig,
+  importedServiceForm,
+  prefillAgents,
+} from '../products/config-import';
 import {
   ServiceForm,
   copiedService,
@@ -35,10 +41,14 @@ import {
   WizardPipeline,
   WizardService,
   deploys,
+  imageRepository,
   namedDefaults,
   openShiftTargets,
   pipelineLabel,
 } from './self-service-model';
+
+const NEXUS_IQ_APPLICATION = 'nexusIqApplications.0.application';
+const FILLED_FROM_NAME = ['scm.repositoryUrl', 'deployment.appName', NEXUS_IQ_APPLICATION];
 
 export interface CopySource {
   name: string;
@@ -70,7 +80,7 @@ export interface ServiceDialogData {
         <div class="start">
           @if (sources.length) {
             <dso-form-field
-              help="Replaces the settings below with those of another service of the product, except the name, SonarQube project, monitoring project tag and Nexus IQ application."
+              help="Replaces the settings below with those of another service of the product. What identifies that service is not copied: the SonarQube project, monitoring project tag and SAST scan name stay empty, and the OpenShift application name, image repositories and Nexus IQ application are set from the name typed here."
             >
               <dso-label>Copy values from</dso-label>
               <select dsoInput [formControl]="copyFrom">
@@ -131,9 +141,6 @@ export interface ServiceDialogData {
       dso-form-field {
         flex: 0 1 320px;
       }
-      dso-config-import {
-        margin-bottom: 18px;
-      }
     }
     .missing {
       flex: 1;
@@ -172,9 +179,13 @@ export class ServiceDialog {
 
   constructor() {
     this.use(this.serviceForm());
-    this.copyFrom.valueChanges.subscribe(
-      (source) => source && this.replace(createServiceForm(copiedService(source.request))),
-    );
+    this.copyFrom.valueChanges.subscribe((source) => {
+      this.imported.set(null);
+      this.replace(
+        source ? createServiceForm(copiedService(source.request)) : this.initForm(),
+        source?.name,
+      );
+    });
   }
 
   private initForm(): ServiceForm {
@@ -235,7 +246,8 @@ export class ServiceDialog {
     return form;
   }
 
-  private use(form: ServiceForm): void {
+  /** Sets up a form; a copy's values that the source took from its name follow the name typed here instead. */
+  private use(form: ServiceForm, copiedFrom = ''): void {
     form.controls.name.addValidators((control: AbstractControl) => {
       const name = String(control.value ?? '')
         .trim()
@@ -253,68 +265,103 @@ export class ServiceDialog {
 
     followToolDefaults(form, this.data.defaults.template, this.destroyRef);
 
-    if (!this.data.service) {
+    if ((this.data.service?.id ?? null) === null) {
       prefillNewService(
         form,
         this.data.defaults.settings,
         this.sources.map((source) => source.request.appScan ?? {}),
       );
-      form.controls.name.valueChanges.subscribe((name) => this.applyNamedDefaults(form, name));
-      this.applyNamedDefaults(form, form.controls.name.value);
+    }
+    if (!this.data.service) {
+      let named = copiedFrom;
+      const follow = (name: string) => {
+        const next = name.trim();
+        if (next) {
+          this.followName(form, named, next);
+          named = next;
+        }
+      };
+      form.controls.name.valueChanges.subscribe(follow);
+      follow(form.controls.name.value);
     }
   }
 
-  private replace(form: ServiceForm): void {
-    const typed = this.serviceForm().controls.name.value;
-    form.controls.name.setValue(typed);
-    this.use(form);
+  private replace(form: ServiceForm, copiedFrom?: string): void {
+    form.controls.name.setValue(this.serviceForm().controls.name.value);
+    this.use(form, copiedFrom);
     this.serviceForm.set(form);
   }
 
   protected importConfig(imported: ImportedConfig): void {
-    const typed = this.serviceForm().controls.name.value.trim();
-    const form = createServiceForm(
-      { ...imported.service, id: null },
+    const form = importedServiceForm(
+      imported,
       this.data.defaults.settings?.serviceDefaults,
+      this.serviceForm().controls.name.value,
     );
-    form.controls.name.setValue(typed || imported.name);
     this.use(form);
     this.serviceForm.set(form);
     this.copyFrom.setValue(null, { emitEvent: false });
-    const agents = this.data.agents;
-    if (agents && imported.agentLabels?.length && !agents.dirty) {
-      agents.setValue(joinWords(imported.agentLabels, ', '));
-    }
+    prefillAgents(this.data.agents, imported.agentLabels);
     this.imported.set(imported);
   }
 
-  private applyNamedDefaults(form: ServiceForm, name: string | null): void {
-    const serviceName = (name ?? '').trim();
-    if (!serviceName) {
-      return;
-    }
-    const named = namedDefaults(this.data.defaults, serviceName);
-    const scm = form.controls.scm.controls;
-
-    if (!scm.repositoryUrl.value && named.repositoryUrl) {
-      scm.repositoryUrl.setValue(named.repositoryUrl);
-    }
-
-    if (named.nexusIqApplication) {
-      const tool = form.controls.build.controls.tool.value;
-      const build = buildDefaults(this.data.defaults.template, tool);
+  /**
+   * Sets what a new service takes from its name: an empty repository URL, application name or Nexus IQ application,
+   * and every value that still holds what the previous name gave, such as the image repositories of a copy.
+   */
+  private followName(form: ServiceForm, previous: string, name: string): void {
+    const before = this.fromName(form, previous);
+    const after = this.fromName(form, name);
+    const application = after[NEXUS_IQ_APPLICATION];
+    if (application) {
+      const { scanPattern } = buildDefaults(
+        this.data.defaults.template,
+        form.controls.build.controls.tool.value,
+      );
       const apps = form.controls.nexusIqApplications;
-      if (apps.length === 0) {
-        apps.push(nexusIqApplicationForm(named.nexusIqApplication, build.scanPattern));
-      } else {
-        if (!apps.controls[0].controls.application.value) {
-          apps.controls[0].controls.application.setValue(named.nexusIqApplication);
-        }
-        if (!apps.controls[0].controls.scanPatterns.value && build.scanPattern) {
-          apps.controls[0].controls.scanPatterns.setValue(build.scanPattern);
-        }
+      if (!apps.length) {
+        apps.push(nexusIqApplicationForm(application, scanPattern));
+      } else if (!apps.at(0).controls.scanPatterns.value && scanPattern) {
+        apps.at(0).controls.scanPatterns.setValue(scanPattern);
       }
     }
+    for (const [path, value] of Object.entries(after)) {
+      const control = form.get(path);
+      const current = String(control?.value ?? '').trim();
+      if (
+        control &&
+        value &&
+        (current === before[path] || (!current && FILLED_FROM_NAME.includes(path)))
+      ) {
+        control.setValue(value);
+      }
+    }
+  }
+
+  private fromName(form: ServiceForm, name: string): Record<string, string> {
+    if (!name) {
+      return {};
+    }
+    const named = namedDefaults(this.data.defaults, name);
+    const values = {
+      'scm.repositoryUrl': named.repositoryUrl,
+      [NEXUS_IQ_APPLICATION]: named.nexusIqApplication,
+    };
+    if (form.controls.deployment.controls.target.value !== 'OPENSHIFT') {
+      return values;
+    }
+    const rd = form.controls.openShiftTargets.controls.RD.controls;
+    const project = rd.projectBuild.value.trim().replace(/-build$/, '');
+    const image = imageRepository(project, name, this.data.defaults.template);
+    return {
+      ...values,
+      'deployment.appName': name,
+      ...(project && {
+        'openShiftTargets.RD.dockerRepoPush': image,
+        'openShiftTargets.RD.dockerRepoPull': image,
+        'openShiftTargets.QC.dockerRepoPull': image,
+      }),
+    };
   }
 
   protected save(): void {

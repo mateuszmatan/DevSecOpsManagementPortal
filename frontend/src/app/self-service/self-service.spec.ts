@@ -628,6 +628,32 @@ describe('SelfService', () => {
     expect(wizard()['step']()).toBe(3);
   });
 
+  it('flags a service in the portal without the AppScan API key ID and continues once it has one', async () => {
+    const keyless = service({ appScan: { ...service().appScan, keyId: '' } });
+    await chooseProduct(3, product({ services: [keyless] }));
+    await next();
+    wizard()['pipeline'].set('SAST');
+    await next();
+
+    expect(all('.service-problem')).toEqual(['Needs the AppScan API key ID']);
+
+    await next();
+
+    expect(wizard()['step']()).toBe(2);
+    expect(all('.choice-error')).toEqual([
+      'Use Change to add the AppScan API key ID of these services, which every pipeline signs in with: gui',
+    ]);
+
+    wizard()['services'].update(([gui]) => [{ ...gui, serviceRequest: service() }]);
+    await fixture.whenStable();
+
+    expect(all('.service-problem')).toEqual([]);
+
+    await next();
+
+    expect(wizard()['step']()).toBe(3);
+  });
+
   it('asks to rename a new service that has the name of a service of the product chosen after it', async () => {
     await chooseProduct(3, product({ id: 2, name: 'Payments Hub', services: [] }), []);
     wizard()['services'].set([{ ...added, name: 'GUI' }]);

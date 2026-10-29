@@ -5,8 +5,12 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormControl } from '@angular/forms';
 import { buttonOf, choose, optionsOf, selectOf, text } from '@common/testing/dom';
 import { anotherService, globalSettings, service, serviceTemplate } from '../testing/fixtures';
-import { createUrbanCodeApplicationForm } from '../products/product-form-model';
-import { WizardDefaults, WizardService } from './self-service-model';
+import {
+  createServiceForm,
+  createUrbanCodeApplicationForm,
+  toServiceRequest,
+} from '../products/product-form-model';
+import { WizardDefaults, WizardService, imageRepository } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
@@ -176,6 +180,99 @@ describe('ServiceDialog', () => {
     expect(value.sonar.projectName).toBe('');
     expect(value.metrics.influxProject).toBe('');
     expect(value.nexusIqApplications.map((app) => app.application)).toEqual(['pay-portal']);
+  });
+
+  it('sets the OpenShift names of a copy from the typed name, as for a new service', async () => {
+    const image = (name: string) => imageRepository('pay', name, serviceTemplate());
+    const gui = createServiceForm(
+      service({ appScan: { ...service().appScan, scanName: 'gui-scan' } }),
+    );
+    gui.patchValue({
+      deployment: { target: 'OPENSHIFT', appName: 'gui', artifactName: 'gui.jar' },
+      openShiftTargets: {
+        RD: {
+          projectBuild: 'pay-build',
+          dockerRepoPush: image('gui'),
+          dockerRepoPull: image('gui'),
+        },
+        QC: { dockerRepoPull: image('gui') },
+      },
+    });
+    await open({ sources: [{ name: 'gui', request: toServiceRequest(gui) }] });
+    form().controls.name.setValue('portal');
+
+    choose(selectOf(page(), 'Copy values from'), 'gui');
+    await fixture.whenStable();
+    const value = form().getRawValue();
+
+    expect(value.deployment.appName).toBe('portal');
+    expect(value.deployment.artifactName).toBe('gui.jar');
+    expect(value.appScan.scanName).toBe('');
+    expect([
+      value.openShiftTargets.RD.dockerRepoPush,
+      value.openShiftTargets.RD.dockerRepoPull,
+      value.openShiftTargets.QC.dockerRepoPull,
+    ]).toEqual([image('portal'), image('portal'), image('portal')]);
+
+    form().controls.name.setValue('portal-api');
+
+    expect(form().controls.deployment.controls.appName.value).toBe('portal-api');
+    expect(form().controls.openShiftTargets.controls.RD.controls.dockerRepoPush.value).toBe(
+      image('portal-api'),
+    );
+  });
+
+  it('starts afresh with No service, keeping the typed name, and drops the import notes on a copy', async () => {
+    await open({ sources: [{ name: 'gui', request: service() }] });
+    component['importConfig']({
+      file: 'config.yaml',
+      name: 'gateway',
+      service: anotherService(),
+      notes: [],
+      agentLabels: [],
+    });
+    form().controls.name.setValue('portal');
+    await fixture.whenStable();
+    const select = selectOf(page(), 'Copy values from');
+
+    expect(page().querySelector('dso-import-notes')).not.toBeNull();
+
+    choose(select, 'gui');
+    await fixture.whenStable();
+
+    expect(page().querySelector('dso-import-notes')).toBeNull();
+    expect(form().controls.build.controls.javaPath.value).toBe('/usr/lib/jvm/java-17-openjdk');
+
+    choose(select, 'No service');
+    await fixture.whenStable();
+
+    expect(form().controls.name.value).toBe('portal');
+    expect(form().controls.build.controls.javaPath.value).toBe('');
+    expect(form().controls.sonar.controls.projectKey.value).toBe('');
+  });
+
+  it('shows a service added in this wizard with its Library defaults again when it is changed', async () => {
+    const request = toServiceRequest(createServiceForm(service()));
+    const added = (id: number | null): WizardService => ({
+      id,
+      name: 'gui',
+      description: '',
+      appScanId: APP_ID,
+      tool: 'GRADLE',
+      target: 'VM',
+      openShiftProject: '',
+      nexusIqApplication: 'pay-gui',
+      repositoryUrl: REPOSITORY,
+      serviceRequest: { ...request, id },
+    });
+    await open({ service: added(null), defaults: { ...BBH_DEFAULTS, settings: globalSettings() } });
+
+    expect(form().controls.sonar.controls.installationName.value).toBe('SonarQube');
+
+    TestBed.resetTestingModule();
+    await open({ service: added(10), defaults: { ...BBH_DEFAULTS, settings: globalSettings() } });
+
+    expect(form().controls.sonar.controls.installationName.value).toBe('');
   });
 
   it('fills the form from an imported config.yaml, keeping the typed name and the agents typed before', async () => {

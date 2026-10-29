@@ -337,14 +337,23 @@ type TargetText = Partial<Omit<Record<keyof OpenShiftTarget, string>, 'skipConfi
 
 const dockerContext = (tool: BuildTool) => (tool === 'MAVEN' ? 'target/docker' : 'build/docker');
 
+/** The image repository of a service: the template's registry, the OpenShift project and the service name. */
+export function imageRepository(
+  project: string,
+  service: string,
+  template: ServiceTemplateValues | null,
+): string {
+  const registry = template?.imageRegistry;
+  return `${registry ? `${registry}/` : ''}${project}/${service.toLowerCase()}`;
+}
+
 export function openShiftTargets(
   project: string,
   service: string,
   tool: BuildTool,
   template: ServiceTemplateValues | null,
 ): Record<Region, TargetText> {
-  const registry = template?.imageRegistry;
-  const image = `${registry ? `${registry}/` : ''}${project}/${service.toLowerCase()}`;
+  const image = imageRepository(project, service, template);
   const shared = {
     dockerRepoPull: image,
     deployConfigPath: 'openshift/deployment.yaml',

@@ -173,6 +173,9 @@
           }
         }
         <dso-choice-tiles label="Pipeline" [options]="pipelines()" [(value)]="pipeline" />
+        @if (!pipeline()) {
+          <p class="hint">Not sure? Start with Security. You can add another pipeline later.</p>
+        }
         @if (checked() && !pipeline()) {
           <p class="choice-error">Choose a pipeline to continue</p>
         }
@@ -204,8 +207,6 @@
               }
             </ul>
           </div>
-        } @else {
-          <p class="hint">Not sure? Start with Security. You can add another pipeline later.</p>
         }
       }
       @case (2) {
@@ -250,6 +251,8 @@
                   <span class="muted">{{ serviceSummary(service) }}</span>
                   @if (isRemoved(service)) {
                     <span class="removal">{{ removalText(service) }}</span>
+                  } @else if (keyless().includes(service.name)) {
+                    <span class="service-problem">Needs the AppScan API key ID</span>
                   }
                 </div>
                 @if (isRemoved(service)) {
@@ -317,6 +320,12 @@
           <p class="choice-error">
             Use Change to add the Nexus IQ application and Bitbucket repository of these services:
             {{ unscanned().join(', ') }}
+          </p>
+        }
+        @if (checked() && keyless().length) {
+          <p class="choice-error">
+            Use Change to add the AppScan API key ID of these services, which every pipeline signs
+            in with: {{ keyless().join(', ') }}
           </p>
         }
         @if (checked() && undeployable().length) {
