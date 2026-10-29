@@ -1,4 +1,4 @@
-import { Department as PortalDepartment } from '@common/core/models';
+import { FieldProblem, Department as PortalDepartment } from '@common/core/models';
 import { labelOf } from '@common/shared/formatting';
 
 export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER';
@@ -359,6 +359,18 @@ export interface Product extends ProductFields {
 export interface ProductRequest extends ProductFields {
   version: number | null;
   services: ServiceRequest[];
+}
+
+export interface ImportedService {
+  name: string;
+  service: Partial<ServiceRequest>;
+  notes: FieldProblem[];
+}
+
+export interface ServiceConfigImport {
+  services: ImportedService[];
+  pipeline: { type: PipelineType | null; agentLabels: string[] | null } | null;
+  notes: FieldProblem[];
 }
 
 export interface PipelineKey {
