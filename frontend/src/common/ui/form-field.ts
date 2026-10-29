@@ -8,10 +8,12 @@ import {
   computed,
   contentChild,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { AbstractControl, FormGroupDirective, NgControl, NgForm, Validators } from '@angular/forms';
 import { Subscription, merge } from 'rxjs';
+import { DsoHelp } from './help';
 
 let nextId = 0;
 
@@ -117,6 +119,7 @@ export class DsoSuffix {}
 
 @Component({
   selector: 'dso-form-field',
+  imports: [DsoHelp],
   changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     class: 'dso-form-field',
@@ -124,12 +127,17 @@ export class DsoSuffix {}
     '[class.has-suffix]': '!!suffix()',
   },
   template: `
-    <label class="form-label" [attr.for]="input()?.id">
-      <ng-content select="dso-label" />
-      @if (input()?.required()) {
-        <span class="required-marker" aria-hidden="true"></span>
+    <div class="form-label-row">
+      <label class="form-label" [attr.for]="input()?.id">
+        <ng-content select="dso-label" />
+        @if (input()?.required()) {
+          <span class="required-marker" aria-hidden="true"></span>
+        }
+      </label>
+      @if (help(); as text) {
+        <dso-help [text]="text" />
       }
-    </label>
+    </div>
     <div class="control">
       <ng-content />
       <ng-content select="[dsoSuffix]" />
@@ -146,6 +154,8 @@ export class DsoSuffix {}
   `,
 })
 export class DsoFormField {
+  readonly help = input<string | null | undefined>();
+
   protected readonly input = contentChild(DsoInput);
   protected readonly suffix = contentChild(DsoSuffix);
   readonly hintId = uniqueId('dso-hint');
