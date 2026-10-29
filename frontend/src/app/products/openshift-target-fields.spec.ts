@@ -2,7 +2,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { fieldOf } from '@common/testing/dom';
 import { service } from '../testing/fixtures';
 import { OpenShiftTargetFields } from './openshift-target-fields';
-import { ServiceForm, createServiceForm } from './product-form-model';
+import {
+  ServiceForm,
+  createServiceForm,
+  sectionInvalid,
+  visibleSections,
+} from './product-form-model';
 
 describe('OpenShiftTargetFields', () => {
   let fixture: ComponentFixture<OpenShiftTargetFields>;
@@ -78,6 +83,26 @@ describe('OpenShiftTargetFields', () => {
     await choose('QC region');
 
     expect(headings()).toContain('Image build');
+  });
+
+  it('keeps an empty QC region valid while the regions are switched', async () => {
+    form.controls.openShiftTargets.controls.RD.patchValue({
+      projectBuild: 'cert-build',
+      buildConfigPath: 'openshift/buildconfig.yaml',
+      dockerFilePath: 'openshift/Dockerfile',
+      buildContext: 'target/docker',
+      dockerRepoPush: 'nexus.bbh.com:18444/cert',
+      nexusAuthFile: '/etc/containers/auth.json',
+    });
+    const section = visibleSections(form).find(({ label }) => label === 'OpenShift targets')!;
+
+    for (const region of ['QC region', 'RD region', 'QC region']) {
+      await choose(region);
+
+      expect(page().querySelectorAll('.problem-mark'), region).toHaveLength(0);
+      expect(form.controls.openShiftTargets.controls.QC.valid, region).toBe(true);
+      expect(sectionInvalid(form, section), region).toBe(false);
+    }
   });
 
   it('explains a deployment repository that is not a URL', async () => {

@@ -13,6 +13,7 @@ export interface Field {
   span?: number;
   code?: string;
   hint?: string;
+  help?: string;
   placeholder?: string;
   error?: string;
   mono?: boolean;
@@ -77,8 +78,17 @@ export function chips(text: string): string {
     .replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
-export function defaulted(value: string | null | undefined, missing = ''): More {
-  return { placeholder: value ?? '', hint: value ? `left empty: ${value}` : missing };
+export function defaulted(
+  value: string | number | null | undefined,
+  current: unknown,
+  missing = '',
+): More {
+  const shown = String(value ?? '');
+  if (!shown) {
+    return { placeholder: '', hint: missing };
+  }
+  const same = String(current ?? '').trim() === shown;
+  return { placeholder: shown, hint: same ? 'Library default' : `Library default: ${shown}` };
 }
 
 export function formRevision(form: () => AbstractControl): Signal<number> {
@@ -99,11 +109,15 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
       @let control = controlOf(field);
       @let mandatory = required(control);
       @if (field.kind === 'check') {
-        <dso-checkbox [class]="span(field, 12)" [formControl]="control">
+        <dso-checkbox [class]="span(field, 12)" [formControl]="control" [help]="field.help">
           <span [innerHTML]="label(field)"></span>
         </dso-checkbox>
       } @else {
-        <dso-form-field [class]="span(field, 6)" [class.read-only]="field.readonly">
+        <dso-form-field
+          [class]="span(field, 6)"
+          [class.read-only]="field.readonly"
+          [help]="field.help"
+        >
           <dso-label>{{ field.label }}</dso-label>
           @switch (field.kind) {
             @case ('area') {
@@ -112,20 +126,25 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 rows="2"
                 spellcheck="false"
                 [formControl]="control"
-                [required]="mandatory"
+                [attr.required]="mandatory || null"
                 [class.mono]="field.mono"
                 [placeholder]="field.placeholder ?? ''"
               ></textarea>
             }
             @case ('select') {
               @if (field.multiple) {
-                <select dsoInput multiple [formControl]="control" [required]="mandatory">
+                <select
+                  dsoInput
+                  multiple
+                  [formControl]="control"
+                  [attr.required]="mandatory || null"
+                >
                   @for (option of field.options; track option.label) {
                     <option [ngValue]="option.value">{{ option.label }}</option>
                   }
                 </select>
               } @else {
-                <select dsoInput [formControl]="control" [required]="mandatory">
+                <select dsoInput [formControl]="control" [attr.required]="mandatory || null">
                   @for (option of field.options; track option.label) {
                     <option [ngValue]="option.value">{{ option.label }}</option>
                   }
@@ -137,7 +156,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 dsoInput
                 type="number"
                 [formControl]="control"
-                [required]="mandatory"
+                [attr.required]="mandatory || null"
                 [attr.min]="field.min"
                 [attr.max]="field.max"
                 [attr.step]="field.step"
@@ -148,7 +167,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 dsoInput
                 autocomplete="off"
                 [formControl]="control"
-                [required]="mandatory"
+                [attr.required]="mandatory || null"
                 [class.mono]="field.mono"
                 [placeholder]="field.placeholder ?? ''"
                 [type]="field.type ?? 'text'"

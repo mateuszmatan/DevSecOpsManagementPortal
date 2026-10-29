@@ -63,6 +63,9 @@
 
     <div class="toolbar">
       <span class="period-label" id="period-label">Period</span>
+      <dso-help
+        text="How far back the DORA metrics, the runs per day, the recent runs and the Grafana dashboards of this page reach."
+      />
       <dso-toggle-group
         [value]="selectedRange()"
         (valueChange)="selectRange($any($event))"

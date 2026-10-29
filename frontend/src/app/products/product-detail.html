@@ -68,12 +68,6 @@
             <dd>{{ p.updatedAt | date: 'd MMM y, HH:mm z' }}</dd>
           </div>
         </dl>
-        @if (p.appScan; as appScan) {
-          <p class="technical">
-            Security scans sign in to HCL AppScan with the API key ID
-            <span class="mono">{{ appScan.keyId }}</span>
-          </p>
-        }
       </div>
       <div class="actions">
         <a class="btn btn-outline-primary" [routerLink]="monitoringProduct(p.id)"

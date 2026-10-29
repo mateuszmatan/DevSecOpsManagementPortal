@@ -17,6 +17,7 @@ import {
   ProductMonitoring,
   ProductRequest,
   ProductSummary,
+  ServiceConfigImport,
   ServicePipelines,
   ServiceTemplate,
   ServiceTemplateRequest,
@@ -64,6 +65,16 @@ export class ProductsApi {
 
   config(id: number): Observable<string> {
     return this.http.get(`/api/products/${id}/config`, { responseType: 'text' });
+  }
+
+  importServiceConfig(
+    content: string,
+    serviceName: string | null,
+  ): Observable<ServiceConfigImport> {
+    return this.http.post<ServiceConfigImport>('/api/service-configs/import', {
+      content,
+      serviceName,
+    });
   }
 }
 

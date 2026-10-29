@@ -31,6 +31,19 @@
   }
 }
 
+.service-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.blocked {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  text-align: right;
+}
+
 .service-name {
   font-weight: 600;
 }

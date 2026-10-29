@@ -81,7 +81,7 @@ describe('TestJobsFields', () => {
     expect(sections()[2].querySelector('.list-empty')?.textContent).toBe(
       'No performance test jobs.',
     );
-    expect(text(page())).toContain('Left empty: global default 20 · tests.maxParallel');
+    expect(text(page())).toContain('Library default: 20 · tests.maxParallel');
   });
 
   it('adds, moves and removes jobs within a stage', async () => {

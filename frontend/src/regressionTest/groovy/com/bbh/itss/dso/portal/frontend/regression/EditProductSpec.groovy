@@ -57,6 +57,15 @@ class EditProductSpec extends EditorSpecification {
         assertThat(serviceNames()).hasText(['ledger', 'gateway', 'notifications', 'notifications-copy', 'mobile-app'] as String[])
         assertThat(openService().locator('.service-name')).hasText('notifications-copy')
         assertThat(servicePanel('notifications-copy').locator('.tag.new')).hasText('New')
+        assertThat(button('Add service', true)).isDisabled()
+        assertThat(page.locator('.blocked')).hasText('Complete the required settings of the services below to add another service.')
+
+        when:
+        showSection('Nexus IQ')
+        input(openService(), 'Application').fill('payhub-notifications-copy')
+
+        then:
+        assertThat(button('Add service', true)).isEnabled()
 
         when:
         expandService('gateway')
@@ -87,9 +96,12 @@ class EditProductSpec extends EditorSpecification {
         services[0] == byName.ledger
         services[1] == byName.notifications
         services[3] == byName['mobile-app']
-        services[2] == byName.notifications + [id     : null, name: 'notifications-copy',
-                                                sonar  : (byName.notifications.sonar as Map) + [projectKey: null],
-                                                metrics: (byName.notifications.metrics as Map) + [influxProject: null]]
+        services[2] == byName.notifications + [id                 : null, name: 'notifications-copy',
+                                                sonar              : (byName.notifications.sonar as Map) + [projectKey: null, projectName: null],
+                                                metrics            : (byName.notifications.metrics as Map) + [influxProject: null],
+                                                nexusIqApplications: (byName.notifications.nexusIqApplications as List<Map>).collect {
+                                                    it + [application: 'payhub-notifications-copy']
+                                                }]
         body.findAll { it.key != 'services' } == loaded.findAll { it.key != 'services' }
         assertThat(page.locator('.service h2')).hasText(['ledger', 'notifications', 'notifications-copy', 'mobile-app'] as String[])
         assertThat(page.locator('.generated')).containsText('Pipeline key generated for the new service notifications-copy.')
@@ -112,6 +124,8 @@ class EditProductSpec extends EditorSpecification {
         input(openService(), 'AppScan application ID').fill('5b1e9c2d-7a3f-4d6e-8b0a-1c2d3e4f5a6b')
         expandService('gui')
         buttonIn(openService(), 'Duplicate service').click()
+        showSection('Nexus IQ')
+        input(openService(), 'Application').fill('cert-scanner-gui-copy')
         button('Save changes', true).click()
         page.waitForURL('**/admin/products/1')
 

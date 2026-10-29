@@ -1,19 +1,22 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
-import { text } from '@common/testing/dom';
-import { service, serviceTemplate } from '../testing/fixtures';
+import { FormControl } from '@angular/forms';
+import { buttonOf, choose, optionsOf, selectOf, text } from '@common/testing/dom';
+import { anotherService, globalSettings, service, serviceTemplate } from '../testing/fixtures';
 import { createUrbanCodeApplicationForm } from '../products/product-form-model';
 import { WizardDefaults, WizardService } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
 const REPOSITORY = 'https://bitbucket.bbh.com/projects/PAY/repos/gateway';
-const NO_DEFAULTS: WizardDefaults = { tool: null, target: null, template: null, productCode: '' };
 const BBH_DEFAULTS: WizardDefaults = {
   tool: 'GRADLE',
   target: 'VM',
   template: serviceTemplate(),
   productCode: 'PAY',
+  settings: null,
 };
 
 describe('ServiceDialog', () => {
@@ -25,6 +28,8 @@ describe('ServiceDialog', () => {
     TestBed.configureTestingModule({
       imports: [ServiceDialog],
       providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
         { provide: DialogRef, useValue: { close } },
         {
           provide: DIALOG_DATA,
@@ -43,53 +48,47 @@ describe('ServiceDialog', () => {
     await fixture.whenStable();
   }
 
+  const form = () => component['serviceForm']();
+  const page = () => fixture.nativeElement as HTMLElement;
+  const submit = () => buttonOf(page(), 'Add service');
+  const marked = () => [...page().querySelectorAll('.rail-item.problem')].map(text);
+
+  function fillIn(name = 'new-service') {
+    form().patchValue({
+      name,
+      appScan: { applicationId: APP_ID, keyId: 'bbh_key' },
+      scm: { repositoryUrl: REPOSITORY },
+    });
+  }
+
   afterEach(() => close.mockReset());
-
-  it('initializes form for FULL pipeline with all sections', async () => {
-    await open({ pipeline: 'FULL' });
-    expect(component).toBeTruthy();
-    expect(component['serviceForm']).toBeTruthy();
-    expect(component['serviceForm'].controls.name).toBeTruthy();
-    expect(component['serviceForm'].controls.appScan).toBeTruthy();
-    expect(component['serviceForm'].controls.nexusIqApplications).toBeTruthy();
-    expect(component['serviceForm'].controls.testJobs).toBeTruthy();
-  });
-
-  it('filters visible sections for NEXUS_IQ pipeline', async () => {
-    await open({ pipeline: 'NEXUS_IQ' });
-    expect(component).toBeTruthy();
-    const sections = component['serviceForm'];
-    expect(sections).toBeTruthy();
-  });
-
-  it('refuses invalid form and highlights problems', async () => {
-    await open({ pipeline: 'FULL' });
-    component['serviceForm'].controls.name.setValue('');
-    component['serviceForm'].controls.appScan.controls.applicationId.setValue('');
-    component['save']();
-    expect(close).not.toHaveBeenCalled();
-    expect(component['checked']()).toBe(true);
-  });
 
   it('refuses duplicate service name', async () => {
     await open({ pipeline: 'FULL', takenNames: ['backend-api'] });
-    component['serviceForm'].controls.name.setValue('backend-api');
-    component['serviceForm'].controls.name.updateValueAndValidity();
-    expect(component['serviceForm'].controls.name.invalid).toBe(true);
-    expect(component['serviceForm'].controls.name.errors).toEqual({
+    form().controls.name.setValue('backend-api');
+
+    expect(form().controls.name.errors).toEqual({
       rule: 'Another service of this product already has this name',
     });
   });
 
-  it('saves valid service and closes dialog with service data', async () => {
-    await open({ pipeline: 'FULL' });
-    component['serviceForm'].controls.name.setValue('new-service');
-    component['serviceForm'].controls.appScan.controls.applicationId.setValue(APP_ID);
-    component['serviceForm'].controls.scm.controls.repositoryUrl.setValue(REPOSITORY);
-    component['serviceForm'].controls.urbanCodeApplications.push(
-      createUrbanCodeApplicationForm(service().urbanCodeApplications[0]),
+  it('keeps Add service disabled and names the sections that need input until the form is complete', async () => {
+    await open({ pipeline: 'SECURITY' });
+
+    expect(submit().disabled).toBe(true);
+    expect(text(page().querySelector('.missing'))).toBe(
+      'Complete these sections first: General, AppScan SAST and DAST.',
     );
-    component['save']();
+    expect(marked()).toEqual(['General', 'AppScan SAST and DAST']);
+
+    fillIn();
+    await fixture.whenStable();
+
+    expect(submit().disabled).toBe(false);
+    expect(page().querySelector('.missing')).toBeNull();
+    expect(marked()).toEqual([]);
+
+    submit().click();
 
     expect(close).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -102,30 +101,25 @@ describe('ServiceDialog', () => {
 
   it('asks for an UrbanCode Deploy application for DV before adding a service with a Full pipeline', async () => {
     await open({ pipeline: 'FULL' });
-    const form = component['serviceForm'];
-    form.patchValue({ name: 'archive-api', appScan: { applicationId: APP_ID } });
-    component['save']();
-    fixture.detectChanges();
+    fillIn('archive-api');
+    await fixture.whenStable();
 
-    expect(close).not.toHaveBeenCalled();
-    expect(text(fixture.nativeElement.querySelector('.rail-item.active.problem'))).toBe(
-      'UrbanCode Deploy',
-    );
+    expect(submit().disabled).toBe(true);
+    expect(marked()).toEqual(['UrbanCode Deploy']);
 
-    form.controls.urbanCodeApplications.push(
+    form().controls.urbanCodeApplications.push(
       createUrbanCodeApplicationForm({ ...service().urbanCodeApplications[0], environments: [] }),
     );
-    component['save']();
+    await fixture.whenStable();
+    submit().click();
 
     expect(close).toHaveBeenCalledOnce();
   });
 
-  it('needs no UrbanCode Deploy application for a Security pipeline', async () => {
-    await open({ pipeline: 'SECURITY' });
-    component['serviceForm'].patchValue({ name: 'archive-api', appScan: { applicationId: APP_ID } });
-    component['save']();
+  it('asks for the AppScan key of a service with a Nexus IQ pipeline, as every pipeline signs in with it', async () => {
+    await open({ pipeline: 'NEXUS_IQ' });
 
-    expect(close).toHaveBeenCalledOnce();
+    expect(marked()).toContain('AppScan SAST and DAST');
   });
 
   it.each([
@@ -133,10 +127,92 @@ describe('ServiceDialog', () => {
     ['NEXUS_IQ', 'VM'],
     ['SECURITY', 'OPENSHIFT'],
     ['FULL', 'OPENSHIFT'],
-  ] as const)('starts a new service of the %s pipeline on %s when OpenShift is the default', async (pipeline, target) => {
-    await open({ pipeline, defaults: { ...BBH_DEFAULTS, target: 'OPENSHIFT' } });
+  ] as const)(
+    'starts a new service of the %s pipeline on %s when OpenShift is the default',
+    async (pipeline, target) => {
+      await open({ pipeline, defaults: { ...BBH_DEFAULTS, target: 'OPENSHIFT' } });
 
-    expect(component['serviceForm'].controls.deployment.controls.target.value).toBe(target);
+      expect(form().controls.deployment.controls.target.value).toBe(target);
+    },
+  );
+
+  it('starts a new service with the Library defaults and the AppScan key of the product', async () => {
+    await open({
+      defaults: { ...BBH_DEFAULTS, settings: globalSettings() },
+      sources: [{ name: 'gui', request: service() }],
+    });
+    const c = form().controls;
+
+    expect(c.build.controls.sourceDir.value).toBe('app');
+    expect(c.sonar.controls.installationName.value).toBe('SonarQube');
+    expect(c.appScan.controls.keyId.value).toBe('bbh_key');
+  });
+
+  it('starts without Library defaults while the global settings are not loaded', async () => {
+    await open();
+
+    expect(form().controls.sonar.controls.installationName.value).toBe('');
+  });
+
+  it('copies the values of another service except those that identify it, keeping the typed name', async () => {
+    await open({
+      sources: [
+        { name: 'gui', request: service() },
+        { name: 'backend-api', request: anotherService({ name: 'backend-api' }) },
+      ],
+    });
+    const select = selectOf(page(), 'Copy values from');
+    form().controls.name.setValue('portal');
+
+    expect(optionsOf(select)).toEqual(['No service', 'gui', 'backend-api']);
+
+    choose(select, 'gui');
+    await fixture.whenStable();
+    const value = form().getRawValue();
+
+    expect(value.name).toBe('portal');
+    expect(value.build.javaPath).toBe('/usr/lib/jvm/java-17-openjdk');
+    expect(value.sonar.projectKey).toBe('');
+    expect(value.sonar.projectName).toBe('');
+    expect(value.metrics.influxProject).toBe('');
+    expect(value.nexusIqApplications.map((app) => app.application)).toEqual(['pay-portal']);
+  });
+
+  it('fills the form from an imported config.yaml, keeping the typed name and the agents typed before', async () => {
+    const agents = new FormControl('linux-agent', { nonNullable: true });
+    await open({ agents });
+    form().controls.name.setValue('portal');
+
+    component['importConfig']({
+      file: 'config.yaml',
+      name: 'gateway',
+      service: { ...service(), id: 4 },
+      notes: [
+        { field: 'tools.sonar.foo', message: 'not imported: the portal has no such setting' },
+      ],
+      agentLabels: ['docker-agent'],
+    });
+    await fixture.whenStable();
+
+    expect(form().controls.name.value).toBe('portal');
+    expect(form().controls.id.value).toBeNull();
+    expect(form().controls.build.controls.javaPath.value).toBe('/usr/lib/jvm/java-17-openjdk');
+    expect(agents.value).toBe('docker-agent');
+    const notes = page().querySelector('dso-import-notes')!;
+    expect(text(notes.querySelector('strong'))).toBe('gateway was imported from config.yaml.');
+    expect(text(notes.querySelector('h5'))).toBe('Not imported');
+    expect(text(notes.querySelector('li'))).toBe('tools.sonar.foo: The portal has no such setting');
+
+    agents.markAsDirty();
+    component['importConfig']({
+      file: 'config.yaml',
+      name: 'gateway',
+      service: service(),
+      notes: [],
+      agentLabels: ['mac-agent'],
+    });
+
+    expect(agents.value).toBe('docker-agent');
   });
 
   it('loads existing service settings into form', async () => {
@@ -152,8 +228,10 @@ describe('ServiceDialog', () => {
       repositoryUrl: REPOSITORY,
     };
     await open({ service: existing });
-    expect(component['serviceForm'].controls.name.value).toBe('existing-service');
-    expect(component['serviceForm'].controls.build.controls.tool.value).toBe('MAVEN');
-    expect(component['serviceForm'].controls.deployment.controls.target.value).toBe('OPENSHIFT');
+
+    expect(form().controls.name.value).toBe('existing-service');
+    expect(form().controls.build.controls.tool.value).toBe('MAVEN');
+    expect(form().controls.deployment.controls.target.value).toBe('OPENSHIFT');
+    expect(selectOf(page(), 'Copy values from')).toBeUndefined();
   });
 });

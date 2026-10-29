@@ -105,17 +105,21 @@
 
       @case ('deployment') {
         <div class="form-fields">
-          <dso-toggle-group
-            class="span-12"
-            [formControl]="f.controls.deployment.controls.target"
-            aria-label="Deployment target"
-          >
-            <button dsoToggle="VM">Virtual machine</button>
-            <button dsoToggle="OPENSHIFT">OpenShift</button>
-          </dso-toggle-group>
+          <div class="span-12 choice">
+            <dso-toggle-group
+              [formControl]="f.controls.deployment.controls.target"
+              aria-label="Deployment target"
+            >
+              <button dsoToggle="VM">Virtual machine</button>
+              <button dsoToggle="OPENSHIFT">OpenShift</button>
+            </dso-toggle-group>
+            <dso-help
+              text="On virtual machines the Full pipeline deploys to RD with UrbanCode Deploy and the Extended pipeline over SSH; QC is always deployed over SSH. On OpenShift the service runs as an image in the OpenShift projects of each region."
+            />
+          </div>
           <dso-fields [group]="f.controls.deployment" [fields]="deploymentFields()" />
         </div>
-        @if (isVm() && tool() === 'MAVEN') {
+        @if (isVm() && tool() === 'MAVEN' && delivers()) {
           <div class="form-fields block">
             <h4 class="sub-heading span-12">Delivery</h4>
             <p class="note span-12">
@@ -166,15 +170,11 @@
             }
           }
           <dso-advanced-settings
-            summary="The service's own secret and the options of the static scan"
+            summary="Scan name, AppScan client and the options of the static scan"
             [controls]="advanced().appScan"
             [submitted]="submitted()"
           >
-            <dso-fields [group]="scan" [fields]="appScanSecret" />
-            <h4 class="sub-heading span-12">Static scan (SAST)</h4>
-            <dso-fields [group]="scan" [fields]="appScanStatic" />
-            <span class="span-6"></span>
-            <dso-fields [group]="scan" [fields]="appScanFlags" />
+            <dso-fields [group]="scan" [fields]="appScanOptions" />
             @if (!flutter() && scan.controls.compile.value) {
               <h4 class="sub-heading span-12">Compile command</h4>
               <dso-tool-command-fields
@@ -203,7 +203,7 @@
             />
           }
           <dso-advanced-settings
-            summary="Server, credentials, badges and analysis command options"
+            summary="Scanner credentials, server, badges and analysis command options"
             [controls]="advanced().sonar"
             [submitted]="submitted()"
           >
@@ -223,16 +223,24 @@
       @case ('nexusIq') {
         <section class="list-section">
           <header class="list-header">
-            <h4>
-              Applications <span class="count">{{ nexusIqApplications().length }}</span>
-            </h4>
+            <h4>Application</h4>
+            <dso-help
+              text="The Nexus IQ application whose policies the dependency scan is evaluated against. A service scans one application."
+            />
             <span class="hint"><code>tools.nexusIq.application</code></span>
             <span class="spacer"></span>
-            <button type="button" class="btn btn-outline-primary" (click)="addNexusIqApplication()">
-              Add application
-            </button>
+            @if (!nexusIqApplications().length) {
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                (click)="addNexusIqApplication()"
+              >
+                Add application
+              </button>
+            }
           </header>
-          @if (f.controls.nexusIqApplications.errors?.['server']; as message) {
+          @let problem = f.controls.nexusIqApplications.errors;
+          @if (problem?.['server'] ?? problem?.['rule']; as message) {
             <div class="banner list-error" role="alert">{{ message }}</div>
           }
           @for (application of nexusIqApplications(); track application; let i = $index) {
@@ -259,7 +267,10 @@
               </div>
             </div>
           } @empty {
-            <p class="list-empty">No application: the pipeline skips the Nexus IQ scan.</p>
+            <p class="list-empty">
+              No application: the Nexus IQ stage passes with no findings. A Nexus IQ pipeline
+              requires an application.
+            </p>
           }
         </section>
         <dso-advanced-settings
@@ -290,14 +301,18 @@
       @case ('goldenFix') {
         <div class="form-fields">
           <dso-fields [group]="f.controls.goldenFix" [fields]="goldenFixField()" />
-          <dso-toggle-group
-            class="span-8"
-            [formControl]="f.controls.goldenFix.controls.inherit"
-            aria-label="GoldenFix policy"
-          >
-            <button [dsoToggle]="true">Inherit the library defaults</button>
-            <button [dsoToggle]="false">Override for this service</button>
-          </dso-toggle-group>
+          <div class="span-8 choice">
+            <dso-toggle-group
+              [formControl]="f.controls.goldenFix.controls.inherit"
+              aria-label="GoldenFix policy"
+            >
+              <button [dsoToggle]="true">Inherit the library defaults</button>
+              <button [dsoToggle]="false">Override for this service</button>
+            </dso-toggle-group>
+            <dso-help
+              text="With Inherit, the service follows the GoldenFix policy on the Library defaults page, including later changes. With Override, the policy set below applies to this service only."
+            />
+          </div>
           @if (f.controls.goldenFix.controls.inherit.value) {
             <p class="note span-12">{{ inheritedGoldenFix() }}</p>
           } @else {
@@ -329,8 +344,10 @@
           <dso-fields [group]="flutterGroup" [fields]="flutterModules" />
           <h4 class="sub-heading span-12">Credentials <code>build.credentialsId</code></h4>
           <dso-fields [group]="flutterGroup" [fields]="flutterCredentials" />
-          <h4 class="sub-heading span-12">Delivery</h4>
-          <dso-fields [group]="flutterGroup" [fields]="flutterDelivery()" />
+          @if (delivers()) {
+            <h4 class="sub-heading span-12">Delivery</h4>
+            <dso-fields [group]="flutterGroup" [fields]="flutterDelivery()" />
+          }
           <h4 class="sub-heading span-12">SonarQube analysis of Dart code</h4>
           <dso-fields [group]="flutterGroup" [fields]="flutterSonar" />
         </div>

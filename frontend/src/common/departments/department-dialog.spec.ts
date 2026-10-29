@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { Department } from '../core/models';
-import { inputOf, text } from '../testing/dom';
+import { helpOf, inputOf, text, unexplained } from '../testing/dom';
 import { department } from '../testing/fixtures';
 import { DepartmentDialog } from './department-dialog';
 
@@ -48,6 +48,10 @@ describe('DepartmentDialog', () => {
     expect(text(page().querySelector('button[type=submit]'))).toBe('Add business service');
     expect(text(page().querySelector('dso-hint'))).toBe(
       'The name people know the business service by, for example Fund Services',
+    );
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(page())).toBe(
+      'The name products are grouped under in the portal. No other business service may use it, in any letter case.',
     );
     expect(page().querySelector('.intro')).toBeNull();
 

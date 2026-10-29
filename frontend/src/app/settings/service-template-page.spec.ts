@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { buttonOf, fieldOf, inputOf, text, toast } from '@common/testing/dom';
+import { buttonOf, fieldOf, helpOf, inputOf, text, toast, unexplained } from '@common/testing/dom';
 import { serviceTemplate } from '../testing/fixtures';
 import {
   ServiceTemplatePage,
@@ -93,7 +93,7 @@ describe('ServiceTemplatePage', () => {
     await load();
 
     expect(text(page().querySelector('.meta'))).toBe(
-      'What a new service and its pipelines get. Self-service and the Add service and Add pipeline forms fill in these values, and each one can still be changed there. Fields marked * are required.',
+      'What a new service and its pipelines get. Self-service uses all of these values. The Add service form takes the build tasks, artifacts and delivery goals, and new pipelines get the pipeline values. Each value can still be changed there. Fields marked * are required.',
     );
     expect(text(page().querySelector('.save-bar .saved'))).toMatch(/^Last saved .+ \(version 2\)$/);
     expect([...page().querySelectorAll('.section h2')].map(text)).toEqual([
@@ -130,8 +130,17 @@ describe('ServiceTemplatePage', () => {
       ['Bitbucket repository', 'https://bitbucket.bbh.com/projects/CERT/repos/cert-backend-api'],
       ['OpenShift projects', 'cert-backend-api-build, cert-backend-api-rd, cert-backend-api-qc'],
     ]);
-    expect(page().querySelector('svg-icon')).toBeNull();
+    expect(page().querySelector(':not(.dso-help-trigger) > svg-icon')).toBeNull();
     expect(templatePage().hasUnsavedChanges()).toBe(false);
+  });
+
+  it('explains every field of the template with a help text', async () => {
+    await load();
+
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(fieldOf(page(), 'Jenkins agents')!)).toBe(
+      'Jenkins agent labels or label expressions a new pipeline may run on. A run uses the one chosen in its AGENT_NAME parameter, by default the first.',
+    );
   });
 
   it('says when the BBH defaults were never saved', async () => {

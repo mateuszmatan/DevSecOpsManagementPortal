@@ -23,10 +23,10 @@ export const TARGET_LABELS: Record<DeployTarget, string> = {
 export const GRADLE_MAVEN_FLUTTER = optionsOf(TOOL_LABELS);
 export const VM_OPENSHIFT = optionsOf(TARGET_LABELS);
 
-export const agentLabels = (value: string) =>
+export const agentLabels = (value: string, required = true) =>
   text(
     value,
-    filled,
+    ...(required ? [filled] : []),
     maxItems(commaItems, 20),
     eachItem(commaItems, /^.{1,100}$/, 'At most 100 characters per label'),
     fitsColumn(commaItems, ',', 1000),
