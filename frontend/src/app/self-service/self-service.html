@@ -32,7 +32,9 @@
         </p>
         <p class="required-note">Fields marked * are required.</p>
         <div class="fields">
-          <dso-form-field>
+          <dso-form-field
+            help="The business service the product belongs to. The portal groups products by it."
+          >
             <dso-label>Business Service</dso-label>
             <select dsoInput [formControl]="productForm.controls.departmentId">
               @for (department of departments(); track department.id) {
@@ -59,7 +61,7 @@
         />
         @if (mode() === 'new') {
           <form class="fields" [formGroup]="productForm" novalidate>
-            <dso-form-field>
+            <dso-form-field help="The full name of the product as the portal shows it.">
               <dso-label>Product name</dso-label>
               <input
                 dsoInput
@@ -75,14 +77,15 @@
               }}</dso-hint>
               <dso-error>{{ errorText(productForm.controls.name) }}</dso-error>
             </dso-form-field>
-            <ng-container *ngTemplateOutlet="appScanKey" />
-            <dso-form-field>
+            <dso-form-field help="The team responsible for the product and its pipelines.">
               <dso-label>Owner team</dso-label>
               <input dsoInput formControlName="ownerTeam" placeholder="Technology Architecture" />
               <dso-hint>The team that looks after the product</dso-hint>
               <dso-error>{{ errorText(productForm.controls.ownerTeam) }}</dso-error>
             </dso-form-field>
-            <dso-form-field>
+            <dso-form-field
+              help="The address to contact about the product, preferably a team mailbox."
+            >
               <dso-label>Contact e-mail</dso-label>
               <input
                 dsoInput
@@ -96,7 +99,7 @@
           </form>
         } @else {
           <div class="fields">
-            <dso-form-field>
+            <dso-form-field help="The product in the portal that gets the pipeline.">
               <dso-label>Product</dso-label>
               <select dsoInput [formControl]="productId">
                 @for (group of productGroups(); track group.name) {
@@ -121,11 +124,6 @@
               <dt>Services</dt>
               <dd>{{ product.services.length }}</dd>
             </dl>
-            @if (needsAppScanKey()) {
-              <div class="fields">
-                <ng-container *ngTemplateOutlet="appScanKey" />
-              </div>
-            }
           } @else if (productId.value !== null) {
             <dso-loading />
             @if (checked()) {
@@ -135,24 +133,6 @@
             <p class="choice-error">Choose the product</p>
           }
         }
-        <ng-template #appScanKey>
-          <dso-form-field>
-            <dso-label>AppScan API key ID</dso-label>
-            <input
-              dsoInput
-              class="mono"
-              [formControl]="productForm.controls.appScanKeyId"
-              placeholder="bbh_..."
-              autocomplete="off"
-              required
-            />
-            <dso-hint
-              >The key the pipelines use to send the code to HCL AppScan, the security scanner. The
-              Application Security team gives it to you.</dso-hint
-            >
-            <dso-error>{{ errorText(productForm.controls.appScanKeyId) }}</dso-error>
-          </dso-form-field>
-        </ng-template>
       }
       @case (1) {
         <h2>Which pipeline does {{ productName() }} need?</h2>
@@ -190,6 +170,25 @@
         @if (checked() && !pipeline()) {
           <p class="choice-error">Choose a pipeline to continue</p>
         }
+        <div class="fields">
+          <dso-form-field
+            help="Jenkins label expressions for the pipelines this request creates. A run uses the one chosen in its AGENT_NAME parameter."
+          >
+            <dso-label>Jenkins agents</dso-label>
+            <input
+              dsoInput
+              class="mono"
+              [formControl]="agents"
+              placeholder="linux-agent"
+              autocomplete="off"
+            />
+            <dso-hint
+              >Separated by commas; the first is the default. Left empty: the service
+              template's</dso-hint
+            >
+            <dso-error>{{ errorText(agents) }}</dso-error>
+          </dso-form-field>
+        </div>
         @if (pipeline(); as chosen) {
           <div class="prepare">
             <h3>Have these at hand for the next step</h3>
@@ -341,6 +340,8 @@
           }
           <dt>Pipeline</dt>
           <dd>{{ pipelineLabel() }}</dd>
+          <dt>Jenkins agents</dt>
+          <dd class="mono">{{ agents.value || 'the service template' }}</dd>
         </dl>
         <h3 class="review-heading">What happens to each service</h3>
         <ul class="review-list">

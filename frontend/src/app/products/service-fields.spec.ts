@@ -2,9 +2,23 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
 import { BuildTool, DeployTarget, GlobalSettings, Service } from '../core/models';
 import { wholeNumber } from '@common/shared/form-controls';
-import { buttonOf, checkboxOf, choose, fieldOf, optionsOf, selectOf, text } from '@common/testing/dom';
+import {
+  buttonOf,
+  checkboxOf,
+  choose,
+  fieldOf,
+  optionsOf,
+  selectOf,
+  text,
+} from '@common/testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
-import { ServiceForm, createServiceForm } from './product-form-model';
+import {
+  BADGE_TWICE,
+  ONE_APPLICATION,
+  ServiceForm,
+  createNexusIqApplicationForm,
+  createServiceForm,
+} from './product-form-model';
 import { ServiceFields } from './service-fields';
 
 describe('ServiceFields', () => {
@@ -126,6 +140,25 @@ describe('ServiceFields', () => {
       45_000,
     );
 
+    it.each(combinations)(
+      'explains the fields of every section of a %s service on %s with a help text',
+      async (tool, target) => {
+        await render(everything(tool, target));
+        const own = (element: Element) =>
+          !element.closest('dso-test-jobs-fields, dso-urban-code-fields, dso-golden-fix-fields');
+
+        for (const label of railLabels()) {
+          await open(label);
+          const fields = [...pane().querySelectorAll('dso-form-field, dso-checkbox')].filter(own);
+          const unexplained = fields
+            .filter((field) => !field.querySelector('dso-help'))
+            .map((field) => text(field.querySelector('label')));
+          expect(unexplained, label).toEqual([]);
+        }
+      },
+      45_000,
+    );
+
     it('works without the global settings and reveals the first section with a problem', async () => {
       await render(service(), null);
       for (const label of railLabels()) {
@@ -172,6 +205,11 @@ describe('ServiceFields', () => {
       expect(field('Artifact path').textContent).toContain(
         'The artifact the Nexus snapshot delivery uploads',
       );
+
+      form.controls.deployment.controls.nexusDeliveryDisabled.setValue(true);
+      await fixture.whenStable();
+
+      expect(field('Artifact path').textContent).toContain('What the build produces');
     });
   });
 
@@ -197,6 +235,41 @@ describe('ServiceFields', () => {
       expect(railLabels()).toContain('OpenShift targets');
       expect(railLabels()).not.toContain('SSH targets');
     });
+
+    it('hides the fields only the Nexus delivery uses while it is disabled and shows them again', async () => {
+      await render(service({ build: { ...service().build, tool: 'MAVEN' } }));
+      await open('Deployment');
+      const labels = () =>
+        [...pane().querySelectorAll('dso-form-field dso-label')].map((label) => text(label));
+      const box = () => checkboxOf(pane(), 'Disable Nexus Delivery');
+
+      expect(text(box().closest('dso-checkbox'))).toContain('deploy.vm.rd.nexusDeliveryEnabled');
+      expect(labels()).toContain('Artifact name');
+      expect(pane().querySelector('.block h4')?.textContent).toBe('Delivery');
+
+      box().click();
+      await fixture.whenStable();
+
+      expect(form.controls.deployment.controls.nexusDeliveryDisabled.value).toBe(true);
+      expect(labels()).not.toContain('Artifact name');
+      expect(labels()).not.toContain('Built file name');
+      expect(pane().querySelector('.block')).toBeNull();
+
+      form.controls.deployment.controls.target.setValue('OPENSHIFT');
+      await fixture.whenStable();
+
+      expect(text(box().closest('dso-checkbox'))).toContain(
+        'deploy.openshift.rd.nexusDeliveryEnabled',
+      );
+      await open('OpenShift targets');
+
+      expect(text(pane())).not.toContain('Image build');
+      expect(fieldOf(pane(), 'Image pushed to')).toBeNull();
+      expect(fieldOf(pane(), 'Image pulled from')).not.toBeNull();
+      expect(text(pane())).toContain(
+        'the deployment uses this build tag, and is skipped without one',
+      );
+    });
   });
 
   describe('Flutter', () => {
@@ -210,45 +283,145 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
 
       expect(hints()).toContain('delivery.group');
+
+      form.controls.deployment.controls.nexusDeliveryDisabled.setValue(true);
+      await fixture.whenStable();
+
+      expect(hints()).not.toContain('delivery.group');
     });
   });
 
   describe('Nexus IQ', () => {
     const items = () => [...pane().querySelectorAll<HTMLElement>('.list-item')];
 
-    it('lists the applications, adds and removes them and names the global server', async () => {
+    it('holds one application, offered again once it is removed, and names the global server', async () => {
       await render();
       await open('Nexus IQ');
-      expect(hints()).toContain('Left empty: https://tools.bbh.com/IQ · tools.nexusIq.serverUrl');
-      expect(hints()).toContain('Left empty: nexusiqP · tools.nexusIq.credentialsId');
+      expect(hints()).toContain(
+        'Library default: https://tools.bbh.com/IQ · tools.nexusIq.serverUrl',
+      );
+      expect(hints()).toContain('Library default: nexusiqP · tools.nexusIq.credentialsId');
       expect(items().map((item) => item.querySelector('strong')?.textContent)).toEqual([
         'cert-gui',
       ]);
+      expect(buttonOf(pane(), 'Add application')).toBeUndefined();
+
+      pane().querySelector<HTMLButtonElement>('button[aria-label="Remove cert-gui"]')!.click();
+      await fixture.whenStable();
+
+      expect(text(pane().querySelector('.list-empty'))).toBe(
+        'No application: the Nexus IQ stage passes with no findings. A Nexus IQ pipeline requires an application.',
+      );
 
       buttonOf(pane(), 'Add application').click();
       await fixture.whenStable();
-      expect(items().length).toBe(2);
-      expect(form.controls.nexusIqApplications.at(1).controls.stage.value).toBe('build');
-      expect(form.dirty).toBe(true);
 
-      for (const label of ['Remove the new application', 'Remove cert-gui']) {
-        pane().querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click();
-        await fixture.whenStable();
-      }
-      expect(pane().querySelector('.list-empty')?.textContent).toContain('skips the Nexus IQ scan');
+      expect(items().length).toBe(1);
+      expect(form.controls.nexusIqApplications.at(0).controls.stage.value).toBe('build');
+      expect(form.dirty).toBe(true);
+    });
+
+    it('shows both applications of a legacy service until one is removed', async () => {
+      await render();
+      form.controls.nexusIqApplications.push(
+        createNexusIqApplicationForm({ application: 'cert-api', scanPatterns: ['*.jar'] }),
+      );
+      await open('Nexus IQ');
+
+      expect(items().length).toBe(2);
+      expect(text(pane().querySelector('.list-error'))).toBe(ONE_APPLICATION);
+
+      fixture.componentRef.setInput('submitted', true);
+      await fixture.whenStable();
+
+      expect(page().querySelector('.rail-item.active.problem')).not.toBeNull();
+
+      pane().querySelector<HTMLButtonElement>('button[aria-label="Remove cert-api"]')!.click();
+      await fixture.whenStable();
+
+      expect(pane().querySelector('.list-error')).toBeNull();
+      expect(form.controls.nexusIqApplications.valid).toBe(true);
     });
   });
 
   describe('servers and credentials of the service', () => {
-    it('name the global value a blank field falls back to', async () => {
+    it('name the Library default, and whether the value still equals it', async () => {
       await render();
       await open('SonarQube');
-      expect(hints()).toContain('Left empty: https://tools.bbh.com/sonar · tools.sonar.serverUrl');
+      expect(hints()).toContain(
+        'Library default: https://tools.bbh.com/sonar · tools.sonar.serverUrl',
+      );
+
+      form.controls.sonar.controls.installationName.setValue('SonarQube');
+      await fixture.whenStable();
+
+      expect(hints()).toContain('Library default · tools.sonar.installationName');
       await open('Monitoring');
-      expect(hints()).toContain('Left empty: influxdb-token · influx.credentialsId');
+      expect(hints()).toContain('Library default: influxdb-token · influx.credentialsId');
+      await open('SSH targets');
+      expect(hints()).toContain('Library default: taadmin · user');
+    });
+
+    it('hints at nothing without the global settings', async () => {
+      await render(service(), null);
+      await open('SonarQube');
+
+      expect(hints()).toContain('tools.sonar.serverUrl');
+    });
+  });
+
+  describe('AppScan', () => {
+    it('asks for the key of the service with the application and moves the scan name into the advanced settings', async () => {
+      await render();
       await open('AppScan SAST and DAST');
-      expect(text(fieldOf(pane(), 'Secret text credentials ID'))).toContain(
-        "The AppScan API key secret; left empty: the product's",
+      const main = [...pane().querySelectorAll(':scope > .form-fields > dso-fields dso-label')].map(
+        (label) => text(label),
+      );
+
+      expect(main).toEqual([
+        'AppScan application ID',
+        'AppScan API key ID',
+        'API key secret credentials ID',
+        'Included folders',
+        'Excluded folders',
+      ]);
+      expect(text(fieldOf(pane(), 'API key secret credentials ID'))).toContain(
+        'Left empty: the key ID · asoc.token',
+      );
+      expect(text(fieldOf(pane(), 'SAST scan name'))).toContain('sast.scanName');
+      expect(fieldOf(pane(), 'SAST scan name')?.closest('dso-advanced-settings')).not.toBeNull();
+    });
+  });
+
+  describe('SonarQube', () => {
+    it('shows the project, its credentials and badge settings first and refuses both badge values', async () => {
+      await render();
+      await open('SonarQube');
+      const main = [...pane().querySelectorAll(':scope > .form-fields > dso-fields dso-label')].map(
+        (label) => text(label),
+      );
+
+      expect(main).toEqual([
+        'Project name',
+        'Project key',
+        'Jenkins installation',
+        'Token credentials ID',
+        'Badge token',
+        'Badge token credentials ID',
+      ]);
+      expect(text(fieldOf(pane(), 'Project key'))).toContain(
+        'Left empty, the scan still runs without dashboard link, issue counts and badges',
+      );
+      expect(
+        text(checkboxOf(pane(), 'Badges in the Jenkins build description').closest('dso-checkbox')),
+      ).toContain('tools.sonar.addBadges');
+
+      form.controls.sonar.patchValue({ badgeToken: 'sqb_1', badgeCredentialsId: 'sonar-badge' });
+      form.controls.sonar.markAllAsTouched();
+      await fixture.whenStable();
+
+      expect(text(fieldOf(pane(), 'Badge token credentials ID')?.querySelector('dso-error'))).toBe(
+        BADGE_TWICE,
       );
     });
   });

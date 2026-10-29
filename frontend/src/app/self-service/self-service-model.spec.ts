@@ -52,7 +52,7 @@ describe('self-service model', () => {
       'Whether each service runs on virtual machines or on OpenShift',
     );
     expect(preparation('NEXUS_IQ')).toEqual([
-      'The name of each service and its AppScan application ID, from the Application Security team',
+      'The name of each service, its AppScan application ID and the AppScan API key ID, from the Application Security team',
       'Whether each service is built with Gradle or Maven; a developer of the service knows',
       'The Nexus IQ application and the Bitbucket repository of each service',
     ]);
@@ -254,7 +254,13 @@ describe('self-service model', () => {
   });
 
   it('names the OpenShift project, Nexus IQ application and repository of a service by the template', () => {
-    const defaults = { tool: null, target: null, template: TEMPLATE, productCode: 'PAY' };
+    const defaults = {
+      tool: null,
+      target: null,
+      template: TEMPLATE,
+      productCode: 'PAY',
+      settings: null,
+    };
 
     expect(namedDefaults(defaults, 'Gateway')).toEqual({
       openShiftProject: 'pay-gateway',
@@ -386,6 +392,7 @@ describe('self-service model', () => {
       appName: 'gui',
       artifactName: 'gui.jar',
       baseArtifactName: null,
+      nexusDeliveryDisabled: false,
     });
     expect(request.openShiftTargets.RD?.projectDeployment).toBe('cert-gui-rd');
     expect(request.sshTargets).toEqual({});
@@ -399,6 +406,7 @@ describe('self-service model', () => {
         appName: 'gui',
         artifactName: 'gui.jar',
         baseArtifactName: null,
+        nexusDeliveryDisabled: false,
       },
     });
     const request = serviceRequest(
@@ -413,6 +421,7 @@ describe('self-service model', () => {
       appName: null,
       artifactName: null,
       baseArtifactName: null,
+      nexusDeliveryDisabled: false,
     });
     expect(request.openShiftTargets).toEqual({});
     expect(request.build).toEqual(stored.build);
@@ -471,6 +480,7 @@ describe('self-service model', () => {
         appName: 'gui',
         artifactName: 'gui.jar',
         baseArtifactName: null,
+        nexusDeliveryDisabled: false,
       },
     });
     const request = serviceRequest(
@@ -510,10 +520,13 @@ describe('self-service model', () => {
         code: 'PAYMENTSHUB',
         ownerTeam: ' ',
         contactEmail: 'pay@bbh.com',
-        appScanKeyId: ' bbh_key ',
       },
       [added()],
       'SECURITY',
+      null,
+      null,
+      null,
+      ['linux-agent'],
     );
 
     expect(request).toEqual(
@@ -524,10 +537,11 @@ describe('self-service model', () => {
         ownerTeam: null,
         contactEmail: 'pay@bbh.com',
         departmentId: 5,
-        appScan: { keyId: 'bbh_key', secretCredentialsId: null },
         version: null,
+        agentLabels: ['linux-agent'],
       }),
     );
+    expect(request).not.toHaveProperty('appScan');
     expect(request.services.map((entry) => entry.name)).toEqual(['gateway']);
     expect(request.services[0].build.command.tasks).toEqual([]);
     expect(
@@ -547,8 +561,8 @@ describe('self-service model', () => {
         description: 'TLS certificate scanner',
         ownerTeam: 'Technology Architecture',
         departmentId: 3,
-        appScan: stored.appScan,
         version: 3,
+        agentLabels: [],
       }),
     );
     expect(request.services.map((entry) => [entry.id, entry.name])).toEqual([

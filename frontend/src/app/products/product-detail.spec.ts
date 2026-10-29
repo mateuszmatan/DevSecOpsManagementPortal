@@ -99,14 +99,9 @@ describe('ProductDetail', () => {
     expect(page().querySelector('.facts')?.textContent).not.toContain('Business Service');
   });
 
-  it('shows the AppScan key ID only of a product that has one', async () => {
+  it('shows no product-wide AppScan key, as each service has its own', async () => {
     await load();
-    expect(text(page().querySelector('.technical'))).toBe(
-      'Security scans sign in to HCL AppScan with the API key ID bbh_key',
-    );
 
-    fixture.componentInstance['product'].set(product({ appScan: null, services: [] }));
-    fixture.detectChanges();
     expect(page().querySelector('.page-header')?.textContent).not.toContain('AppScan');
   });
 

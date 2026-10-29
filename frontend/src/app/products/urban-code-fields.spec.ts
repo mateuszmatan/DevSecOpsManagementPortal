@@ -39,7 +39,7 @@ describe('UrbanCodeFields', () => {
     expect(applications()[0].querySelector('strong')?.textContent).toBe('CERT-GUI');
     expect(page().querySelector('.count')?.textContent).toBe('1');
     expect(applications()[0].querySelectorAll('.component').length).toBe(1);
-    expect(text(page())).toContain('Left empty: deploy.bbh.com · deploy.vm.dod.siteName');
+    expect(text(page())).toContain('Library default: deploy.bbh.com · deploy.vm.dod.siteName');
   });
 
   it('adds and removes applications and components', async () => {

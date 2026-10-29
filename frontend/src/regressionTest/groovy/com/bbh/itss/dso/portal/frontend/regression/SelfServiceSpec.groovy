@@ -34,14 +34,12 @@ class SelfServiceSpec extends EditorSpecification {
                 .hasText(['Product', 'Pipeline', 'Services', 'Review', 'Next steps'] as String[])
         assertThat(currentStep()).hasText('Product')
         assertThat(radio(step(), 'A new product')).hasAttribute('aria-checked', 'true')
-        hasErrors(step(), ['Business Service'  : 'Required',
-                           'Product name'      : 'This product is already in the portal: choose "A product in the portal" above',
-                           'AppScan API key ID': 'Required'])
+        hasErrors(step(), ['Business Service': 'Required',
+                           'Product name'    : 'This product is already in the portal: choose "A product in the portal" above'])
 
         when:
         choose(step(), 'Business Service', 'Custody')
-        fillIn(step(), ['Product name': 'Trade Archive', 'Owner team': 'Custody Technology',
-                        'AppScan API key ID': APP_SCAN_KEY])
+        fillIn(step(), ['Product name': 'Trade Archive', 'Owner team': 'Custody Technology'])
 
         then:
         assertThat(hintOf(step(), 'Product name')).hasText('Its product code will be TRADEARCHIVE, the short name used in job names')
@@ -55,9 +53,11 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(step().locator('h2')).hasText('Which pipeline does Trade Archive need?')
         assertThat(step().locator('.tile-label')).hasText([SAST, OSA, 'Security', 'Full'] as String[])
         assertThat(choiceError()).hasText('Choose a pipeline to continue')
+        assertThat(input(step(), 'Jenkins agents')).hasValue('linux-agent')
 
         when:
         radio(step(), 'Security').click()
+        input(step(), 'Jenkins agents').fill('linux-agent, docker')
         button('Next: Services', true).click()
         button('Next: Review', true).click()
 
@@ -72,6 +72,13 @@ class SelfServiceSpec extends EditorSpecification {
         choose(dialog(), 'Build tool', 'Maven')
         showDialogSection('AppScan SAST and DAST')
         input(dialog(), 'AppScan application ID').fill(API_APPLICATION)
+
+        then:
+        assertThat(dialogButton('Add service')).isDisabled()
+        assertThat(dialog().locator('.missing')).hasText('Complete these sections first: AppScan SAST and DAST.')
+
+        when:
+        input(dialog(), 'AppScan API key ID').fill(APP_SCAN_KEY)
         dialogButton('Add service').click()
         addService('archive-gui', GUI_APPLICATION, 'Gradle')
 
@@ -87,6 +94,7 @@ class SelfServiceSpec extends EditorSpecification {
         assertThat(currentStep()).hasText('Review')
         assertThat(review('Business Service')).hasText('Custody')
         assertThat(review('Pipeline')).hasText('Security')
+        assertThat(review('Jenkins agents')).hasText('linux-agent, docker')
 
         when:
         button('Create the pipelines', true).click()
@@ -100,9 +108,11 @@ class SelfServiceSpec extends EditorSpecification {
             name == 'Trade Archive'
             departmentId == 4
             ownerTeam == 'Custody Technology'
-            appScan.keyId == SelfServiceSpec.APP_SCAN_KEY
+            agentLabels == ['linux-agent', 'docker']
+            !containsKey('appScan')
             services*.name == ['archive-api', 'archive-gui']
             services*.appScan*.applicationId == [SelfServiceSpec.API_APPLICATION, SelfServiceSpec.GUI_APPLICATION]
+            services*.appScan*.keyId == [SelfServiceSpec.APP_SCAN_KEY, SelfServiceSpec.APP_SCAN_KEY]
             services*.build*.tool == ['MAVEN', 'GRADLE']
         }
         store.services*.pipelines*.type == [['SECURITY'], ['SECURITY']]

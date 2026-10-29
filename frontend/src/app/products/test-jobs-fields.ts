@@ -9,6 +9,7 @@ import {
   check,
   choice,
   count,
+  defaulted,
   formRevision,
   line,
   mono,
@@ -111,7 +112,11 @@ export class TestJobsFields {
     return [
       count('maxParallel', 'Parallel jobs, every stage', 'tests.maxParallel', 4, {
         min: 1,
-        hint: `left empty: global default${value === undefined ? '' : ` ${value}`}`,
+        ...defaulted(
+          value,
+          this.form().controls.tests.controls.maxParallel.value,
+          'left empty: global default',
+        ),
       }),
     ];
   }

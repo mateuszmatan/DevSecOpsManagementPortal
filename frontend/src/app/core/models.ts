@@ -116,6 +116,7 @@ export interface DeploymentSettings {
   appName: string | null;
   artifactName: string | null;
   baseArtifactName: string | null;
+  nexusDeliveryDisabled: boolean;
 }
 
 export interface UrbanCodeSettings {
@@ -197,6 +198,8 @@ export interface OpenShiftTarget {
 
 export interface AppScanSettings {
   applicationId: string;
+  keyId: string;
+  scanName: string | null;
   includedDirs: string[];
   excludedDirs: string[];
   compile: boolean;
@@ -218,6 +221,7 @@ export interface SonarSettings {
   credentialsId: string | null;
   authTokenCredentialsId: string | null;
   badgeToken: string | null;
+  badgeCredentialsId: string | null;
   addBadges: boolean;
   fullBadges: boolean;
   command: ToolCommand;
@@ -334,11 +338,6 @@ export interface ServiceRequest extends ServiceSettings {
   description: string | null;
 }
 
-export interface AppScanAccount {
-  keyId: string;
-  secretCredentialsId: string | null;
-}
-
 export interface ProductFields {
   code: string;
   name: string;
@@ -346,7 +345,6 @@ export interface ProductFields {
   ownerTeam: string | null;
   contactEmail: string | null;
   departmentId: number | null;
-  appScan: AppScanAccount | null;
 }
 
 export interface Product extends ProductFields {
@@ -359,6 +357,7 @@ export interface Product extends ProductFields {
 export interface ProductRequest extends ProductFields {
   version: number | null;
   services: ServiceRequest[];
+  agentLabels?: string[] | null;
 }
 
 export interface ImportedService {

@@ -145,20 +145,21 @@ export class UrbanCodeFields {
   protected settingsFields(): Field[] {
     const deployment = this.defaults()?.deployment;
     const global = 'left empty: the global default';
+    const c = this.form().controls.urbanCode.controls;
     return [
       line(
         'siteName',
         'Site name',
         'deploy.vm.dod.siteName',
         6,
-        defaulted(deployment?.urbanCodeSiteName, global),
+        defaulted(deployment?.urbanCodeSiteName, c.siteName.value, global),
       ),
       line(
         'deployProcess',
         'Deployment process',
         'deploy.vm.dod.deployProcess',
         6,
-        defaulted(deployment?.urbanCodeDeployProcess, global),
+        defaulted(deployment?.urbanCodeDeployProcess, c.deployProcess.value, global),
       ),
       ...SWITCHES,
       ...TEXTS,

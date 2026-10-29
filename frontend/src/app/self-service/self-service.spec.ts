@@ -117,7 +117,6 @@ describe('SelfService', () => {
     wizard()['productForm'].patchValue({
       departmentId: 5,
       name: 'Trade Archive',
-      appScanKeyId: 'bbh_key',
     });
     await new Promise((resolve) => setTimeout(resolve, 350));
     http.expectOne('/api/products/code-suggestion?name=Trade%20Archive').flush({ code: 'TA' });
@@ -137,7 +136,14 @@ describe('SelfService', () => {
 
     await next();
 
-    expect(review()).toEqual(['Product', 'Business Service', 'Owner team', 'Contact e-mail', 'Pipeline']);
+    expect(review()).toEqual([
+      'Product',
+      'Business Service',
+      'Owner team',
+      'Contact e-mail',
+      'Pipeline',
+      'Jenkins agents',
+    ]);
     expect(entries()).toEqual([
       'archive-api · New · Added with a SAST pipeline and its own key. Built with Gradle.',
     ]);
@@ -345,7 +351,7 @@ describe('SelfService', () => {
     await click(rows()[1], 'Undo');
     await next();
 
-    expect(review()).toEqual(['Product', 'Business Service', 'Pipeline']);
+    expect(review()).toEqual(['Product', 'Business Service', 'Pipeline', 'Jenkins agents']);
     expect(entries()).toEqual([
       'gui · Removed · Deleted, with its pipelines and their keys.',
       'api · Gets a Security pipeline with its own key; nothing else changes.',
@@ -542,34 +548,39 @@ describe('SelfService', () => {
     expect(fieldOf(page(), 'AppScan API key ID')).toBeNull();
   });
 
-  it('asks for the AppScan key of a product in the portal that has none and sends it', async () => {
-    await chooseProduct(3, product({ appScan: null, services: [] }), []);
-
-    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('dso-hint'))).toBe(
-      'The key the pipelines use to send the code to HCL AppScan, the security scanner. The Application Security team gives it to you.',
-    );
-
+  it('asks for the Jenkins agents of the pipelines it creates, starting with those of the template', async () => {
+    await chooseProduct(3, product({ services: [] }), []);
     await next();
 
-    expect(wizard()['step']()).toBe(0);
-    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('dso-error'))).toBe(
-      'Required',
+    expect(fieldOf(page(), 'Jenkins agents')?.querySelector('input')?.value).toBe('linux-agent');
+
+    wizard()['agents'].setValue(`linux-agent, ${'x'.repeat(101)}`);
+    await next();
+
+    expect(wizard()['step']()).toBe(1);
+    expect(text(fieldOf(page(), 'Jenkins agents')?.querySelector('dso-error'))).toBe(
+      `At most 100 characters per label: ${'x'.repeat(101)}`,
     );
 
-    wizard()['productForm'].controls.appScanKeyId.setValue(' bbh_new ');
-    await next();
+    wizard()['agents'].setValue(' docker-agent, linux-agent ');
     wizard()['pipeline'].set('SAST');
     await next();
-    wizard()['services'].set([added]);
+    wizard()['services'].set([
+      { ...added, serviceRequest: { ...service(), id: null, name: 'archive-api' } },
+    ]);
     await next();
+
+    expect(review()).toContain('Jenkins agents');
+
     await next();
 
     const request = http.expectOne({ method: 'PUT', url: '/api/products/1?pipelineType=SAST' });
-    expect(request.request.body.appScan).toEqual({ keyId: 'bbh_new', secretCredentialsId: null });
+    expect(request.request.body.agentLabels).toEqual(['docker-agent', 'linux-agent']);
+    expect(request.request.body.appScan).toBeUndefined();
     expect(request.request.body.services.map((service: { name: string }) => service.name)).toEqual([
       'archive-api',
     ]);
-    expect(request.request.body.services[0].build.sourceDir).toBe('app');
+    expect(request.request.body.services[0].appScan.keyId).toBe('bbh_key');
     request.flush(product());
     http.expectOne('/api/products/1/pipelines').flush([]);
     await fixture.whenStable();

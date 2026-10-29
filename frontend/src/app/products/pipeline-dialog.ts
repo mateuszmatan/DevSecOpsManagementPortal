@@ -117,8 +117,9 @@ export class PipelineDialog {
       mono('agentLabels', 'Jenkins agents', '', 12, {
         placeholder: 'linux-agent, linux && docker',
         hint:
-          'The machines the pipeline runs on: Jenkins agent labels or label expressions, separated by ' +
-          'commas. The pipeline runs on an agent that matches one of them. `agentNames`',
+          'The machines the pipeline can run on: Jenkins agent labels or label expressions, separated ' +
+          'by commas. A run uses the one chosen in its AGENT_NAME parameter; the first is the default. ' +
+          '`agentNames`',
       }),
       {
         ...job(

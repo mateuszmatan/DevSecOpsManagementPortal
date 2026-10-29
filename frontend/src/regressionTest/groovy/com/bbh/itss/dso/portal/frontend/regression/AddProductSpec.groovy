@@ -13,6 +13,7 @@ class AddProductSpec extends EditorSpecification {
     static final String GUI_APPLICATION = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31'
     static final String API_APPLICATION = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b32'
     static final String TAKEN_APPLICATION = '209f44ac-dd06-4ca0-884e-d944904f8020'
+    static final String APP_SCAN_KEY = 'bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15'
 
     def "a new product starts from its department and name, and its code follows the name until the code is typed"() {
         when:
@@ -70,13 +71,14 @@ class AddProductSpec extends EditorSpecification {
         when:
         input(productFields(), 'Code').clear()
         input(productFields(), 'Code').pressSequentially('cert-2')
-        fillIn(productFields(), ['Name'         : 'CertScanner Next', 'Owner team': 'Technology Architecture',
-                                 'Description'  : 'The next generation of the certificate scanner',
-                                 'Contact e-mail': 'ta-team@bbh.com', 'Secret text credentials ID': 'hcl-app-scan-account',
-                                 'API key ID'   : 'bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15'])
+        fillIn(productFields(), ['Name'          : 'CertScanner Next', 'Owner team': 'Technology Architecture',
+                                 'Description'   : 'The next generation of the certificate scanner',
+                                 'Contact e-mail': 'ta-team@bbh.com', 'Jenkins agents': 'linux-agent, docker'])
 
         then:
         assertThat(input(productFields(), 'Code')).hasValue('CERT-2')
+        assertThat(button('Add service', true)).isDisabled()
+        assertThat(page.locator('.blocked')).hasText('Complete the required settings of the services below to add another service.')
 
         when:
         fillIn(openService(), ['Service name': 'gui', 'Description': 'Angular front end'])
@@ -84,7 +86,8 @@ class AddProductSpec extends EditorSpecification {
         fillIn(openService(), ['JDK path'     : '/usr/lib/jvm/java-21-openjdk', 'Artifact path': 'build/libs/*.jar',
                                'Gradle tasks': 'clean build'])
         showSection('AppScan SAST and DAST')
-        input(openService(), 'AppScan application ID').fill(GUI_APPLICATION)
+        fillIn(openService(), ['AppScan application ID'       : GUI_APPLICATION, 'AppScan API key ID': APP_SCAN_KEY,
+                               'API key secret credentials ID': 'hcl-app-scan-account'])
         showSection('UrbanCode Deploy')
 
         then:
@@ -98,6 +101,7 @@ class AddProductSpec extends EditorSpecification {
         then:
         assertThat(serviceNames()).hasText(['gui', 'new-service'] as String[])
         assertThat(openService().locator('.service-name')).hasText('new-service')
+        assertThat(button('Add service', true)).isDisabled()
 
         when:
         input(openService(), 'Service name').fill('backend-api')

@@ -78,8 +78,17 @@ export function chips(text: string): string {
     .replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
-export function defaulted(value: string | null | undefined, missing = ''): More {
-  return { placeholder: value ?? '', hint: value ? `left empty: ${value}` : missing };
+export function defaulted(
+  value: string | number | null | undefined,
+  current: unknown,
+  missing = '',
+): More {
+  const shown = String(value ?? '');
+  if (!shown) {
+    return { placeholder: '', hint: missing };
+  }
+  const same = String(current ?? '').trim() === shown;
+  return { placeholder: shown, hint: same ? 'Library default' : `Library default: ${shown}` };
 }
 
 export function formRevision(form: () => AbstractControl): Signal<number> {

@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { Dialog } from '@angular/cdk/dialog';
+import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -38,6 +39,7 @@ import { Field, Fields, area, choice, line, mono } from '@common/shared/fields';
 import {
   VALUES_NOT_ACCEPTED,
   addItem,
+  joinWords,
   moveItem,
   removeItem,
   revalidateAll,
@@ -46,6 +48,7 @@ import { CountedPipe } from '@common/shared/formatting';
 import { buildDefaults } from '../shared/service-template';
 import { LoadError } from '@common/ui/load-error';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
+import { MENU_AT_END } from '@common/ui/menu';
 import { PANEL } from '@common/ui/panel';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/build-options';
 import {
@@ -58,45 +61,58 @@ import {
   firstServiceWithProblem,
   followToolDefaults,
   patchProduct,
+  prefillNewService,
   toProductRequest,
 } from './product-form-model';
+import { ConfigImport, ImportNotes, ImportedConfig } from './config-import';
 import { GeneratedKeys } from './generated-keys';
 import { NamedProduct, ProductNameDialog, ProductNameDialogData } from './product-name-dialog';
 import { ServiceFields } from './service-fields';
 import { DepartmentsApi } from '@common/core/api';
 import { FieldProblem } from '@common/core/models';
 
-const productFields = (departments: readonly Department[]): Field[] => [
+const productFields = (departments: readonly Department[], creating: boolean): Field[] => [
   mono('code', 'Code', '', 3, {
     placeholder: 'CERT',
     maxLength: 50,
     hint: 'The short unique name used in job names and reports, for example PAYHUB',
+    help: 'At most 50 characters, starting with a letter. No other product may use it.',
     error: "Start with a letter; use A-Z, 0-9, '-' or '_'",
   }),
-  line('name', 'Name', '', 5, { placeholder: 'CertScanner' }),
+  line('name', 'Name', '', 5, {
+    placeholder: 'CertScanner',
+    help: 'The full name of the product as the portal shows it.',
+  }),
   choice(
     'departmentId',
     'Business Service',
     departments.map(({ id, name }) => ({ value: id, label: name })),
     '',
     4,
+    { help: 'The business service the product belongs to. The portal groups products by it.' },
   ),
-  line('ownerTeam', 'Owner team', '', 4, { placeholder: 'Security Engineering' }),
+  line('ownerTeam', 'Owner team', '', 4, {
+    placeholder: 'Security Engineering',
+    help: 'The team responsible for the product and its pipelines.',
+  }),
   area('description', 'Description', '', 8, {
     placeholder: 'What the product does and who uses it',
+    help: 'Shown on the product page of the portal.',
   }),
-  line('contactEmail', 'Contact e-mail', '', 4, { placeholder: 'team@bbh.com', type: 'email' }),
-];
-
-const APP_SCAN_ACCOUNT: Field[] = [
-  mono('keyId', 'API key ID', 'asoc.keyId', 6, {
-    placeholder: 'bbh_...',
-    hint: 'The ID of the API key AppScan on Cloud gave the product; it starts with bbh_',
+  line('contactEmail', 'Contact e-mail', '', 4, {
+    placeholder: 'team@bbh.com',
+    type: 'email',
+    help: 'The address to contact about the product, preferably a team mailbox.',
   }),
-  mono('secretCredentialsId', 'Secret text credentials ID', 'asoc.token', 6, {
-    placeholder: 'hcl-app-scan-account',
-    hint: "The Jenkins credential that holds the key's secret",
-  }),
+  ...(creating
+    ? [
+        mono('agentLabels', 'Jenkins agents', 'pipeline.agentNames', 8, {
+          placeholder: 'linux-agent',
+          hint: 'separated by commas; the first is the default',
+          help: 'Jenkins label expressions for the pipelines created with the product. A run uses the one chosen in its AGENT_NAME parameter.',
+        }),
+      ]
+    : []),
 ];
 
 @Component({
@@ -104,12 +120,17 @@ const APP_SCAN_ACCOUNT: Field[] = [
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    CdkMenu,
+    CdkMenuItem,
+    CdkMenuTrigger,
     PANEL,
     DsoLoading,
     DsoSpinner,
     LoadError,
     CountedPipe,
     Fields,
+    ConfigImport,
+    ImportNotes,
     ServiceFields,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -144,11 +165,16 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected readonly unmatchedProblems = signal<FieldProblem[]>([]);
   protected readonly submitted = signal(false);
   protected readonly expanded = signal<number | null>(null);
+  protected readonly imported = signal<ImportedConfig | null>(null);
 
   private readonly formEvent = toSignal(this.form.events);
   protected readonly services = computed<ServiceForm[]>(() => {
     this.formEvent();
     return [...this.form.controls.services.controls];
+  });
+  protected readonly blocked = computed(() => {
+    this.formEvent();
+    return this.form.controls.services.invalid;
   });
 
   private readonly pipelineCounts = signal(new Map<number, number>());
@@ -156,8 +182,10 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   private saved = false;
   private generatedCode = '';
 
-  protected readonly productFields = computed(() => productFields(this.departments()));
-  protected readonly appScanFields = APP_SCAN_ACCOUNT;
+  protected readonly productFields = computed(() =>
+    productFields(this.departments(), this.id() === undefined),
+  );
+  protected readonly menuAtEnd = MENU_AT_END;
   protected readonly section = ADMIN;
   protected readonly tab = ADMIN_PRODUCTS;
   protected readonly adminProduct = adminProduct;
@@ -209,6 +237,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
               code: started.code,
               departmentId: started.departmentId,
             });
+            this.form.controls.agentLabels.enable();
+            this.form.controls.agentLabels.setValue(joinWords(started.template?.agentLabels, ', '));
             this.addService();
             this.form.markAsPristine();
             this.followNameWithCode();
@@ -274,14 +304,27 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       build: { buildPath: build.artifact, command: { tasks: build.tasks } },
       delivery: { tasks: template?.deliveryTasks ?? '' },
     });
-    followToolDefaults(service, template, this.destroyRef);
-    addItem(this.form.controls.services, this.withFullPipeline(service));
-    this.expanded.set(this.form.controls.services.length - 1);
+    this.addNew(service);
+  }
+
+  protected importService(imported: ImportedConfig): void {
+    const service = createServiceForm(
+      { ...imported.service, id: null },
+      this.settings()?.serviceDefaults,
+    );
+    service.controls.name.setValue(imported.name);
+    this.addNew(service);
+    const agents = this.form.controls.agentLabels;
+    if (imported.agentLabels?.length && agents.enabled && !agents.dirty) {
+      agents.setValue(joinWords(imported.agentLabels, ', '));
+    }
+    this.imported.set(imported);
   }
 
   protected duplicate(index: number): void {
     const services = this.form.controls.services;
-    addItem(services, this.withFullPipeline(duplicateService(services.at(index))), index + 1);
+    const copy = duplicateService(services.at(index), this.settings());
+    addItem(services, this.withFullPipeline(copy), index + 1);
     this.expanded.set(index + 1);
   }
 
@@ -394,6 +437,18 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       },
       { injector: this.injector },
     );
+  }
+
+  private addNew(service: ServiceForm): void {
+    const services = this.form.controls.services;
+    prefillNewService(
+      service,
+      this.settings(),
+      services.controls.map((other) => other.controls.appScan.getRawValue()),
+    );
+    followToolDefaults(service, this.template(), this.destroyRef);
+    addItem(services, this.withFullPipeline(service));
+    this.expanded.set(services.length - 1);
   }
 
   private withFullPipeline(service: ServiceForm): ServiceForm {
