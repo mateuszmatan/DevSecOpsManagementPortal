@@ -104,7 +104,12 @@
                   @for (scanner of scanners; track scanner) {
                     <div class="limits-row">
                       <div class="scanner">
-                        <strong>{{ scannerInfo[scanner].label }}</strong>
+                        <strong
+                          >{{ scannerInfo[scanner].label }}
+                          <dso-help
+                            [label]="scannerInfo[scanner].label"
+                            [text]="scannerInfo[scanner].help"
+                        /></strong>
                         <span class="muted">{{ scannerInfo[scanner].tool }}</span>
                         <code
                           >{{ scannerInfo[scanner].path }}.maxCritical | maxHigh | maxMedium</code
@@ -121,7 +126,12 @@
               @case ('releaseGate') {
                 <div class="form-fields gate">
                   <div class="span-12">
-                    <span class="field-label">Scans the gate checks</span>
+                    <span class="field-label"
+                      >Scans the gate checks
+                      <dso-help
+                        label="Scans the gate checks"
+                        text="The scans whose findings the gate compares with their security limits. A scan above its limits also turns its own stage orange, which blocks the release whether or not the scan is selected here."
+                    /></span>
                     <dso-toggle-group
                       [formControl]="form.controls.releaseGate.controls.scanners"
                       multiple

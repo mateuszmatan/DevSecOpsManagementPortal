@@ -10,6 +10,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.FlutterSettings.NONE
 import static com.bbh.itss.dso.portal.domain.shared.Sections.problems
 import static com.bbh.itss.dso.portal.domain.shared.Sections.reported
 import static com.bbh.itss.dso.portal.domain.shared.Sections.written
+import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 
 class FlutterSettingsSpec extends Specification {
 
@@ -57,7 +58,7 @@ class FlutterSettingsSpec extends Specification {
 
     def "the Flutter build stage needs its modules, a test module and all three credentials"() {
         when:
-        def problems = reported { NONE.validate(it, OPENSHIFT) }
+        def problems = reported { NONE.validate(it, deployment(target: OPENSHIFT)) }
 
         then:
         problems*.field == ['modules', 'testModules', 'signingPasswordCredentialsId', 'prodLicenseCredentialsId',
@@ -67,13 +68,13 @@ class FlutterSettingsSpec extends Specification {
                 ['is required: the Flutter build stage reads this Jenkins credential'] * 3
     }
 
-    def "a Flutter build delivered to VMs needs the Nexus coordinates of its delivery"() {
+    def "a Flutter build delivered to VMs needs the Nexus coordinates of its delivery, unless it skips the delivery"() {
         when:
         def problems = reported {
             FlutterSettings.builder().platform(APK).modules(['app']).testModules(['app'])
                     .signingPasswordCredentialsId('sign').prodLicenseCredentialsId('prod')
                     .testLicenseCredentialsId('test').deliveryGroup(group).deliveryArtifact(artifact)
-                    .deliveryPlugin(plugin).build().validate(it, target)
+                    .deliveryPlugin(plugin).build().validate(it, deployment(target: target, nexusDeliveryDisabled: disabled))
         }
 
         then:
@@ -81,11 +82,12 @@ class FlutterSettingsSpec extends Specification {
         problems*.message.every { it == 'is required for Flutter on VMs: the Nexus delivery uploads the build under it' }
 
         where:
-        target    | group     | artifact | plugin   || missing
-        VM        | null      | null     | null     || ['deliveryGroup', 'deliveryArtifact', 'deliveryPlugin']
-        VM        | 'com.bbh' | ' '      | 'plugin' || ['deliveryArtifact']
-        VM        | 'com.bbh' | 'app'    | 'plugin' || []
-        OPENSHIFT | null      | null     | null     || []
+        target    | disabled | group     | artifact | plugin   || missing
+        VM        | false    | null      | null     | null     || ['deliveryGroup', 'deliveryArtifact', 'deliveryPlugin']
+        VM        | false    | 'com.bbh' | ' '      | 'plugin' || ['deliveryArtifact']
+        VM        | false    | 'com.bbh' | 'app'    | 'plugin' || []
+        VM        | true     | null      | null     | null     || []
+        OPENSHIFT | false    | null      | null     | null     || []
     }
 
     def "module lists that do not fit their column are refused"() {
@@ -96,7 +98,7 @@ class FlutterSettingsSpec extends Specification {
                 .prodLicenseCredentialsId('prod').testLicenseCredentialsId('test').build()
 
         when:
-        def problems = reported { settings.validate(it, OPENSHIFT) }
+        def problems = reported { settings.validate(it, deployment(target: OPENSHIFT)) }
 
         then:
         problems*.field == ['modules', 'testModules', 'testSubmodules']
@@ -105,7 +107,7 @@ class FlutterSettingsSpec extends Specification {
 
     def "missing credential #missing is reported"() {
         expect:
-        problems { settings.validate(it, VM) } == missing
+        problems { settings.validate(it, deployment()) } == missing
 
         where:
         settings                             || missing

@@ -16,6 +16,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
 import static com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy.INHERITED;
 import static com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget.NONE;
+import static com.bbh.itss.dso.portal.domain.catalog.Region.QC;
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD;
 import static com.bbh.itss.dso.portal.domain.catalog.TestSettings.DEFAULTS;
 import static java.util.Collections.unmodifiableMap;
@@ -80,6 +81,10 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
             openShiftTargets.forEach((region, target) ->
                     config.set("deploy.openshift." + region.configKey(), target.toConfig()));
         }
+        if (deployment.nexusDeliveryDisabled()) {
+            String rd = deployment.target() == VM ? "deploy.vm.rd" : "deploy.openshift.rd";
+            config.set(rd + ".nexusDeliveryEnabled", false);
+        }
         if (tool == FLUTTER) {
             flutter.writeTo(config);
         }
@@ -87,13 +92,14 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
 
     public void validate(ValidationProblems problems) {
         BuildTool tool = build.tool();
-        DeployTarget target = deployment.target();
         build.validate(problems.at("build"));
         unitTests.validate(problems.at("unitTests"), tool);
         deployment.validate(problems.at("deployment"));
-        if (target == OPENSHIFT) {
-            openShiftTargets.getOrDefault(RD, NONE)
-                    .validateImageBuild(problems.at("openShiftTargets[" + RD.name() + "]"));
+        if (deployment.target() == OPENSHIFT) {
+            if (deployment.deliversToNexus(OPENSHIFT)) {
+                openShiftTargets.getOrDefault(RD, NONE).validateImageBuild(problems.at(targetPath(RD)));
+            }
+            openShiftTargets.getOrDefault(QC, NONE).validateQcDeploy(problems.at(targetPath(QC)));
         }
         appScan.validate(problems.at("appScan"), tool);
         sonar.validate(problems.at("sonar"), tool);
@@ -101,9 +107,9 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         scm.validate(problems.at("scm"));
         goldenFix.validate(problems.at("goldenFix"));
         if (tool == FLUTTER) {
-            flutter.validate(problems.at("flutter"), target);
+            flutter.validate(problems.at("flutter"), deployment);
         }
-        if (target == VM && tool == MAVEN) {
+        if (deployment.deliversToNexus(VM) && tool == MAVEN) {
             problems.require("build.buildPath", build.buildPath(),
                     "is required for Maven on VMs: the Nexus delivery publishes the artifact found there");
             problems.require("delivery.tasks", delivery.tasks(),
@@ -116,6 +122,10 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         for (int i = 0; i < urbanCodeApplications.size(); i++) {
             urbanCodeApplications.get(i).validate(problems.at("urbanCodeApplications[" + i + "]"));
         }
+    }
+
+    private static String targetPath(Region region) {
+        return "openShiftTargets[" + region.name() + "]";
     }
 
     private static <T> Map<Region, T> withoutEmpty(Map<Region, T> targets, Predicate<T> empty) {

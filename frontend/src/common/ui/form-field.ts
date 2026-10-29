@@ -8,18 +8,22 @@ import {
   computed,
   contentChild,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { AbstractControl, FormGroupDirective, NgControl, NgForm, Validators } from '@angular/forms';
 import { Subscription, merge } from 'rxjs';
+import { DsoHelp } from './help';
 
 let nextId = 0;
 
 export const uniqueId = (prefix: string) => `${prefix}-${nextId++}`;
 
+/** A form control. The first one takes the initial focus of a dialog, ahead of the help icons before it. */
 @Directive({
   selector: 'input[dsoInput], textarea[dsoInput], select[dsoInput]',
   host: {
+    cdkFocusInitial: '',
     '[id]': 'id',
     '[class.form-control]': '!select',
     '[class.form-control-sm]': '!select',
@@ -117,6 +121,7 @@ export class DsoSuffix {}
 
 @Component({
   selector: 'dso-form-field',
+  imports: [DsoHelp],
   changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     class: 'dso-form-field',
@@ -124,12 +129,17 @@ export class DsoSuffix {}
     '[class.has-suffix]': '!!suffix()',
   },
   template: `
-    <label class="form-label" [attr.for]="input()?.id">
-      <ng-content select="dso-label" />
-      @if (input()?.required()) {
-        <span class="required-marker" aria-hidden="true"></span>
+    <div class="form-label-row">
+      <label class="form-label" [attr.for]="input()?.id">
+        <ng-content select="dso-label" />
+        @if (input()?.required()) {
+          <span class="required-marker" aria-hidden="true"></span>
+        }
+      </label>
+      @if (help(); as text) {
+        <dso-help [text]="text" />
       }
-    </label>
+    </div>
     <div class="control">
       <ng-content />
       <ng-content select="[dsoSuffix]" />
@@ -146,6 +156,8 @@ export class DsoSuffix {}
   `,
 })
 export class DsoFormField {
+  readonly help = input<string | null | undefined>();
+
   protected readonly input = contentChild(DsoInput);
   protected readonly suffix = contentChild(DsoSuffix);
   readonly hintId = uniqueId('dso-hint');

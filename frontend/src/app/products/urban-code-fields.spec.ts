@@ -32,14 +32,14 @@ describe('UrbanCodeFields', () => {
     await fixture.whenStable();
   }
 
-  it('shows the stored application with its component and the global defaults', async () => {
+  it('shows the stored application with its component and the Library defaults', async () => {
     await render();
 
     expect(applications().length).toBe(1);
     expect(applications()[0].querySelector('strong')?.textContent).toBe('CERT-GUI');
     expect(page().querySelector('.count')?.textContent).toBe('1');
     expect(applications()[0].querySelectorAll('.component').length).toBe(1);
-    expect(text(page())).toContain('Left empty: deploy.bbh.com · deploy.vm.dod.siteName');
+    expect(text(page())).toContain('Library default: deploy.bbh.com · deploy.vm.dod.siteName');
   });
 
   it('adds and removes applications and components', async () => {
@@ -72,7 +72,7 @@ describe('UrbanCodeFields', () => {
     await click(buttonOf(applications()[1], 'Remove'));
     await click(buttonOf(applications()[0], 'Remove'));
     expect(page().querySelector('.list-empty')?.textContent).toContain('No application');
-    expect(text(page())).toContain('Left empty: the global default');
+    expect(text(page())).toContain('Left empty: the Library default');
   });
 
   it('lets an application override the settings above and sends its component details', async () => {

@@ -2,8 +2,10 @@ package com.bbh.itss.dso.portal.frontend.regression
 
 import com.bbh.itss.dso.portal.frontend.support.ProductStore
 import com.microsoft.playwright.Locator
+import com.microsoft.playwright.options.FilePayload
 import groovy.json.JsonSlurper
 
+import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.LINK
@@ -13,6 +15,7 @@ class AddProductSpec extends EditorSpecification {
     static final String GUI_APPLICATION = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31'
     static final String API_APPLICATION = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b32'
     static final String TAKEN_APPLICATION = '209f44ac-dd06-4ca0-884e-d944904f8020'
+    static final String APP_SCAN_KEY = 'bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15'
 
     def "a new product starts from its department and name, and its code follows the name until the code is typed"() {
         when:
@@ -70,21 +73,29 @@ class AddProductSpec extends EditorSpecification {
         when:
         input(productFields(), 'Code').clear()
         input(productFields(), 'Code').pressSequentially('cert-2')
-        fillIn(productFields(), ['Name'         : 'CertScanner Next', 'Owner team': 'Technology Architecture',
-                                 'Description'  : 'The next generation of the certificate scanner',
-                                 'Contact e-mail': 'ta-team@bbh.com', 'Secret text credentials ID': 'hcl-app-scan-account',
-                                 'API key ID'   : 'bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15'])
+        fillIn(productFields(), ['Name'          : 'CertScanner Next', 'Owner team': 'Technology Architecture',
+                                 'Description'   : 'The next generation of the certificate scanner',
+                                 'Contact e-mail': 'ta-team@bbh.com', 'Jenkins agents': 'linux-agent, docker'])
 
         then:
         assertThat(input(productFields(), 'Code')).hasValue('CERT-2')
+        assertThat(button('Add service', true)).isEnabled()
+        assertThat(page.locator('.blocked')).hasCount(0)
 
         when:
         fillIn(openService(), ['Service name': 'gui', 'Description': 'Angular front end'])
+
+        then:
+        assertThat(button('Add service', true)).isDisabled()
+        assertThat(page.locator('.blocked')).containsText('Complete these services before adding another: gui (')
+
+        when:
         showSection('Build')
         fillIn(openService(), ['JDK path'     : '/usr/lib/jvm/java-21-openjdk', 'Artifact path': 'build/libs/*.jar',
                                'Gradle tasks': 'clean build'])
         showSection('AppScan SAST and DAST')
-        input(openService(), 'AppScan application ID').fill(GUI_APPLICATION)
+        fillIn(openService(), ['AppScan application ID'       : GUI_APPLICATION, 'AppScan API key ID': APP_SCAN_KEY,
+                               'API key secret credentials ID': 'hcl-app-scan-account'])
         showSection('UrbanCode Deploy')
 
         then:
@@ -98,6 +109,7 @@ class AddProductSpec extends EditorSpecification {
         then:
         assertThat(serviceNames()).hasText(['gui', 'new-service'] as String[])
         assertThat(openService().locator('.service-name')).hasText('new-service')
+        assertThat(button('Add service', true)).isEnabled()
 
         when:
         input(openService(), 'Service name').fill('backend-api')
@@ -147,6 +159,33 @@ class AddProductSpec extends EditorSpecification {
         }
         assertThat(page.locator('.service .tag.new')).hasCount(2)
         ownErrors().findAll { !it.contains('400') }.isEmpty()
+    }
+
+    def "a new product fills its blank service from a config.yaml"() {
+        given:
+        def ledger = (fixture('product-2.json') as Map).services.find { it.name == 'ledger' }
+        api.respond('POST', '/api/service-configs/import', [
+                services: [[name: 'ledger-api', service: ledger, notes: []]],
+                pipeline: [type: 'FULL', agentLabels: ['docker-agent']],
+                notes   : []])
+        startProduct('Ledger Next')
+
+        expect:
+        assertThat(serviceNames()).hasText(['new-service'] as String[])
+        assertThat(button('Import config.yaml', true)).isEnabled()
+        assertThat(page.locator('.blocked')).hasCount(0)
+
+        when:
+        page.locator('.service-actions input[type=file]')
+                .setInputFiles(new FilePayload('config.yaml', 'application/yaml', 'projects: {}'.getBytes('UTF-8')))
+
+        then:
+        assertThat(serviceNames()).hasText(['ledger-api'] as String[])
+        assertThat(openService().locator('.tag.new')).hasText('New')
+        assertThat(input(productFields(), 'Jenkins agents')).hasValue('docker-agent')
+        assertThat(page.locator('dso-import-notes')).containsText('ledger-api was imported from config.yaml.')
+        api.requests('POST', '/api/service-configs/import').size() == 1
+        ownErrors().isEmpty()
     }
 
     static Object expected(String name) {

@@ -9,6 +9,7 @@ import {
   Validators,
 } from '@angular/forms';
 import {
+  AppScanSettings,
   BitbucketAuthType,
   BitbucketType,
   BuildTool,
@@ -16,6 +17,7 @@ import {
   FlutterPlatform,
   FlutterSettings,
   GlobalGoldenFixPolicy,
+  GlobalSettings,
   GoldenFixPolicy,
   NexusIqApplication,
   OpenShiftTarget,
@@ -43,6 +45,7 @@ import {
   POWERSHELL_PATH,
   Sent,
   applyFieldProblems,
+  commaItems,
   eachItem,
   filled,
   fitsColumn,
@@ -68,7 +71,9 @@ import {
   words,
 } from '@common/shared/form-controls';
 import { pairwise, startWith } from 'rxjs';
+import { agentLabels } from '../shared/build-options';
 import { buildDefaults } from '../shared/service-template';
+import { applyLibraryDefaults, withoutUntouchedDefaults } from './library-defaults';
 
 export const SERVICE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 export const UUID =
@@ -83,6 +88,7 @@ export const UCD_ENVIRONMENT = /^[A-Za-z0-9_-]{1,20}$/;
 export const MODULE_FOLDER = /^[A-Za-z0-9._/-]{1,100}$/;
 export const NEXUS_STAGE = /^[a-z-]*$/;
 export const BADGE_TOKEN = /^[A-Za-z0-9_]*$/;
+export const SCAN_NAME = /^[A-Za-z0-9._-]*$/;
 export const SCANNER_VERSION = /^[0-9A-Za-z._-]*$/;
 export const TIME_ZONE = /^[A-Za-z0-9_+/-]*$/;
 export const REMEDIATION_TYPE = /^[a-z-]{1,100}$/;
@@ -303,12 +309,7 @@ function toUrbanCodeApplication(form: UrbanCodeApplicationForm): UrbanCodeApplic
 
 export function createNexusIqApplicationForm(application?: Partial<NexusIqApplication> | null) {
   return new FormGroup({
-    application: text(
-      application?.application,
-      filled,
-      max(200),
-      unique('application', SAME_APPLICATION),
-    ),
+    application: text(application?.application, filled, max(200)),
     scanPatterns: text(
       joinLines(application?.scanPatterns),
       filled,
@@ -347,6 +348,25 @@ export const OPENSHIFT_RD_REQUIRED: readonly (keyof OpenShiftTarget)[] = [
   'nexusAuthFile',
 ];
 
+export const OPENSHIFT_IMAGE_DELIVERY: readonly (keyof OpenShiftTarget)[] = [
+  'projectBuild',
+  'buildConfigPath',
+  'dockerFilePath',
+  'buildContext',
+  'addFile',
+  'dockerRepoPush',
+  'certDir',
+  'nexusAuthFile',
+  'internalDockerUrl',
+];
+
+export const OPENSHIFT_QC_REQUIRED: readonly (keyof OpenShiftTarget)[] = [
+  'projectDeployment',
+  'deployConfigPath',
+  'dockerRepoPull',
+  'configPath',
+];
+
 export function createOpenShiftTargetForm(
   t?: Partial<OpenShiftTarget> | null,
   required: readonly (keyof OpenShiftTarget)[] = [],
@@ -382,6 +402,23 @@ export function createOpenShiftTargetForm(
 }
 
 export type OpenShiftTargetForm = ReturnType<typeof createOpenShiftTargetForm>;
+
+export const inUse = (target: Record<string, unknown>) =>
+  Object.values(target).some((value) =>
+    typeof value === 'boolean' ? value : !!optional(String(value ?? '')),
+  );
+
+function requireOnceUsed(target: OpenShiftTargetForm): void {
+  OPENSHIFT_QC_REQUIRED.forEach((key) =>
+    requireWhile(
+      target.controls[key],
+      () =>
+        inUse(target.getRawValue()) &&
+        (key !== 'configPath' || !target.controls.skipConfigDeploy.value),
+      target,
+    ),
+  );
+}
 
 export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, complete = false) {
   const required = complete ? [filled] : [];
@@ -484,8 +521,10 @@ export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | n
 
 export type ServiceGoldenFixForm = ReturnType<typeof createServiceGoldenFixForm>;
 
-export function toServiceGoldenFixPolicy(form: ServiceGoldenFixForm): GoldenFixPolicy {
-  const { inherit, enabled, ...overrides } = form.getRawValue();
+export function toServiceGoldenFixPolicy(
+  value: ReturnType<ServiceGoldenFixForm['getRawValue']>,
+): GoldenFixPolicy {
+  const { inherit, enabled, ...overrides } = value;
   return { enabled, ...(inherit ? NO_GOLDEN_FIX_OVERRIDES : toGoldenFixOverrides(overrides)) };
 }
 
@@ -550,6 +589,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       appName: shellSafe(s?.deployment?.appName, 200),
       artifactName: shellSafe(s?.deployment?.artifactName, 300),
       baseArtifactName: shellSafe(s?.deployment?.baseArtifactName, 300),
+      nexusDeliveryDisabled: flag(s?.deployment?.nexusDeliveryDisabled),
     }),
     delivery: createToolCommandForm(s?.delivery),
     urbanCode: new FormGroup({
@@ -576,6 +616,8 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     }),
     appScan: new FormGroup({
       applicationId: text(s?.appScan?.applicationId, filled, Validators.pattern(UUID)),
+      keyId: text(s?.appScan?.keyId, filled, max(200)),
+      scanName: text(s?.appScan?.scanName, Validators.pattern(SCAN_NAME), max(200)),
       includedDirs: folders(s?.appScan?.includedDirs),
       excludedDirs: folders(s?.appScan?.excludedDirs),
       compile: flag(s?.appScan?.compile, true),
@@ -595,7 +637,17 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       installationName: text(s?.sonar?.installationName, max(200)),
       credentialsId: text(s?.sonar?.credentialsId, max(200)),
       authTokenCredentialsId: text(s?.sonar?.authTokenCredentialsId, max(200)),
-      badgeToken: text(s?.sonar?.badgeToken, Validators.pattern(BADGE_TOKEN), max(200)),
+      badgeToken: text(
+        s?.sonar?.badgeToken,
+        Validators.pattern(BADGE_TOKEN),
+        max(200),
+        notWith('badgeCredentialsId', BADGE_TWICE),
+      ),
+      badgeCredentialsId: text(
+        s?.sonar?.badgeCredentialsId,
+        max(200),
+        notWith('badgeToken', BADGE_TWICE),
+      ),
       addBadges: flag(s?.sonar?.addBadges),
       fullBadges: flag(s?.sonar?.fullBadges),
       command: createToolCommandForm(s?.sonar?.command),
@@ -607,6 +659,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     }),
     nexusIqApplications: new FormArray(
       (s?.nexusIqApplications ?? []).map(createNexusIqApplicationForm),
+      (control) => ((control as FormArray).length > 1 ? { rule: ONE_APPLICATION } : null),
     ),
     scm: new FormGroup({
       repositoryUrl: url(s?.scm?.repositoryUrl),
@@ -667,17 +720,27 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   const { build, deployment, appScan, unitTests, sonar, scm, flutter } = form.controls;
   const tool = build.controls.tool;
   const target = deployment.controls.target;
+  const deliveryDisabled = deployment.controls.nexusDeliveryDisabled;
   const openShift = () => target.value === 'OPENSHIFT';
   const vm = () => target.value === 'VM';
   build.controls.command.controls.tasks.addValidators(filled);
   form.controls.delivery.controls.tasks.addValidators(filled);
+  requireOnceUsed(form.controls.openShiftTargets.controls.QC);
+  revalidateOnChange(sonar.controls.badgeToken, sonar.controls.badgeCredentialsId);
+  revalidateOnChange(sonar.controls.badgeCredentialsId, sonar.controls.badgeToken);
   requireWhile(
     build.controls.javaPath,
     () => tool.value === 'FLUTTER' || !build.controls.autoSetup.value,
     tool,
     build.controls.autoSetup,
   );
-  requireWhile(build.controls.buildPath, () => vm() && tool.value === 'MAVEN', tool, target);
+  requireWhile(
+    build.controls.buildPath,
+    () => vm() && tool.value === 'MAVEN' && !deliveryDisabled.value,
+    tool,
+    target,
+    deliveryDisabled,
+  );
   [
     flutter.controls.deliveryGroup,
     flutter.controls.deliveryArtifact,
@@ -717,6 +780,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   const sources: AbstractControl[] = [
     tool,
     target,
+    deliveryDisabled,
     appScan.controls.compile,
     appScan.controls.dastEnabled,
   ];
@@ -764,7 +828,9 @@ function commandEntered(command: ToolCommandForm): boolean {
 
 function syncApplicability(form: ServiceForm): void {
   const tool = form.controls.build.controls.tool.value;
-  const vm = form.controls.deployment.controls.target.value === 'VM';
+  const deployment = form.controls.deployment.controls;
+  const vm = deployment.target.value === 'VM';
+  const delivers = !deployment.nexusDeliveryDisabled.value;
   const flutter = tool === 'FLUTTER';
   setEnabled(form.controls.build.controls.command, !flutter);
   if (flutter) {
@@ -778,7 +844,7 @@ function syncApplicability(form: ServiceForm): void {
   [appScan.dastTargetUrl, appScan.dastPresenceId].forEach((control) =>
     setEnabled(control, appScan.dastEnabled.value),
   );
-  setEnabled(form.controls.delivery, vm && tool === 'MAVEN');
+  setEnabled(form.controls.delivery, vm && tool === 'MAVEN' && delivers);
   toolCommands(form).forEach((command) =>
     setEnabled(command.controls.mavenHome, command.enabled && tool === 'MAVEN'),
   );
@@ -787,6 +853,16 @@ function syncApplicability(form: ServiceForm): void {
   setEnabled(form.controls.sshTargets, vm);
   setEnabled(form.controls.openShiftTargets, !vm);
   setEnabled(form.controls.flutter, flutter);
+  [deployment.artifactName, deployment.baseArtifactName].forEach((control) =>
+    setEnabled(control, delivers),
+  );
+  OPENSHIFT_IMAGE_DELIVERY.forEach((key) =>
+    setEnabled(form.controls.openShiftTargets.controls.RD.controls[key], !vm && delivers),
+  );
+  const f = form.controls.flutter.controls;
+  [f.deliveryGroup, f.deliveryArtifact, f.deliveryPlugin].forEach((control) =>
+    setEnabled(control, flutter && delivers),
+  );
 }
 
 function toolCommands(form: ServiceForm): ToolCommandForm[] {
@@ -805,7 +881,8 @@ function kept(control: FormControl<string>): string | null {
 }
 
 export const SAME_NAME = 'another service of this product already uses this name';
-export const SAME_APPLICATION = 'another application of this service already uses this name';
+export const ONE_APPLICATION = 'A service scans one Nexus IQ application: remove the others';
+export const BADGE_TWICE = 'Give the badge token or its credentials ID, not both';
 export const PRODUCT_WIDE_FIELD = /^services\[\d+]\.name$/;
 
 const valueAt = (item: AbstractControl, key: string) =>
@@ -828,13 +905,16 @@ function unique(key: string, message: string): ValidatorFn {
   };
 }
 
+function notWith(other: string, message: string): ValidatorFn {
+  return (control) =>
+    optional(String(control.value ?? '')) &&
+    optional(String(control.parent?.get(other)?.value ?? ''))
+      ? { rule: message }
+      : null;
+}
+
 function revalidateUniqueValues(form: ProductForm): void {
-  form.controls.services.controls.forEach((service) => {
-    revalidate(service.controls.name);
-    service.controls.nexusIqApplications.controls.forEach((application) =>
-      revalidate(application.controls.application),
-    );
-  });
+  form.controls.services.controls.forEach((service) => revalidate(service.controls.name));
 }
 
 function revalidate(control: AbstractControl): void {
@@ -859,12 +939,10 @@ export function createProductForm() {
     ownerTeam: text('', max(200)),
     contactEmail: text('', Validators.email, max(320)),
     departmentId: new FormControl<number | null>(null, Validators.required),
-    appScan: new FormGroup({
-      keyId: text('', filled, max(200)),
-      secretCredentialsId: text('', max(200)),
-    }),
+    agentLabels: agentLabels('', false),
     services: new FormArray<ServiceForm>([]),
   });
+  form.controls.agentLabels.disable();
   upperCaseAsTyped(form.controls.code);
   form.valueChanges.subscribe(() => revalidateUniqueValues(form));
   return form;
@@ -889,24 +967,51 @@ export function patchProduct(form: ProductForm, product: Product): void {
     ownerTeam: product.ownerTeam ?? '',
     contactEmail: product.contactEmail ?? '',
     departmentId: product.departmentId,
-    appScan: {
-      keyId: product.appScan?.keyId ?? '',
-      secretCredentialsId: product.appScan?.secretCredentialsId ?? '',
-    },
   });
   form.controls.services.clear();
   product.services.forEach((service) => form.controls.services.push(createServiceForm(service)));
 }
 
-export function duplicateService(source: ServiceForm): ServiceForm {
-  const copy = createServiceForm(toServiceRequest(source));
-  copy.patchValue({
+/** The settings of a service without what identifies it: its name, projects, scan name and deployment name. */
+export function copiedService(source: Partial<ServiceRequest>): Partial<ServiceRequest> {
+  return {
+    ...source,
     id: null,
-    name: `${source.controls.name.value}-copy`.slice(0, 100),
-    sonar: { projectKey: '' },
-    metrics: { influxProject: '' },
-  });
+    name: '',
+    appScan: source.appScan && { ...source.appScan, scanName: null },
+    deployment: source.deployment && { ...source.deployment, appName: null },
+    sonar: source.sonar && { ...source.sonar, projectKey: null, projectName: null },
+    metrics: source.metrics && { ...source.metrics, influxProject: null },
+    nexusIqApplications: source.nexusIqApplications?.map((app) => ({ ...app, application: '' })),
+  };
+}
+
+export function duplicateService(
+  source: ServiceForm,
+  settings: GlobalSettings | null,
+): ServiceForm {
+  const copy = createServiceForm(copiedService(toServiceRequest(source)));
+  copy.controls.name.setValue(`${source.controls.name.value}-copy`.slice(0, 100));
+  applyLibraryDefaults(copy, settings);
   return copy;
+}
+
+export type AppScanKey = Partial<Pick<AppScanSettings, 'keyId' | 'secretCredentialsId'>>;
+
+export function prefillNewService(
+  form: ServiceForm,
+  settings: GlobalSettings | null,
+  keys: readonly AppScanKey[],
+): void {
+  const { keyId, secretCredentialsId } = form.controls.appScan.controls;
+  const key = keys.find((candidate) => optional(candidate.keyId));
+  if (key && !optional(keyId.value)) {
+    keyId.setValue(key.keyId!.trim());
+    if (!optional(secretCredentialsId.value)) {
+      secretCredentialsId.setValue(key.secretCredentialsId ?? '');
+    }
+  }
+  applyLibraryDefaults(form, settings);
 }
 
 export function toProductRequest(form: ProductForm, version: number | null): ProductRequest {
@@ -918,18 +1023,15 @@ export function toProductRequest(form: ProductForm, version: number | null): Pro
     ownerTeam: optional(value.ownerTeam),
     contactEmail: optional(value.contactEmail),
     departmentId: value.departmentId,
-    appScan: {
-      keyId: value.appScan.keyId.trim(),
-      secretCredentialsId: optional(value.appScan.secretCredentialsId),
-    },
     version,
     services: form.controls.services.controls.map(toServiceRequest),
+    ...(form.controls.agentLabels.enabled ? { agentLabels: commaItems(value.agentLabels) } : {}),
   };
 }
 
 export function toServiceRequest(form: ServiceForm): ServiceRequest {
   const c = form.controls;
-  const v = form.getRawValue();
+  const v = withoutUntouchedDefaults(form);
   const tool = v.build.tool;
   const flutter = tool === 'FLUTTER';
   const vm = v.deployment.target === 'VM';
@@ -981,7 +1083,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       ...sent(v.scm),
       reviewers: words(v.scm.reviewers),
     },
-    goldenFix: toServiceGoldenFixPolicy(c.goldenFix),
+    goldenFix: toServiceGoldenFixPolicy(v.goldenFix),
     metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
   };
@@ -1100,6 +1202,7 @@ export function visibleSectionsForPipeline(
 
   switch (pipeline) {
     case 'NEXUS_IQ':
+      allowed.add('appScan');
       allowed.add('nexusIq');
       allowed.add('scm');
       allowed.add('goldenFix');
@@ -1137,5 +1240,8 @@ export function firstInvalidSection(
   form: ServiceForm,
   pipeline?: PipelineType | null,
 ): ServiceSectionId | null {
-  return visibleSectionsForPipeline(form, pipeline).find((section) => sectionInvalid(form, section))?.id ?? null;
+  return (
+    visibleSectionsForPipeline(form, pipeline).find((section) => sectionInvalid(form, section))
+      ?.id ?? null
+  );
 }

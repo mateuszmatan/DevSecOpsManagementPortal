@@ -1,25 +1,73 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { FormGroup } from '@angular/forms';
 import { GoldenFixPolicy } from '../core/models';
-import { Field, Fields, area, check, choice, count, line, mono, tristate } from '@common/shared/fields';
+import {
+  Field,
+  Fields,
+  area,
+  check,
+  choice,
+  count,
+  defaulted,
+  line,
+  mono,
+  tristate,
+} from '@common/shared/fields';
 import {
   GOLDEN_FIX_ECOSYSTEMS,
   GlobalGoldenFixForm,
   ServiceGoldenFixForm,
 } from './product-form-model';
 
-const command = (key: string, tool: string, span = 6): Field =>
+const command = (key: string, tool: string, manifest: string, fallback: string, span = 6): Field =>
   mono(`verify${key}Command`, `${tool} command`, `verify.commands.${key.toLowerCase()}`, span, {
     placeholder: 'Library default',
     hint: `What builds the fix in ${tool} projects`,
+    help: `Runs with bash in the folder of each changed ${manifest}; exit code 0 passes the check. When no command is set, the library runs ${fallback}.`,
   });
 
 const COMMANDS: Field[] = [
-  command('Maven', 'Maven'),
-  command('Gradle', 'Gradle'),
-  command('Npm', 'npm', 4),
-  command('Pip', 'pip', 4),
-  command('Pub', 'pub', 4),
+  command('Maven', 'Maven', 'pom.xml', 'mvn -B -q -DskipTests compile'),
+  command(
+    'Gradle',
+    'Gradle',
+    'Gradle build, properties or version catalog file',
+    './gradlew --no-daemon --console=plain classes, or gradle without a wrapper',
+  ),
+  command(
+    'Npm',
+    'npm',
+    'package.json',
+    'npm ci --ignore-scripts, or npm install --ignore-scripts without a lock file',
+    4,
+  ),
+  command(
+    'Pip',
+    'pip',
+    'requirements, constraints or pyproject.toml file',
+    'python3 -m pip install --dry-run of that file or of the project',
+    4,
+  ),
+  command('Pub', 'pub', 'pubspec.yaml', 'flutter pub get, or dart pub get', 4),
 ];
+
+const DIRECT_ONLY =
+  'With direct dependencies only, GoldenFix leaves out the components Nexus IQ reports as transitive.';
+
+const VERIFY =
+  'When the build fails, GoldenFix lowers the proposed versions and builds again; when no set of versions builds, it opens no pull request.';
+
+/** A value as a hint shows it: lists, also one per line, joined by commas and flags as yes or no. */
+function shown(value: unknown): string {
+  const items = Array.isArray(value) ? value : typeof value === 'string' ? value.split('\n') : null;
+  if (items) {
+    return items
+      .map((item) => String(item).trim())
+      .filter(Boolean)
+      .join(', ');
+  }
+  return typeof value === 'boolean' ? (value ? 'yes' : 'no') : String(value ?? '');
+}
 
 @Component({
   selector: 'dso-golden-fix-fields',
@@ -30,7 +78,7 @@ const COMMANDS: Field[] = [
     <dso-fields [group]="g" [fields]="policyFields()" />
     <h5 class="sub-heading span-12">Verification build</h5>
     <dso-fields [group]="g" [fields]="verifyFields()" />
-    <dso-fields [group]="g" [fields]="commands" />
+    <dso-fields [group]="g" [fields]="commandFields()" />
     <h5 class="sub-heading span-12">Commits</h5>
     <dso-fields [group]="g" [fields]="commitFields()" />
   `,
@@ -45,10 +93,7 @@ export class GoldenFixFields {
   readonly inherited = input<GoldenFixPolicy | null>(null);
   readonly complete = input(false);
 
-  protected readonly commands = COMMANDS;
-
   protected policyFields(): Field[] {
-    const g = this.inherited();
     return [
       choice(
         'ecosystems',
@@ -58,49 +103,55 @@ export class GoldenFixFields {
         5,
         {
           multiple: true,
-          hint: this.explain('The kinds of dependencies GoldenFix upgrades', g?.ecosystems),
+          hint: this.explain('The kinds of dependencies GoldenFix upgrades', 'ecosystems'),
+          help: 'Findings in other ecosystems are left for manual fixes. pypi stands for Python packages and pub for Dart and Flutter packages.',
         },
       ),
       count('minThreatLevel', 'Minimum threat level', 'minThreatLevel', 3, {
         min: 0,
         max: 10,
         hint: this.explain(
-          'Only vulnerabilities Nexus IQ rates at least this high, from 0 to 10',
-          g?.minThreatLevel,
+          'Only components with a policy violation that Nexus IQ rates at least this high, from 0 to 10',
+          'minThreatLevel',
         ),
+        help: 'Waived violations do not count. 2 and above is moderate, 4 and above severe, 8 and above critical.',
       }),
       this.complete()
-        ? check('onlyDirectDependencies', 'Direct dependencies only', 'onlyDirectDependencies', 4)
+        ? check('onlyDirectDependencies', 'Direct dependencies only', 'onlyDirectDependencies', 4, {
+            help: DIRECT_ONLY,
+          })
         : choice(
             'onlyDirectDependencies',
             'Dependencies',
-            tristate('Global value', 'Direct dependencies only', 'Direct and transitive'),
+            tristate('Library default', 'Direct dependencies only', 'Direct and transitive'),
             'onlyDirectDependencies',
             4,
             {
               hint: this.explain(
                 'Direct ones are named by the service itself; transitive ones come with them',
-                g?.onlyDirectDependencies,
+                'onlyDirectDependencies',
               ),
+              help: DIRECT_ONLY,
             },
           ),
       area('goldenVersionTypes', 'Golden version types', 'goldenVersionTypes', 6, {
         mono: true,
         placeholder: 'recommended-non-breaking',
         hint: this.explain(
-          'The kinds of safe version Nexus IQ suggests, one per line, preferred first',
-          g?.goldenVersionTypes,
+          'The Nexus IQ remediation types that count as a Golden Version, one per line',
+          'goldenVersionTypes',
         ),
+        help: 'They do not change the version GoldenFix picks; a version of one of these types is labelled Nexus IQ Golden Version in the pull request.',
       }),
       area('excludeDirs', 'Excluded folders', 'excludeDirs', 6, {
         mono: true,
-        hint: this.explain('Folders GoldenFix leaves alone, one per line', g?.excludeDirs),
+        hint: this.explain('Folders GoldenFix leaves alone, one per line', 'excludeDirs'),
+        help: 'Folder names, matched at any depth, whose manifests GoldenFix does not change. A list replaces the library list of .git, node_modules, target, build and similar folders.',
       }),
     ];
   }
 
   protected verifyFields(): Field[] {
-    const g = this.inherited();
     return [
       this.complete()
         ? check(
@@ -108,65 +159,68 @@ export class GoldenFixFields {
             'Build the fix before opening the pull request',
             'verify.enabled',
             4,
+            { help: VERIFY },
           )
         : choice(
             'verifyEnabled',
             'Verification',
-            tristate('Global value', 'Build the fix first', 'Do not build it'),
+            tristate('Library default', 'Build the fix first', 'Do not build it'),
             'verify.enabled',
             4,
             {
               hint: this.explain(
                 'A build of the fixed service catches upgrades that break it',
-                g?.verifyEnabled,
+                'verifyEnabled',
               ),
+              help: VERIFY,
             },
           ),
       count('verifyMaxAttempts', 'Attempts', 'verify.maxAttempts', 4, {
         min: 1,
         hint: this.explain(
           'How many times GoldenFix may run the verification build',
-          g?.verifyMaxAttempts,
+          'verifyMaxAttempts',
         ),
+        help: 'After each failed build, every proposed version is lowered to the next lower one Nexus IQ offers; a dependency without one is dropped.',
       }),
       count('verifyTimeoutMinutes', 'Timeout (minutes)', 'verify.timeoutMinutes', 4, {
         min: 1,
-        hint: this.explain('How long one verification build may take', g?.verifyTimeoutMinutes),
+        hint: this.explain('How long one verification build may take', 'verifyTimeoutMinutes'),
+        help: 'The limit applies to each build command separately, one for each changed manifest folder.',
       }),
     ];
   }
 
   protected commitFields(): Field[] {
-    const g = this.inherited();
     return [
       line('commitAuthorName', 'Author name', 'commitAuthorName', 4, {
-        hint: this.explain('The name the pull request commits are made under', g?.commitAuthorName),
+        hint: this.explain('The name the pull request commits are made under', 'commitAuthorName'),
+        help: 'Git records it as the author and the committer of the GoldenFix commit.',
       }),
       line('commitAuthorEmail', 'Author e-mail', 'commitAuthorEmail', 5, {
-        hint: this.explain('The e-mail address of that author', g?.commitAuthorEmail),
+        hint: this.explain('The e-mail address of that author', 'commitAuthorEmail'),
+        help: 'It does not have to receive mail; when none is set, the library uses a no-reply address.',
       }),
       mono('timeZone', 'Time zone', 'timeZone', 3, {
         placeholder: 'Europe/Warsaw',
-        hint: this.explain('The time zone of the commit times', g?.timeZone),
+        hint: this.explain('The time zone of the time stamp in the pull request name', 'timeZone'),
+        help: 'The branch and the pull request are named GoldenFix-YYYYMMDDHHMM. Without a time zone, that of the Jenkins agent applies.',
         error: 'Must be a time zone ID such as Europe/Warsaw or UTC',
       }),
     ];
   }
 
-  private explain(
-    hint: string,
-    value: string | number | boolean | readonly string[] | null | undefined,
-  ): string {
+  protected commandFields(): Field[] {
+    return COMMANDS.map((field) => ({ ...field, hint: this.explain(field.hint!, field.key) }));
+  }
+
+  /** On a service, the hint also tells whether the field still holds the Library default. */
+  private explain(hint: string, key: string): string {
     if (this.complete()) {
       return hint;
     }
-    const text = Array.isArray(value)
-      ? value.join(', ')
-      : typeof value === 'boolean'
-        ? value
-          ? 'yes'
-          : 'no'
-        : (value ?? '');
-    return `${hint} · left empty: ${text === '' ? 'global value' : text}`;
+    const fallback = this.inherited()?.[key as keyof GoldenFixPolicy];
+    const current = shown((this.group() as FormGroup).get(key)?.value);
+    return `${hint} · ${defaulted(shown(fallback), current, 'left empty: the Library default').hint}`;
   }
 }

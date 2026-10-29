@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -46,9 +47,10 @@ import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { byDepartment } from '@common/departments/departments';
 import { jenkinsfile } from '../products/jenkinsfile';
 import { deploysToDv } from '../products/product-form-model';
-import { filled, max, text } from '@common/shared/form-controls';
+import { commaItems, filled, joinWords, max, text } from '@common/shared/form-controls';
 import { errorText } from '@common/shared/form-errors';
 import { counted } from '@common/shared/formatting';
+import { agentLabels } from '../shared/build-options';
 import { ChoiceTiles } from '../shared/choice-tiles';
 import { FORM_FIELD } from '@common/ui/form-field';
 import { DsoLoading } from '@common/ui/loading';
@@ -60,7 +62,6 @@ import {
   ProductMode,
   ServiceStart,
   WizardDefaults,
-  appScanAccount,
   deploys,
   fromService,
   jobName,
@@ -171,17 +172,24 @@ export class SelfService implements HasUnsavedChanges {
   protected readonly undeployable = computed(() =>
     this.pipeline() === 'FULL'
       ? this.kept()
-          .filter((service) => {
-            const settings =
-              service.serviceRequest ??
-              this.existing()?.services.find((stored) => stored.id === service.id);
-            return (
+          .filter(
+            (service) =>
               service.target === 'VM' &&
-              !settings?.urbanCodeApplications.some(({ environments }) => deploysToDv(environments))
-            );
-          })
+              !this.settingsOf(service)?.urbanCodeApplications.some(({ environments }) =>
+                deploysToDv(environments),
+              ),
+          )
           .map((service) => service.name)
       : [],
+  );
+  /** The services whose stored or changed settings lack the AppScan API key ID every pipeline signs in with. */
+  protected readonly keyless = computed(() =>
+    this.kept()
+      .filter((service) => {
+        const settings = this.settingsOf(service);
+        return settings && !settings.appScan.keyId?.trim();
+      })
+      .map((service) => service.name),
   );
   protected readonly existing = signal<Product | null>(null);
   protected readonly productError = signal<string | null>(null);
@@ -246,6 +254,7 @@ export class SelfService implements HasUnsavedChanges {
     target: this.serviceDefaults()?.deployTarget ?? null,
     template: this.template(),
     productCode: this.existing()?.code ?? this.code(),
+    settings: this.settings(),
   }));
 
   protected readonly productForm = new FormGroup({
@@ -256,9 +265,9 @@ export class SelfService implements HasUnsavedChanges {
     name: text('', filled, max(200), (control: AbstractControl) => this.nameInUse(control)),
     ownerTeam: text('', max(200)),
     contactEmail: text('', Validators.email, max(320)),
-    appScanKeyId: text('', filled, max(200)),
   });
   protected readonly productId = new FormControl<number | null>(null);
+  protected readonly agents = agentLabels('', false);
 
   private readonly typedName = toSignal(
     this.productForm.controls.name.valueChanges.pipe(map((name) => name.trim() || null)),
@@ -279,10 +288,6 @@ export class SelfService implements HasUnsavedChanges {
     ),
   );
   protected readonly needsDepartment = computed(() => this.existing()?.departmentId === null);
-  protected readonly needsAppScanKey = computed(() => {
-    const product = this.existing();
-    return product !== null && !product.appScan?.keyId;
-  });
   protected readonly departmentName = computed(() => {
     const product = this.existing();
     const id = product?.departmentId ?? this.chosenDepartment();
@@ -319,6 +324,12 @@ export class SelfService implements HasUnsavedChanges {
   );
 
   constructor() {
+    effect(() => {
+      const labels = this.template()?.agentLabels;
+      if (labels && !this.agents.dirty) {
+        this.agents.setValue(joinWords(labels, ', '));
+      }
+    });
     this.productForm.controls.name.valueChanges
       .pipe(
         map((name) => name.trim()),
@@ -386,6 +397,9 @@ export class SelfService implements HasUnsavedChanges {
       this.productForm.controls.name.updateValueAndValidity();
       this.productForm.markAllAsTouched();
     }
+    if (this.step() === 1) {
+      this.agents.markAsTouched();
+    }
     if (!this.ready()) {
       return;
     }
@@ -447,6 +461,7 @@ export class SelfService implements HasUnsavedChanges {
     this.forgetUnlistedDepartment(this.departments());
     this.services.set([]);
     this.removed.set([]);
+    this.agents.reset(joinWords(this.template()?.agentLabels, ', '));
     this.changed.set(false);
     this.checked.set(false);
     this.saveError.set(null);
@@ -461,11 +476,10 @@ export class SelfService implements HasUnsavedChanges {
         return this.mode() === 'new'
           ? this.productForm.valid
           : this.existing()?.id === this.productId.value &&
-              (!this.needsAppScanKey() || this.productForm.controls.appScanKeyId.valid) &&
               (this.productForm.controls.departmentId.valid ||
                 (this.departmentsError() !== null && !this.needsDepartment()));
       case 1:
-        return this.pipeline() !== null;
+        return this.pipeline() !== null && this.agents.valid;
       case 2:
         return (
           this.kept().length > 0 &&
@@ -473,6 +487,7 @@ export class SelfService implements HasUnsavedChanges {
             this.unplaced(),
             this.unscanned(),
             this.undeployable(),
+            this.keyless(),
             this.duplicated(),
             this.untemplated(),
           ].every((names) => names.length === 0)
@@ -485,10 +500,10 @@ export class SelfService implements HasUnsavedChanges {
   protected openService(index: number | null): void {
     const services = this.services();
     const current = index === null ? null : services[index];
-    const stored =
-      current?.id != null
-        ? this.existing()?.services.find((candidate) => candidate.id === current.id)
-        : undefined;
+    const stored = current ? this.storedOf(current) : undefined;
+    const others = services.filter(
+      (service, position) => position !== index && !this.isRemoved(service),
+    );
     this.dialog
       .open<WizardService, ServiceDialogData, ServiceDialog>(ServiceDialog, {
         data: {
@@ -501,6 +516,11 @@ export class SelfService implements HasUnsavedChanges {
             .filter((_, position) => position !== index)
             .map((service) => service.name),
           defaults: this.defaults(),
+          sources: others.map((service) => ({
+            name: service.name,
+            request: service.serviceRequest ?? this.storedOf(service)!,
+          })),
+          agents: this.agents,
         },
       })
       .closed.subscribe((service) => {
@@ -514,6 +534,17 @@ export class SelfService implements HasUnsavedChanges {
         );
         this.changed.set(true);
       });
+  }
+
+  /** The settings of a service: as changed in this request, or as stored. */
+  private settingsOf(service: WizardService) {
+    return service.serviceRequest ?? this.storedOf(service);
+  }
+
+  private storedOf(service: WizardService) {
+    return service.id === null
+      ? undefined
+      : this.existing()?.services.find((candidate) => candidate.id === service.id);
   }
 
   private forgetUnlistedDepartment(departments: readonly Department[]): void {
@@ -560,17 +591,13 @@ export class SelfService implements HasUnsavedChanges {
       ? this.productsApi.update(
           existing.id,
           productRequest(
-            this.needsAppScanKey()
-              ? {
-                  ...existing,
-                  appScan: appScanAccount(this.productForm.controls.appScanKeyId.value),
-                }
-              : existing,
+            existing,
             services,
             pipeline,
             this.productForm.controls.departmentId.value,
             this.template(),
             this.serviceDefaults(),
+            commaItems(this.agents.value),
           ),
           pipeline,
         )
@@ -584,6 +611,7 @@ export class SelfService implements HasUnsavedChanges {
                 null,
                 this.template(),
                 this.serviceDefaults(),
+                commaItems(this.agents.value),
               ),
               pipeline,
             ),

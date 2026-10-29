@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { buttonOf, fieldOf, text, toast } from '@common/testing/dom';
+import { buttonOf, fieldOf, helpOf, text, toast, unexplained } from '@common/testing/dom';
 import { globalSettings } from '../testing/fixtures';
 import { GlobalSettingsPage } from './global-settings';
 
@@ -73,10 +73,25 @@ describe('GlobalSettingsPage', () => {
     expect(hint('Result file')).toBe(
       'Kept with each build as proof of the check; the library reads only this name · releaseGate.stateFile',
     );
-    expect(page().querySelector('svg-icon')).toBeNull();
+    expect(page().querySelector(':not(.dso-help-trigger) > svg-icon')).toBeNull();
     expect(text(page().querySelector('.save-bar .saved'))).toMatch(/^Last saved .+ \(version 4\)$/);
     expect(form().controls.platform.controls.jenkinsUrl.value).toBe('https://jenkins.bbh.com');
     expect(settingsPage().hasUnsavedChanges()).toBe(false);
+  });
+
+  it('explains every field, scanner and the gate scans with a help text', async () => {
+    await load();
+
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(fieldOf(page(), 'OIS host')!)).toBe(
+      'The host name of the Safeguard appliance the pipelines fetch the proxy password from. Left empty, the library uses oisapi.bbh.com.',
+    );
+    expect(
+      [...page().querySelectorAll('.limits-row .scanner')].map((scanner) => !!helpOf(scanner)),
+    ).toEqual([true, true, true, true]);
+    expect(helpOf(page().querySelector('.gate .field-label')!)).toContain(
+      'The scans whose findings the gate compares with their security limits.',
+    );
   });
 
   it('shows why the settings cannot be read and loads them again on request', async () => {

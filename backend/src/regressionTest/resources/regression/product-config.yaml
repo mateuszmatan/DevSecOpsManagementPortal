@@ -23,28 +23,21 @@ projects:
         installationName: SonarQube
         projectName: PayHub Gateway
         projectKey: payhub-gateway
+        badgeCredentialsId: payhub-sonar-badge
         maven:
           goals:
           - sonar:sonar
       nexusIq:
         serverUrl: https://tools.bbh.com/IQ
         credentialsId: nexusiqP
-        application:
-          payhub-gateway:
-            scanPatterns:
-            - '**/target/*.jar'
-            - '**/target/*.war'
-            serverUrl: https://tools.bbh.com/IQ
-            credentialsId: nexusiqP
-            stage: build
-            failOnNetworkError: false
-          payhub-gateway-batch:
-            scanPatterns:
-            - '**/batch/*.jar'
-            serverUrl: https://tools.bbh.com/IQ
-            credentialsId: nexusiqP
-            stage: release
-            failOnNetworkError: true
+        application: payhub-gateway
+        scanPatterns:
+        - '**/target/*.jar'
+        - '**/target/*.war'
+        stage: release
+        failOnNetworkError: true
+    sast:
+      scanName: payhub-gateway-sast
     dast:
       enabled: true
       targetUrl: https://payhub-uat.testbbh.com
@@ -131,13 +124,13 @@ projects:
     baseArtifactName: ledger
     asoc:
       url: https://bbh.cloud.appscan.com
+      keyId: bbh_key-id
       token: ledger-appscan-secret
       maven:
         goals:
         - compile
         flags:
         - -q
-      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
     influx:
       url: https://influx-ledger.bbh.com/api/v2/write
       credentialsId: ledger-influx
@@ -169,6 +162,8 @@ projects:
         - '**/target/*.war'
         stage: stage-release
         failOnNetworkError: true
+    sast:
+      scanName: ledger-sast
     dast:
       enabled: true
       targetUrl: https://ledger-uat.testbbh.com
@@ -313,8 +308,7 @@ projects:
     javaPath: /usr/lib/jvm/java-17-openjdk
     asoc:
       url: https://bbh.cloud.appscan.com
-      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
-      token: hcl-app-scan-account
+      keyId: bbh_key-id
     influx:
       url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
       credentialsId: influxdb-token
@@ -375,6 +369,7 @@ projects:
           siteName: deploy.bbh.com
           deployProcess: tomcat-app-process
         rd:
+          nexusDeliveryEnabled: false
           host: rdltaapps1.testbbh.com
           user: taadmin
           deployScript: scripts/deployment/zero-downtime-deployment.sh

@@ -73,39 +73,45 @@ class ConfigSectionsSpec extends Specification {
         FLUTTER | '/jdk'   | false     | []        || []
     }
 
-    def "OpenShift deployment needs the application and artifact names"() {
+    def "OpenShift deployment needs the application name, and the artifact name while it delivers to Nexus"() {
         expect:
-        problems(new DeploymentSettings(OPENSHIFT, ' ', null, 'gui-1.0.jar')) == ['appName', 'artifactName']
-        problems(new DeploymentSettings(OPENSHIFT, 'gui', null, null)) == ['artifactName']
-        problems(new DeploymentSettings(OPENSHIFT, null, 'gui.jar', null)) == ['appName']
-        problems(new DeploymentSettings(OPENSHIFT, 'gui', 'gui.jar', null)) == []
-        problems(new DeploymentSettings(VM, null, null, null)) == []
-        messages(new DeploymentSettings(OPENSHIFT, null, null, null)) ==
+        problems(new DeploymentSettings(OPENSHIFT, ' ', null, 'gui-1.0.jar', null)) == ['appName', 'artifactName']
+        problems(new DeploymentSettings(OPENSHIFT, 'gui', null, null, false)) == ['artifactName']
+        problems(new DeploymentSettings(OPENSHIFT, null, 'gui.jar', null, null)) == ['appName']
+        problems(new DeploymentSettings(OPENSHIFT, 'gui', 'gui.jar', null, null)) == []
+        problems(new DeploymentSettings(OPENSHIFT, ' ', null, null, true)) == ['appName']
+        problems(new DeploymentSettings(VM, null, null, null, null)) == []
+        messages(new DeploymentSettings(OPENSHIFT, null, null, null, null)) ==
                 ['is required for OpenShift deployment', 'is required for OpenShift deployment']
     }
 
-    def "deployment settings write the target, the names and the base artifact name"() {
+    def "deployment settings write the target, the names and the base artifact name, and deliver to Nexus by default"() {
         when:
-        def deployment = new DeploymentSettings(OPENSHIFT, ' gui ', ' gui.jar ', ' gui-1.0.0.jar ')
+        def deployment = new DeploymentSettings(OPENSHIFT, ' gui ', ' gui.jar ', ' gui-1.0.0.jar ', true)
 
         then:
         written(deployment) == [deployTarget    : 'openshift', appName: 'gui', artifactName: 'gui.jar',
                                 baseArtifactName: 'gui-1.0.0.jar']
-        written(new DeploymentSettings(VM, ' ', '', ' ')) == [deployTarget: 'vm']
-        new DeploymentSettings(VM, ' ', '', ' ') == new DeploymentSettings(VM, null, null, null)
+        written(new DeploymentSettings(VM, ' ', '', ' ', null)) == [deployTarget: 'vm']
+        new DeploymentSettings(VM, ' ', '', ' ', null) == new DeploymentSettings(VM, null, null, null, false)
+        [deployment.deliversToNexus(OPENSHIFT), deployment.deliversToNexus(VM)] == [false, false]
+        new DeploymentSettings(VM, null, null, null, null).with { [deliversToNexus(VM), deliversToNexus(OPENSHIFT)] } ==
+                [true, false]
     }
 
     def "AppScan settings store the application ID in lower case and start at the library's defaults"() {
         when:
         def appScan = new AppScanSettings(' 109F44AC-CC06-4CA0-884E-D944904F7019 ', [' src ', '', 'src', null], null,
-                null, null, null, null, ' ', null, null, ' ', ' ', null)
+                null, null, null, null, ' ', null, null, ' ', ' ', null, ' bbh_key ', ' ')
 
         then:
         appScan == new AppScanSettings(APP_ID, ['src'], [], true, false, false, false, null, NONE, false, null, null,
-                null)
-        written { appScan.writeTo(it, GRADLE) } == [appId: APP_ID, includedDirs: 'src', dast: [enabled: false]]
-        written { AppScanSettings.of(APP_ID).writeTo(it, MAVEN) } == [appId: APP_ID, dast: [enabled: false]]
-        AppScanSettings.of(null).applicationId() == null
+                null, 'bbh_key', null)
+        written { appScan.writeTo(it, GRADLE) } ==
+                [appId: APP_ID, includedDirs: 'src', asoc: [keyId: 'bbh_key'], dast: [enabled: false]]
+        written { AppScanSettings.of(APP_ID, 'bbh_key').writeTo(it, MAVEN) } ==
+                [appId: APP_ID, asoc: [keyId: 'bbh_key'], dast: [enabled: false]]
+        AppScanSettings.of(null, null).applicationId() == null
     }
 
     def "every AppScan option that differs from the library's default is written"() {
@@ -113,20 +119,23 @@ class ConfigSectionsSpec extends Specification {
         def compileCommand = ToolCommand.builder().tasks(['compileJava']).flags(['--offline']).directory('gui')
                 .mavenHome('/opt/maven').environment(['JAVA_OPTS=-Xmx2g']).build()
         def appScan = new AppScanSettings(APP_ID, ['src/main', ' lib '], ['src/test'], false, true, true, true,
-                ' /opt/appscan ', compileCommand, true, ' https://rdl1.testbbh.com ', ' p-1 ', null)
+                ' /opt/appscan ', compileCommand, true, ' https://rdl1.testbbh.com ', ' p-1 ', ' cert-secret ',
+                ' bbh_key ', ' cert-gui-sast ')
 
         expect:
         written { appScan.writeTo(it, GRADLE) } ==
                 [appId      : APP_ID, includedDirs: 'src/main,lib', excludedDirs: 'src/test', appscanPath: '/opt/appscan',
-                 asoc       : [doCompile: false, sourceCodeOnly: true, useAppScanConfig: true, insecureTls: true,
+                 asoc       : [keyId    : 'bbh_key', token: 'cert-secret', doCompile: false, sourceCodeOnly: true,
+                               useAppScanConfig: true, insecureTls: true,
                                gradle   : [tasks: ['compileJava'], flags: ['--offline'], dir: 'gui',
                                            env  : [JAVA_OPTS: '-Xmx2g']]],
+                 sast       : [scanName: 'cert-gui-sast'],
                  dast       : [enabled: true, targetUrl: 'https://rdl1.testbbh.com', presenceId: 'p-1']]
     }
 
     def "the AppScan compile command goes under asoc.#key for #tool"() {
         given:
-        def appScan = AppScanSettings.builder().applicationId(APP_ID)
+        def appScan = AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key')
                 .compileCommand(ToolCommand.builder().tasks(['compile']).mavenHome('/opt/maven').build()).build()
 
         expect:
@@ -134,22 +143,25 @@ class ConfigSectionsSpec extends Specification {
 
         where:
         tool    || key      | asoc
-        GRADLE  || 'gradle' | [gradle: [tasks: ['compile']]]
-        MAVEN   || 'maven'  | [maven: [goals: ['compile'], mvnPath: '/opt/maven']]
-        FLUTTER || 'none'   | null
+        GRADLE  || 'gradle' | [keyId: 'bbh_key', gradle: [tasks: ['compile']]]
+        MAVEN   || 'maven'  | [keyId: 'bbh_key', maven: [goals: ['compile'], mvnPath: '/opt/maven']]
+        FLUTTER || 'none'   | [keyId: 'bbh_key']
     }
 
-    def "enabled DAST needs a target URL"() {
+    def "every service needs its AppScan key ID, and enabled DAST needs a target URL"() {
         expect:
         reported { dast(null).validate(it, GRADLE) }.collect { [it.field, it.message] } ==
                 [['dastTargetUrl', 'is required when DAST is enabled']]
         problems { dast('https://x').validate(it, GRADLE) } == []
-        problems { AppScanSettings.of(APP_ID).validate(it, MAVEN) } == []
+        problems { AppScanSettings.of(APP_ID, 'bbh_key').validate(it, MAVEN) } == []
+        reported { AppScanSettings.of(APP_ID, ' ').validate(it, MAVEN) }.collect { [it.field, it.message] } ==
+                [['keyId', 'is required']]
     }
 
     def "a #tool compile command that sets #description reports #fields"() {
         given:
-        def appScan = AppScanSettings.builder().applicationId(APP_ID).compile(compile).compileCommand(command).build()
+        def appScan = AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key').compile(compile)
+                .compileCommand(command).build()
 
         expect:
         problems { appScan.validate(it, tool) } == fields
@@ -166,19 +178,20 @@ class ConfigSectionsSpec extends Specification {
 
     def "SonarQube settings trim their values and switch the badges off by default"() {
         when:
-        def sonar = new SonarSettings(' ', ' cert ', ' ', ' ', ' ', ' ', null, null, null, null)
+        def sonar = new SonarSettings(' ', ' cert ', ' ', ' ', ' ', ' ', null, null, null, null, ' ')
 
         then:
-        sonar == new SonarSettings(null, 'cert', null, null, null, null, false, false, NONE, null)
+        sonar == new SonarSettings(null, 'cert', null, null, null, null, false, false, NONE, null, null)
         SonarSettings.of(' CertScanner ', 'cert', null) == new SonarSettings('CertScanner', 'cert', null, null, null, null,
-                false, false, NONE, null)
-        SonarSettings.NONE == new SonarSettings(' ', '', null, null, null, null, false, false, null, null)
+                false, false, NONE, null, null)
+        SonarSettings.NONE == new SonarSettings(' ', '', null, null, null, null, false, false, null, null, null)
     }
 
     def "SonarQube settings write every tools.sonar key with the analysis command of the build tool"() {
         given:
         def sonar = new SonarSettings(' CertScanner ', ' cert-scanner ', ' SonarQube BBH ', ' sonar-creds ',
-                ' sonar-token ', ' sqb_1a2b ', true, true, ToolCommand.of(['sonar:sonar'], ['-Dsonar.branch.name=main']), null)
+                ' sonar-token ', ' sqb_1a2b ', true, true, ToolCommand.of(['sonar:sonar'], ['-Dsonar.branch.name=main']), null,
+                null)
 
         expect:
         written { sonar.writeTo(it, MAVEN) } ==
@@ -193,6 +206,20 @@ class ConfigSectionsSpec extends Specification {
         written { SonarSettings.of('CertScanner', 'cert', null).writeTo(it, GRADLE) } ==
                 [tools: [sonar: [projectName: 'CertScanner', projectKey: 'cert']]]
         written { SonarSettings.NONE.writeTo(it, GRADLE) } == [:]
+    }
+
+    def "the SonarQube badges read the badge token or the credential holding it, not both"() {
+        given:
+        def badge = { String token, String credentialsId ->
+            SonarSettings.builder().badgeToken(token).badgeCredentialsId(credentialsId).build()
+        }
+
+        expect:
+        written { badge(null, ' sonar-badge ').writeTo(it, GRADLE) } == [tools: [sonar: [badgeCredentialsId: 'sonar-badge']]]
+        problems { badge('sqb_1a2b', null).validate(it, GRADLE) } == []
+        problems { badge(null, 'sonar-badge').validate(it, GRADLE) } == []
+        reported { badge('sqb_1a2b', 'sonar-badge').validate(it, GRADLE) }.collect { [it.field, it.message] } ==
+                [['badgeCredentialsId', 'give the badge token or its credentials ID, not both']]
     }
 
     def "a #tool SonarQube project with key #key and tasks #tasks reports #fields"() {
@@ -248,7 +275,7 @@ class ConfigSectionsSpec extends Specification {
         written { NexusIqSettings.NONE.writeTo(it, []) } == [:]
     }
 
-    def "several Nexus IQ applications are written in the map form, each with the server and credentials in effect"() {
+    def "the applications of a service stored before the one-application rule are written in the map form, each with the server and credentials in effect"() {
         given:
         def applications = [NexusIqApplication.of('cert-gui', ['**/gui/*.jar']),
                             new NexusIqApplication('cert-batch', ['**/batch/*.jar'], 'release', true)]
@@ -267,16 +294,17 @@ class ConfigSectionsSpec extends Specification {
                                                  credentialsId: 'cert-iq', stage: 'release', failOnNetworkError: true]]]
     }
 
-    def "every Nexus IQ application needs a name and scan patterns, and is listed once"() {
-        given:
-        def applications = [NexusIqApplication.of('cert', ['**/*.jar']), NexusIqApplication.of(' ', []),
-                            NexusIqApplication.of('cert', ['**/*.war'])]
-
+    def "a service scans one Nexus IQ application, which needs a name and scan patterns"() {
         expect:
-        reported { NexusIqSettings.NONE.validate(it, applications) }.collect { [it.field, it.message] } ==
-                [['nexusIqApplications[1].application', 'must not be blank'],
-                 ['nexusIqApplications[1].scanPatterns', 'add at least one scan pattern for the Nexus IQ application'],
-                 ['nexusIqApplications[2].application', 'is listed twice: each Nexus IQ application is scanned once']]
+        reported { NexusIqSettings.NONE.validate(it, [NexusIqApplication.of(' ', [])]) }.collect { [it.field, it.message] } ==
+                [['nexusIqApplications[0].application', 'must not be blank'],
+                 ['nexusIqApplications[0].scanPatterns', 'add at least one scan pattern for the Nexus IQ application']]
+        reported {
+            NexusIqSettings.NONE.validate(it, [NexusIqApplication.of('cert', ['**/*.jar']), NexusIqApplication.of('cert', [])])
+        }.collect { [it.field, it.message] } ==
+                [['nexusIqApplications', 'a service scans one Nexus IQ application'],
+                 ['nexusIqApplications[1].scanPatterns', 'add at least one scan pattern for the Nexus IQ application']]
+        problems { NexusIqSettings.NONE.validate(it, [NexusIqApplication.of('cert', ['**/*.jar'])]) } == []
         problems { NexusIqSettings.NONE.validate(it, []) } == []
     }
 
@@ -352,7 +380,7 @@ class ConfigSectionsSpec extends Specification {
         new MetricsSettings(true, 'cert-scanner', 'uat', null, null).with { it.withDefaultProject('CERT', 'gui').is(it) }
     }
 
-    def "the per-service InfluxDB, SonarQube and AppScan secret overrides are written at the library's paths"() {
+    def "the per-service InfluxDB, SonarQube and AppScan credentials are written at the library's paths"() {
         expect:
         written(new MetricsSettings(true, 'CERT-gui', null, ' https://influx.bbh.com/write ', ' cert-influx ')) ==
                 [influx: [enabled: true, url: 'https://influx.bbh.com/write', credentialsId: 'cert-influx',
@@ -360,20 +388,13 @@ class ConfigSectionsSpec extends Specification {
         written { SonarSettings.builder().serverUrl(' https://sonar.bbh.com ').build().writeTo(it, GRADLE) } ==
                 [tools: [sonar: [serverUrl: 'https://sonar.bbh.com']]]
         written {
-            AppScanSettings.builder().applicationId(APP_ID).secretCredentialsId(' cert-secret ').build()
-                    .writeTo(it, GRADLE)
-            new AppScanAccount('bbh_key', 'product-secret').writeTo(it)
-        }.asoc == [token: 'cert-secret', keyId: 'bbh_key']
-    }
-
-    def "the AppScan account writes the key ID and the credential holding the secret"() {
-        expect:
-        written(new AppScanAccount(' bbh_key ', ' asoc-creds ')) == [asoc: [keyId: 'bbh_key', token: 'asoc-creds']]
-        written(new AppScanAccount('bbh_key', ' ')) == [asoc: [keyId: 'bbh_key']]
-        new AppScanAccount(' ', ' ') == new AppScanAccount(null, null)
+            AppScanSettings.builder().applicationId(APP_ID).keyId(' bbh_key ').secretCredentialsId(' cert-secret ')
+                    .scanName(' cert-gui-sast ').build().writeTo(it, GRADLE)
+        }.subMap(['asoc', 'sast']) == [asoc: [keyId: 'bbh_key', token: 'cert-secret'], sast: [scanName: 'cert-gui-sast']]
     }
 
     private static AppScanSettings dast(String targetUrl) {
-        AppScanSettings.builder().applicationId(APP_ID).dastEnabled(true).dastTargetUrl(targetUrl).build()
+        AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key').dastEnabled(true).dastTargetUrl(targetUrl)
+                .build()
     }
 }

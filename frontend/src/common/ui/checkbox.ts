@@ -1,9 +1,18 @@
-import { ChangeDetectionStrategy, Component, forwardRef, model, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  forwardRef,
+  input,
+  model,
+  signal,
+} from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { uniqueId } from './form-field';
+import { DsoHelp } from './help';
 
 @Component({
   selector: 'dso-checkbox',
+  imports: [DsoHelp],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => DsoCheckbox), multi: true },
@@ -20,10 +29,14 @@ import { uniqueId } from './form-field';
       (blur)="touched()"
     />
     <label class="form-check-label" [for]="id"><ng-content /></label>
+    @if (help(); as text) {
+      <dso-help [text]="text" />
+    }
   `,
 })
 export class DsoCheckbox implements ControlValueAccessor {
   readonly checked = model(false);
+  readonly help = input<string | null | undefined>();
 
   protected readonly id = uniqueId('dso-checkbox');
   protected readonly disabled = signal(false);

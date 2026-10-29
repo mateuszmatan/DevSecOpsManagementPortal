@@ -2,12 +2,20 @@ import { TestBed } from '@angular/core/testing';
 import { FormGroup } from '@angular/forms';
 import { applyFieldProblems, controlAt, revalidateAll } from '@common/shared/form-controls';
 import { ServiceDefaults } from '../core/models';
-import { anotherService, command, product, service, serviceTemplate } from '../testing/fixtures';
 import {
+  anotherService,
+  command,
+  globalSettings,
+  product,
+  service,
+  serviceTemplate,
+} from '../testing/fixtures';
+import {
+  BADGE_TWICE,
   NO_COMMAND,
+  ONE_APPLICATION,
   OPENSHIFT_RD_REQUIRED,
   PRODUCT_WIDE_FIELD,
-  SAME_APPLICATION,
   SAME_NAME,
   applyProductProblems,
   REMOTE_JENKINS_MESSAGE,
@@ -34,6 +42,7 @@ import {
   isJobUrl,
   isRemoteJob,
   patchProduct,
+  prefillNewService,
   sectionInvalid,
   sectionTouched,
   toProductRequest,
@@ -306,15 +315,28 @@ describe('sections that apply to the build tool and deployment target', () => {
 
   it.each([
     ['SAST', ['general', 'build', 'appScan', 'scm']],
-    ['NEXUS_IQ', ['general', 'build', 'nexusIq', 'scm', 'goldenFix']],
+    ['NEXUS_IQ', ['general', 'build', 'appScan', 'nexusIq', 'scm', 'goldenFix']],
     [
       'SECURITY',
-      ['general', 'build', 'unitTests', 'deployment', 'appScan', 'sonar', 'nexusIq', 'scm', 'goldenFix', 'metrics'],
+      [
+        'general',
+        'build',
+        'unitTests',
+        'deployment',
+        'appScan',
+        'sonar',
+        'nexusIq',
+        'scm',
+        'goldenFix',
+        'metrics',
+      ],
     ],
   ] as const)('shows the %s pipeline the sections it reads', (pipeline, sections) => {
     const form = createServiceForm(service());
 
-    expect(visibleSectionsForPipeline(form, pipeline).map((section) => section.id)).toEqual(sections);
+    expect(visibleSectionsForPipeline(form, pipeline).map((section) => section.id)).toEqual(
+      sections,
+    );
   });
 
   it('shows the SECURITY pipeline of a service on OpenShift its OpenShift targets and stops at their problems', () => {
@@ -322,17 +344,27 @@ describe('sections that apply to the build tool and deployment target', () => {
     form.controls.deployment.controls.target.setValue('OPENSHIFT');
     form.patchValue({ deployment: { appName: 'gui', artifactName: 'gui.jar' } });
 
-    expect(visibleSectionsForPipeline(form, 'SECURITY').map((section) => section.id)).toContain('openShift');
+    expect(visibleSectionsForPipeline(form, 'SECURITY').map((section) => section.id)).toContain(
+      'openShift',
+    );
     expect(firstInvalidSection(form, 'SECURITY')).toBe('openShift');
     expect(firstInvalidSection(form, 'SAST')).toBeNull();
   });
 
   it('lets a pipeline save past problems in sections it does not read', () => {
     const form = createServiceForm(service());
-    form.controls.appScan.controls.applicationId.setValue('');
+    form.controls.sonar.controls.command.controls.tasks.setValue('');
 
     expect(firstInvalidSection(form, 'NEXUS_IQ')).toBeNull();
-    expect(firstInvalidSection(form, 'SAST')).toBe('appScan');
+    expect(firstInvalidSection(form, 'SECURITY')).toBe('sonar');
+  });
+
+  it('needs the AppScan API key ID of every service, as every pipeline signs in with it', () => {
+    const form = createServiceForm(service());
+    form.controls.appScan.controls.keyId.setValue(' ');
+
+    expect(form.controls.appScan.controls.keyId.hasError('required')).toBe(true);
+    expect(firstInvalidSection(form, 'NEXUS_IQ')).toBe('appScan');
   });
 });
 
@@ -394,6 +426,129 @@ describe('fields hidden while they do not apply', () => {
     job.controls.job.setValue('https://jenkins-qa.bbh.com/job/smoke/');
     expect(remoteJenkinsUrl.enabled).toBe(true);
     expect(remoteJenkinsUrl.hasError('pattern')).toBe(true);
+  });
+});
+
+describe('switches between dependent settings', () => {
+  it('hides and keeps the values only the Nexus delivery uses while it is disabled on virtual machines', () => {
+    const form = createServiceForm(service({ build: { ...service().build, tool: 'MAVEN' } }));
+    const { delivery, build, deployment } = form.controls;
+    delivery.controls.tasks.setValue('deploy:deploy-file');
+    deployment.controls.artifactName.setValue('cert-gui.jar');
+    build.controls.buildPath.setValue('');
+
+    expect(build.controls.buildPath.hasError('required')).toBe(true);
+
+    deployment.controls.nexusDeliveryDisabled.setValue(true);
+    const request = toServiceRequest(form);
+
+    expect(delivery.disabled).toBe(true);
+    expect(build.controls.buildPath.valid).toBe(true);
+    expect(deployment.controls.artifactName.disabled).toBe(true);
+    expect(request.deployment.nexusDeliveryDisabled).toBe(true);
+    expect(request.delivery.tasks).toEqual(['deploy:deploy-file']);
+    expect(request.deployment.artifactName).toBe('cert-gui.jar');
+
+    deployment.controls.nexusDeliveryDisabled.setValue(false);
+
+    expect(delivery.enabled).toBe(true);
+    expect(delivery.controls.tasks.value).toBe('deploy:deploy-file');
+    expect(build.controls.buildPath.hasError('required')).toBe(true);
+  });
+
+  it('drops the OpenShift image build and push of RD from validation while Nexus delivery is disabled', () => {
+    const form = createServiceForm(service());
+    form.patchValue({
+      deployment: { target: 'OPENSHIFT', appName: 'gui', artifactName: 'gui.jar' },
+      openShiftTargets: { RD: { dockerRepoPull: 'nexus/gui', projectDeployment: 'cert-rd' } },
+    });
+    const rd = form.controls.openShiftTargets.controls.RD.controls;
+    rd.addFile.setValue('kept.txt');
+
+    expect(rd.projectBuild.hasError('required')).toBe(true);
+
+    form.controls.deployment.controls.nexusDeliveryDisabled.setValue(true);
+
+    expect(form.controls.openShiftTargets.valid).toBe(true);
+    expect(
+      [rd.projectBuild, rd.dockerRepoPush, rd.internalDockerUrl].every((c) => c.disabled),
+    ).toBe(true);
+    expect(rd.projectDeployment.enabled).toBe(true);
+    expect(toServiceRequest(form).openShiftTargets.RD?.addFile).toBe('kept.txt');
+  });
+
+  it('hides and keeps the Flutter delivery coordinates while Nexus delivery is disabled', () => {
+    const form = createServiceForm(service());
+    form.controls.build.controls.tool.setValue('FLUTTER');
+    const flutter = form.controls.flutter.controls;
+
+    expect(flutter.deliveryGroup.hasError('required')).toBe(true);
+
+    form.controls.flutter.patchValue({
+      deliveryGroup: 'com.bbh.cert',
+      deliveryArtifact: 'cert-app',
+    });
+    form.controls.deployment.controls.nexusDeliveryDisabled.setValue(true);
+
+    expect(flutter.deliveryGroup.disabled).toBe(true);
+    expect(flutter.modules.enabled).toBe(true);
+    expect(toServiceRequest(form).flutter).toEqual(
+      expect.objectContaining({ deliveryGroup: 'com.bbh.cert', deliveryArtifact: 'cert-app' }),
+    );
+  });
+
+  it('takes the badge token or its credentials ID, not both', () => {
+    const sonar = createServiceForm(service()).controls.sonar.controls;
+    sonar.badgeCredentialsId.setValue('sonar-badge');
+
+    expect(sonar.badgeCredentialsId.valid).toBe(true);
+
+    sonar.badgeToken.setValue('sqb_1a2b');
+
+    expect(sonar.badgeToken.errors).toEqual({ rule: BADGE_TWICE });
+    expect(sonar.badgeCredentialsId.errors).toEqual({ rule: BADGE_TWICE });
+
+    sonar.badgeCredentialsId.setValue('');
+
+    expect(sonar.badgeToken.valid).toBe(true);
+    expect(sonar.badgeCredentialsId.valid).toBe(true);
+
+    sonar.badgeCredentialsId.setValue('sonar-badge');
+    sonar.badgeToken.setValue('');
+
+    expect(sonar.badgeToken.valid).toBe(true);
+    expect(sonar.badgeCredentialsId.valid).toBe(true);
+  });
+
+  it('leaves the QC region optional and needs what its deployment reads once it is started', () => {
+    const form = createServiceForm(service());
+    form.controls.deployment.controls.target.setValue('OPENSHIFT');
+    const qc = form.controls.openShiftTargets.controls.QC;
+
+    expect(qc.valid).toBe(true);
+
+    qc.controls.healthCheckUrl.setValue('/health');
+
+    expect(
+      ['projectDeployment', 'deployConfigPath', 'dockerRepoPull', 'configPath'].filter((key) =>
+        qc.get(key)!.hasError('required'),
+      ),
+    ).toEqual(['projectDeployment', 'deployConfigPath', 'dockerRepoPull', 'configPath']);
+
+    qc.patchValue({
+      projectDeployment: 'cert-qc',
+      deployConfigPath: 'openshift/deployment.yaml',
+      dockerRepoPull: 'nexus/cert',
+      skipConfigDeploy: true,
+    });
+
+    expect(qc.valid).toBe(true);
+
+    qc.patchValue({ projectDeployment: '', deployConfigPath: '', dockerRepoPull: '' });
+    qc.controls.healthCheckUrl.setValue('');
+    qc.controls.skipConfigDeploy.setValue(false);
+
+    expect(qc.valid).toBe(true);
   });
 });
 
@@ -708,6 +863,7 @@ describe('toServiceRequest', () => {
           appName: 'gui',
           artifactName: 'gui.jar',
           baseArtifactName: null,
+          nexusDeliveryDisabled: false,
         },
       }),
     );
@@ -717,6 +873,7 @@ describe('toServiceRequest', () => {
       appName: 'gui',
       artifactName: 'gui.jar',
       baseArtifactName: null,
+      nexusDeliveryDisabled: false,
     });
   });
 
@@ -801,28 +958,27 @@ describe('values unique within a product', () => {
     expect(form.valid).toBe(true);
   });
 
-  it('flags a Nexus IQ application the service already lists on the later entry only', () => {
+  it('lets a service scan one Nexus IQ application, and a legacy second one fails until removed', () => {
     const { form, first } = twoServices();
     const applications = first.controls.nexusIqApplications;
-    applications.push(createNexusIqApplicationForm({ application: ' CERT-GUI ' }));
-    const [earlier, later] = applications.controls;
-    later.controls.application.updateValueAndValidity();
+    applications.push(
+      createNexusIqApplicationForm({ application: 'cert-gui', scanPatterns: ['*.jar'] }),
+    );
 
-    expect(later.controls.application.errors).toEqual({ rule: SAME_APPLICATION });
-    expect(earlier.controls.application.valid).toBe(true);
+    expect(applications.errors).toEqual({ rule: ONE_APPLICATION });
+    expect(applications.controls.every((application) => application.valid)).toBe(true);
+    expect(form.valid).toBe(false);
 
-    earlier.controls.application.setValue('cert-api');
+    applications.removeAt(1);
 
-    expect(later.controls.application.valid).toBe(true);
+    expect(applications.valid).toBe(true);
   });
 
-  it('rejects a product name and API key ID of spaces only', () => {
+  it('rejects a product name of spaces only', () => {
     const form = createProductForm();
     form.controls.name.setValue('   ');
-    form.controls.appScan.controls.keyId.setValue(' ');
 
     expect(form.controls.name.hasError('required')).toBe(true);
-    expect(form.controls.appScan.controls.keyId.hasError('required')).toBe(true);
   });
 
   it('lets services share a metrics tag and a SonarQube key', () => {
@@ -842,10 +998,10 @@ describe('values unique within a product', () => {
     const unmatched = applyProductProblems(form, [
       { field: 'services[1].name', message: SAME_NAME },
       { field: 'services[1].build.javaPath', message: 'is not a JDK' },
-      { field: 'appScanAccount', message: 'is unknown' },
+      { field: 'serviceTemplate', message: 'is not configured' },
     ]);
 
-    expect(unmatched).toEqual([{ field: 'appScanAccount', message: 'is unknown' }]);
+    expect(unmatched).toEqual([{ field: 'serviceTemplate', message: 'is not configured' }]);
     expect(second.controls.name.errors).toEqual({ server: SAME_NAME });
     expect(second.controls.build.controls.javaPath.errors).toEqual({ server: 'is not a JDK' });
 
@@ -884,9 +1040,10 @@ describe('product form', () => {
       name: 'CertScanner',
       ownerTeam: 'Technology Architecture',
       departmentId: 3,
-      appScan: { keyId: 'bbh_key', secretCredentialsId: 'hcl-app-scan-account' },
       version: 3,
     });
+    expect(request).not.toHaveProperty('appScan');
+    expect(request).not.toHaveProperty('agentLabels');
     expect(request.services.map((s) => [s.id, s.name])).toEqual([
       [10, 'gui'],
       [11, 'backend-api'],
@@ -905,20 +1062,23 @@ describe('product form', () => {
     expect(toProductRequest(form, 3).departmentId).toBe(5);
   });
 
-  it('asks for the AppScan key of a product that has none yet', () => {
+  it('sends the Jenkins agents of a new product only, as a list', () => {
     const form = createProductForm();
-    patchProduct(form, product({ appScan: null, services: [] }));
+    patchProduct(form, product({ services: [] }));
 
-    expect(form.controls.appScan.value).toEqual({ keyId: '', secretCredentialsId: '' });
-    expect(form.controls.appScan.controls.keyId.hasError('required')).toBe(true);
+    expect(form.controls.agentLabels.disabled).toBe(true);
 
-    form.controls.appScan.controls.keyId.setValue(' bbh_key ');
+    form.controls.agentLabels.enable();
+    form.controls.agentLabels.setValue(' linux-agent, linux && docker ,');
 
     expect(form.valid).toBe(true);
-    expect(toProductRequest(form, 3).appScan).toEqual({
-      keyId: 'bbh_key',
-      secretCredentialsId: null,
-    });
+    expect(toProductRequest(form, null).agentLabels).toEqual(['linux-agent', 'linux && docker']);
+
+    form.controls.agentLabels.setValue('a,b');
+    form.controls.agentLabels.setValue('');
+
+    expect(form.controls.agentLabels.valid).toBe(true);
+    expect(toProductRequest(form, null).agentLabels).toEqual([]);
   });
 
   it('replaces the services of an earlier product when patched again', () => {
@@ -933,18 +1093,71 @@ describe('product form', () => {
     expect(form.controls.description.value).toBe('');
   });
 
-  it('duplicates a service as a new one without the values that must stay unique', () => {
-    const copy = duplicateService(createServiceForm(service()));
+  it('duplicates a service as a new one without the values that identify the source', () => {
+    const source = service({
+      appScan: { ...service().appScan, scanName: 'CertScanner-GUI-SAST' },
+      deployment: {
+        ...service().deployment,
+        target: 'OPENSHIFT',
+        appName: 'gui',
+        artifactName: 'gui.jar',
+      },
+    });
+    const form = createServiceForm(source);
+    form.controls.openShiftTargets.controls.RD.patchValue({
+      projectBuild: 'cert-build',
+      dockerRepoPush: 'nexus/cert/gui',
+    });
+    const copy = duplicateService(form, null);
     const value = copy.getRawValue();
 
     expect(value.id).toBeNull();
     expect(value.name).toBe('gui-copy');
-    expect(value.sonar.projectName).toBe('CertScanner GUI');
+    expect(value.appScan.scanName).toBe('');
+    expect(value.deployment.appName).toBe('');
+    expect(value.deployment.artifactName).toBe('gui.jar');
+    expect(value.sonar.projectName).toBe('');
     expect(value.sonar.projectKey).toBe('');
     expect(value.metrics.influxProject).toBe('');
+    expect(value.nexusIqApplications).toEqual([
+      expect.objectContaining({ application: '', scanPatterns: '**/build/libs/*.jar' }),
+    ]);
+    expect(value.metrics.influxEnv).toBe('test');
+    expect(value.appScan.keyId).toBe('bbh_key');
     expect(value.build.javaPath).toBe('/usr/lib/jvm/java-17-openjdk');
     expect(value.testJobs.map((job) => job.job)).toEqual(['CERT/gui-smoke']);
-    expect(value.sshTargets.QC.deployDir).toBe('/opt/cert/gui');
+    expect(value.openShiftTargets.RD).toEqual(
+      expect.objectContaining({ projectBuild: 'cert-build', dockerRepoPush: 'nexus/cert/gui' }),
+    );
+    expect(copy.controls.nexusIqApplications.at(0).controls.application.hasError('required')).toBe(
+      true,
+    );
+  });
+
+  it('gives a copy the Library defaults for what the source inherits', () => {
+    const copy = duplicateService(createServiceForm(service()), globalSettings());
+
+    expect(copy.controls.sonar.controls.serverUrl.value).toBe('https://tools.bbh.com/sonar');
+    expect(toServiceRequest(copy).sonar.serverUrl).toBeNull();
+  });
+
+  it('gives a new service the AppScan key of the first service that has one', () => {
+    const form = createServiceForm();
+    prefillNewService(form, null, [
+      { keyId: ' ', secretCredentialsId: 'unused' },
+      { keyId: 'bbh_key ', secretCredentialsId: 'hcl-app-scan-account' },
+    ]);
+
+    expect(form.controls.appScan.getRawValue()).toMatchObject({
+      keyId: 'bbh_key',
+      secretCredentialsId: 'hcl-app-scan-account',
+    });
+
+    const typed = createServiceForm({ appScan: { keyId: 'bbh_own' } as never });
+    prefillNewService(typed, null, [{ keyId: 'bbh_key', secretCredentialsId: 'secret' }]);
+
+    expect(typed.controls.appScan.controls.keyId.value).toBe('bbh_own');
+    expect(typed.controls.appScan.controls.secretCredentialsId.value).toBe('');
   });
 });
 
@@ -959,7 +1172,9 @@ describe('field problems reported by the API', () => {
     const form = formWithServices();
     const second = form.controls.services.at(1).controls;
     expect(controlAt(form, 'services[1].build.javaPath')).toBe(second.build.controls.javaPath);
-    expect(controlAt(form, 'appScan.keyId')).toBe(form.controls.appScan.controls.keyId);
+    expect(controlAt(form, 'services[0].appScan.keyId')).toBe(
+      form.controls.services.at(0).controls.appScan.controls.keyId,
+    );
     expect(controlAt(form, 'services[1].testJobs[0].job')).toBe(second.testJobs.at(0).controls.job);
   });
 

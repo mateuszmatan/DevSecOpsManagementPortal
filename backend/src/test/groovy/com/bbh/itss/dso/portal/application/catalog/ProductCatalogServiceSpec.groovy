@@ -22,7 +22,6 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
-import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
@@ -121,15 +120,13 @@ class ProductCatalogServiceSpec extends Specification {
         action << [{ it.get(5L) }, { it.update(5L, command()) }, { it.delete(5L) }]
     }
 
-    def "a new product without services needs no AppScan account"() {
+    def "a new product may start without services"() {
         when:
-        def created = catalog.create(new ProductCommand(null, details(), null, [], null))
+        def created = catalog.create(new ProductCommand(null, details(), null, null, null))
 
         then:
-        1 * products.save({ Product p -> p.appScanAccount() == null && p.services().isEmpty() }) >> { Product p ->
-            stored(9L, p)
-        }
-        1 * pipelines.createMissing(9L, [], FULL)
+        1 * products.save({ Product p -> p.services().isEmpty() }) >> { Product p -> stored(9L, p) }
+        1 * pipelines.createMissing(9L, [], FULL, [])
         created.id() == 9
     }
 
@@ -146,7 +143,7 @@ class ProductCatalogServiceSpec extends Specification {
         }
 
         then:
-        1 * pipelines.createMissing(9L, [10L, 11L], FULL)
+        1 * pipelines.createMissing(9L, [10L, 11L], FULL, [])
         created.id() == 9
         created.services()*.name() == ['gui', 'backend-api']
         created.services()*.settings()*.metrics()*.influxProject() == ['CERT-gui', 'CERT-backend-api']
@@ -161,7 +158,7 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         1 * products.save(_) >> { Product p -> stored(5L, p, [10L] + created) }
-        1 * pipelines.createMissing(5L, created, FULL)
+        1 * pipelines.createMissing(5L, created, FULL, [])
 
         where:
         added                                         || created
@@ -169,7 +166,7 @@ class ProductCatalogServiceSpec extends Specification {
         []                                            || []
     }
 
-    def "a save naming the #type pipeline type gives that pipeline to every service of the product that lacks one"() {
+    def "a save naming the #type pipeline type gives that pipeline, on the agents it names, to every service of the product that lacks one"() {
         given:
         products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'gui', id: 10]]))
 
@@ -178,17 +175,18 @@ class ProductCatalogServiceSpec extends Specification {
 
         then:
         1 * products.save(_) >> { Product p -> stored(5L, p, [10L, 12L]) }
-        1 * pipelines.createMissing(5L, [10L, 12L], type)
+        1 * pipelines.createMissing(5L, [10L, 12L], type, ['linux && docker', 'windows'])
 
         where:
         [type, save] << [[SAST, NEXUS_IQ], [
                 { ProductCatalogService saving, PipelineType pipelineType ->
                     saving.create(command(services: [service(name: 'gui'), service(name: 'worker')],
-                            pipelineType: pipelineType))
+                            pipelineType: pipelineType, agentLabels: [' linux && docker ', 'windows', ' ']))
                 },
                 { ProductCatalogService saving, PipelineType pipelineType ->
                     def services = [service(id: 10L, name: 'gui'), service(name: 'worker')]
-                    saving.update(5L, command(version: 0L, services: services, pipelineType: pipelineType))
+                    saving.update(5L, command(version: 0L, services: services, pipelineType: pipelineType,
+                            agentLabels: ['linux && docker', 'windows']))
                 }]].combinations()
     }
 
@@ -273,8 +271,8 @@ class ProductCatalogServiceSpec extends Specification {
     }
 
     private static ProductCommand command(Map args = [:]) {
-        new ProductCommand(args.version as Long, details(args), account(),
-                args.services as List<ServiceDraft> ?: [service(name: 'gui')], args.pipelineType as PipelineType)
+        new ProductCommand(args.version as Long, details(args), args.services as List<ServiceDraft> ?: [service(name: 'gui')],
+                args.pipelineType as PipelineType, args.agentLabels as List<String>)
     }
 
     private static Product stored(long id, Product product, List<Long> serviceIds = []) {
@@ -282,6 +280,6 @@ class ProductCatalogServiceSpec extends Specification {
             new Service(index < serviceIds.size() ? serviceIds[index] : service.id(), service.name(),
                     service.description(), service.displayOrder(), service.settings())
         }
-        Product.restore(id, product.details(), product.appScanAccount(), services, 0, CHANGED, CHANGED)
+        Product.restore(id, product.details(), services, 0, CHANGED, CHANGED)
     }
 }

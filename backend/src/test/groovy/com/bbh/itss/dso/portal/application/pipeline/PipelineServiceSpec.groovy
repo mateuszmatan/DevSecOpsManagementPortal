@@ -12,6 +12,7 @@ import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.settings.StoredServiceTemplate
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
 import java.time.Instant
@@ -42,7 +43,7 @@ class PipelineServiceSpec extends Specification {
     static final Instant NOW_MICROS = Instant.parse('2026-10-05T07:30:00.123456Z')
     static final String NEW_KEY = '9b2e2a52-2f0d-4f53-9b55-4f0b9a8f6c11'
     static final String NOTHING_TO_SCAN =
-            'Service batch has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing'
+            'Service batch has no Nexus IQ application, so its Nexus IQ GoldenFix pipeline would scan nothing'
     static final String NOT_DEPLOYED = 'Service batch deploys to virtual machines but has no UrbanCode Deploy ' +
             'application for DV, so its Full pipeline would fail at the lower test region deployment'
 
@@ -104,8 +105,8 @@ class PipelineServiceSpec extends Specification {
         'listing'               | 'Product 2'    | { it.listForProduct(2L) }
         'reading'               | 'Pipeline 100' | { it.get(100L) }
         'reading'               | 'Product 2'    | { it.get(101L) }
-        'starting new services' | 'Service 12'   | { it.createMissing(1L, [12L], FULL) }
-        'starting new services' | 'Product 7'    | { it.createMissing(7L, [10L], FULL) }
+        'starting new services' | 'Service 12'   | { it.createMissing(1L, [12L], FULL, []) }
+        'starting new services' | 'Product 7'    | { it.createMissing(7L, [10L], FULL, []) }
         'creating'              | 'Service 10'   | { it.create(10L, FULL, pipelineSettings()) }
         'creating'              | 'Service 12'   | { it.create(12L, FULL, pipelineSettings()) }
         'deleting'              | 'Pipeline 100' | { it.delete(100L) }
@@ -136,7 +137,7 @@ class PipelineServiceSpec extends Specification {
         products.load(1L) >> Optional.of(certScanner)
 
         when:
-        def views = service.createMissing(1L, [10L, 11L], type)
+        def views = service.createMissing(1L, [10L, 11L], type, [])
 
         then:
         1 * pipelines.save({ Pipeline p ->
@@ -156,24 +157,38 @@ class PipelineServiceSpec extends Specification {
         NEXUS_IQ | 'nexusiq'
     }
 
-    def "a saved service template decides the agents and the job of the pipelines the portal starts"() {
+    def "a saved service template decides the agents and the job of the pipelines the portal starts, unless the save names the agents"() {
         given:
         products.load(1L) >> Optional.of(certScanner)
         template = new StoredServiceTemplate(StoredServiceTemplate.unsaved().template().toBuilder()
                 .agentLabels(['linux && docker', 'windows-agent']).jenkinsJob(job).build(), 3, null)
 
         when:
-        service.createMissing(1L, [10L], SECURITY)
+        service.createMissing(1L, [10L], SECURITY, labels)
 
         then:
         1 * pipelines.save({ Pipeline p ->
-            p.settings().agentLabels() == ['linux && docker', 'windows-agent'] && p.settings().jenkinsJob() == expected
+            p.settings().agentLabels() == agents && p.settings().jenkinsJob() == expected
         }) >> { Pipeline p -> stored(100L, p) }
 
         where:
-        job                              | expected
-        'Teams/{code}/{service}/{type}'  | 'Teams/cert/gui/security'
-        null                             | null
+        job                             | labels          || agents                                | expected
+        'Teams/{code}/{service}/{type}' | []              || ['linux && docker', 'windows-agent'] | 'Teams/cert/gui/security'
+        null                            | []              || ['linux && docker', 'windows-agent'] | null
+        'Teams/{code}/{service}/{type}' | ['linux-large'] || ['linux-large']                       | 'Teams/cert/gui/security'
+    }
+
+    def "agents named by a save that do not fit their column are refused on the agent labels"() {
+        given:
+        products.load(1L) >> Optional.of(certScanner)
+
+        when:
+        service.createMissing(1L, [10L], FULL, ['a' * 600, 'b' * 600])
+
+        then:
+        def e = thrown(InvalidRequestException)
+        e.problems()*.field == ['agentLabels']
+        0 * pipelines.save(_)
     }
 
     def "a service that already has a pipeline of the type keeps it, and a save that covered no service reads nothing"() {
@@ -182,7 +197,7 @@ class PipelineServiceSpec extends Specification {
         pipelines.existsForService(10L, SECURITY) >> true
 
         when:
-        def views = service.createMissing(1L, [10L, 11L], SECURITY)
+        def views = service.createMissing(1L, [10L, 11L], SECURITY, [])
 
         then:
         1 * pipelines.save({ Pipeline p -> p.service().serviceId() == 11L }) >> { Pipeline p -> stored(101L, p) }
@@ -190,7 +205,7 @@ class PipelineServiceSpec extends Specification {
         views*.pipeline()*.id() == [101L]
 
         when:
-        def none = service.createMissing(1L, [], SECURITY)
+        def none = service.createMissing(1L, [], SECURITY, [])
 
         then:
         none == []
@@ -223,9 +238,9 @@ class PipelineServiceSpec extends Specification {
         'a change read at version 3'  | { it.update(100L, 3L, FULL, pipelineSettings()) }   || STALE_VERSION
         'a change read at version 5'  | { it.update(100L, 5L, FULL, pipelineSettings()) }   || STALE_VERSION
         'a Nexus IQ pipeline for a service with no Nexus IQ application' | { it.create(20L, NEXUS_IQ, pipelineSettings()) } || NOTHING_TO_SCAN
-        'the same pipeline started by a save'                           | { it.createMissing(2L, [20L], NEXUS_IQ) }         || NOTHING_TO_SCAN
+        'the same pipeline started by a save'                           | { it.createMissing(2L, [20L], NEXUS_IQ, []) }     || NOTHING_TO_SCAN
         'a Full pipeline for a VM service with no UrbanCode application' | { it.create(20L, FULL, pipelineSettings()) }     || NOT_DEPLOYED
-        'the same Full pipeline started by a save'                      | { it.createMissing(2L, [20L], FULL) }             || NOT_DEPLOYED
+        'the same Full pipeline started by a save'                      | { it.createMissing(2L, [20L], FULL, []) }         || NOT_DEPLOYED
         'a Full pipeline whose only UrbanCode application skips DV'     | { it.create(21L, FULL, pipelineSettings()) }     || NOT_DEPLOYED
     }
 

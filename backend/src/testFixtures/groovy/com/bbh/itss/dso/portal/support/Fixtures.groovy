@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.support
 
-import com.bbh.itss.dso.portal.domain.catalog.AppScanAccount
 import com.bbh.itss.dso.portal.domain.catalog.AppScanSettings
 import com.bbh.itss.dso.portal.domain.catalog.BuildSettings
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool
@@ -65,6 +64,7 @@ import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 final class Fixtures {
 
     static final String APP_ID = '109f44ac-cc06-4ca0-884e-d944904f7019'
+    static final String KEY_ID = 'bbh_key-id'
     static final String JDK = '/usr/lib/jvm/java-17-openjdk'
     static final String KEY = '0f8fad5b-d9cb-469f-a165-70867728950e'
     static final Instant CREATED = Instant.parse('2026-10-01T08:00:00Z')
@@ -88,11 +88,12 @@ final class Fixtures {
 
     static DeploymentSettings deployment(Map args = [:]) {
         new DeploymentSettings(args.target as DeployTarget ?: VM, args.appName as String,
-                args.artifactName as String, args.baseArtifactName as String)
+                args.artifactName as String, args.baseArtifactName as String, args.nexusDeliveryDisabled as Boolean)
     }
 
     static AppScanSettings appScan(Map args = [:]) {
         AppScanSettings.builder().applicationId(args.applicationId as String ?: APP_ID)
+                .keyId(args.containsKey('keyId') ? args.keyId as String : KEY_ID).scanName(args.scanName as String)
                 .includedDirs(args.includedDirs as List<String>)
                 .excludedDirs(args.excludedDirs as List<String>).compile(args.compile as Boolean)
                 .sourceCodeOnly(args.sourceCodeOnly as Boolean).useConfigFile(args.useConfigFile as Boolean)
@@ -140,7 +141,7 @@ final class Fixtures {
                                 .pollIntervalSec(20).tokenCredentialsId('remote-trigger-token').abortTriggeredJob(true)
                                 .preventRemoteBuildQueue(true).useCrumbCache(true).build(),
                         TestJob.builder().stage(PERFORMANCE).job('https://jenkins-qc.bbh.com/job/load/').build()])
-                .deployment(new DeploymentSettings(VM, "cert-${name}", "cert-${name}.war", 'cert-base'))
+                .deployment(new DeploymentSettings(VM, "cert-${name}", "cert-${name}.war", 'cert-base', true))
                 .delivery(fullCommand('delivery'))
                 .urbanCode(new UrbanCodeSettings('BBH-RD', 'Deploy', true, false, true, false, true, 'release', 'a=b'))
                 .urbanCodeApplications([
@@ -170,12 +171,12 @@ final class Fixtures {
                         .compile(false).sourceCodeOnly(true).useConfigFile(true).insecureTls(true)
                         .clientPath('/opt/appscan').compileCommand(fullCommand('compile')).dastEnabled(true)
                         .dastTargetUrl('https://cert.testbbh.com').dastPresenceId('presence-1')
-                        .secretCredentialsId('cert-appscan-secret').build())
+                        .secretCredentialsId('cert-appscan-secret').keyId(KEY_ID).scanName("cert-${name}-sast")
+                        .build())
                 .sonar(new SonarSettings('CertScanner', "cert-${name}", 'SonarQube BBH', 'sonar-creds', 'sonar-token',
-                        'badge', true, true, fullCommand('sonar'), 'https://sonar.cert.bbh.com'))
+                        null, true, true, fullCommand('sonar'), 'https://sonar.cert.bbh.com', 'sonar-badge'))
                 .nexusIq(new NexusIqSettings('https://iq.cert.bbh.com', 'cert-iq'))
-                .nexusIqApplications([new NexusIqApplication("cert-${name}", ['**/*.war', '**/*.jar'], 'release', true),
-                                      NexusIqApplication.of("cert-${name}-batch", ['**/batch/*.jar'])])
+                .nexusIqApplications([new NexusIqApplication("cert-${name}", ['**/*.war', '**/*.jar'], 'release', true)])
                 .scm(new ScmSettings('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds', BEARER, SERVER, 'develop',
                         'ssh://git@bitbucket.bbh.com/ta/cert.git', ['alice', 'bob'],
                         'https://bitbucket.bbh.com/rest/api/1.0', 'ta-workspace', 'TA', 'cert-' + name))
@@ -196,10 +197,6 @@ final class Fixtures {
                 .label(prefix.capitalize() + ' step').returnStdout(prefix == 'build').build()
     }
 
-    static AppScanAccount account() {
-        new AppScanAccount('bbh_key-id', 'hcl-app-scan-account')
-    }
-
     static ServiceDraft draft(Map args = [:]) {
         new ServiceDraft(args.id as Long, args.name as String ?: 'gui', args.description as String,
                 args.settings as ServiceSettings ?: settings(args))
@@ -218,9 +215,8 @@ final class Fixtures {
             new Service(plain.id(), plain.name(), plain.description(), plain.displayOrder(),
                     plain.settings().withDefaultMetricsProject(details.code(), plain.name()))
         }
-        Product.restore(args.containsKey('id') ? args.id as Long : 1L, details,
-                args.containsKey('appScan') ? args.appScan as AppScanAccount : account(),
-                stored, (args.version ?: 0) as long, CREATED, UPDATED)
+        Product.restore(args.containsKey('id') ? args.id as Long : 1L, details, stored, (args.version ?: 0) as long,
+                CREATED, UPDATED)
     }
 
     static PipelineSettings pipelineSettings(Map args = [:]) {

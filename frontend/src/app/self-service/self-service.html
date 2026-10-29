@@ -32,7 +32,9 @@
         </p>
         <p class="required-note">Fields marked * are required.</p>
         <div class="fields">
-          <dso-form-field>
+          <dso-form-field
+            help="The business service the product belongs to. The portal groups products by it; for a product in the portal, it also narrows the list to choose from."
+          >
             <dso-label>Business Service</dso-label>
             <select dsoInput [formControl]="productForm.controls.departmentId">
               @for (department of departments(); track department.id) {
@@ -59,7 +61,9 @@
         />
         @if (mode() === 'new') {
           <form class="fields" [formGroup]="productForm" novalidate>
-            <dso-form-field>
+            <dso-form-field
+              help="The full name of the product as the portal shows it. No other product may use it."
+            >
               <dso-label>Product name</dso-label>
               <input
                 dsoInput
@@ -75,14 +79,17 @@
               }}</dso-hint>
               <dso-error>{{ errorText(productForm.controls.name) }}</dso-error>
             </dso-form-field>
-            <ng-container *ngTemplateOutlet="appScanKey" />
-            <dso-form-field>
+            <dso-form-field
+              help="Shown in the product list, on the product page and in Pipeline Monitoring, where products can also be searched by it."
+            >
               <dso-label>Owner team</dso-label>
               <input dsoInput formControlName="ownerTeam" placeholder="Technology Architecture" />
               <dso-hint>The team that looks after the product</dso-hint>
               <dso-error>{{ errorText(productForm.controls.ownerTeam) }}</dso-error>
             </dso-form-field>
-            <dso-form-field>
+            <dso-form-field
+              help="Shown as a mail link on the product page. A team mailbox is preferable to a personal address."
+            >
               <dso-label>Contact e-mail</dso-label>
               <input
                 dsoInput
@@ -96,7 +103,9 @@
           </form>
         } @else {
           <div class="fields">
-            <dso-form-field>
+            <dso-form-field
+              help="The product to add the pipeline to. Its services can also be added, changed or removed in the Services step."
+            >
               <dso-label>Product</dso-label>
               <select dsoInput [formControl]="productId">
                 @for (group of productGroups(); track group.name) {
@@ -121,11 +130,6 @@
               <dt>Services</dt>
               <dd>{{ product.services.length }}</dd>
             </dl>
-            @if (needsAppScanKey()) {
-              <div class="fields">
-                <ng-container *ngTemplateOutlet="appScanKey" />
-              </div>
-            }
           } @else if (productId.value !== null) {
             <dso-loading />
             @if (checked()) {
@@ -135,24 +139,6 @@
             <p class="choice-error">Choose the product</p>
           }
         }
-        <ng-template #appScanKey>
-          <dso-form-field>
-            <dso-label>AppScan API key ID</dso-label>
-            <input
-              dsoInput
-              class="mono"
-              [formControl]="productForm.controls.appScanKeyId"
-              placeholder="bbh_..."
-              autocomplete="off"
-              required
-            />
-            <dso-hint
-              >The key the pipelines use to send the code to HCL AppScan, the security scanner. The
-              Application Security team gives it to you.</dso-hint
-            >
-            <dso-error>{{ errorText(productForm.controls.appScanKeyId) }}</dso-error>
-          </dso-form-field>
-        </ng-template>
       }
       @case (1) {
         <h2>Which pipeline does {{ productName() }} need?</h2>
@@ -187,9 +173,31 @@
           }
         }
         <dso-choice-tiles label="Pipeline" [options]="pipelines()" [(value)]="pipeline" />
+        @if (!pipeline()) {
+          <p class="hint">Not sure? Start with Security. You can add another pipeline later.</p>
+        }
         @if (checked() && !pipeline()) {
           <p class="choice-error">Choose a pipeline to continue</p>
         }
+        <div class="fields">
+          <dso-form-field
+            help="Jenkins agent labels or label expressions for the pipelines this request creates; existing pipelines keep theirs. A run uses the one chosen in its AGENT_NAME parameter."
+          >
+            <dso-label>Jenkins agents</dso-label>
+            <input
+              dsoInput
+              class="mono"
+              [formControl]="agents"
+              placeholder="linux-agent"
+              autocomplete="off"
+            />
+            <dso-hint
+              >Separated by commas; the first is the default. Left empty: the service
+              template's</dso-hint
+            >
+            <dso-error>{{ errorText(agents) }}</dso-error>
+          </dso-form-field>
+        </div>
         @if (pipeline(); as chosen) {
           <div class="prepare">
             <h3>Have these at hand for the next step</h3>
@@ -199,8 +207,6 @@
               }
             </ul>
           </div>
-        } @else {
-          <p class="hint">Not sure? Start with Security. You can add another pipeline later.</p>
         }
       }
       @case (2) {
@@ -245,6 +251,8 @@
                   <span class="muted">{{ serviceSummary(service) }}</span>
                   @if (isRemoved(service)) {
                     <span class="removal">{{ removalText(service) }}</span>
+                  } @else if (keyless().includes(service.name)) {
+                    <span class="service-problem">Needs the AppScan API key ID</span>
                   }
                 </div>
                 @if (isRemoved(service)) {
@@ -314,6 +322,12 @@
             {{ unscanned().join(', ') }}
           </p>
         }
+        @if (checked() && keyless().length) {
+          <p class="choice-error">
+            Use Change to add the AppScan API key ID of these services, which every pipeline signs
+            in with: {{ keyless().join(', ') }}
+          </p>
+        }
         @if (checked() && undeployable().length) {
           <p class="choice-error">
             Use Change to add an UrbanCode Deploy application for DV to these services, which the
@@ -341,6 +355,8 @@
           }
           <dt>Pipeline</dt>
           <dd>{{ pipelineLabel() }}</dd>
+          <dt>Jenkins agents</dt>
+          <dd class="mono">{{ agents.value || 'the service template' }}</dd>
         </dl>
         <h3 class="review-heading">What happens to each service</h3>
         <ul class="review-list">

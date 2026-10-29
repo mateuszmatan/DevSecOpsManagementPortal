@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import { fieldOf, helpOf, unexplained } from '@common/testing/dom';
 import { ActionHistoryApi } from '../core/api';
 import { ActionLog } from '../core/models';
 import { ActionHistoryPage } from './action-history';
@@ -55,6 +56,16 @@ describe('ActionHistoryPage', () => {
   it('renders the page and list of logs', () => {
     expect(component).toBeTruthy();
     expect(component['columns'].length).toBe(7);
+  });
+
+  it('explains each filter with a help text', async () => {
+    await fixture.whenStable();
+    const page = fixture.nativeElement as HTMLElement;
+
+    expect(unexplained(page)).toEqual([]);
+    expect(helpOf(fieldOf(page, 'Status')!)).toBe(
+      'Shows only the actions that succeeded, or only those that failed. A failed action gives its reason under Details.',
+    );
   });
 
   it('filters rows by query', () => {

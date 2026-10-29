@@ -28,7 +28,10 @@ import { FORM_FIELD } from '../ui/form-field';
             service stay as they are.
           </p>
         }
-        <dso-form-field class="full-width">
+        <dso-form-field
+          class="full-width"
+          help="The name products are grouped under in the portal. No other business service may use it, in any letter case."
+        >
           <dso-label>Name</dso-label>
           <input
             dsoInput

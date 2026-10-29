@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { Dialog } from '@angular/cdk/dialog';
+import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -38,6 +39,7 @@ import { Field, Fields, area, choice, line, mono } from '@common/shared/fields';
 import {
   VALUES_NOT_ACCEPTED,
   addItem,
+  joinWords,
   moveItem,
   removeItem,
   revalidateAll,
@@ -46,6 +48,7 @@ import { CountedPipe } from '@common/shared/formatting';
 import { buildDefaults } from '../shared/service-template';
 import { LoadError } from '@common/ui/load-error';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
+import { MENU_AT_END } from '@common/ui/menu';
 import { PANEL } from '@common/ui/panel';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/build-options';
 import {
@@ -58,45 +61,70 @@ import {
   firstServiceWithProblem,
   followToolDefaults,
   patchProduct,
+  prefillNewService,
+  sectionInvalid,
   toProductRequest,
+  visibleSections,
 } from './product-form-model';
+import {
+  ConfigImport,
+  ImportNotes,
+  ImportedConfig,
+  importedServiceForm,
+  prefillAgents,
+} from './config-import';
 import { GeneratedKeys } from './generated-keys';
 import { NamedProduct, ProductNameDialog, ProductNameDialogData } from './product-name-dialog';
 import { ServiceFields } from './service-fields';
 import { DepartmentsApi } from '@common/core/api';
 import { FieldProblem } from '@common/core/models';
 
-const productFields = (departments: readonly Department[]): Field[] => [
+/** A new service nobody has changed yet, such as the blank one a new product starts with: a copy or an import fills it. */
+const isPlaceholder = (service: ServiceForm) =>
+  service.controls.id.value === null && service.pristine;
+
+const productFields = (departments: readonly Department[], creating: boolean): Field[] => [
   mono('code', 'Code', '', 3, {
     placeholder: 'CERT',
     maxLength: 50,
     hint: 'The short unique name used in job names and reports, for example PAYHUB',
+    help: "Two to 50 upper case letters, digits, '-' or '_', starting with a letter.",
     error: "Start with a letter; use A-Z, 0-9, '-' or '_'",
   }),
-  line('name', 'Name', '', 5, { placeholder: 'CertScanner' }),
+  line('name', 'Name', '', 5, {
+    placeholder: 'CertScanner',
+    help: 'The full name of the product as the portal shows it. No other product may use it.',
+  }),
   choice(
     'departmentId',
     'Business Service',
     departments.map(({ id, name }) => ({ value: id, label: name })),
     '',
     4,
+    { help: 'The business service the product belongs to. The portal groups products by it.' },
   ),
-  line('ownerTeam', 'Owner team', '', 4, { placeholder: 'Security Engineering' }),
+  line('ownerTeam', 'Owner team', '', 4, {
+    placeholder: 'Security Engineering',
+    help: 'The team that looks after the product. Shown in the product list, on the product page and in Pipeline Monitoring, where products can also be searched by it.',
+  }),
   area('description', 'Description', '', 8, {
     placeholder: 'What the product does and who uses it',
+    help: 'Shown in the product list and on the product page of the portal.',
   }),
-  line('contactEmail', 'Contact e-mail', '', 4, { placeholder: 'team@bbh.com', type: 'email' }),
-];
-
-const APP_SCAN_ACCOUNT: Field[] = [
-  mono('keyId', 'API key ID', 'asoc.keyId', 6, {
-    placeholder: 'bbh_...',
-    hint: 'The ID of the API key AppScan on Cloud gave the product; it starts with bbh_',
+  line('contactEmail', 'Contact e-mail', '', 4, {
+    placeholder: 'team@bbh.com',
+    type: 'email',
+    help: 'Where the DevSecOps team can reach the owners of the product; shown as a mail link on the product page. A team mailbox is preferable to a personal address.',
   }),
-  mono('secretCredentialsId', 'Secret text credentials ID', 'asoc.token', 6, {
-    placeholder: 'hcl-app-scan-account',
-    hint: "The Jenkins credential that holds the key's secret",
-  }),
+  ...(creating
+    ? [
+        mono('agentLabels', 'Jenkins agents', 'pipeline.agentNames', 8, {
+          placeholder: 'linux-agent',
+          hint: 'separated by commas; the first is the default',
+          help: 'Jenkins agent labels or label expressions for the pipelines created with the product. A run uses the one chosen in its AGENT_NAME parameter.',
+        }),
+      ]
+    : []),
 ];
 
 @Component({
@@ -104,12 +132,17 @@ const APP_SCAN_ACCOUNT: Field[] = [
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    CdkMenu,
+    CdkMenuItem,
+    CdkMenuTrigger,
     PANEL,
     DsoLoading,
     DsoSpinner,
     LoadError,
     CountedPipe,
     Fields,
+    ConfigImport,
+    ImportNotes,
     ServiceFields,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -144,20 +177,40 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected readonly unmatchedProblems = signal<FieldProblem[]>([]);
   protected readonly submitted = signal(false);
   protected readonly expanded = signal<number | null>(null);
+  protected readonly imported = signal<ImportedConfig | null>(null);
 
   private readonly formEvent = toSignal(this.form.events);
   protected readonly services = computed<ServiceForm[]>(() => {
     this.formEvent();
     return [...this.form.controls.services.controls];
   });
+  protected readonly copySources = computed(() =>
+    this.services()
+      .map((service, index) => ({ service, index }))
+      .filter(({ service }) => !isPlaceholder(service)),
+  );
+  protected readonly blockers = computed(() =>
+    this.services()
+      .filter((service) => service.invalid && !isPlaceholder(service))
+      .map((service) => {
+        const sections = visibleSections(service)
+          .filter((section) => sectionInvalid(service, section))
+          .map((section) => section.label);
+        const name = service.controls.name.value || 'new-service';
+        return sections.length ? `${name} (${sections.join(', ')})` : name;
+      }),
+  );
+  protected readonly blocked = computed(() => this.blockers().length > 0);
 
   private readonly pipelineCounts = signal(new Map<number, number>());
   private readonly serviceFields = viewChildren(ServiceFields);
   private saved = false;
   private generatedCode = '';
 
-  protected readonly productFields = computed(() => productFields(this.departments()));
-  protected readonly appScanFields = APP_SCAN_ACCOUNT;
+  protected readonly productFields = computed(() =>
+    productFields(this.departments(), this.id() === undefined),
+  );
+  protected readonly menuAtEnd = MENU_AT_END;
   protected readonly section = ADMIN;
   protected readonly tab = ADMIN_PRODUCTS;
   protected readonly adminProduct = adminProduct;
@@ -209,6 +262,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
               code: started.code,
               departmentId: started.departmentId,
             });
+            this.form.controls.agentLabels.enable();
+            this.form.controls.agentLabels.setValue(joinWords(started.template?.agentLabels, ', '));
             this.addService();
             this.form.markAsPristine();
             this.followNameWithCode();
@@ -239,6 +294,9 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
           this.form.controls.services.controls
             .filter((service) => full.has(service.controls.id.value!))
             .forEach((service) => this.withFullPipeline(service));
+          this.form.controls.services.controls
+            .filter((service) => service.invalid)
+            .forEach((service) => service.markAllAsTouched());
           this.form.markAsPristine();
           this.product.set(product);
           this.settings.set(settings);
@@ -274,15 +332,19 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       build: { buildPath: build.artifact, command: { tasks: build.tasks } },
       delivery: { tasks: template?.deliveryTasks ?? '' },
     });
-    followToolDefaults(service, template, this.destroyRef);
-    addItem(this.form.controls.services, this.withFullPipeline(service));
-    this.expanded.set(this.form.controls.services.length - 1);
+    this.add(this.prepared(service));
+  }
+
+  protected importService(imported: ImportedConfig): void {
+    this.fill(this.prepared(importedServiceForm(imported, this.settings()?.serviceDefaults)));
+    prefillAgents(this.form.controls.agentLabels, imported.agentLabels);
+    this.imported.set(imported);
   }
 
   protected duplicate(index: number): void {
-    const services = this.form.controls.services;
-    addItem(services, this.withFullPipeline(duplicateService(services.at(index))), index + 1);
-    this.expanded.set(index + 1);
+    const source = this.form.controls.services.at(index);
+    const copy = duplicateService(source, this.settings());
+    this.fill(this.withFullPipeline(copy), index + 1, source);
   }
 
   protected move(index: number, offset: -1 | 1): void {
@@ -394,6 +456,44 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       },
       { injector: this.injector },
     );
+  }
+
+  /** Prefills a new service with the Library defaults and the AppScan key, and its build with the tool's defaults. */
+  private prepared(service: ServiceForm): ServiceForm {
+    prefillNewService(
+      service,
+      this.settings(),
+      this.form.controls.services.controls.map((other) => other.controls.appScan.getRawValue()),
+    );
+    followToolDefaults(service, this.template(), this.destroyRef);
+    return this.withFullPipeline(service);
+  }
+
+  private add(service: ServiceForm, index = this.form.controls.services.length): void {
+    addItem(this.form.controls.services, service, index);
+    this.expanded.set(index);
+  }
+
+  /**
+   * Adds a service filled from another or from a file, in place of a blank placeholder other than its source, and
+   * marks it at once, so the problems it brings show without a save.
+   */
+  private fill(
+    service: ServiceForm,
+    index = this.form.controls.services.length,
+    source?: ServiceForm,
+  ): void {
+    const services = this.form.controls.services;
+    const placeholder = services.controls.findIndex(
+      (other) => other !== source && isPlaceholder(other),
+    );
+    if (placeholder >= 0) {
+      removeItem(services, placeholder);
+      index = placeholder;
+    }
+    service.markAsDirty();
+    service.markAllAsTouched();
+    this.add(service, index);
   }
 
   private withFullPipeline(service: ServiceForm): ServiceForm {

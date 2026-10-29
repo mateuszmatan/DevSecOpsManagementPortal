@@ -85,7 +85,8 @@ public class PipelineService implements PipelinesUseCase {
     }
 
     @Override
-    public List<PipelineView> createMissing(long productId, List<Long> serviceIds, PipelineType type) {
+    public List<PipelineView> createMissing(long productId, List<Long> serviceIds, PipelineType type,
+                                            List<String> agentLabels) {
         if (serviceIds.isEmpty()) {
             return List.of();
         }
@@ -97,7 +98,8 @@ public class PipelineService implements PipelinesUseCase {
                         .orElseThrow(() -> notFound("Service", serviceId)))
                 .filter(service -> !pipelines.existsForService(service.id(), type))
                 .map(service -> PipelineView.of(product, create(product, service, type,
-                        defaults.pipelineSettings(product.code(), service.name(), type)), jenkinsUrl))
+                        withLabels(defaults.pipelineSettings(product.code(), service.name(), type), agentLabels)),
+                        jenkinsUrl))
                 .toList();
     }
 
@@ -121,11 +123,15 @@ public class PipelineService implements PipelinesUseCase {
                 now()));
     }
 
+    private static PipelineSettings withLabels(PipelineSettings settings, List<String> agentLabels) {
+        return agentLabels.isEmpty() ? settings : settings.toBuilder().agentLabels(agentLabels).build();
+    }
+
     private static Optional<String> refusal(Service service, PipelineType type) {
         ServiceSettings configured = service.settings();
         if (type == NEXUS_IQ && configured.nexusIqApplications().isEmpty()) {
             return Optional.of("Service " + service.name()
-                    + " has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing");
+                    + " has no Nexus IQ application, so its Nexus IQ GoldenFix pipeline would scan nothing");
         }
         if (type == FULL && configured.deployment().target() == VM
                 && configured.urbanCodeApplications().stream().noneMatch(app -> app.deploysTo("DV"))) {

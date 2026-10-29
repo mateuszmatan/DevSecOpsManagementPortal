@@ -31,7 +31,10 @@ export interface NamedProduct {
           Start with the business service the product belongs to and its name. The portal makes the
           product's code from the name; you can change it on the next page.
         </p>
-        <dso-form-field class="full-width">
+        <dso-form-field
+          class="full-width"
+          help="The business service the product belongs to. The portal groups products by it."
+        >
           <dso-label>Business Service</dso-label>
           <select dsoInput formControlName="departmentId">
             @for (department of data.departments; track department.id) {
@@ -40,7 +43,10 @@ export interface NamedProduct {
           </select>
           <dso-error>{{ errorText(form.controls.departmentId) }}</dso-error>
         </dso-form-field>
-        <dso-form-field class="full-width">
+        <dso-form-field
+          class="full-width"
+          help="The full name of the product as the portal shows it. No other product may use it."
+        >
           <dso-label>Product name</dso-label>
           <input dsoInput formControlName="name" placeholder="CertScanner" required />
           <dso-error>{{ errorText(name) }}</dso-error>

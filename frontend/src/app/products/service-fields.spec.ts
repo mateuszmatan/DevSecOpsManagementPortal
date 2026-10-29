@@ -2,9 +2,26 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
 import { BuildTool, DeployTarget, GlobalSettings, Service } from '../core/models';
 import { wholeNumber } from '@common/shared/form-controls';
-import { buttonOf, checkboxOf, choose, fieldOf, optionsOf, selectOf, text } from '@common/testing/dom';
+import {
+  buttonOf,
+  checkboxOf,
+  choose,
+  fieldOf,
+  inputOf,
+  optionsOf,
+  selectOf,
+  text,
+  unexplained,
+} from '@common/testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
-import { ServiceForm, createServiceForm } from './product-form-model';
+import {
+  BADGE_TWICE,
+  ONE_APPLICATION,
+  ServiceForm,
+  createNexusIqApplicationForm,
+  createServiceForm,
+} from './product-form-model';
+import { applyLibraryDefaults } from './library-defaults';
 import { ServiceFields } from './service-fields';
 
 describe('ServiceFields', () => {
@@ -126,6 +143,19 @@ describe('ServiceFields', () => {
       45_000,
     );
 
+    it.each(combinations)(
+      'explains the fields of every section of a %s service on %s with a help text',
+      async (tool, target) => {
+        await render(everything(tool, target));
+
+        for (const label of railLabels()) {
+          await open(label);
+          expect(unexplained(pane()), label).toEqual([]);
+        }
+      },
+      45_000,
+    );
+
     it('works without the global settings and reveals the first section with a problem', async () => {
       await render(service(), null);
       for (const label of railLabels()) {
@@ -152,7 +182,7 @@ describe('ServiceFields', () => {
 
       form.controls.build.controls.tool.setValue('FLUTTER');
       await fixture.whenStable();
-      expect(field('JDK path').textContent).toContain('JAVA_HOME of the Flutter build stages');
+      expect(field('JDK path').textContent).toContain('Must be set for Flutter builds');
 
       form.controls.build.controls.javaPath.markAsTouched();
       await fixture.whenStable();
@@ -172,6 +202,11 @@ describe('ServiceFields', () => {
       expect(field('Artifact path').textContent).toContain(
         'The artifact the Nexus snapshot delivery uploads',
       );
+
+      form.controls.deployment.controls.nexusDeliveryDisabled.setValue(true);
+      await fixture.whenStable();
+
+      expect(field('Artifact path').textContent).toContain('What the build produces');
     });
   });
 
@@ -197,6 +232,41 @@ describe('ServiceFields', () => {
       expect(railLabels()).toContain('OpenShift targets');
       expect(railLabels()).not.toContain('SSH targets');
     });
+
+    it('hides the fields only the Nexus delivery uses while it is disabled and shows them again', async () => {
+      await render(service({ build: { ...service().build, tool: 'MAVEN' } }));
+      await open('Deployment');
+      const labels = () =>
+        [...pane().querySelectorAll('dso-form-field dso-label')].map((label) => text(label));
+      const box = () => checkboxOf(pane(), 'Disable Nexus Delivery');
+
+      expect(text(box().closest('dso-checkbox'))).toContain('deploy.vm.rd.nexusDeliveryEnabled');
+      expect(labels()).toContain('Artifact name');
+      expect(pane().querySelector('.block h4')?.textContent).toBe('Delivery');
+
+      box().click();
+      await fixture.whenStable();
+
+      expect(form.controls.deployment.controls.nexusDeliveryDisabled.value).toBe(true);
+      expect(labels()).not.toContain('Artifact name');
+      expect(labels()).not.toContain('Built file name');
+      expect(pane().querySelector('.block')).toBeNull();
+
+      form.controls.deployment.controls.target.setValue('OPENSHIFT');
+      await fixture.whenStable();
+
+      expect(text(box().closest('dso-checkbox'))).toContain(
+        'deploy.openshift.rd.nexusDeliveryEnabled',
+      );
+      await open('OpenShift targets');
+
+      expect(text(pane())).not.toContain('Image build');
+      expect(fieldOf(pane(), 'Image pushed to')).toBeNull();
+      expect(fieldOf(pane(), 'Image pulled from')).not.toBeNull();
+      expect(text(pane())).toContain(
+        'the RD deployment uses this build tag and is skipped without one',
+      );
+    });
   });
 
   describe('Flutter', () => {
@@ -210,58 +280,159 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
 
       expect(hints()).toContain('delivery.group');
+
+      form.controls.deployment.controls.nexusDeliveryDisabled.setValue(true);
+      await fixture.whenStable();
+
+      expect(hints()).not.toContain('delivery.group');
     });
   });
 
   describe('Nexus IQ', () => {
     const items = () => [...pane().querySelectorAll<HTMLElement>('.list-item')];
 
-    it('lists the applications, adds and removes them and names the global server', async () => {
+    it('holds one application, offered again once it is removed, and names the global server', async () => {
       await render();
       await open('Nexus IQ');
-      expect(hints()).toContain('Left empty: https://tools.bbh.com/IQ · tools.nexusIq.serverUrl');
-      expect(hints()).toContain('Left empty: nexusiqP · tools.nexusIq.credentialsId');
+      expect(hints()).toContain(
+        'Library default: https://tools.bbh.com/IQ · tools.nexusIq.serverUrl',
+      );
+      expect(hints()).toContain('Library default: nexusiqP · tools.nexusIq.credentialsId');
       expect(items().map((item) => item.querySelector('strong')?.textContent)).toEqual([
         'cert-gui',
       ]);
+      expect(buttonOf(pane(), 'Add application')).toBeUndefined();
+
+      pane().querySelector<HTMLButtonElement>('button[aria-label="Remove cert-gui"]')!.click();
+      await fixture.whenStable();
+
+      expect(text(pane().querySelector('.list-empty'))).toBe(
+        'No application: the Nexus IQ stage passes with no findings. A Nexus IQ GoldenFix pipeline requires an application.',
+      );
 
       buttonOf(pane(), 'Add application').click();
       await fixture.whenStable();
-      expect(items().length).toBe(2);
-      expect(form.controls.nexusIqApplications.at(1).controls.stage.value).toBe('build');
-      expect(form.dirty).toBe(true);
 
-      for (const label of ['Remove the new application', 'Remove cert-gui']) {
-        pane().querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click();
-        await fixture.whenStable();
-      }
-      expect(pane().querySelector('.list-empty')?.textContent).toContain('skips the Nexus IQ scan');
+      expect(items().length).toBe(1);
+      expect(form.controls.nexusIqApplications.at(0).controls.stage.value).toBe('build');
+      expect(form.dirty).toBe(true);
+    });
+
+    it('shows both applications of a legacy service until one is removed', async () => {
+      await render();
+      form.controls.nexusIqApplications.push(
+        createNexusIqApplicationForm({ application: 'cert-api', scanPatterns: ['*.jar'] }),
+      );
+      await open('Nexus IQ');
+
+      expect(items().length).toBe(2);
+      expect(text(pane().querySelector('.list-error'))).toBe(ONE_APPLICATION);
+
+      fixture.componentRef.setInput('submitted', true);
+      await fixture.whenStable();
+
+      expect(page().querySelector('.rail-item.active.problem')).not.toBeNull();
+
+      pane().querySelector<HTMLButtonElement>('button[aria-label="Remove cert-api"]')!.click();
+      await fixture.whenStable();
+
+      expect(pane().querySelector('.list-error')).toBeNull();
+      expect(form.controls.nexusIqApplications.valid).toBe(true);
     });
   });
 
   describe('servers and credentials of the service', () => {
-    it('name the global value a blank field falls back to', async () => {
+    it('name the Library default, and whether the value still equals it', async () => {
       await render();
       await open('SonarQube');
-      expect(hints()).toContain('Left empty: https://tools.bbh.com/sonar · tools.sonar.serverUrl');
-      await open('Monitoring');
-      expect(hints()).toContain('Left empty: influxdb-token · influx.credentialsId');
-      await open('AppScan SAST and DAST');
-      expect(text(fieldOf(pane(), 'Secret text credentials ID'))).toContain(
-        "The AppScan API key secret; left empty: the product's",
+      expect(hints()).toContain(
+        'Library default: https://tools.bbh.com/sonar · tools.sonar.serverUrl',
       );
+
+      form.controls.sonar.controls.installationName.setValue('SonarQube');
+      await fixture.whenStable();
+
+      expect(hints()).toContain('Library default · tools.sonar.installationName');
+      await open('Monitoring');
+      expect(hints()).toContain('Library default: influxdb-token · influx.credentialsId');
+      await open('SSH targets');
+      expect(hints()).toContain('Library default: taadmin · user');
+    });
+
+    it('hints at nothing without the global settings', async () => {
+      await render(service(), null);
+      await open('SonarQube');
+
+      expect(hints()).toContain('tools.sonar.serverUrl');
+    });
+  });
+
+  describe('AppScan', () => {
+    it('asks for the key of the service with the application and moves the scan name into the advanced settings', async () => {
+      await render();
+      await open('AppScan SAST and DAST');
+      const main = [...pane().querySelectorAll(':scope > .form-fields > dso-fields dso-label')].map(
+        (label) => text(label),
+      );
+
+      expect(main).toEqual([
+        'AppScan application ID',
+        'AppScan API key ID',
+        'API key secret credentials ID',
+        'Included folders',
+        'Excluded folders',
+      ]);
+      expect(text(fieldOf(pane(), 'API key secret credentials ID'))).toContain(
+        'Left empty: the key ID · asoc.token',
+      );
+      expect(text(fieldOf(pane(), 'SAST scan name'))).toContain('sast.scanName');
+      expect(fieldOf(pane(), 'SAST scan name')?.closest('dso-advanced-settings')).not.toBeNull();
+    });
+  });
+
+  describe('SonarQube', () => {
+    it('shows the project, its credentials and badge settings first and refuses both badge values', async () => {
+      await render();
+      await open('SonarQube');
+      const main = [...pane().querySelectorAll(':scope > .form-fields > dso-fields dso-label')].map(
+        (label) => text(label),
+      );
+
+      expect(main).toEqual([
+        'Project name',
+        'Project key',
+        'Jenkins installation',
+        'Token credentials ID',
+        'Badge token',
+        'Badge token credentials ID',
+      ]);
+      expect(text(fieldOf(pane(), 'Project key'))).toContain(
+        'Left empty, the scan still runs without dashboard link, issue counts and badges',
+      );
+      expect(
+        text(checkboxOf(pane(), 'Badges in the Jenkins build description').closest('dso-checkbox')),
+      ).toContain('tools.sonar.addBadges');
+
+      form.controls.sonar.controls.badgeCredentialsId.setValue('sonar-badge');
+      const token = inputOf(pane(), 'Badge token');
+      token.value = 'sqb_1';
+      token.dispatchEvent(new Event('input'));
+      token.dispatchEvent(new Event('blur'));
+      await fixture.whenStable();
+
+      expect(text(fieldOf(pane(), 'Badge token')?.querySelector('dso-error'))).toBe(BADGE_TWICE);
     });
   });
 
   describe('GoldenFix', () => {
-    it('offers Global default, On and Off and names the global default', async () => {
+    it('offers Library default, On and Off and names the Library default', async () => {
       await render();
       await open('GoldenFix');
 
       const select = selectOf(pane(), 'Run GoldenFix');
-      expect(text(select.selectedOptions[0])).toBe('Global default');
-      expect(hints()).toContain('Global default: on · goldenFix.enabled');
-      expect(optionsOf(select)).toEqual(['Global default', 'On', 'Off']);
+      expect(text(select.selectedOptions[0])).toBe('Library default');
+      expect(hints()).toContain('Library default: on · goldenFix.enabled');
+      expect(optionsOf(select)).toEqual(['Library default', 'On', 'Off']);
 
       choose(select, 'Off');
       await fixture.whenStable();
@@ -277,7 +448,7 @@ describe('ServiceFields', () => {
       });
       await open('GoldenFix');
 
-      expect(hints()).toContain('Global default: off · goldenFix.enabled');
+      expect(hints()).toContain('Library default: off · goldenFix.enabled');
       choose(selectOf(pane(), 'Run GoldenFix'), 'On');
       await fixture.whenStable();
 
@@ -291,7 +462,7 @@ describe('ServiceFields', () => {
       expect(pane().querySelector('.note')?.textContent).toContain(
         'maven, npm, pypi, threat level 2 and above, direct dependencies only, each fix verified by a build.',
       );
-      expect(buttonOf(pane(), 'Inherit the library defaults').getAttribute('aria-checked')).toBe(
+      expect(buttonOf(pane(), 'Inherit the Library defaults').getAttribute('aria-checked')).toBe(
         'true',
       );
       buttonOf(pane(), 'Override for this service').click();
@@ -301,13 +472,38 @@ describe('ServiceFields', () => {
       expect(pane().querySelector('dso-golden-fix-fields')).not.toBeNull();
     });
 
+    it('names the Library default in the override choices and in the hints of prefilled fields', async () => {
+      await render();
+      applyLibraryDefaults(form, globalSettings());
+      await open('GoldenFix');
+      buttonOf(pane(), 'Override for this service').click();
+      await fixture.whenStable();
+      const hintOf = (label: string) => text(fieldOf(pane(), label)?.querySelector('dso-hint'));
+
+      expect(optionsOf(selectOf(pane(), 'Dependencies'))[0]).toBe('Library default');
+      expect(optionsOf(selectOf(pane(), 'Verification'))[0]).toBe('Library default');
+      expect(hintOf('Minimum threat level')).toContain('from 0 to 10 · Library default · ');
+      expect(hintOf('Golden version types')).toContain('one per line · Library default · ');
+      expect(hintOf('Excluded folders')).toContain('left empty: the Library default');
+      expect(hintOf('Dependencies')).toContain(
+        'transitive ones come with them · Library default · ',
+      );
+
+      form.controls.goldenFix.controls.minThreatLevel.setValue(7);
+      choose(selectOf(pane(), 'Dependencies'), 'Library default');
+      await fixture.whenStable();
+
+      expect(hintOf('Minimum threat level')).toContain('· Library default: 2 · ');
+      expect(hintOf('Dependencies')).toContain('· Library default: yes · ');
+    });
+
     it('works without the global settings', async () => {
       await render(service(), null);
       await open('GoldenFix');
 
       expect(hints()).toContain('goldenFix.enabled');
       expect(pane().querySelector('.note')?.textContent).toBe(
-        'The service follows the GoldenFix defaults of the DSOEnhanced library.',
+        'The service follows the GoldenFix defaults on the Library defaults page.',
       );
     });
   });

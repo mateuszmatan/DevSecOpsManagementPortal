@@ -22,6 +22,7 @@ import { Fields, chips } from '@common/shared/fields';
 import { revalidateAll, saveFailure } from '@common/shared/form-controls';
 import { errorText } from '@common/shared/form-errors';
 import { RelativeTimePipe } from '@common/shared/formatting';
+import { DsoHelp } from '@common/ui/help';
 import { LoadError } from '@common/ui/load-error';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
 import { TOGGLES } from '@common/ui/toggle-group';
@@ -42,29 +43,33 @@ import { FieldProblem } from '@common/core/models';
 
 const SCANNER_INFO: Record<
   Scanner,
-  { label: string; tool: string; gateKey: string; path: string }
+  { label: string; tool: string; help: string; gateKey: string; path: string }
 > = {
   SAST: {
     label: 'SAST',
     tool: 'Scan of the source code by HCL AppScan',
+    help: 'Counts the issues of the static scan report by their AppScan severity.',
     gateKey: 'sast',
     path: 'sast',
   },
   SCA: {
     label: 'SCA',
-    tool: 'Scan of the open source libraries by HCL AppScan',
+    tool: 'Vulnerability check of the source code by SonarQube',
+    help: 'Counts the open SonarQube vulnerabilities of the project: Blocker and Critical as critical, Major as high and Minor as medium.',
     gateKey: 'sca',
     path: 'sca',
   },
   NEXUS_IQ: {
     label: 'Nexus IQ',
     tool: 'Policy check of the open source libraries by Sonatype Nexus IQ',
+    help: 'Counts the components with policy violations: critical as critical, severe as high and moderate as medium.',
     gateKey: 'niq',
     path: 'tools.nexusIq',
   },
   DAST: {
     label: 'DAST',
     tool: 'Scan of the running service by HCL AppScan',
+    help: 'Counts the issues of the dynamic scan report by their AppScan severity.',
     gateKey: 'dast',
     path: 'dast',
   },
@@ -75,6 +80,7 @@ const SCANNER_INFO: Record<
   imports: [
     ReactiveFormsModule,
     TOGGLES,
+    DsoHelp,
     DsoLoading,
     DsoSpinner,
     LoadError,

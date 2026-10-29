@@ -30,7 +30,10 @@ import { DsoSpinner } from '@common/ui/loading';
             again; to let the pipeline run later, regenerate its key.
           </span>
         </div>
-        <dso-form-field class="full-width">
+        <dso-form-field
+          class="full-width"
+          help="Why the key may no longer be used. Jenkins writes the reason to the build log, so do not include the key or any other secret."
+        >
           <dso-label>Reason</dso-label>
           <textarea
             dsoInput

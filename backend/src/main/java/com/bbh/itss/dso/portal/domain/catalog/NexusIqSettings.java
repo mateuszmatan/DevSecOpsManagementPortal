@@ -3,17 +3,16 @@ package com.bbh.itss.dso.portal.domain.catalog;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record NexusIqSettings(String serverUrl, String credentialsId) {
 
     public static final NexusIqSettings NONE = new NexusIqSettings(null, null);
+    public static final String ONE_APPLICATION = "a service scans one Nexus IQ application";
 
     public NexusIqSettings {
         serverUrl = trimToNull(serverUrl);
@@ -21,17 +20,15 @@ public record NexusIqSettings(String serverUrl, String credentialsId) {
     }
 
     public void validate(ValidationProblems problems, List<NexusIqApplication> applications) {
-        Set<String> seen = new HashSet<>();
+        if (applications.size() > 1) {
+            problems.add("nexusIqApplications", ONE_APPLICATION);
+        }
         for (int i = 0; i < applications.size(); i++) {
-            NexusIqApplication application = applications.get(i);
-            ValidationProblems at = problems.at("nexusIqApplications[" + i + "]");
-            application.validate(at);
-            if (application.application() != null && !seen.add(application.application())) {
-                at.add("application", "is listed twice: each Nexus IQ application is scanned once");
-            }
+            applications.get(i).validate(problems.at("nexusIqApplications[" + i + "]"));
         }
     }
 
+    /** Services stored before the one-application rule keep their map of applications until an admin removes one. */
     public void writeTo(ConfigTree config, List<NexusIqApplication> applications) {
         String path = "tools.nexusIq.";
         config.set(path + "serverUrl", serverUrl).set(path + "credentialsId", credentialsId);

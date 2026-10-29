@@ -11,3 +11,6 @@ databaseChangeLog:
   - include:
       file: oracle/030-drop-scan-names.sql
       relativeToChangelogFile: true
+  - include:
+      file: oracle/031-service-forms.sql
+      relativeToChangelogFile: true

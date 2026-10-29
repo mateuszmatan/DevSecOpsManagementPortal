@@ -26,7 +26,6 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
-import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
@@ -62,7 +61,7 @@ class PipelinePersistenceAdapterSpec extends Specification {
     Product cert
 
     def setup() {
-        cert = products.save(Product.create(details(), account(), [draft('gui'), draft('api')], products))
+        cert = products.save(Product.create(details(), [draft('gui'), draft('api')], products))
     }
 
     def "a new pipeline is stored with its settings and its first active key"() {
@@ -193,7 +192,7 @@ class PipelinePersistenceAdapterSpec extends Specification {
 
     def "pipelines are listed and counted per product, per department and overall in service and type order"() {
         given:
-        def other = products.save(Product.create(details(code: 'ABC', name: 'Abacus', departmentId: 5L), account(),
+        def other = products.save(Product.create(details(code: 'ABC', name: 'Abacus', departmentId: 5L),
                 [draft('core')], products))
         def apiSast = stored(ref(cert, 1), SAST)
         def guiSecurity = stored(ref(cert, 0), SECURITY)
@@ -230,7 +229,7 @@ class PipelinePersistenceAdapterSpec extends Specification {
     def "a tag is shared when pipelines of several services write under it"() {
         given:
         def metrics = MetricsSettings.of(true, 'CertScanner', 'test')
-        def tagged = products.save(Product.create(details(code: 'TAG', name: 'Tagged'), account(), [
+        def tagged = products.save(Product.create(details(code: 'TAG', name: 'Tagged'), [
                 new ServiceDraft(null, 'gui', null, settings(metrics: metrics)),
                 new ServiceDraft(null, 'api', null, settings(metrics: metrics)),
                 draft('batch')], products))

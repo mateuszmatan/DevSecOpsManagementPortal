@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { MY_DEPARTMENT_KEY } from '@common/departments/my-department';
 import { RETRY } from '@common/core/errors';
-import { buttonOf, fieldOf, text } from '@common/testing/dom';
+import { buttonOf, fieldOf, helpOf, text, unexplained } from '@common/testing/dom';
 import {
   anotherService,
   department,
@@ -117,7 +117,6 @@ describe('SelfService', () => {
     wizard()['productForm'].patchValue({
       departmentId: 5,
       name: 'Trade Archive',
-      appScanKeyId: 'bbh_key',
     });
     await new Promise((resolve) => setTimeout(resolve, 350));
     http.expectOne('/api/products/code-suggestion?name=Trade%20Archive').flush({ code: 'TA' });
@@ -137,7 +136,14 @@ describe('SelfService', () => {
 
     await next();
 
-    expect(review()).toEqual(['Product', 'Business Service', 'Owner team', 'Contact e-mail', 'Pipeline']);
+    expect(review()).toEqual([
+      'Product',
+      'Business Service',
+      'Owner team',
+      'Contact e-mail',
+      'Pipeline',
+      'Jenkins agents',
+    ]);
     expect(entries()).toEqual([
       'archive-api · New · Added with a SAST pipeline and its own key. Built with Gradle.',
     ]);
@@ -345,7 +351,7 @@ describe('SelfService', () => {
     await click(rows()[1], 'Undo');
     await next();
 
-    expect(review()).toEqual(['Product', 'Business Service', 'Pipeline']);
+    expect(review()).toEqual(['Product', 'Business Service', 'Pipeline', 'Jenkins agents']);
     expect(entries()).toEqual([
       'gui · Removed · Deleted, with its pipelines and their keys.',
       'api · Gets a Security pipeline with its own key; nothing else changes.',
@@ -542,39 +548,62 @@ describe('SelfService', () => {
     expect(fieldOf(page(), 'AppScan API key ID')).toBeNull();
   });
 
-  it('asks for the AppScan key of a product in the portal that has none and sends it', async () => {
-    await chooseProduct(3, product({ appScan: null, services: [] }), []);
-
-    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('dso-hint'))).toBe(
-      'The key the pipelines use to send the code to HCL AppScan, the security scanner. The Application Security team gives it to you.',
-    );
-
+  it('asks for the Jenkins agents of the pipelines it creates, starting with those of the template', async () => {
+    await chooseProduct(3, product({ services: [] }), []);
     await next();
 
-    expect(wizard()['step']()).toBe(0);
-    expect(text(fieldOf(page(), 'AppScan API key ID')?.querySelector('dso-error'))).toBe(
-      'Required',
+    expect(fieldOf(page(), 'Jenkins agents')?.querySelector('input')?.value).toBe('linux-agent');
+
+    wizard()['agents'].setValue(`linux-agent, ${'x'.repeat(101)}`);
+    await next();
+
+    expect(wizard()['step']()).toBe(1);
+    expect(text(fieldOf(page(), 'Jenkins agents')?.querySelector('dso-error'))).toBe(
+      `At most 100 characters per label: ${'x'.repeat(101)}`,
     );
 
-    wizard()['productForm'].controls.appScanKeyId.setValue(' bbh_new ');
-    await next();
+    wizard()['agents'].setValue(' docker-agent, linux-agent ');
     wizard()['pipeline'].set('SAST');
     await next();
-    wizard()['services'].set([added]);
+    wizard()['services'].set([
+      { ...added, serviceRequest: { ...service(), id: null, name: 'archive-api' } },
+    ]);
     await next();
+
+    expect(review()).toContain('Jenkins agents');
+
     await next();
 
     const request = http.expectOne({ method: 'PUT', url: '/api/products/1?pipelineType=SAST' });
-    expect(request.request.body.appScan).toEqual({ keyId: 'bbh_new', secretCredentialsId: null });
+    expect(request.request.body.agentLabels).toEqual(['docker-agent', 'linux-agent']);
+    expect(request.request.body.appScan).toBeUndefined();
     expect(request.request.body.services.map((service: { name: string }) => service.name)).toEqual([
       'archive-api',
     ]);
-    expect(request.request.body.services[0].build.sourceDir).toBe('app');
+    expect(request.request.body.services[0].appScan.keyId).toBe('bbh_key');
     request.flush(product());
     http.expectOne('/api/products/1/pipelines').flush([]);
     await fixture.whenStable();
 
     expect(wizard()['step']()).toBe(4);
+  });
+
+  it('explains the fields of the product and pipeline steps with a help text', async () => {
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(fieldOf(page(), 'Product name')!)).toBe(
+      'The full name of the product as the portal shows it. No other product may use it.',
+    );
+
+    await chooseProduct(3, product({ services: [] }), []);
+
+    expect(unexplained(page())).toEqual([]);
+
+    await next();
+
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(fieldOf(page(), 'Jenkins agents')!)).toBe(
+      'Jenkins agent labels or label expressions for the pipelines this request creates; existing pipelines keep theirs. A run uses the one chosen in its AGENT_NAME parameter.',
+    );
   });
 
   it('asks for an UrbanCode Deploy application for DV of the services a Full pipeline deploys to virtual machines', async () => {
@@ -594,6 +623,32 @@ describe('SelfService', () => {
       { ...gui, serviceRequest: service() },
       { ...api, target: 'OPENSHIFT', openShiftProject: 'cert' },
     ]);
+    await next();
+
+    expect(wizard()['step']()).toBe(3);
+  });
+
+  it('flags a service in the portal without the AppScan API key ID and continues once it has one', async () => {
+    const keyless = service({ appScan: { ...service().appScan, keyId: '' } });
+    await chooseProduct(3, product({ services: [keyless] }));
+    await next();
+    wizard()['pipeline'].set('SAST');
+    await next();
+
+    expect(all('.service-problem')).toEqual(['Needs the AppScan API key ID']);
+
+    await next();
+
+    expect(wizard()['step']()).toBe(2);
+    expect(all('.choice-error')).toEqual([
+      'Use Change to add the AppScan API key ID of these services, which every pipeline signs in with: gui',
+    ]);
+
+    wizard()['services'].update(([gui]) => [{ ...gui, serviceRequest: service() }]);
+    await fixture.whenStable();
+
+    expect(all('.service-problem')).toEqual([]);
+
     await next();
 
     expect(wizard()['step']()).toBe(3);

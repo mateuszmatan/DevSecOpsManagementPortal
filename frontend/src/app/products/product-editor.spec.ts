@@ -14,7 +14,15 @@ import {
   servicePipelines,
   serviceTemplate,
 } from '../testing/fixtures';
-import { buttonOf, inputOf, selectOf, text } from '@common/testing/dom';
+import {
+  buttonOf,
+  fieldOf,
+  helpOf,
+  inputOf,
+  selectOf,
+  text,
+  unexplained,
+} from '@common/testing/dom';
 import { GeneratedKeys } from './generated-keys';
 import { createUrbanCodeApplicationForm } from './product-form-model';
 import { ProductEditor } from './product-editor';
@@ -115,7 +123,6 @@ describe('ProductEditor', () => {
     editor()['form'].patchValue({
       code: 'CERT',
       name: 'CertScanner',
-      appScan: { keyId: 'bbh_key' },
     });
     editor()
       ['form'].controls.services.at(0)
@@ -124,8 +131,9 @@ describe('ProductEditor', () => {
         build: { javaPath: '/usr/lib/jvm/java-17-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'gui', artifactName: 'gui.jar' },
         openShiftTargets: imageBuild,
-        appScan: { applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019' },
+        appScan: { applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019', keyId: 'bbh_key' },
       });
+    editor()['form'].controls.services.at(0).markAsDirty();
   }
 
   it('starts a new product with one open service', async () => {
@@ -193,7 +201,9 @@ describe('ProductEditor', () => {
     expect(inputOf(page(), 'Code').value).toBe('PAYMENTSHUB2');
     expect(editor()['form'].controls.departmentId.value).toBe(5);
     expect(
-      text(selectOf(page().querySelector('.product-fields')!, 'Business Service').selectedOptions[0]),
+      text(
+        selectOf(page().querySelector('.product-fields')!, 'Business Service').selectedOptions[0],
+      ),
     ).toBe('Fund Services');
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
@@ -293,7 +303,7 @@ describe('ProductEditor', () => {
         build: { javaPath: '/usr/lib/jvm/java-21-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'api', artifactName: 'api.jar' },
         openShiftTargets: imageBuild,
-        appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019' },
+        appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019', keyId: 'bbh_key' },
       });
     await submit();
 
@@ -302,7 +312,7 @@ describe('ProductEditor', () => {
         detail: 'The request has invalid values',
         errors: [
           { field: 'services[1].sonar.projectKey', message: 'is already used by PAYHUB/gateway' },
-          { field: 'appScanAccount', message: 'is unknown' },
+          { field: 'serviceTemplate', message: 'is not configured' },
         ],
       },
       { status: 400, statusText: 'Bad Request' },
@@ -315,7 +325,9 @@ describe('ProductEditor', () => {
       server: 'is already used by PAYHUB/gateway',
     });
     expect(editor()['expanded']()).toBe(1);
-    expect(page().querySelector('.problems')?.textContent).toContain('appScanAccount: is unknown');
+    expect(page().querySelector('.problems')?.textContent).toContain(
+      'serviceTemplate: is not configured',
+    );
     expect(page().querySelector('.dso-panel.expanded .rail-item.active')?.textContent).toContain(
       'SonarQube',
     );
@@ -362,9 +374,11 @@ describe('ProductEditor', () => {
       '',
     ]);
 
-    editor()['form'].controls.services.at(0).controls.urbanCodeApplications.push(
-      createUrbanCodeApplicationForm({ ...service().urbanCodeApplications[0], environments: [] }),
-    );
+    editor()
+      ['form'].controls.services.at(0)
+      .controls.urbanCodeApplications.push(
+        createUrbanCodeApplicationForm({ ...service().urbanCodeApplications[0], environments: [] }),
+      );
     await submit();
 
     http.expectOne({ method: 'PUT', url: '/api/products/1' }).flush(product());
@@ -399,7 +413,7 @@ describe('ProductEditor', () => {
         build: { javaPath: '/usr/lib/jvm/java-21-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'api', artifactName: 'api.jar' },
         openShiftTargets: imageBuild,
-        appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019' },
+        appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019', keyId: 'bbh_key' },
       });
     await submit();
 
@@ -530,5 +544,205 @@ describe('ProductEditor', () => {
       'gui-copy',
     ]);
     expect(editor()['expanded']()).toBe(1);
+  });
+
+  it('leaves the blank new service out of the service actions and names the services that block them', async () => {
+    await start();
+    const actions = () =>
+      [...page().querySelectorAll<HTMLButtonElement>('.service-actions button')].map(
+        (button) => `${text(button)}${button.disabled ? ' (disabled)' : ''}`,
+      );
+    const first = editor()['form'].controls.services.at(0);
+
+    expect(actions()).toEqual(['Import config.yaml', 'Add service']);
+    expect(page().querySelector('.blocked')).toBeNull();
+
+    first.controls.name.setValue('gui');
+    first.markAsDirty();
+    await fixture.whenStable();
+
+    expect(actions()).toEqual([
+      'Copy values from existing service (disabled)',
+      'Import config.yaml (disabled)',
+      'Add service (disabled)',
+    ]);
+    expect(text(page().querySelector('.blocked'))).toBe(
+      'Complete these services before adding another: gui (Build, Deployment, OpenShift targets, AppScan SAST and DAST).',
+    );
+
+    fillValidProduct();
+    first.controls.appScan.patchValue({ secretCredentialsId: 'asoc-secret' });
+    await fixture.whenStable();
+
+    expect(actions()).toEqual([
+      'Copy values from existing service',
+      'Import config.yaml',
+      'Add service',
+    ]);
+    expect(page().querySelector('.blocked')).toBeNull();
+
+    buttonOf(page(), 'Add service').click();
+    await fixture.whenStable();
+    const added = editor()['form'].controls.services.at(1).controls.appScan.getRawValue();
+
+    expect(panels().length).toBe(2);
+    expect([added.keyId, added.secretCredentialsId]).toEqual(['bbh_key', 'asoc-secret']);
+    expect(actions()).toEqual([
+      'Copy values from existing service',
+      'Import config.yaml',
+      'Add service',
+    ]);
+  });
+
+  it('fills the blank new service from an imported config.yaml and marks what it lacks', async () => {
+    await start();
+
+    editor()['importService']({
+      file: 'config.yaml',
+      name: 'gateway',
+      service: { ...anotherService(), id: 11, nexusIqApplications: [] },
+      notes: [],
+      agentLabels: [],
+    });
+    await fixture.whenStable();
+    const filled = editor()['form'].controls.services.at(0);
+
+    expect(names()).toEqual(['gateway']);
+    expect(filled.controls.id.value).toBeNull();
+    expect(filled.controls.build.controls.tool.value).toBe(anotherService().build.tool);
+    expect(filled.touched).toBe(true);
+    expect(editor()['expanded']()).toBe(0);
+  });
+
+  it('offers the import in the empty list of services', async () => {
+    await start();
+    editor()['remove'](0);
+    await fixture.whenStable();
+
+    const empty = page().querySelector('.empty-state')!;
+    expect(empty.querySelector('dso-config-import')).not.toBeNull();
+    expect(buttonOf(empty as HTMLElement, 'Add service').disabled).toBe(false);
+  });
+
+  it('marks the stored services that load invalid and names them as the reason', async () => {
+    const twoApplications = service({
+      nexusIqApplications: [
+        ...service().nexusIqApplications,
+        { ...service().nexusIqApplications[0], application: 'cert-gui-legacy' },
+      ],
+    });
+    await edit([twoApplications, anotherService()]);
+
+    expect(text(panels()[0].querySelector('.tag.error'))).toBe('Needs attention');
+    expect(panels()[1].querySelector('.tag.error')).toBeNull();
+    expect(text(page().querySelector('.blocked'))).toBe(
+      'Complete these services before adding another: gui (Nexus IQ).',
+    );
+  });
+
+  it('copies the values of the service chosen in the menu, except those that identify it', async () => {
+    await edit();
+
+    buttonOf(page(), 'Copy values from existing service').click();
+    await fixture.whenStable();
+    expect([...document.querySelectorAll('.dso-menu button')].map(text)).toEqual(['gui', 'api']);
+
+    buttonOf(document.querySelector('.dso-menu')!, 'api').click();
+    await fixture.whenStable();
+    const copy = editor()['form'].controls.services.at(2).getRawValue();
+
+    expect(names()).toEqual(['gui', 'api', 'api-copy']);
+    expect(text(panels()[2].querySelector('.tag.error'))).toBe('Needs attention');
+    expect(copy.id).toBeNull();
+    expect(copy.build.tool).toBe(anotherService().build.tool);
+    expect(copy.sonar.projectKey).toBe('');
+    expect(copy.nexusIqApplications.map((app) => app.application)).toEqual(
+      anotherService().nexusIqApplications.map(() => ''),
+    );
+    expect(editor()['expanded']()).toBe(2);
+  });
+
+  it('puts a copy in place of the blank new service and lists only the other services to copy', async () => {
+    await edit();
+    buttonOf(page(), 'Add service').click();
+    await fixture.whenStable();
+
+    buttonOf(page(), 'Copy values from existing service').click();
+    await fixture.whenStable();
+    expect([...document.querySelectorAll('.dso-menu button')].map(text)).toEqual(['gui', 'api']);
+
+    buttonOf(document.querySelector('.dso-menu')!, 'gui').click();
+    await fixture.whenStable();
+
+    expect(names()).toEqual(['gui', 'api', 'gui-copy']);
+    expect(editor()['expanded']()).toBe(2);
+  });
+
+  it('asks a new product for its Jenkins agents, starting with those of the service template', async () => {
+    await start();
+
+    expect(inputOf(page(), 'Jenkins agents').value).toBe('linux-agent');
+
+    fillValidProduct();
+    editor()['form'].controls.agentLabels.setValue('docker-agent, linux-agent');
+    await submit();
+
+    const request = http.expectOne({ method: 'POST', url: '/api/products' });
+    expect(request.request.body.agentLabels).toEqual(['docker-agent', 'linux-agent']);
+    request.flush(product({ id: 5 }));
+    await fixture.whenStable();
+  });
+
+  it('explains the product fields and those of the open service with a help text', async () => {
+    await start();
+
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(fieldOf(page(), 'Owner team')!)).toBe(
+      'The team that looks after the product. Shown in the product list, on the product page and in Pipeline Monitoring, where products can also be searched by it.',
+    );
+    expect(helpOf(fieldOf(page(), 'Service name')!)).toContain('Must be unique within the product');
+  });
+
+  it('leaves the Jenkins agents of a stored product to its pipelines', async () => {
+    await edit();
+
+    expect(fieldOf(page(), 'Jenkins agents')).toBeNull();
+
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/products/1' });
+    expect(request.request.body).not.toHaveProperty('agentLabels');
+    request.flush(product());
+    await fixture.whenStable();
+  });
+
+  it('adds a service imported from a config.yaml with the agents of its pipeline and lists the notes', async () => {
+    await start();
+    fillValidProduct();
+
+    editor()['importService']({
+      file: 'config.yaml',
+      name: 'gateway',
+      service: { ...anotherService(), id: 11 },
+      notes: [
+        { field: 'tools.sonar.foo', message: 'not imported: the portal has no such setting' },
+      ],
+      agentLabels: ['docker-agent'],
+    });
+    await fixture.whenStable();
+    const added = editor()['form'].controls.services.at(1);
+
+    expect(names()).toEqual(['gui', 'gateway']);
+    expect(added.controls.id.value).toBeNull();
+    expect(added.controls.build.controls.tool.value).toBe(anotherService().build.tool);
+    expect(editor()['form'].controls.agentLabels.value).toBe('docker-agent');
+    expect(text(page().querySelector('dso-import-notes li'))).toBe(
+      'tools.sonar.foo: The portal has no such setting',
+    );
+
+    buttonOf(page().querySelector('dso-import-notes')!, 'Dismiss').click();
+    await fixture.whenStable();
+
+    expect(page().querySelector('dso-import-notes')).toBeNull();
   });
 });

@@ -105,6 +105,20 @@ class PortalPerformanceSpec extends PortalSpecification {
         within(productPipelines, 300)
     }
 
+    def "a product's config is read back into new service forms quickly"() {
+        given:
+        String config = api.get("/api/products/${products[0].id}/config").body
+
+        when:
+        def stats = measure("Import the config of a product with $SERVICES services", calls: 20, threads: 4) {
+            def response = api.post('/api/service-configs/import', [content: config])
+            response.status == 200 && response.json.services.size() == SERVICES
+        }
+
+        then:
+        within(stats, 500)
+    }
+
     def "a burst of pipelines fetching their configuration is served"() {
         given:
         def keys = pipelines*.activeKey*.value

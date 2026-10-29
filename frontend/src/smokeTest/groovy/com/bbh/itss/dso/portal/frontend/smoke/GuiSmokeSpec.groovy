@@ -99,7 +99,7 @@ class GuiSmokeSpec extends DsoSpecification {
             def (path, heading) = pair
             open(path)
             assertThat(page.locator('h1').first()).containsText(heading)
-            assert page.locator('svg-icon').count() == 0
+            assert page.locator('svg-icon').count() == page.locator('dso-help svg-icon').count()
             true
         }
 
@@ -134,14 +134,15 @@ class GuiSmokeSpec extends DsoSpecification {
     }
 
     @IgnoreIf({ DsoSpecification.remoteBaseUrl() })
-    def "the service editor keeps icons only in its vertical section menu"() {
+    def "the service editor keeps icons to its vertical section menu and the help of its fields"() {
         when:
         open('/admin/products/1/edit')
         page.locator('dso-panel .accordion-button').first().click()
 
         then:
         assertThat(page.locator('.rail svg-icon svg').first()).isVisible()
-        page.locator('svg-icon').count() == page.locator('.rail svg-icon').count()
+        assertThat(page.locator('dso-help svg-icon svg').first()).isVisible()
+        page.locator('svg-icon').count() == page.locator('.rail svg-icon').count() + page.locator('dso-help svg-icon').count()
         ownErrors().isEmpty()
     }
 
@@ -188,6 +189,9 @@ class GuiSmokeSpec extends DsoSpecification {
         open('/admin/products/1/edit')
         page.locator('dso-panel .accordion-button').first().click()
         button('Duplicate').first().click()
+        def copy = page.locator('dso-panel.service-panel.expanded')
+        copy.locator(".rail-item:has(> span:text-is('Nexus IQ'))").click()
+        input(copy, 'Application').fill('cert-scanner-gui-copy')
         button('Save changes').click()
         page.waitForURL('**/admin/products/1')
 

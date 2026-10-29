@@ -101,7 +101,10 @@ export function matches(row: PipelineHealth, filters: PipelineFilters): boolean 
         </div>
       </header>
       <section class="card toolbar">
-        <dso-form-field class="department">
+        <dso-form-field
+          class="department"
+          help="The business service whose pipelines you look after. Self-service preselects it for a new product."
+        >
           <dso-label>Your business service</dso-label>
           <select dsoInput [formControl]="department">
             <option [ngValue]="null" disabled>Choose your business service</option>

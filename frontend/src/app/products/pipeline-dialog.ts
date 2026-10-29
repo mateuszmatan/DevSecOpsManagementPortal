@@ -110,15 +110,23 @@ export class PipelineDialog {
 
   protected readonly fields = computed<Field[]>(() => {
     const type = this.selectedType();
-    const job = (key: string, label: string, code: string, example: string, hint: string) =>
-      mono(key, label, code, 12, { placeholder: example, hint, error: JOB_PATH_ERROR });
+    const job = (
+      key: string,
+      label: string,
+      code: string,
+      example: string,
+      hint: string,
+      help: string,
+    ) => mono(key, label, code, 12, { placeholder: example, hint, help, error: JOB_PATH_ERROR });
     return [
-      choice('type', 'Pipeline type', this.types, '', 12, { hint: type?.description ?? '' }),
-      mono('agentLabels', 'Jenkins agents', '', 12, {
+      choice('type', 'Pipeline type', this.types, '', 12, {
+        hint: type?.description ?? '',
+        help: 'Sets the library entry point the Jenkinsfile calls, and with it the stages that run. A service has at most one pipeline of each type.',
+      }),
+      mono('agentLabels', 'Jenkins agents', 'pipeline.agentNames', 12, {
         placeholder: 'linux-agent, linux && docker',
-        hint:
-          'The machines the pipeline runs on: Jenkins agent labels or label expressions, separated by ' +
-          'commas. The pipeline runs on an agent that matches one of them. `agentNames`',
+        hint: 'separated by commas; the first is the default',
+        help: 'Jenkins agent labels or label expressions the pipeline may run on. A run uses the one chosen in its AGENT_NAME parameter.',
       }),
       {
         ...job(
@@ -127,7 +135,8 @@ export class PipelineDialog {
           '',
           'DevSecOps/CERT/backend-api-full',
           'Where the pipeline runs in Jenkins: the path of its job, which the portal links under the ' +
-            'Jenkins URL of the library defaults, or the full address of the job',
+            'Jenkins URL on the Library defaults page, or the full address of the job',
+          'The portal links the pipeline and its runs to this job. When several pipelines write metrics with the same project tag, it also tells their runs apart.',
         ),
         error: 'A job path such as DevSecOps/CERT/backend-api-full, or an http or https URL',
       },
@@ -136,10 +145,10 @@ export class PipelineDialog {
             job(
               'extendedPipelineJob',
               'Extended pipeline job',
-              '',
+              'jenkins.pipeline.extendedPipeline',
               'CERT/backend-api-extended',
-              'Optional. The extended pipeline this pipeline starts after its scans. ' +
-                '`jenkins.pipeline.extendedPipeline`',
+              'Optional. The Extended pipeline this pipeline starts after its scans',
+              'Started when a run succeeds or is unstable and its RUN_EXTENDED_PIPELINE parameter is ticked, on the same AGENT_NAME. The Security pipeline does not wait for it.',
             ),
           ]
         : []),
@@ -148,15 +157,17 @@ export class PipelineDialog {
             job(
               'securityPipelineJob',
               'Security pipeline job',
-              '',
+              'pipeline.securityPipeline',
               'CERT/backend-api-security',
-              'The security pipeline whose build this pipeline deploys and tests. `securityPipeline`',
+              'The Security pipeline whose build this pipeline deploys and tests',
+              'The Extended pipeline takes the build tags and the release gate result from the last successful build of this job.',
             ),
           ]
         : []),
       area('description', 'Description', '', 12, {
         placeholder: 'Nightly security scan of the develop branch',
         hint: "Optional. Shown on the pipeline's page.",
+        help: 'A note for the people who run or look after the pipeline, such as its purpose or schedule. It is not part of the configuration Jenkins receives.',
       }),
     ];
   });

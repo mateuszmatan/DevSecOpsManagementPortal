@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GlobalSettings, TestJob } from '../core/models';
 import { applyFieldProblems } from '@common/shared/form-controls';
-import { buttonOf, checkboxOf, fieldOf, inputOf, text } from '@common/testing/dom';
+import { buttonOf, checkboxOf, fieldOf, helpOf, inputOf, text } from '@common/testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import { ServiceForm, createServiceForm } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
@@ -81,7 +81,7 @@ describe('TestJobsFields', () => {
     expect(sections()[2].querySelector('.list-empty')?.textContent).toBe(
       'No performance test jobs.',
     );
-    expect(text(page())).toContain('Left empty: global default 20 · tests.maxParallel');
+    expect(text(page())).toContain('Library default: 20 · tests.maxParallel');
   });
 
   it('adds, moves and removes jobs within a stage', async () => {
@@ -128,7 +128,9 @@ describe('TestJobsFields', () => {
     expect(fieldOf(items[0], 'Remote Jenkins')).toBeNull();
     expect(fieldOf(items[0], 'Token credentials ID')).toBeNull();
     expect(inputOf(items[1], 'Remote Jenkins').value).toBe('qa');
-    expect(text(fieldOf(items[1], 'Token credentials ID'))).toContain('Secret text');
+    expect(helpOf(fieldOf(items[1], 'Token credentials ID')!)).toBe(
+      'The ID of a Jenkins Secret text credential with the security token of the remote job. Left empty, the job is started without a token.',
+    );
     expect(checkboxOf(items[1], 'Cache the crumb')).toBeDefined();
     expect(text(fieldOf(items[1], 'Poll interval (seconds)'))).toContain('the stage interval');
   });

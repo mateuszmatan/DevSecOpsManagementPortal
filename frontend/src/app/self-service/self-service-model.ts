@@ -1,7 +1,7 @@
 import {
-  AppScanAccount,
   BuildTool,
   DeployTarget,
+  GlobalSettings,
   OpenShiftTarget,
   Pipeline,
   PipelineType,
@@ -145,7 +145,7 @@ export function aPipeline(pipeline: WizardPipeline): string {
 
 export function preparation(pipeline: WizardPipeline): string[] {
   const needs = [
-    'The name of each service and its AppScan application ID, from the Application Security team',
+    'The name of each service, its AppScan application ID and the AppScan API key ID, from the DevSecOps team',
     'Whether each service is built with Gradle or Maven; a developer of the service knows',
   ];
   if (pipeline === 'NEXUS_IQ') {
@@ -174,6 +174,7 @@ export interface WizardDefaults {
   target: DeployTarget | null;
   template: ServiceTemplateValues | null;
   productCode: string;
+  settings: GlobalSettings | null;
 }
 
 export interface NamedDefaults {
@@ -336,14 +337,23 @@ type TargetText = Partial<Omit<Record<keyof OpenShiftTarget, string>, 'skipConfi
 
 const dockerContext = (tool: BuildTool) => (tool === 'MAVEN' ? 'target/docker' : 'build/docker');
 
+/** The image repository of a service: the template's registry, the OpenShift project and the service name. */
+export function imageRepository(
+  project: string,
+  service: string,
+  template: ServiceTemplateValues | null,
+): string {
+  const registry = template?.imageRegistry;
+  return `${registry ? `${registry}/` : ''}${project}/${service.toLowerCase()}`;
+}
+
 export function openShiftTargets(
   project: string,
   service: string,
   tool: BuildTool,
   template: ServiceTemplateValues | null,
 ): Record<Region, TargetText> {
-  const registry = template?.imageRegistry;
-  const image = `${registry ? `${registry}/` : ''}${project}/${service.toLowerCase()}`;
+  const image = imageRepository(project, service, template);
   const shared = {
     dockerRepoPull: image,
     deployConfigPath: 'openshift/deployment.yaml',
@@ -481,11 +491,6 @@ export interface NewProduct {
   code: string;
   ownerTeam: string;
   contactEmail: string;
-  appScanKeyId: string;
-}
-
-export function appScanAccount(keyId: string): AppScanAccount {
-  return { keyId: keyId.trim(), secretCredentialsId: null };
 }
 
 export function productRequest(
@@ -495,6 +500,7 @@ export function productRequest(
   departmentId: number | null = null,
   template: ServiceTemplateValues | null = null,
   defaults: ServiceDefaults | null = null,
+  agentLabels: string[] = [],
 ): ProductRequest {
   const stored = 'id' in product ? product : null;
   const requests = services.map((service) =>
@@ -514,9 +520,9 @@ export function productRequest(
       ownerTeam: stored.ownerTeam,
       contactEmail: stored.contactEmail,
       departmentId: stored.departmentId ?? departmentId,
-      appScan: stored.appScan,
       version: stored.version,
       services: requests,
+      agentLabels,
     };
   }
   const fresh = product as NewProduct;
@@ -527,9 +533,9 @@ export function productRequest(
     ownerTeam: fresh.ownerTeam.trim() || null,
     contactEmail: fresh.contactEmail.trim() || null,
     departmentId: fresh.departmentId,
-    appScan: appScanAccount(fresh.appScanKeyId),
     version: null,
     services: requests,
+    agentLabels,
   };
 }
 

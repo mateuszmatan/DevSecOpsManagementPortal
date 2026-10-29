@@ -67,20 +67,6 @@
             <dso-fields [group]="form" [fields]="productFields()" />
           </div>
         </div>
-
-        <div class="form-block">
-          <header>
-            <h3>HCL AppScan account</h3>
-            <p>
-              The pipelines scan the code of every service for security flaws with HCL AppScan and
-              sign in with this API key, so a product with services needs it. The key's secret stays
-              in Jenkins.
-            </p>
-          </header>
-          <div class="form-fields">
-            <dso-fields [group]="form.controls.appScan" [fields]="appScanFields" />
-          </div>
-        </div>
       </section>
 
       <section class="services">
@@ -95,21 +81,66 @@
               save, each new service gets a Full pipeline with its own key.
             </p>
           </div>
-          <button type="button" class="btn btn-outline-primary" (click)="addService()">
-            Add service
-          </button>
+          <div class="service-actions">
+            @if (copySources().length) {
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                [disabled]="blocked()"
+                [cdkMenuTriggerFor]="copyMenu"
+                [cdkMenuPosition]="menuAtEnd"
+              >
+                Copy values from existing service
+              </button>
+              <ng-template #copyMenu>
+                <div cdkMenu class="dropdown-menu dso-menu">
+                  @for (source of copySources(); track source.service) {
+                    <button
+                      type="button"
+                      cdkMenuItem
+                      class="dropdown-item mono"
+                      (cdkMenuItemTriggered)="duplicate(source.index)"
+                    >
+                      {{ source.service.controls.name.value || 'new-service' }}
+                    </button>
+                  }
+                </div>
+              </ng-template>
+            }
+            <dso-config-import [disabled]="blocked()" (imported)="importService($event)" />
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              [disabled]="blocked()"
+              (click)="addService()"
+            >
+              Add service
+            </button>
+          </div>
+          @if (blocked()) {
+            <p class="blocked muted" role="status">
+              Complete these services before adding another: {{ blockers().join('; ') }}.
+            </p>
+          }
         </header>
+
+        @if (imported(); as notes) {
+          <dso-import-notes [imported]="notes" (closed)="imported.set(null)" />
+        }
 
         @if (services().length === 0) {
           <div class="card empty-state">
             <h3>No services yet</h3>
             <p>
-              Add the services of the product, for example its web front end and its API. Each one
-              gets its own pipeline when you save.
+              Add the services of the product, for example its web front end and its API, or import
+              one from a config.yaml. Each one gets its own pipeline when you save.
             </p>
-            <button type="button" class="btn btn-primary" (click)="addService()">
-              Add service
-            </button>
+            <div class="empty-actions">
+              <dso-config-import (imported)="importService($event)" />
+              <button type="button" class="btn btn-primary" (click)="addService()">
+                Add service
+              </button>
+            </div>
           </div>
         } @else {
           <div class="accordion">

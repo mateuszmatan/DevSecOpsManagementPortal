@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
-import { text } from '@common/testing/dom';
+import { helpOf, text, unexplained } from '@common/testing/dom';
 import { pipeline } from '../testing/fixtures';
 import { RevokeKeyDialog } from './revoke-key-dialog';
 
@@ -47,6 +47,8 @@ describe('RevokeKeyDialog', () => {
       'The full pipeline of gui is refused its settings from now on and stops at its next start. This key cannot be used again; to let the pipeline run later, regenerate its key.',
     );
     expect(page().querySelector('.banner strong')?.textContent).toBe('gui');
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(page())).toContain('do not include the key or any other secret');
 
     await submit('');
 

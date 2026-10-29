@@ -11,7 +11,7 @@
   gap: 8px 16px;
   margin-bottom: 8px;
 
-  > div {
+  > div:first-child {
     flex: 1 1 420px;
     min-width: 0;
   }
@@ -29,6 +29,29 @@
     max-width: 900px;
     margin: 2px 0 0;
   }
+
+  .blocked {
+    flex-basis: 100%;
+    max-width: none;
+    margin: 0;
+    font-size: 12px;
+    text-align: right;
+  }
+}
+
+.service-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
 }
 
 .service-name {
