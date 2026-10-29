@@ -99,7 +99,7 @@ class GuiSmokeSpec extends DsoSpecification {
             def (path, heading) = pair
             open(path)
             assertThat(page.locator('h1').first()).containsText(heading)
-            assert page.locator('svg-icon').count() == 0
+            assert page.locator('svg-icon').count() == page.locator('dso-help svg-icon').count()
             true
         }
 

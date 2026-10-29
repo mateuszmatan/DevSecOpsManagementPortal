@@ -52,7 +52,7 @@ describe('self-service model', () => {
       'Whether each service runs on virtual machines or on OpenShift',
     );
     expect(preparation('NEXUS_IQ')).toEqual([
-      'The name of each service, its AppScan application ID and the AppScan API key ID, from the Application Security team',
+      'The name of each service, its AppScan application ID and the AppScan API key ID, from the DevSecOps team',
       'Whether each service is built with Gradle or Maven; a developer of the service knows',
       'The Nexus IQ application and the Bitbucket repository of each service',
     ]);

@@ -10,6 +10,7 @@ import {
   optionsOf,
   selectOf,
   text,
+  unexplained,
 } from '@common/testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
 import {
@@ -144,16 +145,10 @@ describe('ServiceFields', () => {
       'explains the fields of every section of a %s service on %s with a help text',
       async (tool, target) => {
         await render(everything(tool, target));
-        const own = (element: Element) =>
-          !element.closest('dso-test-jobs-fields, dso-urban-code-fields, dso-golden-fix-fields');
 
         for (const label of railLabels()) {
           await open(label);
-          const fields = [...pane().querySelectorAll('dso-form-field, dso-checkbox')].filter(own);
-          const unexplained = fields
-            .filter((field) => !field.querySelector('dso-help'))
-            .map((field) => text(field.querySelector('label')));
-          expect(unexplained, label).toEqual([]);
+          expect(unexplained(pane()), label).toEqual([]);
         }
       },
       45_000,
@@ -185,7 +180,7 @@ describe('ServiceFields', () => {
 
       form.controls.build.controls.tool.setValue('FLUTTER');
       await fixture.whenStable();
-      expect(field('JDK path').textContent).toContain('JAVA_HOME of the Flutter build stages');
+      expect(field('JDK path').textContent).toContain('Must be set for Flutter builds');
 
       form.controls.build.controls.javaPath.markAsTouched();
       await fixture.whenStable();

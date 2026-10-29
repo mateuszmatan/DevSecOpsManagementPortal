@@ -33,7 +33,7 @@
         <p class="required-note">Fields marked * are required.</p>
         <div class="fields">
           <dso-form-field
-            help="The business service the product belongs to. The portal groups products by it."
+            help="The business service the product belongs to. The portal groups products by it; for a product in the portal, it also narrows the list to choose from."
           >
             <dso-label>Business Service</dso-label>
             <select dsoInput [formControl]="productForm.controls.departmentId">
@@ -61,7 +61,9 @@
         />
         @if (mode() === 'new') {
           <form class="fields" [formGroup]="productForm" novalidate>
-            <dso-form-field help="The full name of the product as the portal shows it.">
+            <dso-form-field
+              help="The full name of the product as the portal shows it. No other product may use it."
+            >
               <dso-label>Product name</dso-label>
               <input
                 dsoInput
@@ -77,14 +79,16 @@
               }}</dso-hint>
               <dso-error>{{ errorText(productForm.controls.name) }}</dso-error>
             </dso-form-field>
-            <dso-form-field help="The team responsible for the product and its pipelines.">
+            <dso-form-field
+              help="Shown in the product list, on the product page and in Pipeline Monitoring, where products can also be searched by it."
+            >
               <dso-label>Owner team</dso-label>
               <input dsoInput formControlName="ownerTeam" placeholder="Technology Architecture" />
               <dso-hint>The team that looks after the product</dso-hint>
               <dso-error>{{ errorText(productForm.controls.ownerTeam) }}</dso-error>
             </dso-form-field>
             <dso-form-field
-              help="The address to contact about the product, preferably a team mailbox."
+              help="Shown as a mail link on the product page. A team mailbox is preferable to a personal address."
             >
               <dso-label>Contact e-mail</dso-label>
               <input
@@ -99,7 +103,9 @@
           </form>
         } @else {
           <div class="fields">
-            <dso-form-field help="The product in the portal that gets the pipeline.">
+            <dso-form-field
+              help="The product to add the pipeline to. Its services can also be added, changed or removed in the Services step."
+            >
               <dso-label>Product</dso-label>
               <select dsoInput [formControl]="productId">
                 @for (group of productGroups(); track group.name) {
@@ -172,7 +178,7 @@
         }
         <div class="fields">
           <dso-form-field
-            help="Jenkins label expressions for the pipelines this request creates. A run uses the one chosen in its AGENT_NAME parameter."
+            help="Jenkins agent labels or label expressions for the pipelines this request creates; existing pipelines keep theirs. A run uses the one chosen in its AGENT_NAME parameter."
           >
             <dso-label>Jenkins agents</dso-label>
             <input

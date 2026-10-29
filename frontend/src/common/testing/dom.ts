@@ -37,6 +37,21 @@ export function checkboxOf(root: ParentNode, label: string): HTMLInputElement {
   return box?.querySelector<HTMLInputElement>('input')!;
 }
 
+export function helpOf(root: ParentNode): string {
+  const trigger = root.querySelector('.dso-help-trigger');
+  return (trigger?.getAttribute('aria-describedby') ?? '')
+    .split(' ')
+    .map((id) => text(document.getElementById(id)))
+    .join(' ');
+}
+
+export function unexplained(root: ParentNode): string[] {
+  return [...root.querySelectorAll('dso-form-field, dso-checkbox')]
+    .map((field) => ({ label: text(field.querySelector('label')), help: helpOf(field) }))
+    .filter((field) => field.label && !field.help)
+    .map((field) => field.label);
+}
+
 export function buttonOf(root: ParentNode, label: string): HTMLButtonElement {
   return [...root.querySelectorAll<HTMLButtonElement>('button')].find(
     (button) => text(button) === label || button.getAttribute('aria-label') === label,

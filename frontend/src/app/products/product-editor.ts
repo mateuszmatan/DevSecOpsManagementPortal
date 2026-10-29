@@ -76,12 +76,12 @@ const productFields = (departments: readonly Department[], creating: boolean): F
     placeholder: 'CERT',
     maxLength: 50,
     hint: 'The short unique name used in job names and reports, for example PAYHUB',
-    help: 'At most 50 characters, starting with a letter. No other product may use it.',
+    help: "Two to 50 upper case letters, digits, '-' or '_', starting with a letter.",
     error: "Start with a letter; use A-Z, 0-9, '-' or '_'",
   }),
   line('name', 'Name', '', 5, {
     placeholder: 'CertScanner',
-    help: 'The full name of the product as the portal shows it.',
+    help: 'The full name of the product as the portal shows it. No other product may use it.',
   }),
   choice(
     'departmentId',
@@ -93,23 +93,23 @@ const productFields = (departments: readonly Department[], creating: boolean): F
   ),
   line('ownerTeam', 'Owner team', '', 4, {
     placeholder: 'Security Engineering',
-    help: 'The team responsible for the product and its pipelines.',
+    help: 'The team that looks after the product. Shown in the product list, on the product page and in Pipeline Monitoring, where products can also be searched by it.',
   }),
   area('description', 'Description', '', 8, {
     placeholder: 'What the product does and who uses it',
-    help: 'Shown on the product page of the portal.',
+    help: 'Shown in the product list and on the product page of the portal.',
   }),
   line('contactEmail', 'Contact e-mail', '', 4, {
     placeholder: 'team@bbh.com',
     type: 'email',
-    help: 'The address to contact about the product, preferably a team mailbox.',
+    help: 'Where the DevSecOps team can reach the owners of the product; shown as a mail link on the product page. A team mailbox is preferable to a personal address.',
   }),
   ...(creating
     ? [
         mono('agentLabels', 'Jenkins agents', 'pipeline.agentNames', 8, {
           placeholder: 'linux-agent',
           hint: 'separated by commas; the first is the default',
-          help: 'Jenkins label expressions for the pipelines created with the product. A run uses the one chosen in its AGENT_NAME parameter.',
+          help: 'Jenkins agent labels or label expressions for the pipelines created with the product. A run uses the one chosen in its AGENT_NAME parameter.',
         }),
       ]
     : []),

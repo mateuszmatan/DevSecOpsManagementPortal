@@ -70,7 +70,7 @@ export interface ServiceDialogData {
         <div class="start">
           @if (sources.length) {
             <dso-form-field
-              help="Fills the form with the settings of another service of the product, except its name, SonarQube project, monitoring project tag and Nexus IQ application."
+              help="Replaces the settings below with those of another service of the product, except the name, SonarQube project, monitoring project tag and Nexus IQ application."
             >
               <dso-label>Copy values from</dso-label>
               <select dsoInput [formControl]="copyFrom">

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Fields, check, line } from '../shared/fields';
-import { buttonOf, fieldOf, text } from '../testing/dom';
+import { buttonOf, fieldOf, helpOf, text, unexplained } from '../testing/dom';
 import { FORM_FIELD } from './form-field';
 
 @Component({
@@ -44,11 +44,6 @@ describe('DsoHelp', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const trigger = (root: ParentNode) => buttonOf(root, 'More information');
   const popover = () => document.querySelector<HTMLElement>('.dso-help-popover');
-  const description = (button: HTMLElement) =>
-    (button.getAttribute('aria-describedby') ?? '')
-      .split(' ')
-      .map((id) => text(document.getElementById(id)))
-      .join(' ');
 
   async function fire(element: HTMLElement, type: string) {
     element.dispatchEvent(new Event(type));
@@ -73,7 +68,8 @@ describe('DsoHelp', () => {
     const button = trigger(fieldOf(page(), 'Owner team')!);
 
     expect(button.type).toBe('button');
-    expect(description(button)).toBe('The team that looks after the product.');
+    expect(helpOf(fieldOf(page(), 'Owner team')!)).toBe('The team that looks after the product.');
+    expect(unexplained(page())).toEqual(['Plain']);
   });
 
   it('shows the help on hover and keyboard focus, and Escape closes it', async () => {
@@ -114,12 +110,11 @@ describe('DsoHelp', () => {
   });
 
   it('renders the help of fields and check boxes listed for dso-fields the same way', () => {
-    const name = trigger(fieldOf(page(), 'Service name')!);
     const box = page().querySelector('dso-checkbox')!;
 
-    expect(description(name)).toBe('Used in the job names.');
+    expect(helpOf(fieldOf(page(), 'Service name')!)).toBe('Used in the job names.');
     expect(box.querySelector('.form-check-label + dso-help')).not.toBeNull();
-    expect(description(trigger(box))).toBe('Sends the results.');
+    expect(helpOf(box)).toBe('Sends the results.');
     expect(text(box.querySelector('label'))).toBe('Write metrics (influx.enabled)');
   });
 });

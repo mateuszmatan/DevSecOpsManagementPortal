@@ -112,10 +112,12 @@ const SECTIONS: TemplateSection[] = [
       mono('agentLabels', 'Jenkins agents', '', 6, {
         placeholder: 'linux-agent',
         hint: 'The machines the pipeline runs on, as Jenkins agent labels separated by commas',
+        help: 'Jenkins agent labels or label expressions a new pipeline may run on. A run uses the one chosen in its AGENT_NAME parameter, by default the first.',
       }),
       mono('jenkinsJob', 'Jenkins job', '', 6, {
         placeholder: 'DevSecOps/{CODE}/{service}-{type}',
         hint: 'Where the pipeline lives in Jenkins',
+        help: 'The job path of a new pipeline, with Jenkins folders separated by slashes. The portal links the job and its runs from it.',
         error: "A job path with letters, digits, spaces, . _ / - and placeholders, without '..'",
       }),
     ],
@@ -127,24 +129,29 @@ const SECTIONS: TemplateSection[] = [
       mono('gradleTasks', 'Gradle tasks', '', 6, {
         placeholder: 'clean build',
         hint: 'What a Gradle build runs',
+        help: 'The tasks a new Gradle service gets in its build command, separated by spaces.',
       }),
       mono('gradleArtifact', 'Gradle artifact', '', 6, {
         placeholder: 'build/libs/*.jar',
         hint: 'The file a Gradle build produces',
+        help: 'The artifact path a new Gradle service gets: a path or wildcard pattern relative to the workspace.',
         error: SHELL_SAFE_ERROR,
       }),
       mono('mavenTasks', 'Maven goals', '', 6, {
         placeholder: 'clean verify',
         hint: 'What a Maven build runs',
+        help: 'The goals a new Maven service gets in its build command, separated by spaces.',
       }),
       mono('mavenArtifact', 'Maven artifact', '', 6, {
         placeholder: 'target/*.jar',
         hint: 'The file a Maven build produces',
+        help: 'The artifact path a new Maven service gets: a path or wildcard pattern relative to the workspace.',
         error: SHELL_SAFE_ERROR,
       }),
       mono('deliveryTasks', 'Nexus delivery goals', '', 6, {
         placeholder: 'deploy:deploy-file',
         hint: 'How a Maven build is delivered to Nexus',
+        help: 'The goals a new service gets for the snapshot delivery to Nexus. Only Maven services on virtual machines use them.',
       }),
     ],
   },
@@ -155,27 +162,33 @@ const SECTIONS: TemplateSection[] = [
       mono('nexusIqApplication', 'Nexus IQ application', '', 6, {
         placeholder: '{code}-{service}',
         hint: 'The application in Nexus IQ the libraries are checked against',
+        help: 'The public ID of the Nexus IQ application that self-service gives a new service.',
         error: 'Letters, digits, . _ - and placeholders only',
       }),
       mono('repositoryUrl', 'Bitbucket repository', '', 6, {
         placeholder: 'https://bitbucket.bbh.com/projects/{CODE}/repos/{code}-{service}',
         hint: 'Where GoldenFix opens its pull requests',
+        help: 'The browser address of the repository that self-service gives a new service. GoldenFix also pushes its upgrade branch there.',
       }),
       mono('bitbucketCredentialsId', 'Bitbucket credentials ID', '', 6, {
         placeholder: 'bitbucket-http-credentials',
         hint: 'The Jenkins credentials that open the pull requests',
+        help: 'The ID of a Jenkins Username with password credential; a new service from self-service signs in to Bitbucket with Basic authentication.',
       }),
       mono('gradleScanPattern', 'Gradle scan pattern', '', 6, {
         placeholder: '**/build/libs/*.jar',
         hint: 'The files Nexus IQ checks in a Gradle build',
+        help: 'The scan pattern, relative to the workspace, that self-service gives the Nexus IQ application of a new Gradle service.',
       }),
       mono('mavenScanPattern', 'Maven scan pattern', '', 6, {
         placeholder: '**/target/*.jar',
         hint: 'The files Nexus IQ checks in a Maven build',
+        help: 'The scan pattern, relative to the workspace, that self-service gives the Nexus IQ application of a new Maven service.',
       }),
       mono('flutterScanPattern', 'Flutter scan pattern', '', 6, {
         placeholder: '**/pubspec.lock',
         hint: 'The files Nexus IQ checks in a Flutter build',
+        help: 'The scan pattern, relative to the workspace, that self-service gives the Nexus IQ application of a new Flutter service.',
       }),
     ],
   },
@@ -186,16 +199,19 @@ const SECTIONS: TemplateSection[] = [
       mono('openShiftProject', 'OpenShift project', '', 6, {
         placeholder: '{code}-{service}',
         hint: 'Written in lower case; the projects end in -build, -rd and -qc',
+        help: 'The base name of the OpenShift projects that self-service gives a new OpenShift service. The image path in the registry uses it as well.',
         error: 'Letters, digits, - and placeholders only',
       }),
       mono('imageRegistry', 'Image registry', '', 6, {
         placeholder: 'docker-qc.tools.bbh.com',
         hint: 'Where the images of the service are stored',
+        help: 'The registry host that the image path of a new OpenShift service starts with, followed by the OpenShift project and the service name.',
         error: IMAGE_TAG_ERROR,
       }),
       mono('healthCheckUrl', 'Health check path', '', 6, {
         placeholder: '/actuator/health',
         hint: 'The address OpenShift calls to check that the service is up',
+        help: 'The path a new OpenShift service gets for its health check. The deployment passes it to the OpenShift template as HEALTH_URL.',
       }),
     ],
   },
@@ -222,9 +238,9 @@ const EXAMPLES: { key: TemplateKey; label: string }[] = [
   template: `
     <header class="tab-header">
       <p class="meta">
-        What a new service and its pipelines get. Self-service and the Add service and Add pipeline
-        forms fill in these values, and each one can still be changed there. Fields marked * are
-        required.
+        What a new service and its pipelines get. Self-service uses all of these values. The Add
+        service form takes the build tasks, artifacts and delivery goals, and new pipelines get the
+        pipeline values. Each value can still be changed there. Fields marked * are required.
       </p>
     </header>
 

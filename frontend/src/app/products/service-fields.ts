@@ -22,6 +22,7 @@ import {
   addItem,
   removeItem,
 } from '@common/shared/form-controls';
+import { DsoHelp } from '@common/ui/help';
 import { TOGGLES } from '@common/ui/toggle-group';
 import { GRADLE_MAVEN_FLUTTER } from '../shared/build-options';
 import { AdvancedSettings } from './advanced-settings';
@@ -56,7 +57,7 @@ const NOTES: Record<ServiceSectionId, string> = {
   deployment: 'Where the service runs: on virtual machines or on OpenShift.',
   urbanCode:
     'How the Full pipeline deploys the service to the lower test region (RD) with UrbanCode Deploy. A Full pipeline of a service on virtual machines needs at least one application for the UrbanCode Deploy environment DV.',
-  ssh: 'The virtual machines the service is deployed to over SSH, per test region. A blank value takes the library default; a region left empty is skipped.',
+  ssh: 'The virtual machines the service is deployed to over SSH, per test region. A blank value takes the library default.',
   openShift:
     'The OpenShift projects the service is built and deployed in, per test region. The QC region is optional; once one of its fields is set, the fields its deployment needs are required.',
   appScan:
@@ -108,7 +109,7 @@ const APP_SCAN: Field[] = [
   mono('applicationId', 'AppScan application ID', 'appId', 4, {
     placeholder: '109f44ac-cc06-4ca0-884e-d944904f7019',
     hint: "the service's application in AppScan on Cloud",
-    help: 'The Application Security team provides this ID. The scan results are stored under this application.',
+    help: 'The static and dynamic scans of the service are uploaded to this application, where AppScan on Cloud keeps their results.',
     error: 'Must be the application UUID from AppScan on Cloud',
   }),
   mono('keyId', 'AppScan API key ID', 'asoc.keyId', 4, {
@@ -136,12 +137,12 @@ const APP_SCAN: Field[] = [
 const APP_SCAN_OPTIONS: Field[] = [
   mono('scanName', 'SAST scan name', 'sast.scanName', 6, {
     hint: 'left empty: the project name followed by -sast',
-    help: 'The name of the static scan in AppScan on Cloud. The file names and the name of the dynamic scan do not change.',
+    help: "The name of the static scan in AppScan on Cloud, in lower case and with '.' replaced by '-'. The file names and the name of the dynamic scan do not change.",
     error: "Letters, digits, '.', '_' and '-' only",
   }),
   mono('clientPath', 'AppScan client path', 'appscanPath', 6, {
-    hint: 'left empty: downloaded by the pipeline',
-    help: 'Windows agents only: the path of the AppScan client, relative to the workspace.',
+    hint: 'needed on Windows agents',
+    help: 'The path of appscan.bat relative to the workspace, starting with a slash; Windows agents run the AppScan client from there. Linux agents use the client the pipeline downloads.',
     error: POWERSHELL_PATH_ERROR,
   }),
   check('compile', 'Compile before preparing the IRX', 'asoc.doCompile', 6, {
@@ -154,13 +155,13 @@ const APP_SCAN_OPTIONS: Field[] = [
     help: 'Linux agents only: the appscan-config.xml file of the repository decides what is scanned, instead of the included and excluded folders.',
   }),
   check('insecureTls', 'Accept any TLS certificate', 'asoc.insecureTls', 6, {
-    help: 'Skips the certificate check of the calls to the AppScan REST API. Use it only for a known certificate problem.',
+    help: 'Skips the certificate check of the AppScan REST API calls the dynamic scan makes. Use it only for a known certificate problem.',
   }),
 ];
 
 const DAST_ENABLED: Field[] = [
   check('dastEnabled', 'Run DAST against the deployed application', 'dast.enabled', 12, {
-    help: 'Runs a dynamic scan of the application deployed to the lower test region (RD).',
+    help: 'After the deployment and test stages, the pipeline runs a dynamic scan of the running application at the target URL.',
   }),
 ];
 
@@ -186,7 +187,7 @@ const NEXUS_IQ_APPLICATION: Field[] = [
     error: 'A Nexus IQ stage such as build, stage-release or release',
   }),
   check('failOnNetworkError', 'Fail the build on a network error', 'failOnNetworkError', 4, {
-    help: 'Fails the stage when Nexus IQ Server cannot be reached, instead of continuing.',
+    help: 'Treats an unreachable Nexus IQ Server as a failed scan, which turns the stage orange and blocks the release.',
   }),
   area('scanPatterns', 'Scan patterns', 'scanPatterns', 12, {
     mono: true,
@@ -200,13 +201,13 @@ const SCM: Field[] = [
   line('repositoryUrl', 'Repository URL', 'scm.bitbucket.url', 8, {
     placeholder: 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
     hint: "the address of the service's code in Bitbucket",
-    help: 'The browser address of the repository. GoldenFix clones it and raises its pull requests there.',
+    help: 'The browser address of the repository. GoldenFix pushes its upgrade branch to this repository and raises the pull request there.',
     error: HTTP_URL_ERROR,
   }),
   mono('credentialsId', 'Credentials ID', 'scm.bitbucket.credentialsId', 4, {
     placeholder: 'bitbucket-http-credentials',
     hint: 'the Jenkins credential that signs in to Bitbucket',
-    help: 'A Username with password credential, or a Secret text credential for an HTTP access token.',
+    help: 'A Username with password credential, or a Secret text credential when the sign-in is an HTTP access token.',
   }),
   mono('targetBranch', 'Target branch', 'scm.bitbucket.targetBranch', 4, {
     placeholder: 'develop',
@@ -216,7 +217,7 @@ const SCM: Field[] = [
   mono('reviewers', 'Reviewers', 'scm.bitbucket.reviewers', 8, {
     placeholder: 'jsmith, akowalski',
     hint: 'user names, separated by commas',
-    help: 'The Bitbucket users added as reviewers to each GoldenFix pull request.',
+    help: 'The Bitbucket users added as reviewers to each GoldenFix pull request. Bitbucket Cloud expects their account UUIDs.',
   }),
 ];
 
@@ -246,8 +247,8 @@ const SCM_OPTIONS: Field[] = [
   ),
   line('cloneUrl', 'Clone URL', 'scm.bitbucket.cloneUrl', 4, {
     placeholder: 'ssh://git@bitbucket.bbh.com/ta/cert.git',
-    hint: 'left empty: the repository URL',
-    help: 'The address GoldenFix clones and pushes to. With an SSH address the credential is used as an SSH key.',
+    hint: 'left empty: derived from the repository URL',
+    help: 'The address GoldenFix pushes its upgrade branch to. With an SSH address the push uses the credential as an SSH key.',
     error: 'Must be an http, https, ssh or git@ URL',
   }),
 ];
@@ -285,35 +286,35 @@ const FLUTTER_MODULES: Field[] = [
   area('modules', 'Modules', 'tools.flutter.flutterModules', 8, {
     mono: true,
     hint: 'one per line, at least one',
-    help: 'The folders of the Flutter modules the build runs in, relative to the workspace.',
+    help: 'The modules under the modules folder that the build prepares with flutter pub get and build_runner before the app is built.',
   }),
   area('testModules', 'Tested modules', 'tests.modules', 4, {
     mono: true,
     hint: 'at least one',
-    help: 'The modules whose tests the unit tests stage runs.',
+    help: 'Only named in the log of the unit tests stage. The tests that run are those of the submodules, the subplugins and the app itself.',
   }),
   area('testSubmodules', 'Tested submodules', 'tests.submodules', 4, {
     mono: true,
-    help: 'The submodules whose tests the unit tests stage also runs.',
+    help: 'The folders under modules whose tests run with coverage in the unit tests stage.',
   }),
   area('testSubplugins', 'Tested subplugins', 'tests.subplugins', 4, {
     mono: true,
-    help: 'The plugins whose tests the unit tests stage also runs.',
+    help: 'The folders under plugins whose tests run with coverage in the unit tests stage.',
   }),
 ];
 
 const FLUTTER_CREDENTIALS: Field[] = [
   mono('signingPasswordCredentialsId', 'Signing password', '', 4, {
     hint: 'Jenkins credentials ID, first entry',
-    help: `${SECRET_TEXT} that holds the password of the signing key.`,
+    help: `${SECRET_TEXT} whose value the build passes to the app as CERTIFICATE_PASSWORD.`,
   }),
   mono('prodLicenseCredentialsId', 'Production licence', '', 4, {
     hint: 'Second entry',
-    help: `${SECRET_TEXT} that holds the production licence key.`,
+    help: `${SECRET_TEXT} with the licence key of the prod flavour. The pipeline builds the qc flavour, but the credential must exist.`,
   }),
   mono('testLicenseCredentialsId', 'Test licence', '', 4, {
     hint: 'Third entry',
-    help: `${SECRET_TEXT} that holds the test licence key.`,
+    help: `${SECRET_TEXT} with the licence key the qc flavour build passes to the app as MISNAP_LICENSE.`,
   }),
 ];
 
@@ -328,11 +329,11 @@ const FLUTTER_SONAR: Field[] = [
   }),
   mono('sonarScannerVersion', 'SonarScanner version', 'tools.sonar.sonarScannerVersion', 4, {
     placeholder: '5.0.1.3006',
-    help: 'The SonarScanner version the pipeline uses. Left empty, the scanner installed on the agent runs.',
+    help: "Selects the Jenkins tool installation named sonar-scanner-cli- followed by this version. Left empty, the sonar-scanner on the agent's PATH runs.",
     error: 'Must be a version such as 5.0.1.3006',
   }),
   mono('dartAnalyzeCommand', 'Dart analyze command', 'tools.sonar.dartAnalyzeCommand', 8, {
-    help: 'Used without the Flutter plugin: its findings are sent to SonarQube as issues.',
+    help: 'Runs when the Flutter plugin is off; its findings, in machine format, are imported into SonarQube as external issues. Left empty: dart analyze --format=machine.',
   }),
   check('sonarFlutterPlugin', 'Flutter plugin', 'tools.sonar.flutterPlugin', 4, {
     help: 'Passes the Flutter test and coverage reports to the SonarQube Flutter plugin.',
@@ -349,7 +350,9 @@ const FLUTTER_PLATFORM: Field[] = [
     ],
     'flutter.platform',
     4,
-    { help: 'The platform the Flutter build produces the app for.' },
+    {
+      help: 'Which artifact the build report records. The Flutter build itself always produces the Android APK and the iOS IPA.',
+    },
   ),
 ];
 
@@ -360,6 +363,7 @@ const FLUTTER_PLATFORM: Field[] = [
     SvgIconComponent,
     TOGGLES,
     AdvancedSettings,
+    DsoHelp,
     Fields,
     GoldenFixFields,
     OpenShiftTargetFields,
@@ -487,12 +491,14 @@ export class ServiceFields {
       mono('javaPath', 'JDK path', 'javaPath', 9, {
         placeholder: '/usr/lib/jvm/java-17-openjdk',
         hint: this.flutter()
-          ? 'JAVA_HOME of the Flutter build stages'
+          ? 'must be set for Flutter builds'
           : 'JAVA_HOME of the unit tests stage, unless the build tool is set up automatically',
-        help: 'The absolute path of a JDK installed on the Jenkins agent.',
+        help: this.flutter()
+          ? 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.'
+          : 'The absolute path of a JDK installed on the Jenkins agent.',
       }),
       check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 12, {
-        help: 'The pipeline installs the Gradle or Maven version the build needs and picks the JDK from the build file.',
+        help: 'Reads the Java version from pom.xml or the Gradle build file and selects a JDK of that version installed on the agent, instead of the JDK path.',
       }),
       mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
         placeholder: maven ? 'target/*.jar' : 'build/libs/*.jar',
@@ -500,7 +506,7 @@ export class ServiceFields {
           this.isVm() && maven && this.delivers()
             ? 'the artifact the Nexus snapshot delivery uploads'
             : 'what the build produces',
-        help: 'A path or wildcard pattern relative to the workspace; the first matching file is used.',
+        help: 'A path or wildcard pattern relative to the workspace; the first matching file is used. On OpenShift only its folder counts: the image build takes the artifact from there.',
         error: SHELL_SAFE_ERROR,
       }),
     ];
@@ -528,7 +534,7 @@ export class ServiceFields {
       }),
       mono('coverageReportPath', 'Coverage report', 'coverage.reportPath', 6, {
         placeholder: 'build/reports/jacoco/test/jacocoTestReport.xml',
-        help: 'The JaCoCo XML report the line coverage is read from. Left empty, the usual report paths of the build tool are tried.',
+        help: 'Gradle and Maven builds: the JaCoCo XML report the line coverage is read from. Left empty, the usual report paths of the build tool are tried, then any jacoco.xml in the workspace.',
       }),
     ];
   }
@@ -544,8 +550,8 @@ export class ServiceFields {
         12,
         {
           help: this.isVm()
-            ? 'The snapshot stage builds and reports the service but does not upload it to Nexus. The deployments still run.'
-            : 'The snapshot stage builds and reports the service but does not build or push its image. The OpenShift deployments then use the pinned build tag, or are skipped without one.',
+            ? 'The snapshot delivery stage still reports the build and the unit tests but publishes nothing to Nexus. The deployments still run.'
+            : 'The snapshot delivery stage still reports the build and the unit tests but builds and pushes no image. The OpenShift deployments then use the pinned build tag, or are skipped without one.',
         },
       ),
       mono('appName', 'Application name', 'appName', 4, {
@@ -559,7 +565,7 @@ export class ServiceFields {
             mono('artifactName', 'Artifact name', 'artifactName', 4, {
               placeholder: 'cert-scanner-api.jar',
               hint: openShift,
-              help: 'The name the built file is given before it is copied into the image build context.',
+              help: 'The file, in the folder of the artifact path, that is copied into the image build context under this name.',
               error: SHELL_SAFE_ERROR,
             }),
             mono('baseArtifactName', 'Built file name', 'baseArtifactName', 4, {
@@ -590,7 +596,7 @@ export class ServiceFields {
       }),
       mono('deployDir', 'Deployment folder', 'deployDir', 5, {
         placeholder: '/opt/ta/CertScanner/gui/deployment',
-        help: 'The folder on the host that receives the script and the version file. It is created when missing.',
+        help: 'The folder on the host that receives the script and the version file; it is created when missing. Left empty: /opt/ta/deployment.',
         error: SHELL_SAFE_ERROR,
       }),
       mono('deployScript', 'Deployment script', 'deployScript', 6, {
@@ -600,7 +606,7 @@ export class ServiceFields {
       }),
       mono('versionFile', 'Version file', 'versionFile', 6, {
         ...defaulted(deployment?.versionFile, c.versionFile.value),
-        help: 'The file in the repository that is copied next to the script for it to read.',
+        help: 'The file in the repository that is copied into the deployment folder together with the script.',
         error: SHELL_SAFE_ERROR,
       }),
     ];
@@ -652,14 +658,14 @@ export class ServiceFields {
       }),
       line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 8, {
         ...defaulted(platform?.sonarServerUrl, this.form().controls.sonar.controls.serverUrl.value),
-        help: 'The SonarQube address of the dashboard link, the issue counts and the badges.',
+        help: 'The SonarQube address of the dashboard link, the issue counts and the badges. Flutter analyses are also sent to it.',
         error: HTTP_URL_ERROR,
       }),
       check('addBadges', 'Badges in the Jenkins build description', 'tools.sonar.addBadges', 6, {
         help: 'Adds the SonarQube badges of the project to the description of the Jenkins build. Gradle and Maven builds only.',
       }),
       check('fullBadges', 'Every badge', 'tools.sonar.fullBadges', 6, {
-        help: 'Adds every metric badge to the build description instead of the main ones.',
+        help: 'Adds every metric badge to the build description instead of the quality gate badge only.',
       }),
     ];
   }
@@ -670,12 +676,12 @@ export class ServiceFields {
     return [
       line('serverUrl', 'Server URL', 'tools.nexusIq.serverUrl', 8, {
         ...defaulted(platform?.nexusIqServerUrl, c.serverUrl.value),
-        help: 'The address of the Nexus IQ Server that evaluates the dependencies.',
+        help: 'The Nexus IQ Server address of the report links and the GoldenFix requests. The evaluation itself runs on the server configured in Jenkins.',
         error: HTTP_URL_ERROR,
       }),
       mono('credentialsId', 'Credentials ID', 'tools.nexusIq.credentialsId', 4, {
         ...defaulted(platform?.nexusIqCredentialsId, c.credentialsId.value),
-        help: 'The ID of the Jenkins credential that signs in to Nexus IQ Server.',
+        help: 'The ID of a Jenkins Username with password credential for the evaluation and the GoldenFix requests to Nexus IQ Server.',
       }),
     ];
   }
@@ -723,7 +729,7 @@ export class ServiceFields {
       }),
       mono('influxEnv', 'Environment tag', 'influx.env', 4, {
         hint: 'for example test',
-        help: 'Separates the results of one project by environment.',
+        help: 'Separates the results of one project by environment. Left empty: dev.',
         error: "Letters, digits, '.', '-' and '_'",
       }),
     ];

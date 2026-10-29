@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { MY_DEPARTMENT_KEY } from '@common/departments/my-department';
 import { RETRY } from '@common/core/errors';
-import { buttonOf, fieldOf, text } from '@common/testing/dom';
+import { buttonOf, fieldOf, helpOf, text, unexplained } from '@common/testing/dom';
 import {
   anotherService,
   department,
@@ -586,6 +586,24 @@ describe('SelfService', () => {
     await fixture.whenStable();
 
     expect(wizard()['step']()).toBe(4);
+  });
+
+  it('explains the fields of the product and pipeline steps with a help text', async () => {
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(fieldOf(page(), 'Product name')!)).toBe(
+      'The full name of the product as the portal shows it. No other product may use it.',
+    );
+
+    await chooseProduct(3, product({ services: [] }), []);
+
+    expect(unexplained(page())).toEqual([]);
+
+    await next();
+
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(fieldOf(page(), 'Jenkins agents')!)).toBe(
+      'Jenkins agent labels or label expressions for the pipelines this request creates; existing pipelines keep theirs. A run uses the one chosen in its AGENT_NAME parameter.',
+    );
   });
 
   it('asks for an UrbanCode Deploy application for DV of the services a Full pipeline deploys to virtual machines', async () => {

@@ -64,12 +64,18 @@ export const STATUS_OPTIONS: Option<string>[] = [
 
       <section class="card toolbar">
         <form [formGroup]="filters" class="filters-row">
-          <dso-form-field class="search-field">
+          <dso-form-field
+            class="search-field"
+            help="Shows the actions whose user, e-mail address, business service, action, resource name or details contain this text, in any letter case."
+          >
             <dso-label>Search</dso-label>
             <input dsoInput formControlName="search" placeholder="User, resource, details..." autocomplete="off" />
           </dso-form-field>
 
-          <dso-form-field class="select-field">
+          <dso-form-field
+            class="select-field"
+            help="Shows only one kind of action, for example product updates or issued pipeline keys."
+          >
             <dso-label>Action</dso-label>
             <select dsoInput formControlName="actionType">
               @for (option of actionOptions; track option.value) {
@@ -78,7 +84,10 @@ export const STATUS_OPTIONS: Option<string>[] = [
             </select>
           </dso-form-field>
 
-          <dso-form-field class="select-field">
+          <dso-form-field
+            class="select-field"
+            help="Shows only the actions on one kind of resource, such as products, pipelines or business services."
+          >
             <dso-label>Resource</dso-label>
             <select dsoInput formControlName="resourceType">
               @for (option of resourceOptions; track option.value) {
@@ -87,7 +96,10 @@ export const STATUS_OPTIONS: Option<string>[] = [
             </select>
           </dso-form-field>
 
-          <dso-form-field class="select-field">
+          <dso-form-field
+            class="select-field"
+            help="Shows only the actions that succeeded, or only those that failed. A failed action gives its reason under Details."
+          >
             <dso-label>Status</dso-label>
             <select dsoInput formControlName="status">
               @for (option of statusOptions; track option.value) {

@@ -81,7 +81,7 @@ export class ToolCommandFields {
         help: 'Left empty, the step is named after the tool and the command, for example Gradle: clean build.',
       }),
       check('returnStdout', 'Return the output to the pipeline', `${key}.returnStdout`, 6, {
-        help: 'Captures the console output of the command for the pipeline instead of printing it to the build log.',
+        help: 'Captures the console output of the command instead of printing it to the build log; the pipeline does not use the captured output.',
       }),
     ];
   }

@@ -21,6 +21,7 @@ import {
   TIME_ZONE_NOTE,
 } from '@common/shared/formatting';
 import { StatusChip } from '../shared/status-chip';
+import { DsoHelp } from '@common/ui/help';
 import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 import { TOGGLES } from '@common/ui/toggle-group';
@@ -40,6 +41,7 @@ const RANGES = ['7d', '30d', '90d', '180d'].map((value) => ({
   imports: [
     DatePipe,
     RouterLink,
+    DsoHelp,
     DsoLoading,
     LoadError,
     TOGGLES,

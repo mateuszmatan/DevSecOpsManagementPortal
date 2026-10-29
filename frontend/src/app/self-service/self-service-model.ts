@@ -145,7 +145,7 @@ export function aPipeline(pipeline: WizardPipeline): string {
 
 export function preparation(pipeline: WizardPipeline): string[] {
   const needs = [
-    'The name of each service, its AppScan application ID and the AppScan API key ID, from the Application Security team',
+    'The name of each service, its AppScan application ID and the AppScan API key ID, from the DevSecOps team',
     'Whether each service is built with Gradle or Maven; a developer of the service knows',
   ];
   if (pipeline === 'NEXUS_IQ') {

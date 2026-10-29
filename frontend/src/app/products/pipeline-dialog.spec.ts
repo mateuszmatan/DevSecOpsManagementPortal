@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
-import { inputOf, text } from '@common/testing/dom';
+import { fieldOf, helpOf, inputOf, text, unexplained } from '@common/testing/dom';
 import { pipeline, servicePipelines, serviceTemplate } from '../testing/fixtures';
 import { ServiceTemplate } from '../core/models';
 import { PipelineDialog, PipelineDialogData } from './pipeline-dialog';
@@ -95,6 +95,19 @@ describe('PipelineDialog', () => {
     expect(labels()).not.toContain('Extended pipeline job');
     expect(labels()).not.toContain('Security pipeline job');
   });
+
+  it.each(['SECURITY', 'EXTENDED'] as const)(
+    'explains every field of a %s pipeline with a help text',
+    async (type) => {
+      const stored = pipeline({ type });
+      await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });
+
+      expect(unexplained(page())).toEqual([]);
+      expect(helpOf(fieldOf(page(), 'Jenkins agents')!)).toBe(
+        'Jenkins agent labels or label expressions the pipeline may run on. A run uses the one chosen in its AGENT_NAME parameter.',
+      );
+    },
+  );
 
   it('says when the service has a pipeline of every type and adds nothing', async () => {
     await render({ service: every() });

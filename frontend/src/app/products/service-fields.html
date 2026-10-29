@@ -105,14 +105,18 @@
 
       @case ('deployment') {
         <div class="form-fields">
-          <dso-toggle-group
-            class="span-12"
-            [formControl]="f.controls.deployment.controls.target"
-            aria-label="Deployment target"
-          >
-            <button dsoToggle="VM">Virtual machine</button>
-            <button dsoToggle="OPENSHIFT">OpenShift</button>
-          </dso-toggle-group>
+          <div class="span-12 choice">
+            <dso-toggle-group
+              [formControl]="f.controls.deployment.controls.target"
+              aria-label="Deployment target"
+            >
+              <button dsoToggle="VM">Virtual machine</button>
+              <button dsoToggle="OPENSHIFT">OpenShift</button>
+            </dso-toggle-group>
+            <dso-help
+              text="On virtual machines the Full pipeline deploys to RD with UrbanCode Deploy and the Extended pipeline over SSH; QC is always deployed over SSH. On OpenShift the service runs as an image in the OpenShift projects of each region."
+            />
+          </div>
           <dso-fields [group]="f.controls.deployment" [fields]="deploymentFields()" />
         </div>
         @if (isVm() && tool() === 'MAVEN' && delivers()) {
@@ -220,6 +224,9 @@
         <section class="list-section">
           <header class="list-header">
             <h4>Application</h4>
+            <dso-help
+              text="The Nexus IQ application whose policies the dependency scan is evaluated against. A service scans one application."
+            />
             <span class="hint"><code>tools.nexusIq.application</code></span>
             <span class="spacer"></span>
             @if (!nexusIqApplications().length) {
@@ -294,14 +301,18 @@
       @case ('goldenFix') {
         <div class="form-fields">
           <dso-fields [group]="f.controls.goldenFix" [fields]="goldenFixField()" />
-          <dso-toggle-group
-            class="span-8"
-            [formControl]="f.controls.goldenFix.controls.inherit"
-            aria-label="GoldenFix policy"
-          >
-            <button [dsoToggle]="true">Inherit the library defaults</button>
-            <button [dsoToggle]="false">Override for this service</button>
-          </dso-toggle-group>
+          <div class="span-8 choice">
+            <dso-toggle-group
+              [formControl]="f.controls.goldenFix.controls.inherit"
+              aria-label="GoldenFix policy"
+            >
+              <button [dsoToggle]="true">Inherit the library defaults</button>
+              <button [dsoToggle]="false">Override for this service</button>
+            </dso-toggle-group>
+            <dso-help
+              text="With Inherit, the service follows the GoldenFix policy on the Library defaults page, including later changes. With Override, the policy set below applies to this service only."
+            />
+          </div>
           @if (f.controls.goldenFix.controls.inherit.value) {
             <p class="note span-12">{{ inheritedGoldenFix() }}</p>
           } @else {

@@ -14,7 +14,15 @@ import {
   servicePipelines,
   serviceTemplate,
 } from '../testing/fixtures';
-import { buttonOf, fieldOf, inputOf, selectOf, text } from '@common/testing/dom';
+import {
+  buttonOf,
+  fieldOf,
+  helpOf,
+  inputOf,
+  selectOf,
+  text,
+  unexplained,
+} from '@common/testing/dom';
 import { GeneratedKeys } from './generated-keys';
 import { createUrbanCodeApplicationForm } from './product-form-model';
 import { ProductEditor } from './product-editor';
@@ -597,6 +605,16 @@ describe('ProductEditor', () => {
     expect(request.request.body.agentLabels).toEqual(['docker-agent', 'linux-agent']);
     request.flush(product({ id: 5 }));
     await fixture.whenStable();
+  });
+
+  it('explains the product fields and those of the open service with a help text', async () => {
+    await start();
+
+    expect(unexplained(page())).toEqual([]);
+    expect(helpOf(fieldOf(page(), 'Owner team')!)).toBe(
+      'The team that looks after the product. Shown in the product list, on the product page and in Pipeline Monitoring, where products can also be searched by it.',
+    );
+    expect(helpOf(fieldOf(page(), 'Service name')!)).toContain('Must be unique within the product');
   });
 
   it('leaves the Jenkins agents of a stored product to its pipelines', async () => {
