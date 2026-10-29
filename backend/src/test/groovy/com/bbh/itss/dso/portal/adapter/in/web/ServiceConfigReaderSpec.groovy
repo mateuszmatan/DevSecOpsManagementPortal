@@ -14,9 +14,13 @@ import spock.lang.Shared
 import spock.lang.Specification
 import tools.jackson.databind.json.JsonMapper
 
+import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.LIMITS
+import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.MAX_LENGTH
+import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.SELF_REFERENCE
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.SECRET
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.GLOBAL
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.MAX_PROJECTS
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NO_PROJECT
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.PIPELINE
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.RUN_TIME
@@ -47,17 +51,13 @@ import static com.bbh.itss.dso.portal.support.Fixtures.globalSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
+import static com.bbh.itss.dso.portal.support.LibraryConfig.projectsAsRun
 
 class ServiceConfigReaderSpec extends Specification {
 
     static final ServiceSettings MAVEN_VM = fullSettings()
-    static final ServiceSettings GRADLE_OPENSHIFT = settings(
-            build: build(tool: GRADLE, autoSetup: true, buildPath: 'build/libs/*.jar', command: fullCommand('build')),
-            unitTests: MAVEN_VM.unitTests(), tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(),
-            deployment: deployment(target: OPENSHIFT, appName: 'cert', artifactName: 'cert.jar', nexusDeliveryDisabled: true),
-            openShiftTargets: MAVEN_VM.openShiftTargets(), appScan: MAVEN_VM.appScan(), sonar: MAVEN_VM.sonar(),
-            nexusIq: MAVEN_VM.nexusIq(), nexusIqApplications: MAVEN_VM.nexusIqApplications(), scm: MAVEN_VM.scm(),
-            goldenFix: MAVEN_VM.goldenFix(), metrics: MAVEN_VM.metrics())
+    static final ServiceSettings GRADLE_OPENSHIFT = gradleOpenShift(false)
+    static final ServiceSettings GRADLE_OPENSHIFT_NO_DELIVERY = gradleOpenShift(true)
     static final ServiceSettings FLUTTER_VM = settings(build: build(tool: FLUTTER), flutter: MAVEN_VM.flutter(),
             tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(), urbanCode: MAVEN_VM.urbanCode(),
             urbanCodeApplications: MAVEN_VM.urbanCodeApplications(), sshTargets: MAVEN_VM.sshTargets(),
@@ -70,7 +70,7 @@ class ServiceConfigReaderSpec extends Specification {
     DsoConfigBuilder builder = new DsoConfigBuilder(global)
     ServiceConfigReader reader = new ServiceConfigReader(global, json)
 
-    def "a #tool service on #target read back from its config, in YAML or JSON, renders the same config"() {
+    def "a #tool service on #target (delivery disabled: #disabled) read back from its config, in YAML or JSON, runs the same"() {
         given:
         Map config = builder.productConfig(product(services: [[name: 'gui', settings: settings]]))
 
@@ -80,20 +80,65 @@ class ServiceConfigReaderSpec extends Specification {
 
         then:
         [fromYaml, fromJson].every { it.services()*.name() == ['gui'] && it.pipeline() == null && it.notes() == [] }
-        rendered(fromYaml.services()[0]) == config
-        rendered(fromJson.services()[0]) == config
+        asRun(rendered(fromYaml.services()[0])) == asRun(config)
+        asRun(rendered(fromJson.services()[0])) == asRun(config)
         fromYaml.services()[0].notes() == notes
         fromJson.services()[0] == fromYaml.services()[0]
 
         where:
-        settings         || notes
-        MAVEN_VM         || []
-        GRADLE_OPENSHIFT || [problem('deploy.openshift.rd.buildTag', RUN_TIME),
-                             problem('deploy.openshift.rd.internalDockerUrl', RUN_TIME)]
-        FLUTTER_VM       || []
+        settings                     || notes
+        MAVEN_VM                     || []
+        GRADLE_OPENSHIFT             || [problem('deploy.openshift.rd.buildTag', RUN_TIME),
+                                         problem('deploy.openshift.rd.internalDockerUrl', RUN_TIME)]
+        GRADLE_OPENSHIFT_NO_DELIVERY || []
+        FLUTTER_VM                   || []
 
         tool = settings.build().tool()
         target = settings.deployment().target()
+        disabled = settings.deployment().nexusDeliveryDisabled()
+    }
+
+    def "values equal to the Library defaults come back empty, so the service keeps inheriting them"() {
+        when:
+        def service = imported('''
+            appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+            tests:
+              maxParallel: 20
+            goldenFix:
+              enabled: true
+              onlyDirectDependencies: true
+              minThreatLevel: 7
+              verify:
+                maxAttempts: 3
+                timeoutMinutes: 45
+            '''.stripIndent()).services()[0]
+
+        then:
+        service.notes() == []
+        service.service().tests().maxParallel() == null
+        with(service.service().goldenFix()) {
+            [enabled(), onlyDirectDependencies(), verifyMaxAttempts()] == [null, null, null]
+            [minThreatLevel(), verifyTimeoutMinutes()] == [7, 45]
+        }
+    }
+
+    def "the delivery switch is read from the service's own deploy target and the other target's is left out"() {
+        when:
+        def service = imported('''
+            appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+            deployTarget: vm
+            deploy:
+              vm:
+                rd:
+                  host: rdltaapps9.testbbh.com
+              openshift:
+                rd:
+                  nexusDeliveryEnabled: false
+            '''.stripIndent()).services()[0]
+
+        then:
+        !service.service().deployment().nexusDeliveryDisabled()
+        service.notes() == [problem('deploy.openshift.rd.nexusDeliveryEnabled', 'not imported: the service deploys to vm')]
     }
 
     def "a hand-written config.yaml gives a service per project, inherits the global values and notes what it leaves out"() {
@@ -131,7 +176,7 @@ class ServiceConfigReaderSpec extends Specification {
                     'build', false)]
             [scm.repositoryUrl(), scm.authType(), scm.targetBranch(), scm.reviewers()] ==
                     ['https://bitbucket.bbh.com/projects/TA/repos/cert-scanner', BASIC, null, []]
-            goldenFix.enabled()
+            goldenFix.enabled() == null
             [unitTests.command().tasks(), unitTests.resultPattern()] ==
                     [['test', 'jacocoTestReport', 'jacocoTestCoverageVerification'], 'build/test-results/test/*.xml']
             [tests.regressionMaxParallel(), tests.smokeMaxParallel()] == [5, 20]
@@ -192,7 +237,7 @@ class ServiceConfigReaderSpec extends Specification {
         result.pipeline() == new ImportedPipeline(type, ['linux-agent', 'docker'])
         result.notes() == notes
         result.services()[0].notes() == serviceNotes
-        rendered(result.services()[0]) == builder.productConfig(certScanner)
+        asRun(rendered(result.services()[0])) == asRun(builder.productConfig(certScanner))
 
         where:
         type     || notes                                             | serviceNotes
@@ -321,23 +366,46 @@ class ServiceConfigReaderSpec extends Specification {
         def e = thrown(InvalidRequestException)
         e.problems()*.field == ['content']
         e.problems()*.message == [message]
+        !e.problems()*.message.join().contains('s3cret')
 
         where:
-        content                                                || message
-        'asoc:\n  keySecret: s3cret\n  keyId: [bbh_key\n'      || "line 4, column 1: expected ',' or ']', but got <stream end>"
-        'asoc:\n  keyId: s3cret\n  keyId: bbh_key\n'           || 'line 3, column 3: found duplicate key keyId'
-        'projects:\n\tgui: {}\n'                               || "line 2, column 1: found character '\\t(TAB)' that cannot start any token. (Do not use \\t(TAB) for indentation)"
-        '{"projects": {"gui": '                                || 'line 1, column 22: is not valid JSON'
-        '- gui\n- api\n'                                       || 'line 1, column 1: ' + NO_PROJECT
-        'projects: []\n'                                       || 'line 1, column 1: ' + NO_PROJECT
-        'projects:\n  gui: s3cret\n'                           || 'line 1, column 1: ' + NO_PROJECT
-        'a: &a [x]\nb: [' + (['*a'] * 21).join(', ') + ']\n'   || 'exceeds the import limits for size, nesting or aliases, or holds characters YAML does not allow'
-        'a: ' + '[' * 31 + ']' * 31                            || 'exceeds the import limits for size, nesting or aliases, or holds characters YAML does not allow'
-        'a: ' + 'x' * ConfigFileParser.MAX_LENGTH              || 'exceeds the import limits for size, nesting or aliases, or holds characters YAML does not allow'
+        content                                                                     || message
+        'asoc:\n  keySecret: s3cret\n  keyId: [bbh_key\n'                           || 'line 4, column 1: is not valid YAML'
+        'asoc:\n  keyId: s3cret\n  keyId: bbh_key\n'                                || 'line 3, column 3: holds a duplicate key'
+        'projects:\n\tgui: {}\n'                                                    || 'line 2, column 1: is not valid YAML'
+        'asoc:\n  keySecret: "ab\\uZZZZs3cret"\n'                                   || 'line 2, column 19: is not valid YAML'
+        'asoc:\n  keySecret: "ab\\qs3cret"\n'                                       || 'line 2, column 18: is not valid YAML'
+        '{"projects": {"gui": '                                                     || 'line 1, column 22: is not valid JSON'
+        '- gui\n- api\n'                                                            || 'line 1, column 1: ' + NO_PROJECT
+        'projects: []\n'                                                            || 'line 1, column 1: ' + NO_PROJECT
+        'projects:\n  gui: s3cret\n'                                                || 'line 1, column 1: ' + NO_PROJECT
+        'version: "3.9"\nservices:\n  web:\n    image: nginx\n'                     || 'line 1, column 1: ' + NO_PROJECT
+        'spring:\n  application:\n    name: ledger\nserver:\n  port: 8080\n'        || 'line 1, column 1: ' + NO_PROJECT
+        'projects:\n' + (0..MAX_PROJECTS).collect { "  p$it: {appId: a}\n" }.join() || 'holds more than 50 projects'
+        'projects:\n  svc: &x\n    buildTool: gradle\n    custom: *x\n'             || SELF_REFERENCE
+        'projects:\n  svc:\n    custom: &y {inner: {back: *y}}\n'                   || SELF_REFERENCE
+        'a: &l [x, *l]\n'                                                           || SELF_REFERENCE
+        'a: &a [x]\nb: [' + (['*a'] * 21).join(', ') + ']\n'                        || LIMITS
+        'a: ' + '[' * 31 + ']' * 31                                                 || LIMITS
+        'a: ' + 'x' * MAX_LENGTH                                                    || LIMITS
     }
 
     private ConfigImportResponse imported(String content, String serviceName = null) {
         reader.read(ConfigFileParser.parse(content, json), serviceName)
+    }
+
+    private Map asRun(Map config) {
+        projectsAsRun(config, global.defaultsConfig())
+    }
+
+    private static ServiceSettings gradleOpenShift(boolean nexusDeliveryDisabled) {
+        settings(build: build(tool: GRADLE, autoSetup: true, buildPath: 'build/libs/*.jar', command: fullCommand('build')),
+                unitTests: MAVEN_VM.unitTests(), tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(),
+                deployment: deployment(target: OPENSHIFT, appName: 'cert', artifactName: 'cert.jar',
+                        nexusDeliveryDisabled: nexusDeliveryDisabled),
+                openShiftTargets: MAVEN_VM.openShiftTargets(), appScan: MAVEN_VM.appScan(), sonar: MAVEN_VM.sonar(),
+                nexusIq: MAVEN_VM.nexusIq(), nexusIqApplications: MAVEN_VM.nexusIqApplications(), scm: MAVEN_VM.scm(),
+                goldenFix: MAVEN_VM.goldenFix(), metrics: MAVEN_VM.metrics())
     }
 
     private Map rendered(ImportedService imported) {

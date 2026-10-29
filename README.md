@@ -105,8 +105,11 @@ template's.
 `POST /api/service-configs/import` reads a `config.yaml`, a configuration the portal rendered, or its JSON form, and
 returns one service form per project with notes on what it did not take over: settings the portal has no field for,
 global and pipeline settings, and secrets such as `asoc.keySecret`, `influx.token` or a test job's `token`, which are
-never echoed. A value equal to the global settings comes back empty, so the service keeps inheriting it. The file may
-hold at most 262,144 characters; a malformed one is refused with the line and column of the problem. The call stores
+never echoed. A value equal to the global settings or to a Library default the service inherits (`tests.maxParallel`,
+the GoldenFix policy) comes back empty, so the service keeps inheriting it. `nexusDeliveryEnabled` is read only from
+the section of the service's own deploy target. The file may hold at most 262,144 characters and 50 projects. A
+malformed file is refused with the line and column of the problem, never with its text; so is a file that names no
+project setting (a `docker-compose.yml`, for example) or holds an alias inside the value it refers to. The call stores
 nothing, so the action history does not record it.
 
 ## Architecture

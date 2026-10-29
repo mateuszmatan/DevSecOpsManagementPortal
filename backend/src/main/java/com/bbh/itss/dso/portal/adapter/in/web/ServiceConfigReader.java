@@ -14,6 +14,7 @@ import com.bbh.itss.dso.portal.domain.catalog.TestStage;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
 import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -26,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -37,6 +39,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
 import static com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings.ONE_APPLICATION;
 import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.valueAt;
 import static org.apache.commons.lang3.StringUtils.capitalize;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -44,15 +47,17 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 /**
  * Reads a config.yaml, a rendered product or pipeline config, or their JSON form into new service forms: the inverse of
  * the services' writeTo, as a table from config keys to request fields. A value the portal writes into every project
- * from the global settings comes back unset, so the service keeps inheriting it. A value the portal cannot hold
- * becomes a note, not an error, so a partial import still fills the form.
+ * from the global settings, or one equal to the Library default the project inherits (tests.maxParallel, GoldenFix),
+ * comes back unset, so the service keeps inheriting it. A value the portal cannot hold becomes a note, not an error,
+ * so a partial import still fills the form.
  */
 final class ServiceConfigReader {
 
     static final String GLOBAL = "not imported: a global setting, the same for every service";
     static final String PIPELINE = "not imported: a pipeline setting, chosen when the pipeline is created";
-    static final String RUN_TIME = "check: the extended pipeline replaces it with the image it builds";
+    static final String RUN_TIME = "check: a run that builds the image replaces it";
     static final String NO_PROJECT = "found no project: expected a projects map or the settings of one project";
+    static final int MAX_PROJECTS = 50;
 
     private static final List<String> DOCUMENT_KEYS = List.of("pipeline", "platform", "defaults");
 
@@ -98,6 +103,9 @@ final class ServiceConfigReader {
             rule("deployTarget", "deployment.target", choice(DeployTarget.values(), Enum::name)),
             rule("sourceDir", "build.sourceDir", TEXT));
     private static final List<Rule> PROJECT = projectRules();
+    private static final Set<String> PROJECT_KEYS = Stream.concat(DEFAULTED.stream(), PROJECT.stream())
+            .map(rule -> rule.key().split("\\.")[0]).collect(toSet());
+    private static final String DELIVERY = "deploy.%s.rd.nexusDeliveryEnabled";
     private static final List<Block> COMMAND_BLOCKS = List.of(new Block("build", "build.command"),
             new Block("tests.unitTests", "unitTests.command"), new Block("tools.sonar", "sonar.command"),
             new Block("asoc", "appScan.compileCommand"), new Block("delivery", "delivery"));
@@ -142,6 +150,8 @@ final class ServiceConfigReader {
         ConfigTree inherited = new ConfigTree().set("deploy.vm.dod.applications", List.of(Map.of()));
         global.platform().writeProjectDefaults(inherited);
         global.deployment().fillIn(inherited, VM);
+        global.goldenFix().writeTo(inherited);
+        inherited.set("tests.maxParallel", global.serviceDefaults().testsMaxParallel());
         this.inherited = inherited.toMap();
     }
 
@@ -156,6 +166,9 @@ final class ServiceConfigReader {
         Map<?, ?> projects = root.containsKey("projects")
                 ? file.take("projects") instanceof Map<?, ?> named ? named : Map.of()
                 : Collections.singletonMap(name, projectOf(root));
+        if (projects.size() > MAX_PROJECTS) {
+            throw InvalidRequestException.of("content", "holds more than %d projects".formatted(MAX_PROJECTS));
+        }
 
         List<ImportedService> services = new ArrayList<>();
         projects.forEach((project, settings) -> {
@@ -195,8 +208,10 @@ final class ServiceConfigReader {
             }
         }
         BuildTool tool = BuildTool.valueOf(String.valueOf(request.get("build.tool")));
+        DeployTarget target = DeployTarget.valueOf(String.valueOf(request.get("deployment.target")));
         read(project, PROJECT, request);
         readCommands(project, tool, request);
+        readDelivery(project, target, request);
         request.set("testJobs", testJobs(project))
                 .set("urbanCodeApplications", project.entries("deploy.vm.dod.applications", null, null).stream()
                         .map(application -> entry(application, URBAN_CODE_APPLICATION, new ConfigTree()
@@ -205,8 +220,9 @@ final class ServiceConfigReader {
                                         .toList())))
                         .toList())
                 .set("nexusIqApplications", nexusIqApplications(project, settings));
+        boolean delivers = !Boolean.TRUE.equals(request.get("deployment.nexusDeliveryDisabled"));
         for (String key : List.of("buildTag", "internalDockerUrl")) {
-            if (request.get("openShiftTargets.RD." + key) != null) {
+            if (request.get("openShiftTargets.RD." + key) != null && delivers) {
                 project.note("deploy.openshift.rd." + key, RUN_TIME);
             }
         }
@@ -229,6 +245,18 @@ final class ServiceConfigReader {
                 } else if (project.take(key) != null) {
                     project.note(key, "not imported: the service builds with " + tool.name().toLowerCase(ROOT));
                 }
+            }
+        }
+    }
+
+    /** Reads the delivery switch of the service's deploy target; the switch of the other target is left out. */
+    private static void readDelivery(ConfigInput project, DeployTarget target, ConfigTree request) {
+        for (DeployTarget each : DeployTarget.values()) {
+            String key = DELIVERY.formatted(each.name().toLowerCase(ROOT));
+            if (each == target) {
+                read(project, List.of(rule(key, "deployment.nexusDeliveryDisabled", DISABLED)), request);
+            } else if (project.take(key) != null) {
+                project.note(key, "not imported: the service deploys to " + target.name().toLowerCase(ROOT));
             }
         }
     }
@@ -293,10 +321,11 @@ final class ServiceConfigReader {
         return request;
     }
 
+    /** The settings of the one project a file without a projects map describes: none when it has no project key. */
     private static Map<?, ?> projectOf(Map<?, ?> root) {
         Map<Object, Object> project = new LinkedHashMap<>(root);
         project.keySet().removeAll(DOCUMENT_KEYS);
-        return project;
+        return project.keySet().stream().anyMatch(PROJECT_KEYS::contains) ? project : Map.of();
     }
 
     private static List<Rule> projectRules() {
@@ -304,8 +333,6 @@ final class ServiceConfigReader {
                 rule("javaPath", "build.javaPath", TEXT),
                 rule("buildToolAutoSetup", "build.autoSetup", FLAG),
                 rule("build.buildPath", "build.buildPath", TEXT),
-                rule("deploy.vm.rd.nexusDeliveryEnabled", "deployment.nexusDeliveryDisabled", DISABLED),
-                rule("deploy.openshift.rd.nexusDeliveryEnabled", "deployment.nexusDeliveryDisabled", DISABLED),
                 rule("appId", "appScan.applicationId", TEXT),
                 rule("includedDirs", "appScan.includedDirs", COMMAS),
                 rule("excludedDirs", "appScan.excludedDirs", COMMAS),
