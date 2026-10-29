@@ -1,5 +1,9 @@
 --liquibase formatted sql
 
+-- 031-service-appscan-key moves each product's AppScan key ID and secret credentials ID to its services. A product
+-- without services has nowhere to keep them: they are dropped with the product columns and a rollback cannot bring
+-- them back. Record them before the upgrade (README.md, Upgrade notes).
+
 --changeset dso-portal:031-service-appscan-key dbms:oracle,h2
 ALTER TABLE DSO_SERVICE ADD (APPSCAN_KEY_ID VARCHAR2(200));
 UPDATE DSO_SERVICE s SET (APPSCAN_KEY_ID, APPSCAN_SECRET_CREDENTIALS_ID) = (

@@ -131,7 +131,7 @@ public class PipelineService implements PipelinesUseCase {
         ServiceSettings configured = service.settings();
         if (type == NEXUS_IQ && configured.nexusIqApplications().isEmpty()) {
             return Optional.of("Service " + service.name()
-                    + " has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing");
+                    + " has no Nexus IQ application, so its Nexus IQ GoldenFix pipeline would scan nothing");
         }
         if (type == FULL && configured.deployment().target() == VM
                 && configured.urbanCodeApplications().stream().noneMatch(app -> app.deploysTo("DV"))) {

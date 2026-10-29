@@ -562,7 +562,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
 
         then:
         emptied.status == 409
-        emptied.json.detail == 'Service gui has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing'
+        emptied.json.detail == 'Service gui has no Nexus IQ application, so its Nexus IQ GoldenFix pipeline would scan nothing'
         api.get("/api/dso/config/$gui.activeKey.value?format=json").json.projects.gui.tools.nexusIq.application == 'niq-gui'
 
         when: 'a service has nothing for Nexus IQ to scan'
@@ -572,7 +572,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
 
         then:
         refused.status == 409
-        refused.json.detail == 'Service batch has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing'
+        refused.json.detail == 'Service batch has no Nexus IQ application, so its Nexus IQ GoldenFix pipeline would scan nothing'
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCT WHERE CODE = ?', Integer, unscanned) == 0
     }
 

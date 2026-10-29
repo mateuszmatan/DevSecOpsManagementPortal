@@ -130,6 +130,12 @@ Logging is SLF4J with Logback (`logback-spring.xml`); each line carries the corr
 replaces constructors, builders and copies wherever it can. Every change made in the GUI is stored in `DSO_ACTION_LOG`
 with who, what, when and the result, and shown under Action history.
 
+## Upgrade notes
+
+- Changeset 031 moves the AppScan key ID and secret credentials ID of each product to its services. A product without
+  services loses both, and a rollback cannot restore them: record them before the upgrade and enter them on the
+  product's first service afterwards.
+
 ## Known gaps
 
 - The portal has no sign-in yet, so every action is recorded as the default administrator. BBH single sign-on and

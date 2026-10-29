@@ -43,7 +43,7 @@ class PipelineServiceSpec extends Specification {
     static final Instant NOW_MICROS = Instant.parse('2026-10-05T07:30:00.123456Z')
     static final String NEW_KEY = '9b2e2a52-2f0d-4f53-9b55-4f0b9a8f6c11'
     static final String NOTHING_TO_SCAN =
-            'Service batch has no Nexus IQ application, so its Nexus IQ pipeline would scan nothing'
+            'Service batch has no Nexus IQ application, so its Nexus IQ GoldenFix pipeline would scan nothing'
     static final String NOT_DEPLOYED = 'Service batch deploys to virtual machines but has no UrbanCode Deploy ' +
             'application for DV, so its Full pipeline would fail at the lower test region deployment'
 

@@ -47,7 +47,7 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
 
     private void validateFlutter(ValidationProblems problems) {
         problems.require("javaPath", javaPath,
-                "is required for Flutter: the build and unit test stages set JAVA_HOME from it");
+                "is required for Flutter: the library refuses a Flutter build without it");
         if (autoSetup) {
             problems.add("autoSetup", "must be off for Flutter: the automatic build tool setup cannot prepare a Flutter build");
         }
