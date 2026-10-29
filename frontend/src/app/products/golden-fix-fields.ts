@@ -215,6 +215,6 @@ export class GoldenFixFields {
           ? 'yes'
           : 'no'
         : (value ?? '');
-    return `${hint} · left empty: ${text === '' ? 'global value' : text}`;
+    return `${hint} · left empty: ${text === '' ? 'the Library default' : text}`;
   }
 }

@@ -32,7 +32,7 @@ describe('UrbanCodeFields', () => {
     await fixture.whenStable();
   }
 
-  it('shows the stored application with its component and the global defaults', async () => {
+  it('shows the stored application with its component and the Library defaults', async () => {
     await render();
 
     expect(applications().length).toBe(1);
@@ -72,7 +72,7 @@ describe('UrbanCodeFields', () => {
     await click(buttonOf(applications()[1], 'Remove'));
     await click(buttonOf(applications()[0], 'Remove'));
     expect(page().querySelector('.list-empty')?.textContent).toContain('No application');
-    expect(text(page())).toContain('Left empty: the global default');
+    expect(text(page())).toContain('Left empty: the Library default');
   });
 
   it('lets an application override the settings above and sends its component details', async () => {

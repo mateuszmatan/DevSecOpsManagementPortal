@@ -422,14 +422,14 @@ describe('ServiceFields', () => {
   });
 
   describe('GoldenFix', () => {
-    it('offers Global default, On and Off and names the global default', async () => {
+    it('offers Library default, On and Off and names the Library default', async () => {
       await render();
       await open('GoldenFix');
 
       const select = selectOf(pane(), 'Run GoldenFix');
-      expect(text(select.selectedOptions[0])).toBe('Global default');
-      expect(hints()).toContain('Global default: on · goldenFix.enabled');
-      expect(optionsOf(select)).toEqual(['Global default', 'On', 'Off']);
+      expect(text(select.selectedOptions[0])).toBe('Library default');
+      expect(hints()).toContain('Library default: on · goldenFix.enabled');
+      expect(optionsOf(select)).toEqual(['Library default', 'On', 'Off']);
 
       choose(select, 'Off');
       await fixture.whenStable();
@@ -445,7 +445,7 @@ describe('ServiceFields', () => {
       });
       await open('GoldenFix');
 
-      expect(hints()).toContain('Global default: off · goldenFix.enabled');
+      expect(hints()).toContain('Library default: off · goldenFix.enabled');
       choose(selectOf(pane(), 'Run GoldenFix'), 'On');
       await fixture.whenStable();
 

@@ -705,11 +705,11 @@ export class ServiceFields {
       choice(
         'enabled',
         'Run GoldenFix',
-        tristate('Global default', 'On', 'Off'),
+        tristate('Library default', 'On', 'Off'),
         'goldenFix.enabled',
         4,
         {
-          hint: enabled === undefined ? '' : `Global default: ${enabled ? 'on' : 'off'}`,
+          hint: enabled === undefined ? '' : `Library default: ${enabled ? 'on' : 'off'}`,
           help: 'Whether the pipeline proposes upgrades of vulnerable dependencies for this service.',
         },
       ),

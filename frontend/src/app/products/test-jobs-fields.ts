@@ -140,7 +140,7 @@ export class TestJobsFields {
         ...defaulted(
           value,
           this.form().controls.tests.controls.maxParallel.value,
-          'left empty: global default',
+          'left empty: the Library default',
         ),
         help: 'The most jobs of one test stage that run at the same time, unless the stage sets its own limit.',
       }),

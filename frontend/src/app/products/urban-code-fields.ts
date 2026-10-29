@@ -216,15 +216,15 @@ export class UrbanCodeFields {
 
   protected settingsFields(): Field[] {
     const deployment = this.defaults()?.deployment;
-    const global = 'left empty: the global default';
+    const missing = 'left empty: the Library default';
     const c = this.form().controls.urbanCode.controls;
     return [
       line('siteName', 'Site name', 'deploy.vm.dod.siteName', 6, {
-        ...defaulted(deployment?.urbanCodeSiteName, c.siteName.value, global),
+        ...defaulted(deployment?.urbanCodeSiteName, c.siteName.value, missing),
         help: 'The UrbanCode Deploy site configured in Jenkins that receives the components and runs the deployments.',
       }),
       line('deployProcess', 'Deployment process', 'deploy.vm.dod.deployProcess', 6, {
-        ...defaulted(deployment?.urbanCodeDeployProcess, c.deployProcess.value, global),
+        ...defaulted(deployment?.urbanCodeDeployProcess, c.deployProcess.value, missing),
         help: 'The application process UrbanCode Deploy runs to deploy the applications.',
       }),
       ...SWITCHES,
