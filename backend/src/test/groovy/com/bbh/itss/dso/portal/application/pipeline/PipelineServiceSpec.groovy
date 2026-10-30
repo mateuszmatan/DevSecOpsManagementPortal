@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryP
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageServiceTemplateUseCase
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
+import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent
 import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
@@ -155,6 +156,41 @@ class PipelineServiceSpec extends Specification {
         FULL     | 'full'
         SAST     | 'sast'
         NEXUS_IQ | 'nexusiq'
+    }
+
+    def "the new Nexus IQ pipelines of one repository share one Jenkins job, #existing"() {
+        given:
+        def repository = 'https://bitbucket.bbh.com/projects/PAY/repos/payhub'
+        products.load(1L) >> Optional.of(product(id: 1, services: [
+                [name: 'backend-api', id: 10, scm: ScmSettings.of(repository, 'bb'), nexusIqApplications: [scanned('a')]],
+                [name: 'web-ui', id: 11, scm: ScmSettings.of(" ${repository.toUpperCase()}.git/", 'bb'),
+                 nexusIqApplications: [scanned('b')]],
+                [name: 'batch', id: 12, scm: ScmSettings.of("${repository}-batch", 'bb'), nexusIqApplications: [scanned('c')]],
+                [name: 'docs', id: 13, nexusIqApplications: [scanned('d')]],
+                [name: 'reports', id: 14, scm: ScmSettings.of(repository, 'bb'), nexusIqApplications: [scanned('e')]]]))
+        pipelines.findByProductId(1L) >> before
+        pipelines.existsForService(10L, NEXUS_IQ) >> !before.isEmpty()
+
+        when:
+        service.createMissing(1L, [10L, 11L, 12L, 13L], NEXUS_IQ, [])
+
+        then:
+        (before ? 0 : 1) * pipelines.save({ Pipeline p -> p.service().serviceId() == 10L }) >> { Pipeline p -> stored(100L, p) }
+        1 * pipelines.save({ Pipeline p -> p.service().serviceId() == 11L && p.settings().jenkinsJob() == shared }) >>
+                { Pipeline p -> stored(101L, p) }
+        1 * pipelines.save({ Pipeline p -> p.settings().jenkinsJob() == 'DevSecOps/CERT/batch-nexusiq' }) >>
+                { Pipeline p -> stored(102L, p) }
+        1 * pipelines.save({ Pipeline p -> p.settings().jenkinsJob() == 'DevSecOps/CERT/docs-nexusiq' }) >>
+                { Pipeline p -> stored(103L, p) }
+
+        where:
+        existing                                        | before                                || shared
+        'both new'                                      | []                                    || 'DevSecOps/CERT/backend-api-nexusiq'
+        'not the job of one that runs already'          | [running(jenkinsJob: 'Teams/payhub')] || 'DevSecOps/CERT/web-ui-nexusiq'
+        'the job two that run already share'            | twice(jenkinsJob: ' teams/PAYHUB')    || 'Teams/payhub'
+        'not the separate jobs of two that run already' | twice(jenkinsJob: 'Teams/reports')    || 'DevSecOps/CERT/web-ui-nexusiq'
+        'not the job two on other agents share'         | twice(agentLabels: ['win'])           || 'DevSecOps/CERT/web-ui-nexusiq'
+        'not the job of two when one has no key'        | twice(keys: [])                       || 'DevSecOps/CERT/web-ui-nexusiq'
     }
 
     def "a saved service template decides the agents and the job of the pipelines the portal starts, unless the save names the agents"() {
@@ -406,6 +442,16 @@ class PipelineServiceSpec extends Specification {
         Pipeline.restore(id, pipeline.service(), pipeline.type(), pipeline.settings(),
                 pipeline.keys().collect { k -> activeKey(id: 500L, value: k.value(), issuedAt: k.issuedAt()) },
                 0, NOW, NOW)
+    }
+
+    private static Pipeline running(Map args) {
+        pipeline([id: 90L, serviceId: 10L, type: NEXUS_IQ] + args)
+    }
+
+    /** Two pipelines that run already in the job Teams/payhub, the second one changed by the arguments. */
+    private static List<Pipeline> twice(Map args) {
+        [running(jenkinsJob: 'Teams/payhub', agentLabels: args.agentLabels),
+         running([id: 91L, serviceId: 14L, jenkinsJob: 'Teams/payhub'] + args)]
     }
 
     private static NexusIqApplication scanned(String application) {

@@ -10,6 +10,7 @@ import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
+import com.bbh.itss.dso.portal.domain.catalog.NodeBuildSettings
 import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ProductDetails
@@ -110,7 +111,8 @@ final class Fixtures {
         ToolCommand delivery = args.containsKey('delivery') ? args.delivery as ToolCommand
                 : build.tool() == MAVEN && deployment.target() == VM
                 ? command(['deploy:deploy-file']) : null
-        ServiceSettings.builder().build(build).unitTests(args.unitTests as UnitTestSettings)
+        ServiceSettings.builder().build(build).nodeBuild(args.nodeBuild as NodeBuildSettings)
+                .unitTests(args.unitTests as UnitTestSettings)
                 .tests(args.tests as TestSettings).testJobs(args.testJobs as List<TestJob>).deployment(deployment)
                 .delivery(delivery).urbanCode(args.urbanCode as UrbanCodeSettings)
                 .urbanCodeApplications(args.urbanCodeApplications as List<UrbanCodeApplicationSettings>)
@@ -120,6 +122,7 @@ final class Fixtures {
                 .nexusIq(args.nexusIq as NexusIqSettings)
                 .nexusIqApplications(args.nexusIqApplications as List<NexusIqApplication>)
                 .scm(args.scm as ScmSettings).goldenFix(args.goldenFix as GoldenFixPolicy)
+                .versionCatalogs(args.versionCatalogs as List<String>)
                 .metrics(args.metrics as MetricsSettings).flutter(args.flutter as FlutterSettings)
                 .build()
     }
@@ -127,6 +130,9 @@ final class Fixtures {
     static ServiceSettings fullSettings(String name = 'gui') {
         ServiceSettings.builder()
                 .build(new BuildSettings(MAVEN, 'app', JDK, true, 'target/*.war', fullCommand('build')))
+                .nodeBuild(new NodeBuildSettings(true, 'app/frontend', ['npm ci', 'npm run build:prod', 'npm ci'], null,
+                        '/opt/node-20', ['NODE_OPTIONS=--max-old-space-size=4096', 'CI=true'],
+                        'https://nexus.bbh.com/repository/npm-group/', "cert-${name}-npmrc", 45, false))
                 .unitTests(new UnitTestSettings(fullCommand('test'), '**/TEST-*.xml', 'app', 'reports', true,
                         'target/jacoco.xml'))
                 .tests(TestSettings.builder().maxParallel(5).smokeMaxParallel(1).regressionMaxParallel(2)
@@ -183,6 +189,7 @@ final class Fixtures {
                 .goldenFix(new GoldenFixPolicy(false, true, 7, ['maven', 'npm'], ['recommended-non-breaking'],
                         ['docs', 'tests'], true, 3, 30, 'mvn verify', 'gradle check', 'npm test', 'pytest',
                         'flutter test', 'GoldenFix Bot', 'goldenfix@bbh.com', 'Europe/Warsaw'))
+                .versionCatalogs(['gradle/libs.versions.toml', 'platform/**/pom.xml'])
                 .metrics(new MetricsSettings(false, "cert-${name}", 'qc', 'https://influx.cert.bbh.com/api/v2/write',
                         'cert-influx'))
                 .flutter(new FlutterSettings(APPBUNDLE, ['core', 'app'], ['core'], ['core/sub'], ['plugin'], 'signing',

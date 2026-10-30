@@ -5,7 +5,7 @@ import { EventEmitter } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { Pipeline, PipelineMonitoring } from '../core/models';
+import { Pipeline, PipelineMonitoring, Product, ServicePipelines } from '../core/models';
 import { KeyHistoryDialog } from '../products/key-history-dialog';
 import { PipelineDialog } from '../products/pipeline-dialog';
 import { RevokeKeyDialog } from '../products/revoke-key-dialog';
@@ -13,11 +13,15 @@ import { CodeDialog } from '../shared/code-dialog';
 import { ConfirmDialog } from '@common/shared/confirm-dialog';
 import { buttonOf, gridColumn, gridRows, text, toast } from '@common/testing/dom';
 import {
+  anotherService,
   globalSettings,
   pipeline,
   pipelineMonitoring,
   pipelineRun,
+  product,
   revokedKey,
+  service,
+  servicePipelines,
 } from '../testing/fixtures';
 import { PipelinePage } from './pipeline-page';
 
@@ -55,12 +59,26 @@ describe('PipelinePage', () => {
   async function load(
     stored: Pipeline = pipeline({ keys: [pipeline().activeKey!] }),
     monitoring: PipelineMonitoring = pipelineMonitoring(),
+    services: ServicePipelines[] = [servicePipelines({ pipelines: [stored] })],
+    owner: Product = product(),
   ) {
     fixture.detectChanges();
     http.expectOne('/api/settings').flush(globalSettings());
     http.expectOne('/api/pipelines/100').flush(stored);
     http.expectOne('/api/monitoring/pipelines/100?range=30d').flush(monitoring);
+    await products(services, owner);
     await fixture.whenStable();
+  }
+
+  async function products(
+    services: ServicePipelines[] = [servicePipelines()],
+    owner: Product = product(),
+  ) {
+    await settle();
+    fixture.detectChanges();
+    await settle();
+    http.expectOne('/api/products/1').flush(owner);
+    http.expectOne('/api/products/1/pipelines').flush(services);
   }
 
   async function openMore() {
@@ -165,6 +183,67 @@ describe('PipelinePage', () => {
     ]);
   });
 
+  const api = (overrides: Partial<Pipeline> = {}) =>
+    pipeline({
+      id: 200,
+      serviceId: 11,
+      serviceName: 'api',
+      activeKey: { ...pipeline().activeKey!, value: 'a1b2c3d4-0000-4abc-9def-123456789abc' },
+      ...overrides,
+    });
+
+  async function loadWithApi(gui: Pipeline, other: Pipeline = api()) {
+    await load(
+      gui,
+      pipelineMonitoring(),
+      [
+        servicePipelines({ pipelines: [gui] }),
+        servicePipelines({ serviceId: 11, serviceName: 'api', pipelines: [other] }),
+      ],
+      product({ services: [service(), anotherService()] }),
+    );
+  }
+
+  it('shows the one Jenkinsfile of the services whose pipelines share the job of its repository', async () => {
+    await loadWithApi(pipeline());
+
+    expect(text(page().querySelector('.jenkinsfile .section-help'))).toBe(
+      'One Jenkinsfile with the keys of gui and api goes into https://bitbucket.bbh.com/projects/CERT/repos/gui. Ask for one Jenkins job for these services, not one per service: one GoldenFix pull request then covers all the services of the job.',
+    );
+    expect(text(page().querySelector('pre.code-block'))).toBe(
+      "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsPipeline(pipelineKeys: [ '6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc', ])",
+    );
+  });
+
+  it('shows the own Jenkinsfile of a service whose repository other services build in their own jobs', async () => {
+    await loadWithApi(pipeline(), api({ jenkinsJob: 'DevSecOps/CERT/api-full' }));
+
+    expect(text(page().querySelector('.jenkinsfile .section-help'))).toBe(
+      "The file to put in the service's repository so Jenkins runs this pipeline. It holds only the pipeline key: Jenkins fetches every other setting from this portal.",
+    );
+    expect(text(page().querySelector('pre.code-block'))).toBe(
+      "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')",
+    );
+  });
+
+  it('asks to replace the shared Jenkinsfile when the invalidated key of a shared job is regenerated', async () => {
+    await loadWithApi(pipeline({ activeKey: null }));
+
+    expect(text(page().querySelector('.banner.danger .banner-text'))).toBe(
+      'The pipeline key is invalidated. The pipeline is refused its settings and stops at its next start. Regenerate the key, then replace the Jenkinsfile that this service shares with api in its repository with the new one.',
+    );
+    expect(text(page().querySelector('pre.code-block'))).toContain('<issue a new key first>');
+
+    buttonOf(page(), 'Regenerate key').click();
+    await fixture.whenStable();
+    http.expectOne({ method: 'POST', url: '/api/pipelines/100/keys' }).flush(pipeline());
+    await reloadedMonitoring();
+
+    expect(text(page().querySelector('pre.code-block'))).toContain(
+      "pipelineKeys: [ '6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4",
+    );
+  });
+
   it('reveals and hides the key', async () => {
     await load();
 
@@ -188,6 +267,7 @@ describe('PipelinePage', () => {
     http
       .expectOne('/api/monitoring/pipelines/101?range=30d')
       .flush(pipelineMonitoring({ recentRuns: [], metricsError: 'InfluxDB timed out' }));
+    await products();
     await fixture.whenStable();
 
     expect(text(page().querySelector('.small-empty h3'))).toBe('No runs in the past 30 days');
@@ -201,7 +281,7 @@ describe('PipelinePage', () => {
     fixture.detectChanges();
     http.expectOne('/api/settings').flush(globalSettings());
     http.expectOne('/api/pipelines/100').flush(pipeline());
-    await settle();
+    await products();
     fixture.detectChanges();
 
     expect(page().querySelector('.runs dso-loading')).not.toBeNull();

@@ -59,7 +59,9 @@ class GlobalSettingsPersistenceAdapterSpec extends Specification {
         given:
         def stored = adapter.save(GlobalSettings.bbhDefaults())
         def changed = copy(bbh, platform: bbh.platform().withJenkinsUrl('https://jenkins.bbh.com'),
-                limits: bbh.limits() + [(SAST): new SeverityLimits(0, 2, 10)])
+                limits: bbh.limits() + [(SAST): new SeverityLimits(0, 2, 10)],
+                serviceDefaults: copy(bbh.serviceDefaults(), nodeInstallationName: 'NodeJS-20',
+                        npmRegistry: 'https://nexus.bbh.com/repository/npm-group/', npmrcCredentialsId: 'npmrc-file'))
 
         when:
         def saved = adapter.save(stored.change(stored.version(), changed))
@@ -70,6 +72,9 @@ class GlobalSettingsPersistenceAdapterSpec extends Specification {
         adapter.load().get().jenkinsUrl() == 'https://jenkins.bbh.com'
         jdbc.queryForMap("SELECT MAX_CRITICAL, MAX_HIGH, MAX_MEDIUM FROM DSO_GLOBAL_SEVERITY_LIMIT WHERE SCANNER = 'SAST'") ==
                 [MAX_CRITICAL: 0, MAX_HIGH: 2, MAX_MEDIUM: 10]
+        jdbc.queryForMap('SELECT NODE_INSTALLATION_NAME, NPM_REGISTRY, NPMRC_CREDENTIALS_ID FROM DSO_GLOBAL_SETTINGS') ==
+                [NODE_INSTALLATION_NAME: 'NodeJS-20', NPM_REGISTRY: 'https://nexus.bbh.com/repository/npm-group/',
+                 NPMRC_CREDENTIALS_ID  : 'npmrc-file']
     }
 
     def "settings read at another version than the stored one are not written"() {

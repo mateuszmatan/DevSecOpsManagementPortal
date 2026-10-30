@@ -8,10 +8,12 @@ import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ROOT;
+import static java.util.stream.Collectors.joining;
 import static lombok.AccessLevel.PRIVATE;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 import static org.apache.commons.lang3.StringUtils.lowerCase;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 import static org.apache.commons.lang3.Strings.CS;
 
 @NoArgsConstructor(access = PRIVATE)
@@ -46,6 +48,23 @@ public final class Text {
 
     public static List<String> clean(List<String> values) {
         return trimmed(values).stream().distinct().toList();
+    }
+
+    /**
+     * A path relative to the repository root without its "." and empty folders, so "./web/" is "web" and "." is null,
+     * the root itself. A path that starts at "/" is kept as it is for validation to refuse.
+     */
+    public static String relativePath(String path) {
+        String trimmed = trimToNull(path);
+        if (trimmed == null || trimmed.startsWith("/")) {
+            return trimmed;
+        }
+        return trimToNull(Stream.of(trimmed.split("/")).filter(folder -> !folder.isEmpty() && !folder.equals("."))
+                .collect(joining("/")));
+    }
+
+    public static List<String> relativePaths(List<String> paths) {
+        return clean(emptyIfNull(paths).stream().map(Text::relativePath).toList());
     }
 
     public static List<String> trimmed(List<String> values) {

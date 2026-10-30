@@ -24,6 +24,10 @@ defaults:
   buildTool: gradle
   deployTarget: vm
   sourceDir: .
+  build:
+    node:
+      installationName: NodeJS-20
+      registry: https://tools.bbh.com/nexus/repository/npm-group/
   coverage:
     minLine: 60
   tools:
@@ -107,6 +111,7 @@ projects:
         installationName: SonarQube
         projectName: PAYHUB-GATEWAY
         projectKey: payhub-gateway
+        badgeCredentialsId: payhub-sonar-badge
         maven:
           goals:
           - sonar:sonar
@@ -118,6 +123,8 @@ projects:
         - '**/target/*.jar'
         stage: build
         failOnNetworkError: false
+    sast:
+      scanName: payhub-gateway-sast
     dast:
       enabled: true
       targetUrl: http://rdltaapps1.testbbh.com
@@ -132,11 +139,22 @@ projects:
         - -U
         env:
           MAVEN_OPTS: -Xms512m -Xmx1g
+      node:
+        enabled: true
+        dir: console
+        commands:
+        - npm ci
+        - npm run build -- --configuration production
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
     scm:
       bitbucket:
         url: https://bitbucket.bbh.com/projects/PAY/repos/payhub-gateway
         credentialsId: bitbucket-http-credentials
         authType: basic
+    goldenFix:
+      versionCatalogs:
+      - bom/pom.xml
     tests:
       unitTests:
         maven:

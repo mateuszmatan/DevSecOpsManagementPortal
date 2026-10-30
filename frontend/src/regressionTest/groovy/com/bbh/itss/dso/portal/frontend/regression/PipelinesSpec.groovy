@@ -13,6 +13,7 @@ import static com.microsoft.playwright.options.AriaRole.MENUITEM
 class PipelinesSpec extends DsoSpecification {
 
     static final String GUI_FULL_KEY = '7b62170e-5c42-4bec-8cbc-035977e3299e'
+    static final String API_FULL_KEY = 'c44f8956-8e07-4ac8-b801-d6a1222a9c1f'
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
 
     def "a developer picks the department and filters and sorts its pipelines in the table header"() {
@@ -156,6 +157,23 @@ class PipelinesSpec extends DsoSpecification {
         then:
         assertThat(snackBar()).containsText('Jenkinsfile copied to the clipboard')
         copiedTexts() == [GUI_FULL_KEY, "@Library('DevSecOpsJenkinsLibrary') _\n\ndevSecOpsPipeline(pipelineKey: '${GUI_FULL_KEY}')\n".toString()]
+        ownErrors().isEmpty()
+    }
+
+    def "the page of a pipeline that shares the Jenkins job of its repository shows the one Jenkinsfile with every key"() {
+        given:
+        def services = fixture('product-1-pipelines.json') as List<Map>
+        (services[1].pipelines as List<Map>)[0].jenkinsJob = 'DevSecOps/CERTSCANNER/gui-full'
+        api.respond('GET', '/api/products/1/pipelines', services)
+
+        when:
+        open('/pipelines/1')
+
+        then:
+        assertThat(page.locator('.jenkinsfile .section-help')).hasText('One Jenkinsfile with the keys of gui and backend-api ' +
+                'goes into https://bitbucket.bbh.com/projects/TA/repos/cert-scanner. Ask for one Jenkins job for these services, ' +
+                'not one per service: one GoldenFix pull request then covers all the services of the job.')
+        assertThat(page.locator('pre.code-block')).containsText("devSecOpsPipeline(pipelineKeys: [\n    '${GUI_FULL_KEY}',\n    '${API_FULL_KEY}',\n])")
         ownErrors().isEmpty()
     }
 

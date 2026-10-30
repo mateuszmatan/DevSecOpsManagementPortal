@@ -1,0 +1,9 @@
+# The frozen history plus the later changesets that change DSO_GLOBAL_SETTINGS, so GlobalSettingsMigrationSpec can
+# roll back into the history and still save the settings through the entity.
+databaseChangeLog:
+  - include:
+      file: history.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: oracle/032-catalog-node.sql
+      relativeToChangelogFile: true

@@ -9,6 +9,7 @@ import {
   anotherService,
   department,
   globalSettings,
+  nodeBuild,
   product,
   service,
   servicePipelines,
@@ -24,7 +25,7 @@ import {
   unexplained,
 } from '@common/testing/dom';
 import { GeneratedKeys } from './generated-keys';
-import { createUrbanCodeApplicationForm } from './product-form-model';
+import { createUrbanCodeApplicationForm, toServiceRequest } from './product-form-model';
 import { ProductEditor } from './product-editor';
 import { ProductNameDialog } from './product-name-dialog';
 
@@ -67,11 +68,11 @@ describe('ProductEditor', () => {
         request.url === '/api/products/code-suggestion' && request.params.get('name') === name,
     );
 
-  async function start(name = 'CertScanner', code = 'CERTSCANNER') {
+  async function start(name = 'CertScanner', code = 'CERTSCANNER', settings = globalSettings()) {
     naming(name);
     await fixture.whenStable();
     http.expectOne('/api/departments').flush(departments);
-    http.expectOne('/api/settings').flush(globalSettings());
+    http.expectOne('/api/settings').flush(settings);
     template();
     suggestion(name).flush({ code });
     await fixture.whenStable();
@@ -105,7 +106,7 @@ describe('ProductEditor', () => {
 
   const names = () =>
     [...page().querySelectorAll('dso-panel .service-name')].map((name) => name.textContent?.trim());
-  const panels = () => [...page().querySelectorAll<HTMLElement>('dso-panel')];
+  const panels = () => [...page().querySelectorAll<HTMLElement>('dso-panel.service-panel')];
   const expandedPanels = () => panels().filter((panel) => panel.classList.contains('expanded'));
 
   const imageBuild = {
@@ -172,6 +173,96 @@ describe('ProductEditor', () => {
     build.tool.setValue('FLUTTER');
     build.tool.setValue('GRADLE');
     expect(values()).toEqual(['clean assemble', 'build/libs/*.jar']);
+  });
+
+  it('starts a new service with the build tool set up automatically, so it needs no JDK path', async () => {
+    await start();
+    const build = editor()['form'].controls.services.at(0).controls.build.controls;
+
+    expect(build.autoSetup.value).toBe(true);
+    expect(build.javaPath.valid).toBe(true);
+  });
+
+  it('starts a new Flutter service of the Library defaults without automatic setup, which Flutter cannot use', async () => {
+    const settings = globalSettings();
+    await start('CertScanner', 'CERTSCANNER', {
+      ...settings,
+      serviceDefaults: { ...settings.serviceDefaults, buildTool: 'FLUTTER' },
+    });
+    editor()['addService']();
+
+    for (const service of editor()['form'].controls.services.controls) {
+      expect(service.controls.build.controls.tool.value).toBe('FLUTTER');
+      expect(service.controls.build.controls.autoSetup.value).toBe(false);
+      expect(toServiceRequest(service).build.autoSetup).toBe(false);
+    }
+
+    const build = editor()['form'].controls.services.at(1).controls.build.controls;
+    build.tool.setValue('GRADLE');
+
+    expect(build.autoSetup.value).toBe(true);
+    expect(build.javaPath.valid).toBe(true);
+  });
+
+  it('offers the Nexus IQ application of the service template once, so one that was removed stays away', async () => {
+    await start();
+    const gui = editor()['form'].controls.services.at(0);
+    gui.controls.name.setValue('gui');
+    expect(gui.controls.nexusIqApplications.length).toBe(1);
+
+    gui.controls.nexusIqApplications.removeAt(0);
+    gui.controls.name.setValue('gui2');
+
+    expect(gui.controls.nexusIqApplications.length).toBe(0);
+    expect(gui.controls.scm.controls.repositoryUrl.value).toBe(
+      'https://bitbucket.bbh.com/projects/CERTSCANNER/repos/certscanner-gui2',
+    );
+  });
+
+  it('fills what a new service takes from its name and the product code from the service template', async () => {
+    await start();
+    const gui = editor()['form'].controls.services.at(0);
+    const named = () => {
+      const v = gui.getRawValue();
+      return [
+        v.scm.repositoryUrl,
+        v.scm.credentialsId,
+        v.deployment.appName,
+        v.nexusIqApplications,
+      ];
+    };
+    const application = (name: string, scanPatterns: string) => [
+      { application: name, scanPatterns, stage: 'build', failOnNetworkError: false },
+    ];
+
+    gui.controls.name.setValue('gui');
+
+    expect(named()).toEqual([
+      'https://bitbucket.bbh.com/projects/CERTSCANNER/repos/certscanner-gui',
+      'bitbucket-http-credentials',
+      'gui',
+      application('certscanner-gui', '**/target/*.jar'),
+    ]);
+
+    editor()['form'].controls.code.setValue('cert');
+    gui.controls.build.controls.tool.setValue('GRADLE');
+
+    expect(named()).toEqual([
+      'https://bitbucket.bbh.com/projects/CERT/repos/cert-gui',
+      'bitbucket-http-credentials',
+      'gui',
+      application('cert-gui', '**/build/libs/*.jar'),
+    ]);
+  });
+
+  it('keeps the repository and the Nexus IQ application of a stored service that is renamed', async () => {
+    await edit();
+    const gui = editor()['form'].controls.services.at(0);
+    const { scm, nexusIqApplications } = gui.getRawValue();
+
+    gui.controls.name.setValue('portal');
+
+    expect(gui.getRawValue()).toMatchObject({ scm, nexusIqApplications });
   });
 
   it('keeps the build of a stored service when its build tool changes', async () => {
@@ -567,8 +658,20 @@ describe('ProductEditor', () => {
       'Add service (disabled)',
     ]);
     expect(text(page().querySelector('.blocked'))).toBe(
-      'Complete these services before adding another: gui (Build, Deployment, OpenShift targets, AppScan SAST and DAST).',
+      'Complete these services before adding another: gui (Artifact name, Build project, BuildConfig file, ' +
+        'Dockerfile, Build context, Image pushed to, Nexus auth file, AppScan application ID, AppScan API key ID).',
     );
+
+    buttonOf(page().querySelector('.blocked')!, 'AppScan API key ID').click();
+    await fixture.whenStable();
+
+    expect(text(expandedPanels()[0].querySelector('.rail-item.active span'))).toBe(
+      'AppScan SAST and DAST',
+    );
+    expect(document.activeElement).toBe(inputOf(expandedPanels()[0], 'AppScan API key ID'));
+    expect(
+      text(fieldOf(expandedPanels()[0], 'AppScan API key ID')!.querySelector('dso-error')),
+    ).toBe('Required');
 
     fillValidProduct();
     first.controls.appScan.patchValue({ secretCredentialsId: 'asoc-secret' });
@@ -614,6 +717,73 @@ describe('ProductEditor', () => {
     expect(editor()['expanded']()).toBe(0);
   });
 
+  it('imports a config.yaml as it is and keeps its empty repository, also once the service is renamed', async () => {
+    await start();
+    const legacy = {
+      ...anotherService(),
+      id: null,
+      name: 'legacy',
+      nexusIqApplications: [],
+      scm: { ...anotherService().scm, repositoryUrl: null, credentialsId: null },
+    };
+
+    editor()['importService']({
+      file: 'config.yaml',
+      name: 'legacy',
+      service: legacy,
+      notes: [],
+      agentLabels: [],
+    });
+    editor()['form'].controls.code.setValue('PAY');
+    await fixture.whenStable();
+    const imported = editor()['form'].controls.services.at(0);
+
+    expect(imported.controls.nexusIqApplications.length).toBe(0);
+    expect(imported.controls.scm.controls.repositoryUrl.value).toBe('');
+    expect(imported.controls.scm.controls.credentialsId.value).toBe('');
+
+    imported.controls.name.setValue('ledger');
+    await fixture.whenStable();
+
+    expect(imported.controls.nexusIqApplications.length).toBe(0);
+    expect(imported.controls.scm.controls.repositoryUrl.value).toBe('');
+    expect(imported.controls.scm.controls.credentialsId.value).toBe('');
+    expect(imported.valid).toBe(true);
+    expect(page().querySelector('.blocked')).toBeNull();
+  });
+
+  it('gives a renamed import the repository of its new name only in place of the one its old name gave', async () => {
+    await start();
+    const legacy = {
+      ...anotherService(),
+      id: null,
+      name: 'legacy',
+      scm: {
+        ...anotherService().scm,
+        repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/pay-legacy',
+        credentialsId: 'legacy-credentials',
+      },
+    };
+
+    editor()['importService']({
+      file: 'config.yaml',
+      name: 'legacy',
+      service: legacy,
+      notes: [],
+      agentLabels: [],
+    });
+    editor()['form'].controls.code.setValue('PAY');
+    await fixture.whenStable();
+    const imported = editor()['form'].controls.services.at(0);
+
+    imported.controls.name.setValue('ledger');
+
+    expect(imported.controls.scm.controls.repositoryUrl.value).toBe(
+      'https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger',
+    );
+    expect(imported.controls.scm.controls.credentialsId.value).toBe('legacy-credentials');
+  });
+
   it('offers the import in the empty list of services', async () => {
     await start();
     editor()['remove'](0);
@@ -640,8 +810,30 @@ describe('ProductEditor', () => {
     );
   });
 
-  it('copies the values of the service chosen in the menu, except those that identify it', async () => {
-    await edit();
+  it('names the Node.js fields of a stored service that gives the installation and its home', async () => {
+    const both = service({
+      nodeBuild: nodeBuild({
+        enabled: true,
+        installationName: 'NodeJS-20',
+        nodePath: '/opt/node-20',
+      }),
+    });
+    await edit([both, anotherService()]);
+
+    expect(text(panels()[0].querySelector('.tag.error'))).toBe('Needs attention');
+    expect(text(page().querySelector('.blocked'))).toBe(
+      'Complete these services before adding another: gui (Node.js installation, Node.js home on the agent).',
+    );
+  });
+
+  it('copies the values of the service chosen in the menu, taking those that identify it from its name', async () => {
+    await edit([
+      service(),
+      anotherService({
+        nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+        versionCatalogs: ['gradle/libs.versions.toml'],
+      }),
+    ]);
 
     buttonOf(page(), 'Copy values from existing service').click();
     await fixture.whenStable();
@@ -652,14 +844,51 @@ describe('ProductEditor', () => {
     const copy = editor()['form'].controls.services.at(2).getRawValue();
 
     expect(names()).toEqual(['gui', 'api', 'api-copy']);
-    expect(text(panels()[2].querySelector('.tag.error'))).toBe('Needs attention');
+    expect(panels()[2].querySelector('.tag.error')).toBeNull();
     expect(copy.id).toBeNull();
     expect(copy.build.tool).toBe(anotherService().build.tool);
     expect(copy.sonar.projectKey).toBe('');
-    expect(copy.nexusIqApplications.map((app) => app.application)).toEqual(
-      anotherService().nexusIqApplications.map(() => ''),
-    );
+    expect(copy.nexusIqApplications.map((app) => app.application)).toEqual(['cert-api-copy']);
+    expect(copy.scm.repositoryUrl).toBe(anotherService().scm.repositoryUrl);
+    expect(copy.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
+    expect(copy.versionCatalogs).toBe('gradle/libs.versions.toml');
     expect(editor()['expanded']()).toBe(2);
+  });
+
+  it('keeps the empty Bitbucket credentials ID of a copied service, also when it is renamed', async () => {
+    const gui = service({ scm: { ...service().scm, credentialsId: '' } });
+    await edit([gui, anotherService()]);
+
+    editor()['duplicate'](0);
+    await fixture.whenStable();
+    const copy = editor()['form'].controls.services.at(1);
+
+    expect(copy.controls.name.value).toBe('gui-copy');
+    expect(copy.controls.scm.controls.credentialsId.value).toBe('');
+
+    copy.controls.name.setValue('ledger');
+
+    expect(copy.controls.nexusIqApplications.at(0).controls.application.value).toBe('cert-ledger');
+    expect(copy.controls.scm.controls.credentialsId.value).toBe('');
+  });
+
+  it('keeps the empty repository of a copied service, so the copy needs no Bitbucket credentials ID', async () => {
+    const gui = service({ scm: { ...service().scm, repositoryUrl: '', credentialsId: '' } });
+    await edit([gui, anotherService()]);
+
+    editor()['duplicate'](0);
+    await fixture.whenStable();
+    const copy = editor()['form'].controls.services.at(1);
+
+    expect(copy.controls.scm.controls.repositoryUrl.value).toBe('');
+
+    copy.controls.name.setValue('ledger');
+    await fixture.whenStable();
+
+    expect(copy.controls.scm.controls.repositoryUrl.value).toBe('');
+    expect(copy.controls.scm.controls.credentialsId.errors).toBeNull();
+    expect(copy.valid).toBe(true);
+    expect(page().querySelector('.blocked')).toBeNull();
   });
 
   it('puts a copy in place of the blank new service and lists only the other services to copy', async () => {

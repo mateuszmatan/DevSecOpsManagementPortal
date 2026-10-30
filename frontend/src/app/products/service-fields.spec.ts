@@ -7,15 +7,17 @@ import {
   checkboxOf,
   choose,
   fieldOf,
+  helpOf,
   inputOf,
   optionsOf,
   selectOf,
   text,
   unexplained,
 } from '@common/testing/dom';
-import { globalSettings, service } from '../testing/fixtures';
+import { globalSettings, nodeBuild, service } from '../testing/fixtures';
 import {
   BADGE_TWICE,
+  NODE_TWICE,
   ONE_APPLICATION,
   ServiceForm,
   createNexusIqApplicationForm,
@@ -76,6 +78,7 @@ describe('ServiceFields', () => {
     const stored = service();
     return service({
       build: { ...stored.build, tool },
+      nodeBuild: nodeBuild({ enabled: true }),
       deployment: { ...stored.deployment, target },
       appScan: { ...stored.appScan, compile: true, dastEnabled: true },
       goldenFix: { ...stored.goldenFix, minThreatLevel: 7 },
@@ -170,14 +173,93 @@ describe('ServiceFields', () => {
     }, 45_000);
   });
 
+  describe('fields that need input', () => {
+    it('names them by their labels in the order of the sections, and a rule of a list by its section', async () => {
+      const app = service().nexusIqApplications[0];
+      await render(service({ nexusIqApplications: [app, { ...app, application: 'cert-gui-2' }] }));
+      form.patchValue({
+        name: '',
+        nodeBuild: { enabled: true, installationName: 'NodeJS-20', nodePath: '/opt/node-20' },
+        appScan: { keyId: '' },
+      });
+
+      expect(
+        fixture.componentInstance.missing().map(({ section, label }) => `${section}: ${label}`),
+      ).toEqual([
+        'general: Service name',
+        'build: Node.js installation',
+        'build: Node.js home on the agent',
+        'appScan: AppScan API key ID',
+        'nexusIq: Nexus IQ',
+      ]);
+    });
+
+    it('opens the section of one, shows its error and puts the cursor in it, under Advanced settings too', async () => {
+      await render();
+      form.controls.build.controls.command.controls.label.setValue('x'.repeat(201));
+      const [missing] = fixture.componentInstance.missing();
+
+      expect(missing.label).toBe('Step label');
+
+      fixture.componentInstance.reveal(missing);
+      await fixture.whenStable();
+
+      expect(pane().querySelector('h3')?.textContent).toBe('Build');
+      expect(text(fieldOf(pane(), 'Step label')?.querySelector('dso-error'))).not.toBe('');
+      expect(document.activeElement).toBe(inputOf(pane(), 'Step label'));
+    });
+  });
+
   describe('Build', () => {
     const field = (label: string) => fieldOf(pane(), label)!;
 
-    it('asks for the JDK of a Flutter build and turns automatic setup off', async () => {
+    it('starts with the build tool and how to tell it from the code, and ends with Node.js', async () => {
       await render(service({ build: { ...service().build, autoSetup: true, javaPath: null } }));
       await open('Build');
+      const shown = () =>
+        [...pane().querySelectorAll('dso-form-field dso-label, dso-checkbox label, h4')]
+          .filter((label) => !label.closest('dso-advanced-settings'))
+          .map((label) => text(label).replace(/ \(\S+\)$/, ''));
+
+      expect(shown()).toEqual([
+        'Build tool',
+        'Gradle tasks',
+        'Artifact path',
+        'Set up the build tool automatically',
+        'Node.js build (stage 0)',
+        'Build the frontend with Node.js first',
+      ]);
+      expect(hints()[0]).toBe('The code has a build.gradle file · buildTool');
+
+      form.controls.build.controls.tool.setValue('MAVEN');
+      await fixture.whenStable();
+
+      expect(hints()[0]).toBe('The code has a pom.xml file · buildTool');
+    });
+
+    it('tells a service in a subfolder of its repository where to give that folder', async () => {
+      await render();
+      await open('Build');
+
+      expect(text(pane().querySelector('.pane-header p'))).toContain(
+        'A service in a subfolder of its repository names that folder under Advanced settings.',
+      );
+      ['Source folder', 'Directory'].forEach((label) =>
+        expect(text(field(label).querySelector('dso-hint')).toLowerCase(), label).toContain(
+          'for a service in a subfolder: that folder',
+        ),
+      );
+    });
+
+    it('asks for the JDK path without automatic setup and always for a Flutter build', async () => {
+      await render(service({ build: { ...service().build, autoSetup: true, javaPath: null } }));
+      await open('Build');
+      expect(fieldOf(pane(), 'JDK path')).toBeNull();
+
+      checkboxOf(pane(), 'Set up the build tool automatically').click();
+      await fixture.whenStable();
       expect(field('JDK path').textContent).toContain(
-        'unless the build tool is set up automatically',
+        'JAVA_HOME of the Gradle or Maven build and the later stages',
       );
 
       form.controls.build.controls.tool.setValue('FLUTTER');
@@ -189,6 +271,10 @@ describe('ServiceFields', () => {
       expect(field('JDK path').textContent).toContain('Required');
       expect(checkboxOf(pane(), 'Set up the build tool automatically').disabled).toBe(true);
       expect(pane().querySelector('.note')?.textContent).toContain('needs the JDK path');
+
+      form.controls.build.controls.autoSetup.setValue(true);
+      await fixture.whenStable();
+      expect(field('JDK path').textContent).toContain('Required');
     });
 
     it('names the artifact the Nexus delivery uploads for Maven on virtual machines', async () => {
@@ -207,6 +293,120 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
 
       expect(field('Artifact path').textContent).toContain('What the build produces');
+    });
+
+    it('offers the Node.js build of stage 0 for Gradle and Maven and shows its fields once it is on', async () => {
+      await render();
+      await open('Build');
+      const box = () => checkboxOf(pane(), 'Build the frontend with Node.js first');
+
+      expect([...pane().querySelectorAll('h4')].map(text)).toEqual(['Node.js build (stage 0)']);
+      expect(text(box().closest('dso-checkbox'))).toContain('build.node.enabled');
+      expect(fieldOf(pane(), 'Folder with package.json')).toBeNull();
+
+      box().click();
+      await fixture.whenStable();
+
+      expect(form.controls.nodeBuild.controls.enabled.value).toBe(true);
+      expect(hints()).toEqual(
+        expect.arrayContaining([
+          'Left empty: the repository root · build.node.dir',
+          'One per line, run in order; left empty: npm ci, then npm run build · build.node.commands',
+          'Library default: NodeJS-20 · build.node.installationName',
+          'Left empty: 30 · build.node.timeoutMin',
+        ]),
+      );
+      expect(inputOf(pane(), 'Commands').placeholder).toBe('npm ci\nnpm run build');
+      expect(checkboxOf(pane(), 'Scan the npm dependencies with Nexus IQ').checked).toBe(true);
+      expect(text(pane().querySelector('dso-advanced-settings .panel-description'))).toBe(
+        'Source folder, build command and Node.js options',
+      );
+      expect(field('Node.js home on the agent').closest('dso-advanced-settings')).not.toBeNull();
+      form.controls.nodeBuild.controls.nodePath.setValue('/opt/node-20');
+      await fixture.whenStable();
+      expect(text(field('Node.js installation').querySelector('dso-hint'))).toBe(
+        'Not used: the Node.js home on the agent is set · build.node.installationName',
+      );
+      expect(form.controls.nodeBuild.valid).toBe(true);
+      expect(helpOf(field('.npmrc credentials ID'))).toContain(
+        'A registry line of an .npmrc in the repository still wins over it.',
+      );
+      expect(helpOf(field('Source folder'))).toContain(
+        'the Gradle, Maven and Node.js builds have their own folder fields',
+      );
+
+      form.controls.build.controls.tool.setValue('FLUTTER');
+      await fixture.whenStable();
+
+      expect(box()).toBeUndefined();
+      expect(form.controls.nodeBuild.controls.enabled.value).toBe(false);
+    });
+
+    it.each([
+      [null, ['In SAST scanning', 'In the Extended pipeline'], []],
+      ['SAST', ['In SAST scanning'], ['In the Extended pipeline']],
+      ['EXTENDED', ['In the Extended pipeline'], ['In SAST scanning']],
+      ['FULL', [], ['In SAST scanning', 'In the Extended pipeline']],
+    ] as const)(
+      'tells where the %s pipeline runs the Node.js build',
+      async (pipeline, told, untold) => {
+        await render();
+        fixture.componentRef.setInput('pipeline', pipeline);
+        await open('Build');
+        const help = helpOf(
+          checkboxOf(pane(), 'Build the frontend with Node.js first').closest('dso-checkbox')!,
+        );
+
+        expect(help).toContain('extra stage 0, before the Gradle or Maven build');
+        told.forEach((sentence) => expect(help).toContain(sentence));
+        untold.forEach((sentence) => expect(help).not.toContain(sentence));
+      },
+    );
+
+    it('leaves the npm scan out of the SAST pipeline, which runs no Nexus IQ, and keeps its value', async () => {
+      await render(service({ nodeBuild: nodeBuild({ enabled: true }) }));
+      fixture.componentRef.setInput('pipeline', 'SAST');
+      await open('Build');
+      const scan = () => checkboxOf(pane(), 'Scan the npm dependencies with Nexus IQ');
+
+      expect(scan()).toBeUndefined();
+      expect(form.controls.nodeBuild.controls.nexusIqScan.value).toBe(true);
+      expect(
+        helpOf(
+          checkboxOf(pane(), 'Build the frontend with Node.js first').closest('dso-checkbox')!,
+        ),
+      ).toContain(
+        'In SAST scanning it runs only while Compile before preparing the IRX is on, and not on Windows agents.',
+      );
+
+      fixture.componentRef.setInput('pipeline', 'NEXUS_IQ');
+      await fixture.whenStable();
+
+      expect(scan().checked).toBe(true);
+    });
+
+    it('marks Build for an invalid Node.js field and opens it first', async () => {
+      await render(
+        service({
+          nodeBuild: nodeBuild({
+            enabled: true,
+            installationName: 'NodeJS-20',
+            nodePath: '/opt/node-20',
+          }),
+        }),
+      );
+      fixture.componentRef.setInput('submitted', true);
+      await fixture.whenStable();
+
+      expect(
+        [...page().querySelectorAll('.rail-item.problem span:first-of-type')].map(text),
+      ).toEqual(['Build']);
+      expect(fixture.componentInstance.revealFirstProblem()).toBe(true);
+      await fixture.whenStable();
+
+      expect(text(page().querySelector('.rail-item.active span'))).toBe('Build');
+      expect(form.controls.nodeBuild.controls.nodePath.errors).toEqual({ rule: NODE_TWICE });
+      expect(pane().querySelector('dso-advanced-settings .has-errors')).not.toBeNull();
     });
   });
 
@@ -242,6 +442,7 @@ describe('ServiceFields', () => {
 
       expect(text(box().closest('dso-checkbox'))).toContain('deploy.vm.rd.nexusDeliveryEnabled');
       expect(labels()).toContain('Artifact name');
+      expect(fieldOf(pane(), 'Built file name')?.closest('dso-advanced-settings')).not.toBeNull();
       expect(pane().querySelector('.block h4')?.textContent).toBe('Delivery');
 
       box().click();
@@ -368,7 +569,7 @@ describe('ServiceFields', () => {
   });
 
   describe('AppScan', () => {
-    it('asks for the key of the service with the application and moves the scan name into the advanced settings', async () => {
+    it('asks for the key of the service with the application and keeps the scan name and folders under Advanced settings', async () => {
       await render();
       await open('AppScan SAST and DAST');
       const main = [...pane().querySelectorAll(':scope > .form-fields > dso-fields dso-label')].map(
@@ -379,33 +580,32 @@ describe('ServiceFields', () => {
         'AppScan application ID',
         'AppScan API key ID',
         'API key secret credentials ID',
-        'Included folders',
-        'Excluded folders',
       ]);
       expect(text(fieldOf(pane(), 'API key secret credentials ID'))).toContain(
         'Left empty: the key ID · asoc.token',
       );
       expect(text(fieldOf(pane(), 'SAST scan name'))).toContain('sast.scanName');
-      expect(fieldOf(pane(), 'SAST scan name')?.closest('dso-advanced-settings')).not.toBeNull();
+      ['SAST scan name', 'Included folders', 'Excluded folders'].forEach((label) =>
+        expect(fieldOf(pane(), label)?.closest('dso-advanced-settings'), label).not.toBeNull(),
+      );
+      expect(text(pane().querySelector('dso-advanced-settings .panel-description'))).toBe(
+        'Scan name, scanned folders, AppScan client and the options of the static scan',
+      );
     });
   });
 
   describe('SonarQube', () => {
-    it('shows the project, its credentials and badge settings first and refuses both badge values', async () => {
+    it('shows the project first, keeps the tokens and badges under Advanced settings and refuses both badge values', async () => {
       await render();
       await open('SonarQube');
       const main = [...pane().querySelectorAll(':scope > .form-fields > dso-fields dso-label')].map(
         (label) => text(label),
       );
 
-      expect(main).toEqual([
-        'Project name',
-        'Project key',
-        'Jenkins installation',
-        'Token credentials ID',
-        'Badge token',
-        'Badge token credentials ID',
-      ]);
+      expect(main).toEqual(['Project name', 'Project key', 'Jenkins installation']);
+      ['Token credentials ID', 'Badge token', 'Badge token credentials ID'].forEach((label) =>
+        expect(fieldOf(pane(), label)?.closest('dso-advanced-settings'), label).not.toBeNull(),
+      );
       expect(text(fieldOf(pane(), 'Project key'))).toContain(
         'Left empty, the scan still runs without dashboard link, issue counts and badges',
       );
@@ -421,6 +621,7 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
 
       expect(text(fieldOf(pane(), 'Badge token')?.querySelector('dso-error'))).toBe(BADGE_TWICE);
+      expect(pane().querySelector('dso-advanced-settings .has-errors')).not.toBeNull();
     });
   });
 
@@ -495,6 +696,52 @@ describe('ServiceFields', () => {
 
       expect(hintOf('Minimum threat level')).toContain('· Library default: 2 · ');
       expect(hintOf('Dependencies')).toContain('· Library default: yes · ');
+    });
+
+    it('tells in which folders the verification commands run', async () => {
+      await render();
+      await open('GoldenFix');
+      buttonOf(pane(), 'Override for this service').click();
+      await fixture.whenStable();
+      const help = (label: string) => helpOf(fieldOf(pane(), label)!);
+
+      expect(help('Gradle command')).toContain(
+        'for a version catalog, settings file or platform, in the folder of each build that uses it',
+      );
+      expect(help('Maven command')).toContain(
+        'in the folder of the multi-module pom that builds them together, otherwise in the folder of the root pom.xml or of that pom',
+      );
+      expect(help('Maven command')).toContain(
+        'When a shared pom with a name other than pom.xml is built in its own folder, the library adds -f and its file name at the end of the command. ' +
+          'It does so for a command set here too, so write it as one mvn call, for example mvn -B -q -DskipTests verify. ' +
+          'Exit code 0 passes the check. When no command is set, the library runs mvn -B -q -DskipTests compile.',
+      );
+      expect(help('npm command')).toContain(
+        'A command set here runs as it is, without the refresh of package-lock.json',
+      );
+      expect(help('Timeout (minutes)')).toContain(
+        'one for each folder a changed manifest or catalog is built in',
+      );
+    });
+
+    it('lists the shared version catalogs of the service under Inherit and Override', async () => {
+      await render(service({ versionCatalogs: ['gradle/libs.versions.toml'] }));
+      await open('GoldenFix');
+
+      expect(inputOf(pane(), 'Shared version catalogs').value).toBe('gradle/libs.versions.toml');
+      expect(hints()).toContain(
+        'Optional; one path per line, relative to the repository root · goldenFix.versionCatalogs',
+      );
+      expect(inputOf(pane(), 'Shared version catalogs').placeholder).toBe('platform/bom.xml');
+      expect(helpOf(fieldOf(pane(), 'Shared version catalogs')!)).toContain(
+        'without such an aggregator, the poms that use it are not built',
+      );
+
+      buttonOf(pane(), 'Override for this service').click();
+      await fixture.whenStable();
+
+      expect(inputOf(pane(), 'Shared version catalogs').value).toBe('gradle/libs.versions.toml');
+      expect(form.controls.goldenFix.controls.inherit.value).toBe(false);
     });
 
     it('works without the global settings', async () => {

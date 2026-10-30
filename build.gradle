@@ -3,6 +3,10 @@ plugins {
     alias(libs.plugins.spring.dependency.management) apply false
 }
 
+// check (and so build) of the root project fails when docs/documentation.html is out of date
+apply plugin: 'base'
+apply from: 'gradle/documentation.gradle'
+
 allprojects {
     group = 'com.bbh.itss.dso'
     version = findProperty('artifactVersion') ?: '0.1.0-SNAPSHOT'

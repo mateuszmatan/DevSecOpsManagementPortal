@@ -1,4 +1,11 @@
-import { CountedPipe, capitalized, counted, formatDuration, formatRelative } from './formatting';
+import {
+  CountedPipe,
+  capitalized,
+  counted,
+  formatDuration,
+  formatRelative,
+  listed,
+} from './formatting';
 
 describe('formatDuration', () => {
   it.each([
@@ -47,6 +54,15 @@ describe('counted', () => {
     expect(counted(1, 'recovery', 'recoveries')).toBe('1 recovery');
     expect(counted(3, 'recovery', 'recoveries')).toBe('3 recoveries');
     expect(new CountedPipe().transform(2, 'run')).toBe('2 runs');
+  });
+});
+
+describe('listed', () => {
+  it('joins the last item with and', () => {
+    expect(listed([])).toBe('');
+    expect(listed(['gui'])).toBe('gui');
+    expect(listed(['gui', 'api'])).toBe('gui and api');
+    expect(listed(['gui', 'api', 'batch'])).toBe('gui, api and batch');
   });
 });
 

@@ -26,6 +26,7 @@ import {
   forkJoin,
   map,
   of,
+  startWith,
   switchMap,
 } from 'rxjs';
 import { PipelinesApi, ProductsApi, ServiceTemplateApi, SettingsApi } from '../core/api';
@@ -59,12 +60,11 @@ import {
   duplicateService,
   dvApplication,
   firstServiceWithProblem,
+  followName,
   followToolDefaults,
   patchProduct,
   prefillNewService,
-  sectionInvalid,
   toProductRequest,
-  visibleSections,
 } from './product-form-model';
 import {
   ConfigImport,
@@ -74,6 +74,7 @@ import {
   prefillAgents,
 } from './config-import';
 import { GeneratedKeys } from './generated-keys';
+import { MissingField, MissingFields } from './missing-fields';
 import { NamedProduct, ProductNameDialog, ProductNameDialogData } from './product-name-dialog';
 import { ServiceFields } from './service-fields';
 import { DepartmentsApi } from '@common/core/api';
@@ -143,6 +144,7 @@ const productFields = (departments: readonly Department[], creating: boolean): F
     Fields,
     ConfigImport,
     ImportNotes,
+    MissingFields,
     ServiceFields,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -189,21 +191,20 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       .map((service, index) => ({ service, index }))
       .filter(({ service }) => !isPlaceholder(service)),
   );
-  protected readonly blockers = computed(() =>
-    this.services()
-      .filter((service) => service.invalid && !isPlaceholder(service))
-      .map((service) => {
-        const sections = visibleSections(service)
-          .filter((section) => sectionInvalid(service, section))
-          .map((section) => section.label);
-        const name = service.controls.name.value || 'new-service';
-        return sections.length ? `${name} (${sections.join(', ')})` : name;
-      }),
-  );
+  private readonly serviceFields = viewChildren(ServiceFields);
+  protected readonly blockers = computed(() => {
+    this.formEvent();
+    return this.serviceFields()
+      .filter((fields) => fields.form().invalid && !isPlaceholder(fields.form()))
+      .map((fields) => ({
+        fields,
+        name: fields.form().controls.name.value || 'new-service',
+        missing: fields.missing(),
+      }));
+  });
   protected readonly blocked = computed(() => this.blockers().length > 0);
 
   private readonly pipelineCounts = signal(new Map<number, number>());
-  private readonly serviceFields = viewChildren(ServiceFields);
   private saved = false;
   private generatedCode = '';
 
@@ -327,16 +328,21 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected addService(): void {
     const service = createServiceForm(undefined, this.settings()?.serviceDefaults);
     const template = this.template();
-    const build = buildDefaults(template, service.controls.build.controls.tool.value);
+    const tool = service.controls.build.controls.tool.value;
+    const build = buildDefaults(template, tool);
     service.patchValue({
-      build: { buildPath: build.artifact, command: { tasks: build.tasks } },
+      build: {
+        autoSetup: tool !== 'FLUTTER',
+        buildPath: build.artifact,
+        command: { tasks: build.tasks },
+      },
       delivery: { tasks: template?.deliveryTasks ?? '' },
     });
     this.add(this.prepared(service));
   }
 
   protected importService(imported: ImportedConfig): void {
-    this.fill(this.prepared(importedServiceForm(imported, this.settings()?.serviceDefaults)));
+    this.fill(this.prepared(importedServiceForm(imported, this.settings()?.serviceDefaults), true));
     prefillAgents(this.form.controls.agentLabels, imported.agentLabels);
     this.imported.set(imported);
   }
@@ -344,6 +350,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected duplicate(index: number): void {
     const source = this.form.controls.services.at(index);
     const copy = duplicateService(source, this.settings());
+    this.followServiceName(copy, source.controls.name.value, false, false);
     this.fill(this.withFullPipeline(copy), index + 1, source);
   }
 
@@ -374,6 +381,11 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       danger: true,
     };
     askToConfirm(this.dialog, data).subscribe((confirmed) => confirmed && this.removeAt(index));
+  }
+
+  protected reveal(fields: ServiceFields, missing: MissingField): void {
+    this.expanded.set(this.form.controls.services.controls.indexOf(fields.form()));
+    fields.reveal(missing);
   }
 
   protected panelToggled(index: number, open: boolean): void {
@@ -458,15 +470,49 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     );
   }
 
-  /** Prefills a new service with the Library defaults and the AppScan key, and its build with the tool's defaults. */
-  private prepared(service: ServiceForm): ServiceForm {
+  /**
+   * Prefills a new service with the Library defaults and the AppScan key, its build with the tool's defaults and what
+   * the service template takes from its name; an imported one keeps what its file gives until it is renamed, and an
+   * empty repository URL and its Bitbucket credentials ID even then.
+   */
+  private prepared(service: ServiceForm, imported = false): ServiceForm {
     prefillNewService(
       service,
       this.settings(),
       this.form.controls.services.controls.map((other) => other.controls.appScan.getRawValue()),
     );
     followToolDefaults(service, this.template(), this.destroyRef);
+    const name = imported ? service.controls.name.value.trim() : '';
+    this.followServiceName(service, name, imported, !imported);
     return this.withFullPipeline(service);
+  }
+
+  /**
+   * Lets a service follow its name. Only a blank new service takes an empty repository URL and the Bitbucket credentials
+   * ID from it. A copy or an import keeps both as it brings them, even empty, and the name replaces its repository URL
+   * only while that holds what the previous name gave.
+   */
+  private followServiceName(
+    service: ServiceForm,
+    copiedFrom: string,
+    imported: boolean,
+    blank: boolean,
+  ): void {
+    const code = this.form.controls.code;
+    const codes = code.valueChanges.pipe(
+      startWith(null),
+      map(() => code.value),
+    );
+    followName(
+      service,
+      this.template(),
+      codes,
+      this.destroyRef,
+      copiedFrom,
+      imported,
+      blank,
+      blank,
+    );
   }
 
   private add(service: ServiceForm, index = this.form.controls.services.length): void {

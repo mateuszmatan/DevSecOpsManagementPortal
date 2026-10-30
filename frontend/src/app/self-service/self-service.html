@@ -422,12 +422,19 @@
                 each service below into a file named <code>Jenkinsfile</code> in the top folder of
                 the service's Bitbucket repository and merge it, or send it to a developer of the
                 service to do so.
+                @if (done.shared) {
+                  <span
+                    >Services whose pipelines share a Jenkins job share one Jenkinsfile with all
+                    their keys.</span
+                  >
+                }
               </p>
-              @for (start of done.starts; track start.serviceName) {
+              @for (job of done.jobs; track job.names) {
+                @let start = job.starts[0];
                 <div class="jenkinsfile">
                   <div class="jenkinsfile-head">
                     <div>
-                      <strong>{{ start.serviceName }}</strong>
+                      <strong>{{ job.names }}</strong>
                       @if (start.repository) {
                         <span class="muted"> · goes into {{ start.repository }}</span>
                       }
@@ -436,8 +443,8 @@
                       <button
                         type="button"
                         class="btn btn-link"
-                        [attr.aria-label]="'Copy the Jenkinsfile of ' + start.serviceName"
-                        [cdkCopyToClipboard]="jenkinsfileOf(start)"
+                        [attr.aria-label]="'Copy the Jenkinsfile of ' + job.names"
+                        [cdkCopyToClipboard]="jenkinsfileOf(job)"
                         (cdkCopyToClipboardCopied)="copied()"
                       >
                         Copy
@@ -446,7 +453,7 @@
                   </div>
                   @if (start.pipeline; as started) {
                     @if (started.activeKey) {
-                      <pre class="code-block">{{ jenkinsfileOf(start) }}</pre>
+                      <pre class="code-block">{{ jenkinsfileOf(job) }}</pre>
                     } @else {
                       <p class="jenkinsfile-missing">
                         Its key is invalidated, so the pipeline is refused its settings and stops.
@@ -470,16 +477,26 @@
               }
             </li>
             <li>
-              <h3>Ask your Jenkins administrator for a job for each service</h3>
-              <p>
-                Ask for a Pipeline job per service that reads the Jenkinsfile from the service's
-                repository (Pipeline script from SCM), with these names:
-              </p>
+              @if (done.shared) {
+                <h3>Ask your Jenkins administrator for a job for each Jenkinsfile</h3>
+                <p>
+                  Ask for one Pipeline job for each Jenkinsfile above, not one per service, that
+                  reads the Jenkinsfile from its repository (Pipeline script from SCM){{
+                    sharedJobReason(pipeline()!)
+                  }}. Use these names:
+                </p>
+              } @else {
+                <h3>Ask your Jenkins administrator for a job for each service</h3>
+                <p>
+                  Ask for a Pipeline job per service that reads the Jenkinsfile from the service's
+                  repository (Pipeline script from SCM), with these names:
+                </p>
+              }
               <ul class="job-names">
-                @for (start of done.starts; track start.serviceName) {
-                  @if (start.pipeline; as started) {
+                @for (job of done.jobs; track job.names) {
+                  @if (job.starts[0].pipeline; as started) {
                     <li>
-                      {{ start.serviceName }}: <code>{{ jobName(started) }}</code>
+                      {{ job.names }}: <code>{{ jobName(started) }}</code>
                     </li>
                   }
                 }
@@ -520,6 +537,11 @@
                 <a [routerLink]="monitoringProduct(done.product.id)">Pipeline Monitoring</a>
                 shows whether each run passed and how often changes reach production.
               </p>
+              @for (job of done.jobs; track job.names) {
+                @if (job.starts.length > 1) {
+                  <p class="shared-runs">{{ sharedRunsNote(job.starts[0].serviceName) }}</p>
+                }
+              }
             </li>
           </ol>
         }

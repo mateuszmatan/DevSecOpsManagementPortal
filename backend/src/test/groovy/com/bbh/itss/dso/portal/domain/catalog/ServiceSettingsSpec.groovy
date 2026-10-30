@@ -40,9 +40,9 @@ class ServiceSettingsSpec extends Specification {
     def "sections left out take their defaults"() {
         expect:
         ServiceSettings.builder().build(build()).deployment(deployment()).appScan(appScan()).build() ==
-                new ServiceSettings(build(), UnitTestSettings.NONE, DEFAULTS, [], deployment(), NONE,
-                        UrbanCodeSettings.DEFAULTS, [], [:], [:], appScan(), SonarSettings.NONE, NexusIqSettings.NONE,
-                        null, ScmSettings.NONE, INHERITED, MetricsSettings.DEFAULTS, FlutterSettings.NONE)
+                new ServiceSettings(build(), NodeBuildSettings.NONE, UnitTestSettings.NONE, DEFAULTS, [], deployment(),
+                        NONE, UrbanCodeSettings.DEFAULTS, [], [:], [:], appScan(), SonarSettings.NONE, NexusIqSettings.NONE,
+                        null, ScmSettings.NONE, INHERITED, null, MetricsSettings.DEFAULTS, FlutterSettings.NONE)
     }
 
     def "deployment targets that set nothing, or have no region, are dropped and the rest kept in region order"() {
@@ -74,6 +74,36 @@ class ServiceSettingsSpec extends Specification {
         tree.get('flutter') == null
         written(settings(build: build(tool: MAVEN), delivery: command(['deploy:deploy-file'], ['-Did=bbh'])))
                 .get('delivery') == [maven: [goals: ['deploy:deploy-file'], flags: ['-Did=bbh']]]
+    }
+
+    def "a Node.js build is written right after the build and the shared version catalogs under goldenFix"() {
+        when:
+        def tree = written(settings(nodeBuild: NodeBuildSettings.builder().enabled(true).directory('frontend').build(),
+                goldenFix: GoldenFixPolicy.inherit(false), versionCatalogs: [' gradle/libs.versions.toml ', '',
+                                                                             'gradle/libs.versions.toml']))
+
+        then:
+        tree.get('build') == [gradle: [tasks: ['clean', 'build']], node: [enabled: true, dir: 'frontend']]
+        tree.get('build').keySet() as List == ['gradle', 'node']
+        tree.get('goldenFix') == [enabled: false, versionCatalogs: ['gradle/libs.versions.toml']]
+        written(settings(versionCatalogs: ['gradle/libs.versions.toml'])).get('goldenFix') ==
+                [versionCatalogs: ['gradle/libs.versions.toml']]
+        written(settings()).get('build.node') == null
+        written(settings()).get('goldenFix') == null
+    }
+
+    def "shared version catalogs are stored and written relative to the repository root"() {
+        expect:
+        settings(versionCatalogs: ['./bom/pom.xml', 'bom/pom.xml/', 'gradle//deps.toml', '.']).versionCatalogs() ==
+                ['bom/pom.xml', 'gradle/deps.toml']
+    }
+
+    def "a Flutter service cannot run a Node.js build before its build"() {
+        expect:
+        reported(settings(build: build(tool: FLUTTER, javaPath: null),
+                nodeBuild: NodeBuildSettings.builder().enabled(true).build()))*.field.contains('nodeBuild.enabled')
+        !reported(settings(build: build(tool: FLUTTER, javaPath: null),
+                nodeBuild: NodeBuildSettings.builder().directory('frontend').build()))*.field.contains('nodeBuild.enabled')
     }
 
     def "a service on OpenShift writes its OpenShift projects and nothing of the VM deployment"() {
@@ -238,17 +268,18 @@ class ServiceSettingsSpec extends Specification {
         def longDirs = (1..20).collect { "${'d' * 150}/$it".toString() }
         def reviewers = (1..3).collect { ("reviewer-$it-" + '\u017c\u00f3\u0142\u0107' * 120).toString() }
         def command = ToolCommand.of(['build'], longFlags)
+        def nodeBuild = NodeBuildSettings.builder().commands(longDirs + longDirs).environment(longFlags).build()
 
         when:
-        def problems = reported(settings(build: build(command: command),
+        def problems = reported(settings(build: build(command: command), nodeBuild: nodeBuild,
                 appScan: AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key').includedDirs(longDirs)
                         .excludedDirs(['test']).compile(false).compileCommand(command).build(),
                 scm: ScmSettings.builder().repositoryUrl(REPO).credentialsId('bb-creds').reviewers(reviewers).build(),
-                goldenFix: GoldenFixPolicy.builder().excludeDirs(longDirs).build()))
+                goldenFix: GoldenFixPolicy.builder().excludeDirs(longDirs).build(), versionCatalogs: longDirs))
 
         then:
-        problems*.field == ['build.command.flags', 'appScan.includedDirs', 'appScan.compileCommand.flags',
-                            'scm.reviewers', 'goldenFix.excludeDirs']
+        problems*.field == ['build.command.flags', 'nodeBuild.commands', 'nodeBuild.environment', 'appScan.includedDirs',
+                            'appScan.compileCommand.flags', 'scm.reviewers', 'goldenFix.excludeDirs', 'versionCatalogs']
         problems[0].message == 'is too long: all entries together may take at most 2000 bytes'
     }
 

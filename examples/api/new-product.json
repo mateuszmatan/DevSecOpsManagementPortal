@@ -52,6 +52,13 @@
         "keyId": "bbh_6b0d4f2e-3c1a-4e8b-9f7d-2a5c8e1b0d93",
         "compile": true
       },
+      "nexusIqApplications": [
+        { "application": "tradearchive-archive-api", "scanPatterns": ["**/target/*.jar"] }
+      ],
+      "scm": {
+        "repositoryUrl": "https://bitbucket.bbh.com/projects/TRADEARCHIVE/repos/tradearchive-archive-api",
+        "credentialsId": "bitbucket-http-credentials"
+      },
       "metrics": { "enabled": true, "influxEnv": "test" }
     },
     {
@@ -62,8 +69,10 @@
         "tool": "GRADLE",
         "sourceDir": ".",
         "autoSetup": true,
+        "buildPath": "build/libs/*.jar",
         "command": { "tasks": ["clean", "build"] }
       },
+      "nodeBuild": { "enabled": true, "directory": "frontend" },
       "deployment": { "target": "VM" },
       "urbanCodeApplications": [
         {
@@ -78,6 +87,14 @@
         "keyId": "bbh_6b0d4f2e-3c1a-4e8b-9f7d-2a5c8e1b0d93",
         "compile": true
       },
+      "nexusIqApplications": [
+        { "application": "tradearchive-archive-gui", "scanPatterns": ["**/build/libs/*.jar"] }
+      ],
+      "scm": {
+        "repositoryUrl": "https://bitbucket.bbh.com/projects/TRADEARCHIVE/repos/tradearchive-archive-gui",
+        "credentialsId": "bitbucket-http-credentials"
+      },
+      "versionCatalogs": ["gradle/libs.versions.toml"],
       "metrics": { "enabled": true, "influxEnv": "test" }
     }
   ]

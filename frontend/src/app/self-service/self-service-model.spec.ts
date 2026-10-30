@@ -1,6 +1,8 @@
+import { Pipeline } from '../core/models';
 import { RETRY, UNREACHABLE } from '@common/core/errors';
 import {
   globalSettings,
+  nodeBuild,
   pipeline,
   product,
   service,
@@ -12,8 +14,8 @@ import {
   changesOf,
   deploys,
   fromService,
+  jenkinsJobs,
   jobName,
-  namedDefaults,
   notLoaded,
   pipelineChoices,
   pipelineNames,
@@ -29,6 +31,12 @@ import {
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
 const TEMPLATE = serviceTemplate();
 const REPOSITORY = 'https://bitbucket.bbh.com/projects/PAY/repos/gateway';
+const GUI_REPOSITORY = 'https://bitbucket.bbh.com/projects/CERT/repos/gui';
+const sharing = (names: string) =>
+  `Shares its repository with ${names}, so they get one Jenkinsfile and one Jenkins job.`;
+const keeping = (names: string) =>
+  `Shares its repository with ${names} but keeps its Jenkinsfile and Jenkins job.`;
+const AGENTS = ['linux-agent'];
 
 function added(overrides: Partial<WizardService> = {}): WizardService {
   return {
@@ -53,7 +61,7 @@ describe('self-service model', () => {
     );
     expect(preparation('NEXUS_IQ')).toEqual([
       'The name of each service, its AppScan application ID and the AppScan API key ID, from the DevSecOps team',
-      'Whether each service is built with Gradle or Maven; a developer of the service knows',
+      'Whether each service is built with Gradle or Maven, and the folder of its package.json when Node.js builds its frontend first; a developer of the service knows',
       'The Nexus IQ application and the Bitbucket repository of each service',
     ]);
   });
@@ -253,28 +261,6 @@ describe('self-service model', () => {
     expect(request.delivery.tasks).toEqual([]);
   });
 
-  it('names the OpenShift project, Nexus IQ application and repository of a service by the template', () => {
-    const defaults = {
-      tool: null,
-      target: null,
-      template: TEMPLATE,
-      productCode: 'PAY',
-      settings: null,
-    };
-
-    expect(namedDefaults(defaults, 'Gateway')).toEqual({
-      openShiftProject: 'pay-gateway',
-      nexusIqApplication: 'pay-Gateway',
-      repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/pay-Gateway',
-    });
-    expect(namedDefaults({ ...defaults, productCode: '' }, 'gateway')).toEqual({
-      openShiftProject: '',
-      nexusIqApplication: '',
-      repositoryUrl: '',
-    });
-    expect(namedDefaults({ ...defaults, template: null }, 'gateway').repositoryUrl).toBe('');
-  });
-
   it('publishes a Maven service on a virtual machine from target with deploy-file', () => {
     const request = serviceRequest(added({ tool: 'MAVEN' }), 'FULL', TEMPLATE);
 
@@ -351,7 +337,10 @@ describe('self-service model', () => {
   });
 
   it('puts a service of the portal on another build tool with the build settings of a new one', () => {
-    const stored = service();
+    const stored = service({
+      nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+      versionCatalogs: ['gradle/libs.versions.toml'],
+    });
     const request = serviceRequest(
       { ...fromService(stored), tool: 'MAVEN' },
       'FULL',
@@ -375,6 +364,8 @@ describe('self-service model', () => {
     expect(request.urbanCodeApplications).toEqual(stored.urbanCodeApplications);
     expect(request.unitTests).toEqual(stored.unitTests);
     expect(request.testJobs).toEqual(stored.testJobs);
+    expect(request.nodeBuild).toEqual(stored.nodeBuild);
+    expect(request.versionCatalogs).toEqual(stored.versionCatalogs);
   });
 
   it('moves a service of the portal to OpenShift with the deployment settings of a new one', () => {
@@ -504,7 +495,11 @@ describe('self-service model', () => {
       openShiftProject: '',
       nexusIqApplication: 'cert-gui',
       repositoryUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui',
+      nodeDirectory: null,
     });
+    expect(fromService(service({ nodeBuild: nodeBuild({ enabled: true }) })).nodeDirectory).toBe(
+      '',
+    );
     expect(
       fromService(
         service({ nexusIqApplications: [], scm: { ...service().scm, repositoryUrl: null } }),
@@ -615,19 +610,25 @@ describe('self-service model', () => {
     );
     expect(serviceSummary('SAST', openShift)).toBe('Built with Gradle.');
     expect(serviceSummary('SAST', fromService(service()))).toBe(
-      'Built with Gradle, runs on virtual machines.',
+      `Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}.`,
+    );
+    expect(serviceSummary('SAST', added({ nodeDirectory: 'web' }))).toBe(
+      'Built with Gradle after a Node.js build in web.',
+    );
+    expect(serviceSummary('SAST', added({ nodeDirectory: '', repositoryUrl: REPOSITORY }))).toBe(
+      `Built with Gradle after a Node.js build in the repository root, repository ${REPOSITORY}.`,
     );
     expect(
       serviceSummary(
         'SECURITY',
         fromService(service({ build: { ...service().build, tool: 'FLUTTER' } })),
       ),
-    ).toBe('Built with Flutter, runs on virtual machines.');
+    ).toBe(`Built with Flutter, runs on virtual machines, repository ${GUI_REPOSITORY}.`);
     expect(serviceSummary('NEXUS_IQ', { ...openShift, nexusIqApplication: 'payhub-gateway' })).toBe(
       'Built with Gradle, Nexus IQ application payhub-gateway.',
     );
     expect(serviceSummary('NEXUS_IQ', fromService(service()))).toBe(
-      'Built with Gradle, runs on virtual machines, Nexus IQ application cert-gui.',
+      `Built with Gradle, runs on virtual machines, Nexus IQ application cert-gui, repository ${GUI_REPOSITORY}.`,
     );
     expect(serviceSummary('NEXUS_IQ', added())).toBe('Built with Gradle.');
   });
@@ -669,6 +670,13 @@ describe('self-service model', () => {
       'new Bitbucket repository',
     ]);
     expect(changesOf('FULL', nexusIq, stored)).toEqual([]);
+    expect(changesOf('FULL', { ...same, nodeDirectory: 'web' }, stored)).toEqual([
+      'built after a Node.js build in web',
+    ]);
+    const node = service({ nodeBuild: nodeBuild({ enabled: true, directory: 'web' }) });
+    expect(changesOf('FULL', { ...fromService(node), nodeDirectory: null }, node)).toEqual([
+      'no Node.js build',
+    ]);
   });
 
   it('says in plain words what saving does to each service', () => {
@@ -681,7 +689,10 @@ describe('self-service model', () => {
     const current = [
       servicePipelines({ serviceId: 10, pipelines: [pipeline({ type: 'SECURITY' })] }),
       servicePipelines({ serviceId: 11, pipelines: [pipeline()] }),
-      servicePipelines({ serviceId: 13, pipelines: [pipeline({ type: 'SECURITY' })] }),
+      servicePipelines({
+        serviceId: 13,
+        pipelines: [pipeline({ type: 'SECURITY', jenkinsJob: 'DevSecOps/CERT/web-security' })],
+      }),
     ];
     const [gui, api, batch, web] = stored.map(fromService);
 
@@ -692,9 +703,15 @@ describe('self-service model', () => {
         stored,
         [12],
         current,
+        AGENTS,
+        true,
       ),
     ).toEqual([
-      { name: 'gui', tag: null, text: 'Already has a Security pipeline; nothing changes.' },
+      {
+        name: 'gui',
+        tag: null,
+        text: `Already has a Security pipeline; nothing changes. ${keeping('api and web')}`,
+      },
       {
         name: 'api',
         tag: 'Changed',
@@ -704,7 +721,7 @@ describe('self-service model', () => {
       {
         name: 'web',
         tag: 'Changed',
-        text: 'Keeps its Security pipeline. No description.',
+        text: `Keeps its Security pipeline. No description. ${keeping('gui and api')}`,
       },
       {
         name: 'gateway',
@@ -712,12 +729,95 @@ describe('self-service model', () => {
         text: 'Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines.',
       },
     ]);
-    expect(reviewEntries('NEXUS_IQ', [gui], stored, [], null)).toEqual([
+    const docs = added({ name: 'docs', repositoryUrl: `${GUI_REPOSITORY}.git` });
+    expect(
+      reviewEntries('SECURITY', [gui, api, docs], stored, [], current, AGENTS, true).map(
+        (entry) => entry.text,
+      ),
+    ).toEqual([
+      `Already has a Security pipeline; nothing changes. ${keeping('api and docs')}`,
+      `Gets a Security pipeline with its own key; nothing else changes. ${sharing('docs')}`,
+      `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}.git. ${sharing('api')}`,
+    ]);
+    expect(reviewEntries('NEXUS_IQ', [gui], stored, [], null, AGENTS, true)).toEqual([
       {
         name: 'gui',
         tag: null,
         text: 'Gets an OSA pipeline with its own key; nothing else changes.',
       },
+    ]);
+  });
+
+  it('says that the new pipelines of a repository join the Jenkins job that two of its pipelines share, if the service template names a job', () => {
+    const stored = [
+      service(),
+      service({ id: 11, name: 'batch' }),
+      service({ id: 13, name: 'web' }),
+    ];
+    const security = (jenkinsJob: string, overrides: Partial<Pipeline> = {}) => [
+      pipeline({ type: 'SECURITY', jenkinsJob, ...overrides }),
+    ];
+    const current = (web: Partial<Pipeline> = {}) => [
+      servicePipelines({ serviceId: 10, pipelines: security('DevSecOps/CERT/gui-security') }),
+      servicePipelines({ serviceId: 11, pipelines: security('DevSecOps/CERT/batch-security') }),
+      servicePipelines({ serviceId: 13, pipelines: security(' DevSecOps/CERT/GUI-security', web) }),
+    ];
+    const [gui, batch, web] = stored.map(fromService);
+    const docs = added({ name: 'docs', repositoryUrl: `${GUI_REPOSITORY}.git` });
+    const blog = added({ name: 'blog', repositoryUrl: `${GUI_REPOSITORY}/` });
+    const unchanged = 'Already has a Security pipeline; nothing changes.';
+    const docsAdded = `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}.git.`;
+    const texts = (
+      services: WizardService[],
+      pipelines = current(),
+      agents: readonly string[] = AGENTS,
+      templateJob = true,
+    ) =>
+      reviewEntries('SECURITY', services, stored, [], pipelines, agents, templateJob).map(
+        (e) => e.text,
+      );
+
+    expect(texts([gui, batch, web, docs])).toEqual([
+      `${unchanged} Its Jenkinsfile, which it shares with web, gets the key of docs.`,
+      `${unchanged} ${keeping('gui, web and docs')}`,
+      `${unchanged} Its Jenkinsfile, which it shares with gui, gets the key of docs.`,
+      `${docsAdded} Joins the Jenkins job that gui and web share, so their Jenkinsfile gets its key.`,
+    ]);
+    expect(texts([gui, web, docs, blog]).slice(0, 2)).toEqual([
+      `${unchanged} Its Jenkinsfile, which it shares with web, gets the keys of docs and blog.`,
+      `${unchanged} Its Jenkinsfile, which it shares with gui, gets the keys of docs and blog.`,
+    ]);
+    expect(texts([gui, web, docs, blog]).slice(2)).toEqual([
+      `${docsAdded} Joins the Jenkins job that gui and web share, so their Jenkinsfile gets its key.`,
+      `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}/. Joins the Jenkins job that gui and web share, so their Jenkinsfile gets its key.`,
+    ]);
+    for (const [pipelines, agents] of [
+      [current(), ['windows-agent']],
+      [current({ agentLabels: ['windows-agent'] }), AGENTS],
+      [current({ activeKey: null }), AGENTS],
+      [current({ securityPipelineJob: 'DevSecOps/CERT/security' }), AGENTS],
+    ] as const) {
+      expect(texts([gui, web, docs, blog], [...pipelines], agents)).toEqual([
+        `${unchanged} ${keeping('web, docs and blog')}`,
+        `${unchanged} ${keeping('gui, docs and blog')}`,
+        `${docsAdded} ${sharing('blog')}`,
+        `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}/. ${sharing('docs')}`,
+      ]);
+    }
+    expect(texts([gui, web, docs, blog], current(), AGENTS, false)).toEqual([
+      `${unchanged} ${keeping('web, docs and blog')}`,
+      `${unchanged} ${keeping('gui, docs and blog')}`,
+      docsAdded,
+      `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}/.`,
+    ]);
+    expect(
+      reviewEntries('SECURITY', [gui, web, docs], stored, [13], current(), AGENTS, true).map(
+        (entry) => entry.text,
+      ),
+    ).toEqual([
+      `${unchanged} ${keeping('docs')}`,
+      'Deleted, with its pipelines and their keys.',
+      docsAdded,
     ]);
   });
 
@@ -765,6 +865,59 @@ describe('self-service model', () => {
     expect(notLoaded('The service template', 'Database unavailable', true)).toBe(
       'The service template could not be loaded. Database unavailable.',
     );
+  });
+
+  it('shares one Jenkins job among the services whose pipelines share a repository and its job', () => {
+    const start = (serviceName: string, repository: string, run: Pipeline | null = pipeline()) => ({
+      serviceName,
+      repository,
+      pipeline: run,
+    });
+    const shared = 'https://bitbucket.bbh.com/projects/CERT/repos/cert';
+    const jobs = jenkinsJobs([
+      start('gui', shared),
+      start('batch', 'https://bitbucket.bbh.com/projects/CERT/repos/batch'),
+      start('api', `${shared}/`),
+      start('tool', shared, null),
+      start('worker', ''),
+    ]);
+
+    expect(jobs.map((job) => [job.names, job.starts.length])).toEqual([
+      ['gui and api', 2],
+      ['batch', 1],
+      ['tool', 1],
+      ['worker', 1],
+    ]);
+    expect(
+      jenkinsJobs([
+        start('gui', shared),
+        start('api', shared, pipeline({ jenkinsJob: 'DevSecOps/CERT/api-full' })),
+      ]).map((job) => job.names),
+    ).toEqual(['gui', 'api']);
+  });
+
+  it('takes the repository from the Bitbucket fields of a service without a URL', () => {
+    const stored = service();
+    const [start] = servicesToStart(
+      [servicePipelines()],
+      'FULL',
+      product({
+        services: [
+          {
+            ...stored,
+            scm: {
+              ...stored.scm,
+              repositoryUrl: null,
+              apiUrl: 'https://bitbucket.bbh.com',
+              projectKey: 'CERT',
+              repoSlug: 'cert',
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(start.repository).toBe('https://bitbucket.bbh.com/projects/CERT/repos/cert');
   });
 
   it('finds the pipeline of the chosen type for every service', () => {

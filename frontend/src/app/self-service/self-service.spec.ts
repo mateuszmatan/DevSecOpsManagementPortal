@@ -463,6 +463,56 @@ describe('SelfService', () => {
     ]);
   });
 
+  it('says in the review that a new pipeline joins the Jenkins job that two pipelines of its repository share, while the service template names a job', async () => {
+    const web = anotherService({
+      id: 12,
+      name: 'web',
+      sonar: { ...service().sonar, projectKey: 'cert-web' },
+    });
+    await chooseProduct(3, product({ services: [service(), anotherService(), web] }), [
+      servicePipelines(),
+      servicePipelines({
+        serviceId: 11,
+        serviceName: 'api',
+        pipelines: [pipeline({ id: 200, serviceId: 11, serviceName: 'api' })],
+      }),
+      servicePipelines({ serviceId: 12, serviceName: 'web', pipelines: [] }),
+    ]);
+    await next();
+    wizard()['pipeline'].set('FULL');
+    await next();
+    await next();
+
+    expect(wizard()['step']()).toBe(3);
+    const joining = [
+      'gui · Already has a Full pipeline; nothing changes. Its Jenkinsfile, which it shares with api, gets the key of web.',
+      'api · Already has a Full pipeline; nothing changes. Its Jenkinsfile, which it shares with gui, gets the key of web.',
+      'web · Gets a Full pipeline with its own key; nothing else changes. Joins the Jenkins job that gui and api share, so their Jenkinsfile gets its key.',
+    ];
+    expect(entries()).toEqual(joining);
+
+    const keeping = [
+      'gui · Already has a Full pipeline; nothing changes. Shares its repository with api and web but keeps its Jenkinsfile and Jenkins job.',
+      'api · Already has a Full pipeline; nothing changes. Shares its repository with gui and web but keeps its Jenkinsfile and Jenkins job.',
+      'web · Gets a Full pipeline with its own key; nothing else changes.',
+    ];
+
+    wizard()['agents'].setValue('windows-agent');
+    await fixture.whenStable();
+
+    expect(entries()).toEqual(keeping);
+
+    wizard()['agents'].setValue('');
+    await fixture.whenStable();
+
+    expect(entries()).toEqual(joining);
+
+    wizard()['serviceTemplate'].set(serviceTemplate({ jenkinsJob: null }));
+    await fixture.whenStable();
+
+    expect(entries()).toEqual(keeping);
+  });
+
   it('asks for the Nexus IQ application and repository of every service and points to the golden pull requests', async () => {
     await chooseProduct(
       3,
@@ -490,8 +540,8 @@ describe('SelfService', () => {
 
     expect(wizard()['step']()).toBe(3);
     expect(entries()).toEqual([
-      'gui · Gets an OSA pipeline with its own key; nothing else changes.',
-      'api · Changed · Gets an OSA pipeline with its own key. New Nexus IQ application.',
+      'gui · Gets an OSA pipeline with its own key; nothing else changes. Shares its repository with api, so they get one Jenkinsfile and one Jenkins job.',
+      'api · Changed · Gets an OSA pipeline with its own key. New Nexus IQ application. Shares its repository with gui, so they get one Jenkinsfile and one Jenkins job.',
     ]);
 
     await next();
@@ -669,6 +719,119 @@ describe('SelfService', () => {
     expect(wizard()['step']()).toBe(2);
     expect(all('.choice-error')).toEqual([
       'Use Change to rename these services, as another service of CertScanner has the same name: GUI',
+    ]);
+  });
+
+  async function saveWithApi(jenkinsJob: string, webJob?: string) {
+    const services = [service(), anotherService()];
+    const listed = [
+      servicePipelines(),
+      servicePipelines({
+        serviceId: 11,
+        serviceName: 'api',
+        pipelines: [
+          pipeline({
+            id: 200,
+            serviceId: 11,
+            serviceName: 'api',
+            jenkinsJob,
+            activeKey: { ...pipeline().activeKey!, value: 'a1b2c3d4-0000-4abc-9def-123456789abc' },
+          }),
+        ],
+      }),
+    ];
+    if (webJob) {
+      services.push(
+        anotherService({
+          id: 12,
+          name: 'web',
+          sonar: { ...service().sonar, projectKey: 'cert-web' },
+        }),
+      );
+      listed.push(
+        servicePipelines({
+          serviceId: 12,
+          serviceName: 'web',
+          pipelines: [
+            pipeline({
+              id: 201,
+              serviceId: 12,
+              serviceName: 'web',
+              jenkinsJob: webJob,
+              activeKey: {
+                ...pipeline().activeKey!,
+                value: 'b2c3d4e5-0000-4abc-9def-123456789abc',
+              },
+            }),
+          ],
+        }),
+      );
+    }
+    const stored = product({ services });
+    await chooseProduct(3, stored, listed);
+    await next();
+    wizard()['pipeline'].set('FULL');
+    await next();
+    await next();
+    await next();
+    http.expectOne({ method: 'PUT', url: '/api/products/1?pipelineType=FULL' }).flush(stored);
+    http.expectOne('/api/products/1/pipelines').flush(listed);
+    await fixture.whenStable();
+  }
+
+  it('asks for one Jenkinsfile and one job for the services whose pipelines share the job of a repository', async () => {
+    await saveWithApi('DevSecOps/CERT/gui-full');
+    const step = (index: number) => text(page().querySelectorAll('.next-steps > li')[index]);
+
+    expect(all('.next-steps > li h3').slice(0, 2)).toEqual([
+      "Put the Jenkinsfile in each service's repository",
+      'Ask your Jenkins administrator for a job for each Jenkinsfile',
+    ]);
+    expect(step(0)).toContain(
+      'Services whose pipelines share a Jenkins job share one Jenkinsfile with all their keys.',
+    );
+    expect(all('.jenkinsfile-head')).toEqual([
+      'gui and api · goes into https://bitbucket.bbh.com/projects/CERT/repos/gui Copy',
+    ]);
+    expect(text(page().querySelector('.jenkinsfile .code-block'))).toContain(
+      "devSecOpsPipeline(pipelineKeys: [ '6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc', ])",
+    );
+    expect(buttonOf(page(), 'Copy the Jenkinsfile of gui and api')).toBeDefined();
+    expect(step(1)).toContain(
+      'Ask for one Pipeline job for each Jenkinsfile above, not one per service, that reads the Jenkinsfile from its repository (Pipeline script from SCM): one GoldenFix pull request then covers all the services of the job. Use these names:',
+    );
+    expect(all('.job-names li')).toEqual(['gui and api: DevSecOps/CERT/gui-full']);
+    expect(all('.shared-runs')).toEqual([
+      'Pipeline Monitoring shows the runs of the shared job under gui, the service of the first key. To see them on the other services too, give them the same Project tag (Monitoring section) and the shared job as the Jenkins job of their pipelines.',
+    ]);
+  });
+
+  it('keeps a Jenkinsfile and a job for each service of a repository whose pipelines run in jobs of their own', async () => {
+    await saveWithApi('DevSecOps/CERT/api-full');
+
+    expect(all('.next-steps > li h3')[1]).toBe(
+      'Ask your Jenkins administrator for a job for each service',
+    );
+    expect(all('.job-names li')).toEqual([
+      'gui: DevSecOps/CERT/gui-full',
+      'api: DevSecOps/CERT/api-full',
+    ]);
+    expect(page().querySelectorAll('.jenkinsfile .code-block')).toHaveLength(2);
+  });
+
+  it('asks for one job for each Jenkinsfile when only some services of a repository share a job', async () => {
+    await saveWithApi('DevSecOps/CERT/api-full', 'DevSecOps/CERT/API-full');
+
+    expect(all('.next-steps > li h3')[1]).toBe(
+      'Ask your Jenkins administrator for a job for each Jenkinsfile',
+    );
+    expect(all('.jenkinsfile-head')).toEqual([
+      'gui · goes into https://bitbucket.bbh.com/projects/CERT/repos/gui Copy',
+      'api and web · goes into https://bitbucket.bbh.com/projects/CERT/repos/gui Copy',
+    ]);
+    expect(all('.job-names li')).toEqual([
+      'gui: DevSecOps/CERT/gui-full',
+      'api and web: DevSecOps/CERT/api-full',
     ]);
   });
 

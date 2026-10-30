@@ -108,10 +108,16 @@
     </header>
 
     @if (generated().length) {
-      <div class="banner info generated" role="status">
-        <span class="generated-text"
-          >{{ generatedNotice() }} Copy each key into the Jenkinsfile of its service.</span
-        >
+      <div class="banner info notice generated" role="status">
+        <span class="notice-text"
+          >{{ generatedNotice() }}
+          @if (sharedRepositories().length) {
+            Copy the keys into the Jenkinsfiles: services whose pipelines share a Jenkins job share
+            one Jenkinsfile, shown below.
+          } @else {
+            Copy each key into the Jenkinsfile of its service.
+          }
+        </span>
         <button type="button" class="text-link" (click)="dismissGenerated()">Dismiss</button>
       </div>
     }
@@ -145,6 +151,14 @@
             In grey under each pipeline: its Jenkins job, the Jenkins agents (the machines it runs
             on) and its monitoring tags (the names its results are stored under).
           </p>
+          @for (shared of sharedRepositories(); track shared.pipelines[0].id) {
+            <div class="banner info notice shared-repository">
+              <span class="notice-text">{{ shared.text }}</span>
+              <button type="button" class="text-link" (click)="showJenkinsfile(shared.pipelines)">
+                Show the Jenkinsfile
+              </button>
+            </div>
+          }
         </div>
       }
       @for (service of services.value(); track service.serviceId) {
@@ -375,7 +389,7 @@
                       type="button"
                       cdkMenuItem
                       class="dropdown-item"
-                      (cdkMenuItemTriggered)="showJenkinsfile(pipeline)"
+                      (cdkMenuItemTriggered)="showJenkinsfile(jenkinsfileGroup(pipeline))"
                     >
                       Jenkinsfile
                     </button>
@@ -384,7 +398,7 @@
                         type="button"
                         cdkMenuItem
                         class="dropdown-item"
-                        (cdkMenuItemTriggered)="showJenkinsfile(pipeline, true)"
+                        (cdkMenuItemTriggered)="showJenkinsfile(together(pipeline))"
                       >
                         Jenkinsfile for several services
                       </button>

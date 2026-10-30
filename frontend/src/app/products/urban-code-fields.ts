@@ -75,7 +75,7 @@ const SERVICE_SETTING = 'left empty: the setting above';
 const threeState = (key: keyof typeof HELP, label: string, code: string) =>
   choice(key, label, tristate('Setting above', 'Yes', 'No'), code, 4, { help: HELP[key] });
 
-const APPLICATION: Field[] = [
+export const URBAN_CODE_APPLICATION: Field[] = [
   mono('applicationName', 'Application name', 'applicationName', 5, {
     help: 'The UrbanCode Deploy application that receives the components and is deployed.',
   }),
@@ -121,7 +121,7 @@ const APPLICATION: Field[] = [
   }),
 ];
 
-const COMPONENT: Field[] = [
+export const URBAN_CODE_COMPONENT: Field[] = [
   mono('componentName', 'Component name', 'componentName', 4, {
     help: 'The UrbanCode Deploy component the files are published to as a new version.',
   }),
@@ -211,8 +211,8 @@ export class UrbanCodeFields {
     return [...this.form().controls.urbanCodeApplications.controls];
   });
 
-  protected readonly applicationFields = APPLICATION;
-  protected readonly componentFields = COMPONENT;
+  protected readonly applicationFields = URBAN_CODE_APPLICATION;
+  protected readonly componentFields = URBAN_CODE_COMPONENT;
 
   protected settingsFields(): Field[] {
     const deployment = this.defaults()?.deployment;

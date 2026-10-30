@@ -87,12 +87,20 @@ class AddProductSpec extends EditorSpecification {
 
         then:
         assertThat(button('Add service', true)).isDisabled()
-        assertThat(page.locator('.blocked')).containsText('Complete these services before adding another: gui (')
+        assertThat(page.locator('.blocked')).hasText('Complete these services before adding another: ' +
+                'gui (UrbanCode Deploy, AppScan application ID, AppScan API key ID).')
+
+        when:
+        buttonIn(page.locator('.blocked'), 'AppScan API key ID').click()
+
+        then:
+        assertThat(openService().locator('.pane-header h3')).hasText('AppScan SAST and DAST')
+        assertThat(input(openService(), 'AppScan API key ID')).isFocused()
+        assertThat(errorOf(openService(), 'AppScan API key ID')).hasText('Required')
 
         when:
         showSection('Build')
-        fillIn(openService(), ['JDK path'     : '/usr/lib/jvm/java-21-openjdk', 'Artifact path': 'build/libs/*.jar',
-                               'Gradle tasks': 'clean build'])
+        fillIn(openService(), ['Artifact path': 'build/libs/*.jar', 'Gradle tasks': 'clean build'])
         showSection('AppScan SAST and DAST')
         fillIn(openService(), ['AppScan application ID'       : GUI_APPLICATION, 'AppScan API key ID': APP_SCAN_KEY,
                                'API key secret credentials ID': 'hcl-app-scan-account'])
@@ -115,8 +123,7 @@ class AddProductSpec extends EditorSpecification {
         input(openService(), 'Service name').fill('backend-api')
         showSection('Build')
         choose(openService(), 'Build tool', 'Maven')
-        fillIn(openService(), ['JDK path'    : '/usr/lib/jvm/java-21-openjdk', 'Artifact path': 'target/*.jar',
-                               'Maven goals': 'clean verify'])
+        fillIn(openService(), ['Artifact path': 'target/*.jar', 'Maven goals': 'clean verify'])
         showSection('Deployment')
         input(openService(), 'Maven goals').fill('deploy')
         addUrbanCodeApplication('CERT-API', 'target')

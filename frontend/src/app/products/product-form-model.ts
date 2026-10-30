@@ -20,6 +20,7 @@ import {
   GlobalSettings,
   GoldenFixPolicy,
   NexusIqApplication,
+  NodeBuildSettings,
   OpenShiftTarget,
   PipelineType,
   Product,
@@ -70,10 +71,14 @@ import {
   url,
   words,
 } from '@common/shared/form-controls';
-import { pairwise, startWith } from 'rxjs';
+import { Observable, combineLatest, filter, map, pairwise, skipWhile, startWith } from 'rxjs';
 import { agentLabels } from '../shared/build-options';
-import { buildDefaults } from '../shared/service-template';
-import { applyLibraryDefaults, withoutUntouchedDefaults } from './library-defaults';
+import { buildDefaults, imageRepository, namedDefaults } from '../shared/service-template';
+import {
+  applyLibraryDefaults,
+  isUntouchedDefault,
+  withoutUntouchedDefaults,
+} from './library-defaults';
 
 export const SERVICE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 export const UUID =
@@ -93,12 +98,51 @@ export const SCANNER_VERSION = /^[0-9A-Za-z._-]*$/;
 export const TIME_ZONE = /^[A-Za-z0-9_+/-]*$/;
 export const REMEDIATION_TYPE = /^[a-z-]{1,100}$/;
 export const GOLDEN_FIX_ECOSYSTEMS = ['maven', 'npm', 'pypi', 'pub'];
+export const RELATIVE_FOLDER = /^(?![/\\])(?![A-Za-z]:)(?!.*\.\.)[^'"\p{Cc}]*$/u;
+export const ABSOLUTE_FOLDER = /^((\/|[A-Za-z]:[/\\]|\\\\)[^'"\p{Cc}]*)?$/u;
+export const REPOSITORY_PATH = /^(?!\/)(?!(.*\/)?\.\.(\/|$))[A-Za-z0-9._/*+@:=,~-]*$/;
+export const REPOSITORY_FILE = /^(?!.*\/$).*$/;
+
+/**
+ * A path relative to the repository root as the portal keeps it, without its '.' and empty
+ * folders, so './web/' is 'web' and '.' is null, the root itself. A path that starts at '/' is
+ * kept as it is for validation to refuse.
+ */
+export function relativePath(path: string | null | undefined): string | null {
+  const trimmed = optional(path);
+  if (trimmed === null || trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  return optional(
+    trimmed
+      .split('/')
+      .filter((folder) => folder && folder !== '.')
+      .join('/'),
+  );
+}
+
+const relativePaths = (value: string) => [
+  ...new Set(lines(value).flatMap((path) => relativePath(path) ?? [])),
+];
+
+/** A folder of the repository, judged as the portal keeps it, so the form refuses what the server refuses. */
+const relativeFolder: ValidatorFn = (control) =>
+  RELATIVE_FOLDER.test(relativePath(control.value) ?? '') ? null : { pattern: true };
 
 const FOLDER = /^[^,']{1,300}$/;
+const COMMAND = /^\P{Cc}*$/u;
 const tokenLines = (value: string) => lines(value, false);
 const parameterLines = (value: string) => value.split('\n').filter((line) => line.trim());
 const tokenWords = (value: string) => words(value, false);
 const upTo = (length: number) => new RegExp(`^.{1,${length}}$`);
+const environment = (values: string[] | null | undefined, column: number) =>
+  text(
+    joinLines(values),
+    maxLines(30, false),
+    eachItem(tokenLines, ENV_VARIABLE, 'Write each variable as NAME=value'),
+    eachItem(tokenLines, upTo(500), 'At most 500 characters per variable'),
+    fitsColumn(tokenLines, '\n', column),
+  );
 
 export const NO_COMMAND: ToolCommand = {
   tasks: [],
@@ -126,13 +170,7 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
     ),
     directory: text(command?.directory, max(500)),
     mavenHome: shellSafe(command?.mavenHome, 500),
-    environment: text(
-      joinLines(command?.environment),
-      maxLines(30, false),
-      eachItem(tokenLines, ENV_VARIABLE, 'Write each variable as NAME=value'),
-      eachItem(tokenLines, upTo(500), 'At most 500 characters per variable'),
-      fitsColumn(tokenLines, '\n', 4000),
-    ),
+    environment: environment(command?.environment, 4000),
     label: text(command?.label, max(200)),
     returnStdout: flag(command?.returnStdout),
   });
@@ -545,6 +583,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       fitsColumn(lines, '\n', 1000),
     );
   const parallel = (value: number | null | undefined) => integer(value, 1, INT_MAX);
+  const node = s?.nodeBuild;
 
   const form = new FormGroup({
     id: new FormControl<number | null>(s?.id ?? null),
@@ -559,6 +598,37 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       autoSetup: flag(s?.build?.autoSetup),
       buildPath: shellSafe(s?.build?.buildPath, 500),
       command: createToolCommandForm(s?.build?.command),
+    }),
+    nodeBuild: new FormGroup({
+      enabled: flag(node?.enabled),
+      directory: text(node?.directory, relativeFolder, max(500)),
+      commands: text(
+        joinLines(node?.commands),
+        maxLines(20, false),
+        eachItem(
+          tokenLines,
+          COMMAND,
+          'One command per line, without tabs or other control characters',
+        ),
+        eachItem(tokenLines, upTo(500), 'At most 500 characters per command'),
+        fitsColumn(tokenLines, '\n', 4000),
+      ),
+      installationName: text(
+        node?.installationName,
+        max(200),
+        notWith('nodePath', NODE_TWICE, 'enabled'),
+      ),
+      nodePath: text(
+        node?.nodePath,
+        Validators.pattern(ABSOLUTE_FOLDER),
+        max(500),
+        notWith('installationName', NODE_TWICE, 'enabled'),
+      ),
+      environment: environment(node?.environment, 2000),
+      registry: url(node?.registry, 500),
+      npmrcCredentialsId: text(node?.npmrcCredentialsId, max(200)),
+      timeoutMinutes: integer(node?.timeoutMinutes, 1, 240),
+      nexusIqScan: flag(node?.nexusIqScan !== false),
     }),
     unitTests: new FormGroup({
       command: createToolCommandForm(s?.unitTests?.command),
@@ -682,6 +752,18 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       repoSlug: text(s?.scm?.repoSlug, Validators.pattern(BITBUCKET_NAME), max(200)),
     }),
     goldenFix: createServiceGoldenFixForm(s?.goldenFix),
+    versionCatalogs: text(
+      joinLines(s?.versionCatalogs),
+      maxLines(20),
+      eachItem(lines, REPOSITORY_FILE, 'Name the file, such as platform/pom.xml, not its folder'),
+      eachItem(
+        lines,
+        REPOSITORY_PATH,
+        "A path relative to the repository root, without a '..' folder, with letters, digits and . _ / * + @ : = , ~ - only",
+      ),
+      eachItem(lines, upTo(300), 'At most 300 characters per path'),
+      fitsColumn(lines, '\n', 2000),
+    ),
     metrics: new FormGroup({
       enabled: flag(s?.metrics?.enabled, true),
       influxProject: text(s?.metrics?.influxProject, max(200)),
@@ -717,7 +799,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     }),
   });
 
-  const { build, deployment, appScan, unitTests, sonar, scm, flutter } = form.controls;
+  const { build, nodeBuild, deployment, appScan, unitTests, sonar, scm, flutter } = form.controls;
   const tool = build.controls.tool;
   const target = deployment.controls.target;
   const deliveryDisabled = deployment.controls.nexusDeliveryDisabled;
@@ -728,6 +810,8 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   requireOnceUsed(form.controls.openShiftTargets.controls.QC);
   revalidateOnChange(sonar.controls.badgeToken, sonar.controls.badgeCredentialsId);
   revalidateOnChange(sonar.controls.badgeCredentialsId, sonar.controls.badgeToken);
+  revalidateOnChange(nodeBuild.controls.installationName, nodeBuild.controls.nodePath);
+  revalidateOnChange(nodeBuild.controls.nodePath, nodeBuild.controls.installationName);
   requireWhile(
     build.controls.javaPath,
     () => tool.value === 'FLUTTER' || !build.controls.autoSetup.value,
@@ -774,15 +858,19 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     () => !!optional(scm.controls.repositoryUrl.value),
     scm.controls.repositoryUrl,
   );
-  [build.controls.command.controls.tasks, form.controls.delivery.controls.tasks].forEach(
-    (control) => control.updateValueAndValidity(),
-  );
+  [
+    build.controls.command.controls.tasks,
+    form.controls.delivery.controls.tasks,
+    nodeBuild.controls.installationName,
+    nodeBuild.controls.nodePath,
+  ].forEach((control) => control.updateValueAndValidity());
   const sources: AbstractControl[] = [
     tool,
     target,
     deliveryDisabled,
     appScan.controls.compile,
     appScan.controls.dastEnabled,
+    nodeBuild.controls.enabled,
   ];
   sources.forEach((control) => control.valueChanges.subscribe(() => syncApplicability(form)));
   syncApplicability(form);
@@ -796,7 +884,7 @@ export function followToolDefaults(
   template: ServiceTemplateValues | null,
   destroyRef?: DestroyRef,
 ): void {
-  const { tool, buildPath, command } = service.controls.build.controls;
+  const { tool, buildPath, command, autoSetup } = service.controls.build.controls;
   tool.valueChanges
     .pipe(startWith(tool.value), pairwise(), takeUntilDestroyed(destroyRef))
     .subscribe(([previous, next]) => {
@@ -808,7 +896,149 @@ export function followToolDefaults(
       if (!command.controls.tasks.value || command.controls.tasks.value === before.tasks) {
         command.controls.tasks.setValue(after.tasks);
       }
+      if (service.controls.id.value !== null) {
+        return;
+      }
+      if (previous === 'FLUTTER' && next !== 'FLUTTER' && autoSetup.pristine) {
+        autoSetup.setValue(true);
+      }
+      const patterns = service.controls.nexusIqApplications.controls[0]?.controls.scanPatterns;
+      if (patterns?.value === before.scanPattern && after.scanPattern) {
+        patterns.setValue(after.scanPattern);
+      }
     });
+}
+
+const NEXUS_IQ_APPLICATION = 'nexusIqApplications.0.application';
+const REPOSITORY_URL = 'scm.repositoryUrl';
+const FILLED_FROM_NAME = [
+  REPOSITORY_URL,
+  'scm.credentialsId',
+  'deployment.appName',
+  NEXUS_IQ_APPLICATION,
+];
+
+interface Naming {
+  code: string;
+  name: string;
+}
+
+/**
+ * Lets a new service follow its name and its product code through the service template: it fills an empty repository
+ * URL, Bitbucket credentials ID, application name or Nexus IQ application with its scan pattern, and replaces every value
+ * that still holds what the previous name gave, such as the image repositories of a copy of the service named copiedFrom.
+ * An imported service counts as named already and offered its Nexus IQ application, so it keeps what its file gives
+ * until its name is changed. Without credentials, the name never fills or replaces the Bitbucket credentials ID. Without
+ * fillsRepository, it leaves an empty repository URL empty and only replaces one that still holds what the previous name
+ * gave, so a service without a repository does not come to need a Bitbucket credentials ID.
+ */
+export function followName(
+  service: ServiceForm,
+  template: ServiceTemplateValues | null,
+  productCode: Observable<string>,
+  destroyRef: DestroyRef,
+  copiedFrom = '',
+  imported = false,
+  credentials = true,
+  fillsRepository = true,
+): void {
+  const name = service.controls.name;
+  const apps = service.controls.nexusIqApplications;
+  const typed = name.valueChanges.pipe(startWith(name.value));
+  const filled = FILLED_FROM_NAME.filter((path) => fillsRepository || path !== REPOSITORY_URL);
+  let named: Naming | null = null;
+  let offered = imported || apps.length > 0;
+  combineLatest([
+    productCode,
+    imported ? typed.pipe(skipWhile((value) => value.trim() === copiedFrom)) : typed,
+  ])
+    .pipe(
+      map(([code, typed]) => ({ code: code.trim(), name: typed.trim() })),
+      filter((next) => next.name !== ''),
+      takeUntilDestroyed(destroyRef),
+    )
+    .subscribe((next) => {
+      rename(
+        service,
+        template,
+        named ?? { ...next, name: copiedFrom },
+        next,
+        offered,
+        credentials,
+        filled,
+      );
+      named = next;
+      offered ||= apps.length > 0;
+    });
+}
+
+/**
+ * Renames the values the name gives and fills those of the filled paths that are empty; a Nexus IQ application is offered
+ * once, so one the user removed stays away.
+ */
+function rename(
+  service: ServiceForm,
+  template: ServiceTemplateValues | null,
+  previous: Naming,
+  next: Naming,
+  offered: boolean,
+  credentials: boolean,
+  filled: readonly string[],
+): void {
+  const before = namedValues(service, template, previous, credentials);
+  const after = namedValues(service, template, next, credentials);
+  const application = after[NEXUS_IQ_APPLICATION];
+  if (application) {
+    const { scanPattern } = buildDefaults(template, service.controls.build.controls.tool.value);
+    const apps = service.controls.nexusIqApplications;
+    const first = apps.at(0);
+    if (!first && !offered) {
+      apps.push(nexusIqApplicationForm(application, scanPattern));
+    } else if (first && !first.controls.scanPatterns.value && scanPattern) {
+      first.controls.scanPatterns.setValue(scanPattern);
+    }
+  }
+  for (const [path, value] of Object.entries(after)) {
+    const control = service.get(path);
+    const current = String(control?.value ?? '').trim();
+    if (control && value && (current === before[path] || (!current && filled.includes(path)))) {
+      control.setValue(value);
+    }
+  }
+}
+
+function namedValues(
+  service: ServiceForm,
+  template: ServiceTemplateValues | null,
+  { code, name }: Naming,
+  credentials: boolean,
+): Record<string, string> {
+  if (!name) {
+    return {};
+  }
+  const named = namedDefaults({ template, productCode: code }, name);
+  const values = {
+    [REPOSITORY_URL]: named.repositoryUrl,
+    ...(credentials && {
+      'scm.credentialsId': named.repositoryUrl && (template?.bitbucketCredentialsId ?? ''),
+    }),
+    [NEXUS_IQ_APPLICATION]: named.nexusIqApplication,
+  };
+  if (service.controls.deployment.controls.target.value !== 'OPENSHIFT') {
+    return values;
+  }
+  const rd = service.controls.openShiftTargets.controls.RD.controls;
+  const project = rd.projectBuild.value.trim().replace(/-build$/, '');
+  const image = imageRepository(project, name, template);
+  return {
+    ...values,
+    'deployment.appName': name,
+    ...(project && {
+      'openShiftTargets.RD.dockerRepoPush': image,
+      'openShiftTargets.RD.dockerRepoPull': image,
+      'openShiftTargets.QC.dockerRepoPull': image,
+    }),
+  };
 }
 
 export function unitTestsConfigured(form: ServiceForm): boolean {
@@ -837,6 +1067,14 @@ function syncApplicability(form: ServiceForm): void {
     form.controls.build.controls.autoSetup.setValue(false);
   }
   setEnabled(form.controls.build.controls.autoSetup, !flutter);
+  const node = form.controls.nodeBuild;
+  if (flutter && node.controls.enabled.value) {
+    node.controls.enabled.setValue(false);
+  }
+  setEnabled(node, !flutter);
+  Object.entries(node.controls).forEach(
+    ([key, control]) => key === 'enabled' || setEnabled(control, node.controls.enabled.value),
+  );
   setEnabled(form.controls.unitTests.controls.command, !flutter);
   setEnabled(form.controls.sonar.controls.command, !flutter);
   const appScan = form.controls.appScan.controls;
@@ -876,13 +1114,14 @@ function toolCommands(form: ServiceForm): ToolCommandForm[] {
   ];
 }
 
-function kept(control: FormControl<string>): string | null {
-  return passesValidators(control) ? optional(control.value) : null;
+function kept(control: FormControl<string>, value = control.value): string | null {
+  return passesValidators(control) ? optional(value) : null;
 }
 
 export const SAME_NAME = 'another service of this product already uses this name';
 export const ONE_APPLICATION = 'A service scans one Nexus IQ application: remove the others';
 export const BADGE_TWICE = 'Give the badge token or its credentials ID, not both';
+export const NODE_TWICE = 'Give the Node.js installation or its home on the agent, not both';
 export const PRODUCT_WIDE_FIELD = /^services\[\d+]\.name$/;
 
 const valueAt = (item: AbstractControl, key: string) =>
@@ -905,10 +1144,17 @@ function unique(key: string, message: string): ValidatorFn {
   };
 }
 
-function notWith(other: string, message: string): ValidatorFn {
+/**
+ * Refuses a value next to one in the other control; with a switch, only while that switch is on. A Library default
+ * the user left as prefilled is no value of the service: it is sent as null.
+ */
+function notWith(other: string, message: string, whileOn?: string): ValidatorFn {
+  const given = (control: AbstractControl | null | undefined) =>
+    !!control && !isUntouchedDefault(control) && !!optional(String(control.value ?? ''));
   return (control) =>
-    optional(String(control.value ?? '')) &&
-    optional(String(control.parent?.get(other)?.value ?? ''))
+    (!whileOn || control.parent?.get(whileOn)?.value) &&
+    given(control) &&
+    given(control.parent?.get(other))
       ? { rule: message }
       : null;
 }
@@ -1046,6 +1292,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       sourceDir: optional(v.build.sourceDir) ?? '.',
       command: command(c.build.controls.command, !flutter),
     },
+    nodeBuild: toNodeBuild(c.nodeBuild, v.nodeBuild),
     unitTests: {
       ...sent(v.unitTests),
       command: command(c.unitTests.controls.command, !flutter),
@@ -1084,8 +1331,31 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       reviewers: words(v.scm.reviewers),
     },
     goldenFix: toServiceGoldenFixPolicy(v.goldenFix),
+    versionCatalogs: passesValidators(c.versionCatalogs) ? relativePaths(v.versionCatalogs) : [],
     metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
+  };
+}
+
+/** The Node.js build as the form value holds it, without what fails its rules while hidden. */
+function toNodeBuild(
+  group: ServiceForm['controls']['nodeBuild'],
+  v: ReturnType<ServiceForm['controls']['nodeBuild']['getRawValue']>,
+): NodeBuildSettings {
+  const c = group.controls;
+  const listed = (control: FormControl<string>, value: string) =>
+    passesValidators(control) ? lines(value, false) : [];
+  return {
+    enabled: v.enabled,
+    directory: relativePath(kept(c.directory, v.directory)),
+    commands: listed(c.commands, v.commands),
+    installationName: kept(c.installationName, v.installationName),
+    nodePath: kept(c.nodePath, v.nodePath),
+    environment: listed(c.environment, v.environment),
+    registry: kept(c.registry, v.registry),
+    npmrcCredentialsId: kept(c.npmrcCredentialsId, v.npmrcCredentialsId),
+    timeoutMinutes: passesValidators(c.timeoutMinutes) ? v.timeoutMinutes : null,
+    nexusIqScan: v.nexusIqScan ? null : false,
   };
 }
 
@@ -1163,7 +1433,7 @@ const section = (
 
 export const SERVICE_SECTIONS: ServiceSection[] = [
   section('general', 'General', 'badge', ['name', 'description']),
-  section('build', 'Build', 'build', ['build']),
+  section('build', 'Build', 'build', ['build', 'nodeBuild']),
   section('unitTests', 'Unit tests and coverage', 'fact_check', ['unitTests']),
   section('testJobs', 'Test jobs', 'science', ['tests', 'testJobs']),
   section('deployment', 'Deployment', 'rocket_launch', ['deployment', 'delivery']),
@@ -1174,7 +1444,7 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   section('sonar', 'SonarQube', 'analytics', ['sonar']),
   section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq', 'nexusIqApplications']),
   section('scm', 'Bitbucket', 'merge', ['scm']),
-  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix']),
+  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix', 'versionCatalogs']),
   section('metrics', 'Monitoring', 'insights', ['metrics']),
   section('flutter', 'Flutter', 'phone_iphone', ['flutter'], onFlutter),
 ];

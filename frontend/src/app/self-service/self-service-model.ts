@@ -2,6 +2,7 @@ import {
   BuildTool,
   DeployTarget,
   GlobalSettings,
+  NodeBuildSettings,
   OpenShiftTarget,
   Pipeline,
   PipelineType,
@@ -18,15 +19,18 @@ import {
   pipelineTypeSlug,
 } from '../core/models';
 import { RETRY, UNREACHABLE } from '@common/core/errors';
-import { labelOf } from '@common/shared/formatting';
+import { labelOf, listed } from '@common/shared/formatting';
 import {
   ServiceForm,
   createServiceForm,
   nexusIqApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
+import { byRepository, repositoryKey } from '../products/jenkinsfile';
+import { bitbucketRepositoryUrl } from '../shared/bitbucket';
+import { TOOL_LABELS } from '../shared/build-options';
 import { Choice } from '../shared/choice-tiles';
-import { buildDefaults, fillTemplate } from '../shared/service-template';
+import { buildDefaults, imageRepository } from '../shared/service-template';
 import { FieldProblem } from '@common/core/models';
 
 export type WizardPipeline = Extract<PipelineType, 'SAST' | 'NEXUS_IQ' | 'SECURITY' | 'FULL'>;
@@ -61,18 +65,8 @@ export const PIPELINES: readonly PipelineChoice[] = [
   },
 ];
 
-export const TOOLS: readonly Choice<BuildTool>[] = [
-  { value: 'GRADLE', label: 'Gradle', description: 'The code has a build.gradle file' },
-  { value: 'MAVEN', label: 'Maven', description: 'The code has a pom.xml file' },
-];
-
-const TOOL_NAMES: readonly Choice<BuildTool>[] = [
-  ...TOOLS,
-  { value: 'FLUTTER', label: 'Flutter', description: 'The code has a pubspec.yaml file' },
-];
-
 export function toolName(tool: BuildTool): string {
-  return labelOf(TOOL_NAMES, tool);
+  return TOOL_LABELS[tool];
 }
 
 export const TARGETS: readonly Choice<DeployTarget>[] = [
@@ -146,7 +140,7 @@ export function aPipeline(pipeline: WizardPipeline): string {
 export function preparation(pipeline: WizardPipeline): string[] {
   const needs = [
     'The name of each service, its AppScan application ID and the AppScan API key ID, from the DevSecOps team',
-    'Whether each service is built with Gradle or Maven; a developer of the service knows',
+    'Whether each service is built with Gradle or Maven, and the folder of its package.json when Node.js builds its frontend first; a developer of the service knows',
   ];
   if (pipeline === 'NEXUS_IQ') {
     return [...needs, 'The Nexus IQ application and the Bitbucket repository of each service'];
@@ -166,6 +160,8 @@ export interface WizardService {
   openShiftProject: string;
   nexusIqApplication: string;
   repositoryUrl: string;
+  /** The folder of the Node.js build that runs first, '' for the repository root; null without one. */
+  nodeDirectory?: string | null;
   serviceRequest?: ServiceRequest;
 }
 
@@ -177,27 +173,16 @@ export interface WizardDefaults {
   settings: GlobalSettings | null;
 }
 
-export interface NamedDefaults {
-  openShiftProject: string;
-  nexusIqApplication: string;
-  repositoryUrl: string;
-}
-
-export function namedDefaults(defaults: WizardDefaults, serviceName: string): NamedDefaults {
-  const { template, productCode } = defaults;
-  const filled = (pattern: string | null | undefined) =>
-    productCode && serviceName ? fillTemplate(pattern, productCode, serviceName) : '';
-  return {
-    openShiftProject: filled(template?.openShiftProject).toLowerCase(),
-    nexusIqApplication: filled(template?.nexusIqApplication),
-    repositoryUrl: filled(template?.repositoryUrl),
-  };
-}
-
 const nexusIqApplicationOf = (service?: Service) =>
   service?.nexusIqApplications[0]?.application ?? '';
 
 const repositoryOf = (service?: Service) => service?.scm.repositoryUrl ?? '';
+
+export const nodeDirectoryOf = (node?: NodeBuildSettings | null) =>
+  node?.enabled ? (node.directory ?? '') : null;
+
+const nodeBuildIn = (directory: string) =>
+  `a Node.js build in ${directory || 'the repository root'}`;
 
 export function fromService(service: Service): WizardService {
   return {
@@ -210,6 +195,7 @@ export function fromService(service: Service): WizardService {
     openShiftProject: service.openShiftTargets?.RD?.projectBuild?.replace(/-build$/, '') ?? '',
     nexusIqApplication: nexusIqApplicationOf(service),
     repositoryUrl: repositoryOf(service),
+    nodeDirectory: nodeDirectoryOf(service.nodeBuild),
   };
 }
 
@@ -231,12 +217,18 @@ function sentence(text: string): string {
 
 export function serviceSummary(pipeline: WizardPipeline, service: WizardService): string {
   const target = deploysWith(pipeline, service);
-  const parts = [`built with ${toolName(service.tool)}`];
+  const node = service.nodeDirectory ?? null;
+  const parts = [
+    `built with ${toolName(service.tool)}${node === null ? '' : ` after ${nodeBuildIn(node)}`}`,
+  ];
   if (target && (deploys(pipeline) || service.id !== null)) {
     parts.push(runsOn(target, target === 'OPENSHIFT' ? service.openShiftProject : ''));
   }
   if (pipeline === 'NEXUS_IQ' && service.nexusIqApplication) {
     parts.push(`Nexus IQ application ${service.nexusIqApplication}`);
+  }
+  if (service.repositoryUrl) {
+    parts.push(`repository ${service.repositoryUrl}`);
   }
   return sentence(parts.join(', '));
 }
@@ -272,6 +264,10 @@ export function changesOf(
   if (pipeline === 'NEXUS_IQ' && service.repositoryUrl !== repositoryOf(stored)) {
     changes.push('new Bitbucket repository');
   }
+  const node = service.nodeDirectory;
+  if (node !== undefined && node !== nodeDirectoryOf(stored.nodeBuild)) {
+    changes.push(node === null ? 'no Node.js build' : `built after ${nodeBuildIn(node)}`);
+  }
   return changes;
 }
 
@@ -302,11 +298,7 @@ function reviewEntry(
   if (removed.includes(before.id)) {
     return { name, tag: 'Removed', text: 'Deleted, with its pipelines and their keys.' };
   }
-  const has = !!current?.some(
-    (candidate) =>
-      candidate.serviceId === before.id &&
-      candidate.pipelines.some((existing) => existing.type === pipeline),
-  );
+  const has = hasPipeline(pipeline, service, current);
   const changes = changesOf(pipeline, service, before);
   if (!changes.length) {
     return {
@@ -323,29 +315,111 @@ function reviewEntry(
   return { name, tag: 'Changed', text: `${pipelineText} ${sentence(changes.join('; '))}` };
 }
 
+function hasPipeline(
+  pipeline: WizardPipeline,
+  service: WizardService,
+  current: readonly ServicePipelines[] | null,
+): boolean {
+  return !!current?.some(
+    (candidate) =>
+      candidate.serviceId === service.id &&
+      candidate.pipelines.some((existing) => existing.type === pipeline),
+  );
+}
+
+/**
+ * The stored services whose active pipelines of the type already share one Jenkins job, keyed by their repository
+ * and agents. The new pipelines of that repository and agents join the job; when two such jobs exist, the first one
+ * counts, as on the server.
+ */
+function sharedJobs(
+  pipeline: WizardPipeline,
+  kept: readonly WizardService[],
+  current: readonly ServicePipelines[] | null,
+): Map<string, WizardService[]> {
+  const jobs = new Map<string, Map<string, WizardService[]>>();
+  for (const service of kept) {
+    const run = current
+      ?.find((candidate) => candidate.serviceId === service.id)
+      ?.pipelines.find((existing) => existing.type === pipeline);
+    const key = repositoryKey(service.repositoryUrl);
+    const job = run?.jenkinsJob?.trim().toLowerCase();
+    if (run?.activeKey && key && job && !run.securityPipelineJob && !run.extendedPipelineJob) {
+      const place = runsIn(key, run.agentLabels);
+      const byJob = jobs.get(place) ?? new Map<string, WizardService[]>();
+      byJob.set(job, [...(byJob.get(job) ?? []), service]);
+      jobs.set(place, byJob);
+    }
+  }
+  const shared = new Map<string, WizardService[]>();
+  for (const [place, byJob] of jobs) {
+    const group = [...byJob.values()].find((sharing) => sharing.length > 1);
+    if (group) {
+      shared.set(place, group);
+    }
+  }
+  return shared;
+}
+
+/** A repository with the Jenkins agents of a pipeline, in a stable order. */
+const runsIn = (repository: string, agentLabels: readonly string[]) =>
+  JSON.stringify([repository, [...agentLabels].sort()]);
+
+/**
+ * What saving does to each service. The pipelines that one save starts for a repository share one
+ * Jenkinsfile and one Jenkins job, the job that two or more pipelines of the type already share for
+ * that repository and the agents of the save, if there is one. Any other service that has the
+ * pipeline already keeps the ones it has. The server gives the new pipelines a Jenkins job only
+ * from the service template, so without templateJob each of them gets a Jenkinsfile of its own.
+ */
 export function reviewEntries(
   pipeline: WizardPipeline,
   services: readonly WizardService[],
   stored: readonly Service[],
   removed: readonly number[],
   current: readonly ServicePipelines[] | null,
+  agentLabels: readonly string[],
+  templateJob: boolean,
 ): ReviewEntry[] {
-  return services.map((service) => reviewEntry(pipeline, service, stored, removed, current));
+  const kept = services.filter((service) => service.id === null || !removed.includes(service.id));
+  const starts = (service: WizardService) => !hasPipeline(pipeline, service, current);
+  const names = (others: readonly WizardService[]) => listed(others.map((other) => other.name));
+  const shared = templateJob
+    ? sharedJobs(pipeline, kept, current)
+    : new Map<string, WizardService[]>();
+  const note = (service: WizardService): string => {
+    const key = repositoryKey(service.repositoryUrl);
+    const sharing = kept.filter(
+      (other) => other !== service && key && repositoryKey(other.repositoryUrl) === key,
+    );
+    if (!kept.includes(service) || !sharing.length) {
+      return '';
+    }
+    const together = templateJob ? sharing.filter(starts) : [];
+    const joined = shared.get(runsIn(key, agentLabels));
+    if (!starts(service)) {
+      return joined?.includes(service) && together.length
+        ? `Its Jenkinsfile, which it shares with ${names(joined.filter((other) => other !== service))}, ` +
+            `gets the ${together.length > 1 ? 'keys' : 'key'} of ${names(together)}.`
+        : `Shares its repository with ${names(sharing)} but keeps its Jenkinsfile and Jenkins job.`;
+    }
+    if (joined) {
+      return `Joins the Jenkins job that ${names(joined)} share, so their Jenkinsfile gets its key.`;
+    }
+    return together.length
+      ? `Shares its repository with ${names(together)}, so they get one Jenkinsfile and one Jenkins job.`
+      : '';
+  };
+  return services.map((service) => {
+    const entry = reviewEntry(pipeline, service, stored, removed, current);
+    const text = note(service);
+    return text ? { ...entry, text: `${entry.text} ${text}` } : entry;
+  });
 }
 
 type TargetText = Partial<Omit<Record<keyof OpenShiftTarget, string>, 'skipConfigDeploy'>>;
 
 const dockerContext = (tool: BuildTool) => (tool === 'MAVEN' ? 'target/docker' : 'build/docker');
-
-/** The image repository of a service: the template's registry, the OpenShift project and the service name. */
-export function imageRepository(
-  project: string,
-  service: string,
-  template: ServiceTemplateValues | null,
-): string {
-  const registry = template?.imageRegistry;
-  return `${registry ? `${registry}/` : ''}${project}/${service.toLowerCase()}`;
-}
 
 export function openShiftTargets(
   project: string,
@@ -580,9 +654,26 @@ export function servicesToStart(
 ): ServiceStart[] {
   return services.map((service) => ({
     serviceName: service.serviceName,
-    repository: repositoryOf(product.services.find((stored) => stored.id === service.serviceId)),
+    repository:
+      bitbucketRepositoryUrl(
+        product.services.find((stored) => stored.id === service.serviceId)?.scm,
+      ) ?? '',
     pipeline: service.pipelines.find((candidate) => candidate.type === pipeline) ?? null,
   }));
+}
+
+/** One Jenkinsfile and one Jenkins job, shared by the services whose pipelines share a repository. */
+export interface JenkinsJob {
+  names: string;
+  starts: ServiceStart[];
+}
+
+export function jenkinsJobs(starts: readonly ServiceStart[]): JenkinsJob[] {
+  return byRepository(
+    starts,
+    (start) => start.repository,
+    (start) => start.pipeline,
+  ).map((group) => ({ names: listed(group.map((start) => start.serviceName)), starts: group }));
 }
 
 export function jobName(pipeline: Pipeline): string {

@@ -69,6 +69,19 @@ export interface BuildSettings {
   command: ToolCommand;
 }
 
+export interface NodeBuildSettings {
+  enabled: boolean;
+  directory: string | null;
+  commands: string[];
+  installationName: string | null;
+  nodePath: string | null;
+  environment: string[];
+  registry: string | null;
+  npmrcCredentialsId: string | null;
+  timeoutMinutes: number | null;
+  nexusIqScan: boolean | null;
+}
+
 export interface UnitTestSettings {
   command: ToolCommand;
   resultPattern: string | null;
@@ -307,6 +320,7 @@ export interface FlutterSettings {
 
 export interface ServiceSettings {
   build: BuildSettings;
+  nodeBuild: NodeBuildSettings;
   unitTests: UnitTestSettings;
   tests: TestSettings;
   testJobs: TestJob[];
@@ -322,6 +336,7 @@ export interface ServiceSettings {
   nexusIqApplications: NexusIqApplication[];
   scm: ScmSettings;
   goldenFix: GoldenFixPolicy;
+  versionCatalogs: string[];
   metrics: MetricsSettings;
   flutter: FlutterSettings | null;
 }
@@ -497,6 +512,9 @@ export interface ServiceDefaults {
   deployTarget: DeployTarget;
   sourceDir: string;
   testsMaxParallel: number;
+  nodeInstallationName: string | null;
+  npmRegistry: string | null;
+  npmrcCredentialsId: string | null;
 }
 
 export interface ServiceTemplateValues {

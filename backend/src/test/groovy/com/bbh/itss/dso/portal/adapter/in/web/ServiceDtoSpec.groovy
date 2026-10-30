@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
+import com.bbh.itss.dso.portal.domain.catalog.NodeBuildSettings
 import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
 import com.bbh.itss.dso.portal.domain.catalog.Service
@@ -23,8 +24,13 @@ import spock.lang.Shared
 import spock.lang.Specification
 import tools.jackson.databind.json.JsonMapper
 
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.ABSOLUTE_FOLDER_MESSAGE
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.COMMAND_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH_MESSAGE
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.RELATIVE_FOLDER_MESSAGE
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE_MESSAGE
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
@@ -147,6 +153,55 @@ class ServiceDtoSpec extends Specification {
         'a SAST scan name with a /'   | [appScan: [applicationId: APP_ID, scanName: 'cert/gui']]      || 'appScan.scanName'                               | "may contain letters, digits, '.', '_' and '-'"
         'a long AppScan key ID'       | [appScan: [applicationId: APP_ID, keyId: 'k' * 201]]          || 'appScan.keyId'                                  | 'size must be between 0 and 200'
         'two Nexus IQ applications'   | [nexusIqApplications: [[application: 'a', scanPatterns: ['*.jar']], [application: 'b', scanPatterns: ['*.war']]]] || 'nexusIqApplications' | 'a service scans one Nexus IQ application'
+        'a Node.js folder above'      | [nodeBuild: [directory: 'web/../..']]                         || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
+        'an absolute Node.js folder'  | [nodeBuild: [directory: '/opt/web']]                          || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
+        'a Node.js folder on a drive' | [nodeBuild: [directory: 'C:\\work\\app\\frontend']]          || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
+        'a Node.js folder of drive D' | [nodeBuild: [directory: 'D:web']]                             || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
+        'a Node.js folder with quotes'| [nodeBuild: [directory: '"web"']]                             || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
+        'a relative Node.js home'     | [nodeBuild: [nodePath: 'tools/node-20']]                      || 'nodeBuild.nodePath'                             | ABSOLUTE_FOLDER_MESSAGE
+        'a Node.js home with a quote' | [nodeBuild: [nodePath: "/opt/node'20"]]                       || 'nodeBuild.nodePath'                             | ABSOLUTE_FOLDER_MESSAGE
+        'two commands on one line'    | [nodeBuild: [commands: ['npm ci\nnpm test']]]                 || 'nodeBuild.commands[0].<list element>'           | COMMAND_MESSAGE
+        'a long command'              | [nodeBuild: [commands: ['n' * 501]]]                          || 'nodeBuild.commands[0].<list element>'           | 'size must be between 0 and 500'
+        'more than 20 commands'       | [nodeBuild: [commands: names(21)]]                            || 'nodeBuild.commands'                             | 'size must be between 0 and 20'
+        'a Node.js variable alone'    | [nodeBuild: [environment: ['CI']]]                            || 'nodeBuild.environment[0].<list element>'        | 'write each variable as NAME=value'
+        'more than 30 variables'      | [nodeBuild: [environment: names(31).collect { "$it=1" as String }]] || 'nodeBuild.environment'                | 'size must be between 0 and 30'
+        'an npm registry without http'| [nodeBuild: [registry: 'nexus.bbh.com/npm-group']]            || 'nodeBuild.registry'                             | URL_MESSAGE
+        'a long Node.js installation' | [nodeBuild: [installationName: 'n' * 201]]                    || 'nodeBuild.installationName'                     | 'size must be between 0 and 200'
+        'a long .npmrc credentials ID'| [nodeBuild: [npmrcCredentialsId: 'n' * 201]]                  || 'nodeBuild.npmrcCredentialsId'                   | 'size must be between 0 and 200'
+        'a Node.js timeout over 4 h'  | [nodeBuild: [timeoutMinutes: 241]]                            || 'nodeBuild.timeoutMinutes'                       | 'must be less than or equal to 240'
+        'a Node.js timeout of zero'   | [nodeBuild: [timeoutMinutes: 0]]                              || 'nodeBuild.timeoutMinutes'                       | 'must be greater than or equal to 1'
+        'an absolute version catalog' | [versionCatalogs: ['/gradle/libs.versions.toml']]             || 'versionCatalogs[0].<list element>'              | REPOSITORY_PATH_MESSAGE
+        'a catalog above the root'    | [versionCatalogs: ['gradle/../../libs.versions.toml']]        || 'versionCatalogs[0].<list element>'              | REPOSITORY_PATH_MESSAGE
+        'a catalog with a backslash'  | [versionCatalogs: ['gradle\\libs.versions.toml']]             || 'versionCatalogs[0].<list element>'              | REPOSITORY_PATH_MESSAGE
+        'a catalog with a space'      | [versionCatalogs: ['my catalog.toml']]                        || 'versionCatalogs[0].<list element>'              | REPOSITORY_PATH_MESSAGE
+        'a catalog folder'            | [versionCatalogs: ['platform/bom/']]                          || 'versionCatalogs[0].<list element>'              | REPOSITORY_FILE_MESSAGE
+        'the root folder as a catalog'| [versionCatalogs: ['./']]                                     || 'versionCatalogs[0].<list element>'              | REPOSITORY_FILE_MESSAGE
+        'a glob of catalog folders'   | [versionCatalogs: ['**/']]                                    || 'versionCatalogs[0].<list element>'              | REPOSITORY_FILE_MESSAGE
+        'an empty version catalog'    | [versionCatalogs: ['']]                                       || 'versionCatalogs[0].<list element>'              | 'size must be between 1 and 300'
+        'more than 20 catalogs'       | [versionCatalogs: names(21)]                                  || 'versionCatalogs'                                | 'size must be between 0 and 20'
+    }
+
+    def "a Node.js build may run any command line from a Windows or Unix home and catalogs may be globs"() {
+        expect:
+        validator.validate(request(toJson(serviceJson(nodeBuild: [enabled: true, directory: 'web/app',
+                commands: ['npm ci --prefer-offline', 'npm run build -- --configuration=production && echo "done"'],
+                nodePath: nodePath, environment: ['NODE_OPTIONS=--max-old-space-size=4096'],
+                registry: 'https://nexus.bbh.com/repository/npm-group/', timeoutMinutes: 240],
+                versionCatalogs: ['gradle/libs.versions.toml', '**/*.versions.toml', './platform/pom.xml', 'catalog/*'])))).isEmpty()
+
+        where:
+        nodePath << ['/opt/node-20', 'C:\\Program Files\\nodejs', 'D:/tools/node', '\\\\agent-share\\node 20']
+    }
+
+    def "a service sent without its Node.js build or shared catalogs gets none"() {
+        when:
+        def settings = request(toJson(serviceJson())).toDraft().settings()
+
+        then:
+        settings.nodeBuild() == NodeBuildSettings.NONE
+        settings.versionCatalogs() == []
+        request(toJson(serviceJson(nodeBuild: [directory: 'web']))).toDraft().settings().nodeBuild() ==
+                NodeBuildSettings.builder().directory('web').build()
     }
 
     def "an AppScan client path may use Windows separators"() {
@@ -166,6 +221,8 @@ class ServiceDtoSpec extends Specification {
     static ServiceSettings fullSettings() {
         ServiceSettings.builder()
                 .build(build(tool: MAVEN, buildPath: 'target/gui.war'))
+                .nodeBuild(new NodeBuildSettings(true, 'frontend', ['npm ci', 'npm run build'], 'NodeJS-20', null,
+                        ['CI=true'], 'https://nexus.bbh.com/repository/npm-group/', 'npmrc-file', 30, false))
                 .unitTests(UnitTestSettings.builder().command(command(['test'])).resultPattern('**/TEST-*.xml')
                         .allowEmptyResults(true).build())
                 .tests(TestSettings.builder().maxParallel(5).smokeMaxParallel(1).regressionMaxParallel(2)
@@ -192,6 +249,7 @@ class ServiceDtoSpec extends Specification {
                         .credentialsId('bb-creds').apiUrl('https://bitbucket.bbh.com/rest/api/1.0')
                         .workspace('ta-workspace').projectKey('TA').repoSlug('cert-gui').build())
                 .goldenFix(GoldenFixPolicy.inherit(false))
+                .versionCatalogs(['gradle/libs.versions.toml'])
                 .metrics(new MetricsSettings(false, 'cert-gui', 'qc', null, null))
                 .flutter(FlutterSettings.builder().platform(WEB).modules(['app']).testModules([]).testSubmodules([])
                         .testSubplugins([]).signingPasswordCredentialsId('s').prodLicenseCredentialsId('p')

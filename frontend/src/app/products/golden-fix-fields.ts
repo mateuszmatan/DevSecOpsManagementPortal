@@ -19,36 +19,47 @@ import {
   ServiceGoldenFixForm,
 } from './product-form-model';
 
-const command = (key: string, tool: string, manifest: string, fallback: string, span = 6): Field =>
+const command = (key: string, tool: string, runs: string, fallback: string, span = 6): Field =>
   mono(`verify${key}Command`, `${tool} command`, `verify.commands.${key.toLowerCase()}`, span, {
     placeholder: 'Library default',
     hint: `What builds the fix in ${tool} projects`,
-    help: `Runs with bash in the folder of each changed ${manifest}; exit code 0 passes the check. When no command is set, the library runs ${fallback}.`,
+    help: `Runs with bash ${runs}. Exit code 0 passes the check. When no command is set, the library runs ${fallback}.`,
   });
 
 const COMMANDS: Field[] = [
-  command('Maven', 'Maven', 'pom.xml', 'mvn -B -q -DskipTests compile'),
+  command(
+    'Maven',
+    'Maven',
+    'in the folder of each changed pom.xml; for a parent or BOM pom that other poms use, in the folder of the multi-module pom that builds them together, otherwise in the folder of the root pom.xml or of that pom. When a shared pom with a name other than pom.xml is built in its own folder, the library adds -f and its file name at the end of the command. It does so for a command set here too, so write it as one mvn call, for example mvn -B -q -DskipTests verify',
+    'mvn -B -q -DskipTests compile',
+  ),
   command(
     'Gradle',
     'Gradle',
-    'Gradle build, properties or version catalog file',
+    'in the folder of each changed build or properties file; for a version catalog, settings file or platform, in the folder of each build that uses it',
     './gradlew --no-daemon --console=plain classes, or gradle without a wrapper',
   ),
   command(
     'Npm',
     'npm',
-    'package.json',
-    'npm ci --ignore-scripts, or npm install --ignore-scripts without a lock file',
+    'in the folder of each changed package.json, using the Node.js, registry and .npmrc of the Node.js build while it is on. A command set here runs as it is, without the refresh of package-lock.json that comes before the default command',
+    'npm ci --ignore-scripts, or npm install --ignore-scripts without a lock file, after refreshing a package-lock.json next to the package.json and adding it to the pull request',
     4,
   ),
   command(
     'Pip',
     'pip',
-    'requirements, constraints or pyproject.toml file',
+    'in the folder of each changed requirements, constraints or pyproject.toml file',
     'python3 -m pip install --dry-run of that file or of the project',
     4,
   ),
-  command('Pub', 'pub', 'pubspec.yaml', 'flutter pub get, or dart pub get', 4),
+  command(
+    'Pub',
+    'pub',
+    'in the folder of each changed pubspec.yaml',
+    'flutter pub get, or dart pub get',
+    4,
+  ),
 ];
 
 const DIRECT_ONLY =
@@ -186,7 +197,7 @@ export class GoldenFixFields {
       count('verifyTimeoutMinutes', 'Timeout (minutes)', 'verify.timeoutMinutes', 4, {
         min: 1,
         hint: this.explain('How long one verification build may take', 'verifyTimeoutMinutes'),
-        help: 'The limit applies to each build command separately, one for each changed manifest folder.',
+        help: 'The limit applies to each check separately: one for each folder a changed manifest or catalog is built in.',
       }),
     ];
   }

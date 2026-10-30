@@ -112,6 +112,6 @@ public class GlobalSettingsEntity extends SingletonEntity {
             @Enumerated(STRING) @Column(name = "DEFAULT_BUILD_TOOL") BuildTool buildTool,
             @Enumerated(STRING) @Column(name = "DEFAULT_DEPLOY_TARGET") DeployTarget deployTarget,
             @Column(name = "DEFAULT_SOURCE_DIR") String sourceDir,
-            Integer testsMaxParallel) {
+            Integer testsMaxParallel, String nodeInstallationName, String npmRegistry, String npmrcCredentialsId) {
     }
 }

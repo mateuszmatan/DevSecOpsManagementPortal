@@ -65,6 +65,35 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         matchesExpected('product-config.yaml', productConfig.body)
     }
 
+    def "a Node.js build and shared version catalogs reach the library under build.node and goldenFix"() {
+        given:
+        String repository = 'https://bitbucket.bbh.com/projects/PAY/repos/payhub'
+        def created = createProduct(product(code: 'CONTRACTNODE', name: 'Contract Node Payments Hub', services: [
+                service(name: 'portal', build: build(sourceDir: 'portal'),
+                        nodeBuild: [enabled: true, directory: 'portal/frontend', installationName: 'NodeJS-20',
+                                    environment: ['NODE_OPTIONS=--max-old-space-size=4096'], timeoutMinutes: 45],
+                        versionCatalogs: ['gradle/libs.versions.toml'],
+                        nexusIqApplications: [[application: 'payhub-portal', scanPatterns: ['**/build/libs/*.jar']]],
+                        scm: [repositoryUrl: repository, credentialsId: 'bitbucket-http-credentials']),
+                service(name: 'statements', build: build(sourceDir: 'statements'),
+                        nodeBuild: [enabled: false, directory: 'statements/web', commands: ['npm ci']],
+                        versionCatalogs: ['gradle/libs.versions.toml', 'gradle/*.versions.toml'],
+                        goldenFix: [enabled: false],
+                        scm: [repositoryUrl: repository, credentialsId: 'bitbucket-http-credentials'])]))
+        def nexusIq = pipelineFor(created.services[0].id as long, pipeline(type: 'NEXUS_IQ'))
+
+        when:
+        def productConfig = api.get("/api/products/$created.id/config")
+        def nexusIqConfig = api.get("/api/dso/config/$nexusIq.activeKey.value")
+
+        then:
+        created.services*.nodeBuild*.enabled == [true, false]
+        productConfig.status == 200
+        nexusIqConfig.status == 200
+        matchesExpected('node-catalog-product-config.yaml', productConfig.body)
+        matchesExpected('node-catalog-nexus-iq-pipeline-config.yaml', nexusIqConfig.body)
+    }
+
     def "the Bitbucket repository keys GoldenFix pull requests use are rendered only when they are set"() {
         given:
         def created = createProduct(product(code: uniqueCode('BITBUCKET'), name: "Bitbucket Hub ${uniqueCode()}",

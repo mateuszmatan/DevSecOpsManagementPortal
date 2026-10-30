@@ -1,0 +1,143 @@
+projects:
+  portal:
+    appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+    buildTool: gradle
+    deployTarget: vm
+    sourceDir: portal
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_key-id
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: CONTRACTNODE-portal
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+        application: payhub-portal
+        scanPatterns:
+        - '**/build/libs/*.jar'
+        stage: build
+        failOnNetworkError: false
+    dast:
+      enabled: false
+    build:
+      gradle:
+        tasks:
+        - clean
+        - build
+      node:
+        enabled: true
+        dir: portal/frontend
+        installationName: NodeJS-20
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        timeoutMin: 45
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/PAY/repos/payhub
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    goldenFix:
+      versionCatalogs:
+      - gradle/libs.versions.toml
+    deploy:
+      vm:
+        dod:
+          skipWait: false
+          deployWithSnapshot: true
+          updateSnapshotComp: false
+          includeOnlyDeployVersions: true
+          deployOnlyChanged: false
+          applications:
+          - applicationName: CERT
+            components:
+            - componentName: cert
+              baseDir: build/libs
+              fileIncludePatterns: '*.jar'
+              incrementalVersion: true
+          siteName: deploy.bbh.com
+          deployProcess: tomcat-app-process
+        rd:
+          host: rdltaapps1.testbbh.com
+          user: taadmin
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          versionFile: scripts/deployment/version.properties
+        qc:
+          host: qcltaapps1.testbbh.com
+          user: taadmin
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          versionFile: scripts/deployment/version.properties
+  statements:
+    appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+    buildTool: gradle
+    deployTarget: vm
+    sourceDir: statements
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_key-id
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: CONTRACTNODE-statements
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+      nexusIq:
+        serverUrl: https://tools.bbh.com/IQ
+        credentialsId: nexusiqP
+    dast:
+      enabled: false
+    build:
+      gradle:
+        tasks:
+        - clean
+        - build
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/PAY/repos/payhub
+        credentialsId: bitbucket-http-credentials
+        authType: basic
+    goldenFix:
+      enabled: false
+      versionCatalogs:
+      - gradle/libs.versions.toml
+      - gradle/*.versions.toml
+    deploy:
+      vm:
+        dod:
+          skipWait: false
+          deployWithSnapshot: true
+          updateSnapshotComp: false
+          includeOnlyDeployVersions: true
+          deployOnlyChanged: false
+          applications:
+          - applicationName: CERT
+            components:
+            - componentName: cert
+              baseDir: build/libs
+              fileIncludePatterns: '*.jar'
+              incrementalVersion: true
+          siteName: deploy.bbh.com
+          deployProcess: tomcat-app-process
+        rd:
+          host: rdltaapps1.testbbh.com
+          user: taadmin
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          versionFile: scripts/deployment/version.properties
+        qc:
+          host: qcltaapps1.testbbh.com
+          user: taadmin
+          deployScript: scripts/deployment/zero-downtime-deployment.sh
+          versionFile: scripts/deployment/version.properties

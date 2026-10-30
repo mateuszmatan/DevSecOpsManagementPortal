@@ -9,8 +9,8 @@ import {
 } from '@angular/core';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { AbstractControl, FormControl, ReactiveFormsModule } from '@angular/forms';
+import { of } from 'rxjs';
 import { BuildTool, DeployTarget, ServiceRequest } from '../core/models';
-import { formRevision } from '@common/shared/fields';
 import { revalidateAll } from '@common/shared/form-controls';
 import { DIALOG } from '@common/ui/dialog';
 import { FORM_FIELD } from '@common/ui/form-field';
@@ -27,28 +27,24 @@ import {
   createServiceForm,
   dvApplication,
   firstInvalidSection,
+  followName,
   followToolDefaults,
   nexusIqApplicationForm,
   prefillNewService,
-  sectionInvalid,
   toServiceRequest,
-  visibleSectionsForPipeline,
 } from '../products/product-form-model';
+import { MissingFields } from '../products/missing-fields';
 import { ServiceFields } from '../products/service-fields';
 import { buildDefaults } from '../shared/service-template';
 import {
   WizardDefaults,
   WizardPipeline,
   WizardService,
+  nodeDirectoryOf,
   deploys,
-  imageRepository,
-  namedDefaults,
   openShiftTargets,
   pipelineLabel,
 } from './self-service-model';
-
-const NEXUS_IQ_APPLICATION = 'nexusIqApplications.0.application';
-const FILLED_FROM_NAME = ['scm.repositoryUrl', 'deployment.appName', NEXUS_IQ_APPLICATION];
 
 export interface CopySource {
   name: string;
@@ -66,7 +62,15 @@ export interface ServiceDialogData {
 
 @Component({
   selector: 'dso-service-dialog',
-  imports: [ReactiveFormsModule, DIALOG, FORM_FIELD, ConfigImport, ImportNotes, ServiceFields],
+  imports: [
+    ReactiveFormsModule,
+    DIALOG,
+    FORM_FIELD,
+    ConfigImport,
+    ImportNotes,
+    MissingFields,
+    ServiceFields,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
@@ -112,7 +116,9 @@ export interface ServiceDialogData {
     <div class="modal-footer">
       @if (missing().length) {
         <p class="missing" role="status">
-          Complete these sections first: {{ missing().join(', ') }}.
+          Complete these fields first:
+          <dso-missing-fields [missing]="missing()" (open)="fieldsComponent()?.reveal($event)" />
+          <span>.</span>
         </p>
       }
       <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
@@ -154,13 +160,12 @@ export class ServiceDialog {
   protected readonly data = inject<ServiceDialogData>(DIALOG_DATA);
   private readonly dialogRef = inject<DialogRef<WizardService, ServiceDialog>>(DialogRef);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly fieldsComponent = viewChild(ServiceFields);
+  protected readonly fieldsComponent = viewChild(ServiceFields);
 
   protected readonly sources = this.data.sources ?? [];
   protected readonly copyFrom = new FormControl<CopySource | null>(null);
   protected readonly imported = signal<ImportedConfig | null>(null);
   protected readonly serviceForm = signal<ServiceForm>(this.initForm());
-  private readonly changes = formRevision(this.serviceForm);
 
   protected readonly pipelineLabel = computed(() => pipelineLabel(this.data.pipeline));
   protected readonly title = computed(() =>
@@ -169,13 +174,7 @@ export class ServiceDialog {
   protected readonly submitLabel = computed(() =>
     this.data.service ? 'Save service' : 'Add service',
   );
-  protected readonly missing = computed(() => {
-    this.changes();
-    const form = this.serviceForm();
-    return visibleSectionsForPipeline(form, this.data.pipeline)
-      .filter((section) => sectionInvalid(form, section))
-      .map((section) => section.label);
-  });
+  protected readonly missing = computed(() => this.fieldsComponent()?.missing() ?? []);
 
   constructor() {
     this.use(this.serviceForm());
@@ -246,7 +245,11 @@ export class ServiceDialog {
     return form;
   }
 
-  /** Sets up a form; a copy's values that the source took from its name follow the name typed here instead. */
+  /**
+   * Sets up a form; a copy's values that the source took from its name follow the name typed here instead. The name
+   * never fills the Bitbucket credentials ID: a new service starts with the one of the service template, and a copy
+   * or an import keeps the one it brings, even an empty one.
+   */
   private use(form: ServiceForm, copiedFrom = ''): void {
     form.controls.name.addValidators((control: AbstractControl) => {
       const name = String(control.value ?? '')
@@ -273,16 +276,8 @@ export class ServiceDialog {
       );
     }
     if (!this.data.service) {
-      let named = copiedFrom;
-      const follow = (name: string) => {
-        const next = name.trim();
-        if (next) {
-          this.followName(form, named, next);
-          named = next;
-        }
-      };
-      form.controls.name.valueChanges.subscribe(follow);
-      follow(form.controls.name.value);
+      const { template, productCode } = this.data.defaults;
+      followName(form, template, of(productCode), this.destroyRef, copiedFrom, false, false);
     }
   }
 
@@ -303,65 +298,6 @@ export class ServiceDialog {
     this.copyFrom.setValue(null, { emitEvent: false });
     prefillAgents(this.data.agents, imported.agentLabels);
     this.imported.set(imported);
-  }
-
-  /**
-   * Sets what a new service takes from its name: an empty repository URL, application name or Nexus IQ application,
-   * and every value that still holds what the previous name gave, such as the image repositories of a copy.
-   */
-  private followName(form: ServiceForm, previous: string, name: string): void {
-    const before = this.fromName(form, previous);
-    const after = this.fromName(form, name);
-    const application = after[NEXUS_IQ_APPLICATION];
-    if (application) {
-      const { scanPattern } = buildDefaults(
-        this.data.defaults.template,
-        form.controls.build.controls.tool.value,
-      );
-      const apps = form.controls.nexusIqApplications;
-      if (!apps.length) {
-        apps.push(nexusIqApplicationForm(application, scanPattern));
-      } else if (!apps.at(0).controls.scanPatterns.value && scanPattern) {
-        apps.at(0).controls.scanPatterns.setValue(scanPattern);
-      }
-    }
-    for (const [path, value] of Object.entries(after)) {
-      const control = form.get(path);
-      const current = String(control?.value ?? '').trim();
-      if (
-        control &&
-        value &&
-        (current === before[path] || (!current && FILLED_FROM_NAME.includes(path)))
-      ) {
-        control.setValue(value);
-      }
-    }
-  }
-
-  private fromName(form: ServiceForm, name: string): Record<string, string> {
-    if (!name) {
-      return {};
-    }
-    const named = namedDefaults(this.data.defaults, name);
-    const values = {
-      'scm.repositoryUrl': named.repositoryUrl,
-      [NEXUS_IQ_APPLICATION]: named.nexusIqApplication,
-    };
-    if (form.controls.deployment.controls.target.value !== 'OPENSHIFT') {
-      return values;
-    }
-    const rd = form.controls.openShiftTargets.controls.RD.controls;
-    const project = rd.projectBuild.value.trim().replace(/-build$/, '');
-    const image = imageRepository(project, name, this.data.defaults.template);
-    return {
-      ...values,
-      'deployment.appName': name,
-      ...(project && {
-        'openShiftTargets.RD.dockerRepoPush': image,
-        'openShiftTargets.RD.dockerRepoPull': image,
-        'openShiftTargets.QC.dockerRepoPull': image,
-      }),
-    };
   }
 
   protected save(): void {
@@ -393,6 +329,7 @@ export class ServiceDialog {
       openShiftProject,
       nexusIqApplication: nexusIqApp,
       repositoryUrl,
+      nodeDirectory: nodeDirectoryOf(req.nodeBuild),
       serviceRequest: req,
     });
   }

@@ -57,16 +57,14 @@ class EditProductSpec extends EditorSpecification {
         assertThat(serviceNames()).hasText(['ledger', 'gateway', 'notifications', 'notifications-copy', 'mobile-app'] as String[])
         assertThat(openService().locator('.service-name')).hasText('notifications-copy')
         assertThat(servicePanel('notifications-copy').locator('.tag.new')).hasText('New')
-        assertThat(servicePanel('notifications-copy').locator('.tag.error')).hasText('Needs attention')
-        assertThat(button('Add service', true)).isDisabled()
-        assertThat(page.locator('.blocked')).hasText('Complete these services before adding another: notifications-copy (Nexus IQ).')
+        assertThat(servicePanel('notifications-copy').locator('.tag.error')).hasCount(0)
+        assertThat(button('Add service', true)).isEnabled()
 
         when:
         showSection('Nexus IQ')
-        input(openService(), 'Application').fill('payhub-notifications-copy')
 
         then:
-        assertThat(button('Add service', true)).isEnabled()
+        assertThat(input(openService(), 'Application')).hasValue('payhub-notifications-copy')
 
         when:
         expandService('gateway')
@@ -119,7 +117,7 @@ class EditProductSpec extends EditorSpecification {
         button('Add service', true).click()
         input(openService(), 'Service name').fill('worker')
         showSection('Build')
-        fillIn(openService(), ['JDK path': '/usr/lib/jvm/java-21-openjdk', 'Gradle tasks': 'clean build'])
+        input(openService(), 'Gradle tasks').fill('clean build')
         addUrbanCodeApplication('CERT-WORKER', 'build/libs')
         showSection('AppScan SAST and DAST')
         input(openService(), 'AppScan application ID').fill('5b1e9c2d-7a3f-4d6e-8b0a-1c2d3e4f5a6b')

@@ -19,6 +19,8 @@ import static com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget.NONE;
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC;
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD;
 import static com.bbh.itss.dso.portal.domain.catalog.TestSettings.DEFAULTS;
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
+import static com.bbh.itss.dso.portal.domain.shared.Text.relativePaths;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
 import static lombok.AccessLevel.PRIVATE;
@@ -26,18 +28,21 @@ import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 
 @Builder
-public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, TestSettings tests,
-                              List<TestJob> testJobs, DeploymentSettings deployment, ToolCommand delivery,
-                              UrbanCodeSettings urbanCode, List<UrbanCodeApplicationSettings> urbanCodeApplications,
+public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, UnitTestSettings unitTests,
+                              TestSettings tests, List<TestJob> testJobs, DeploymentSettings deployment,
+                              ToolCommand delivery, UrbanCodeSettings urbanCode,
+                              List<UrbanCodeApplicationSettings> urbanCodeApplications,
                               Map<Region, SshTarget> sshTargets, Map<Region, OpenShiftTarget> openShiftTargets,
                               AppScanSettings appScan, SonarSettings sonar, NexusIqSettings nexusIq,
                               List<NexusIqApplication> nexusIqApplications, ScmSettings scm, GoldenFixPolicy goldenFix,
-                              @With(PRIVATE) MetricsSettings metrics, FlutterSettings flutter) {
+                              List<String> versionCatalogs, @With(PRIVATE) MetricsSettings metrics,
+                              FlutterSettings flutter) {
 
     public ServiceSettings {
         requireNonNull(build, "a service needs its build settings");
         requireNonNull(deployment, "a service needs its deployment settings");
         requireNonNull(appScan, "a service needs its AppScan settings");
+        nodeBuild = getIfNull(nodeBuild, NodeBuildSettings.NONE);
         unitTests = getIfNull(unitTests, UnitTestSettings.NONE);
         tests = getIfNull(tests, DEFAULTS);
         testJobs = List.copyOf(emptyIfNull(testJobs));
@@ -51,6 +56,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         nexusIqApplications = List.copyOf(emptyIfNull(nexusIqApplications));
         scm = getIfNull(scm, ScmSettings.NONE);
         goldenFix = getIfNull(goldenFix, INHERITED);
+        versionCatalogs = relativePaths(versionCatalogs);
         metrics = getIfNull(metrics, MetricsSettings.DEFAULTS);
         flutter = getIfNull(flutter, FlutterSettings.NONE);
     }
@@ -62,6 +68,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
     public void writeTo(ConfigTree config) {
         BuildTool tool = build.tool();
         build.writeTo(config);
+        nodeBuild.writeTo(config);
         deployment.writeTo(config);
         appScan.writeTo(config, tool);
         metrics.writeTo(config);
@@ -70,6 +77,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         nexusIq.writeTo(config, nexusIqApplications);
         scm.writeTo(config);
         goldenFix.writeTo(config);
+        config.set("goldenFix.versionCatalogs", versionCatalogs);
         tests.writeTo(config, testJobs);
         if (deployment.target() == VM) {
             if (tool == MAVEN) {
@@ -93,6 +101,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
     public void validate(ValidationProblems problems) {
         BuildTool tool = build.tool();
         build.validate(problems.at("build"));
+        nodeBuild.validate(problems.at("nodeBuild"), tool);
         unitTests.validate(problems.at("unitTests"), tool);
         deployment.validate(problems.at("deployment"));
         if (deployment.target() == OPENSHIFT) {
@@ -106,6 +115,7 @@ public record ServiceSettings(BuildSettings build, UnitTestSettings unitTests, T
         nexusIq.validate(problems, nexusIqApplications);
         scm.validate(problems.at("scm"));
         goldenFix.validate(problems.at("goldenFix"));
+        LINES_2000.check(problems, "versionCatalogs", versionCatalogs);
         if (tool == FLUTTER) {
             flutter.validate(problems.at("flutter"), deployment);
         }

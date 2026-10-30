@@ -3,14 +3,21 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormControl } from '@angular/forms';
-import { buttonOf, choose, optionsOf, selectOf, text } from '@common/testing/dom';
-import { anotherService, globalSettings, service, serviceTemplate } from '../testing/fixtures';
+import { buttonOf, choose, inputOf, optionsOf, selectOf, text } from '@common/testing/dom';
+import {
+  anotherService,
+  globalSettings,
+  nodeBuild,
+  service,
+  serviceTemplate,
+} from '../testing/fixtures';
 import {
   createServiceForm,
   createUrbanCodeApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
-import { WizardDefaults, WizardService, imageRepository } from './self-service-model';
+import { imageRepository } from '../shared/service-template';
+import { WizardDefaults, WizardService } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
@@ -76,14 +83,20 @@ describe('ServiceDialog', () => {
     });
   });
 
-  it('keeps Add service disabled and names the sections that need input until the form is complete', async () => {
+  it('keeps Add service disabled and names the fields that need input until the form is complete', async () => {
     await open({ pipeline: 'SECURITY' });
 
     expect(submit().disabled).toBe(true);
     expect(text(page().querySelector('.missing'))).toBe(
-      'Complete these sections first: General, AppScan SAST and DAST.',
+      'Complete these fields first: Service name, AppScan application ID, AppScan API key ID.',
     );
     expect(marked()).toEqual(['General', 'AppScan SAST and DAST']);
+
+    buttonOf(page().querySelector('.missing')!, 'AppScan API key ID').click();
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.rail-item.active span'))).toBe('AppScan SAST and DAST');
+    expect(document.activeElement).toBe(inputOf(page(), 'AppScan API key ID'));
 
     fillIn();
     await fixture.whenStable();
@@ -99,8 +112,54 @@ describe('ServiceDialog', () => {
         name: 'new-service',
         appScanId: APP_ID,
         repositoryUrl: REPOSITORY,
+        nodeDirectory: null,
       }),
     );
+  });
+
+  it.each([
+    ['./web/', 'web'],
+    ['.', ''],
+  ])(
+    'tells the wizard the folder %j of the Node.js build as the portal keeps it, so the Services and Review steps can show it',
+    async (typed, kept) => {
+      await open({ pipeline: 'SECURITY' });
+      fillIn();
+      form().controls.nodeBuild.patchValue({ enabled: true, directory: typed });
+      await fixture.whenStable();
+
+      submit().click();
+
+      expect(close).toHaveBeenCalledWith(expect.objectContaining({ nodeDirectory: kept }));
+    },
+  );
+
+  it('keeps Add service disabled while a Node.js build field is invalid and opens Build on save', async () => {
+    await open({ pipeline: 'SECURITY' });
+    fillIn();
+    form().controls.nodeBuild.patchValue({
+      enabled: true,
+      installationName: 'NodeJS-20',
+      nodePath: '/opt/node-20',
+    });
+    await fixture.whenStable();
+
+    expect(submit().disabled).toBe(true);
+    expect(text(page().querySelector('.missing'))).toBe(
+      'Complete these fields first: Node.js installation, Node.js home on the agent.',
+    );
+    expect(marked()).toEqual(['Build']);
+
+    component['save']();
+    await fixture.whenStable();
+
+    expect(close).not.toHaveBeenCalled();
+    expect(text(page().querySelector('.rail-item.active span'))).toBe('Build');
+
+    form().controls.nodeBuild.controls.nodePath.setValue('');
+    await fixture.whenStable();
+
+    expect(submit().disabled).toBe(false);
   });
 
   it('asks for an UrbanCode Deploy application for DV before adding a service with a Full pipeline', async () => {
@@ -161,7 +220,13 @@ describe('ServiceDialog', () => {
   it('copies the values of another service except those that identify it, keeping the typed name', async () => {
     await open({
       sources: [
-        { name: 'gui', request: service() },
+        {
+          name: 'gui',
+          request: service({
+            nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+            versionCatalogs: ['gradle/libs.versions.toml'],
+          }),
+        },
         { name: 'backend-api', request: anotherService({ name: 'backend-api' }) },
       ],
     });
@@ -180,6 +245,8 @@ describe('ServiceDialog', () => {
     expect(value.sonar.projectName).toBe('');
     expect(value.metrics.influxProject).toBe('');
     expect(value.nexusIqApplications.map((app) => app.application)).toEqual(['pay-portal']);
+    expect(value.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
+    expect(value.versionCatalogs).toBe('gradle/libs.versions.toml');
   });
 
   it('sets the OpenShift names of a copy from the typed name, as for a new service', async () => {
@@ -310,6 +377,71 @@ describe('ServiceDialog', () => {
     });
 
     expect(agents.value).toBe('docker-agent');
+  });
+
+  it('keeps the empty Bitbucket credentials ID of an imported config.yaml, also when it is renamed', async () => {
+    await open();
+    component['importConfig']({
+      file: 'config.yaml',
+      name: 'legacy',
+      service: {
+        ...anotherService(),
+        id: null,
+        name: 'legacy',
+        nexusIqApplications: [],
+        scm: { ...anotherService().scm, repositoryUrl: null, credentialsId: null },
+      },
+      notes: [],
+      agentLabels: [],
+    });
+    await fixture.whenStable();
+    const scm = form().controls.scm.controls;
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-legacy');
+    expect(scm.credentialsId.value).toBe('');
+    expect(form().controls.nexusIqApplications.at(0).controls.application.value).toBe('pay-legacy');
+
+    form().controls.name.setValue('ledger');
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger');
+    expect(scm.credentialsId.value).toBe('');
+  });
+
+  it('gives a new service the Bitbucket credentials ID of the service template, never from its name', async () => {
+    await open();
+    const scm = form().controls.scm.controls;
+
+    expect(scm.credentialsId.value).toBe('bitbucket-http-credentials');
+
+    scm.credentialsId.setValue('');
+    form().controls.name.setValue('ledger');
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger');
+    expect(scm.credentialsId.value).toBe('');
+  });
+
+  it('keeps the empty Bitbucket credentials ID of a copied service, also when it is renamed', async () => {
+    const gui = service({
+      scm: {
+        ...service().scm,
+        repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/pay-gui',
+        credentialsId: '',
+      },
+    });
+    await open({ sources: [{ name: 'gui', request: gui }] });
+    form().controls.name.setValue('portal');
+
+    choose(selectOf(page(), 'Copy values from'), 'gui');
+    await fixture.whenStable();
+    const scm = form().controls.scm.controls;
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-portal');
+    expect(scm.credentialsId.value).toBe('');
+
+    form().controls.name.setValue('ledger');
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger');
+    expect(scm.credentialsId.value).toBe('');
   });
 
   it('loads existing service settings into form', async () => {

@@ -30,6 +30,9 @@ describe('createSettingsForm', () => {
       deployTarget: 'VM',
       sourceDir: '.',
       testsMaxParallel: null,
+      nodeInstallationName: '',
+      npmRegistry: '',
+      npmrcCredentialsId: '',
     });
   });
 
