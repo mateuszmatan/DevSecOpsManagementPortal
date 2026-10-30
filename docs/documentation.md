@@ -586,7 +586,7 @@ Admin, Library defaults holds the values every pipeline shares. A service that l
 | Tools and servers | Jenkins (Jenkins URL, shared library), HCL AppScan (service URL, scan client downloads, proxy), SonarQube and Nexus IQ servers, the Nexus snapshot repository, InfluxDB, the iOS build agent and the Portal monitoring block (the InfluxDB the portal reads and the Grafana dashboards) |
 | Deployment defaults | The UrbanCode Deploy site and process, and the RD and QC test servers with their SSH user, deploy script and version file |
 | Security limits | The most critical, high and medium findings each scan (SAST, SCA, Nexus IQ, DAST) may report |
-| Scans and coverage | The minimum line coverage and how long the pipelines wait for each scan |
+| Scans and coverage | The minimum line coverage, how long the pipelines wait for each scan, and the order of the static scans |
 | Release gate | Which scans the release gate checks, whether it requires the coverage, and its result file |
 | Service defaults | The build tool, deployment target and source folder a new service starts with; the test jobs at the same time; the Node.js build defaults |
 | GoldenFix defaults | Whether GoldenFix runs by default and the GoldenFix policy |
@@ -597,9 +597,13 @@ A Jenkinsfile without a key does not read this page. The DevSecOps library keeps
 
 The block "Node.js build" in Service defaults has three fields: Node.js installation, npm registry and .npmrc credentials ID. A new service shows them as its "Library default". A service that leaves them empty takes them later as well, through `defaults.build.node` in `devsecops_config.yaml`. A service that names its own installation or a Node.js home on the agent uses that instead. The BBH seed leaves all three empty.
 
+### Nexus IQ and SonarQube while AppScan scans
+
+The block "Speed" in Scans and coverage has one checkbox, "Run Nexus IQ and SonarQube while AppScan scans". It is ticked by default. The full and security pipelines then send the code of every service to AppScan first, run Nexus IQ and SonarQube while AppScan scans it, and read the SAST results last. The results, the report, the metrics and the release gate are the same as one after another; only the run is shorter. Jenkins shows the three scans as one stage, Static analysis. If SAST stops before the code is sent, Nexus IQ and SonarQube do not run in that build. A service whose SAST compile command differs from its build command makes the pipelines run the three scans one after another, and the build log says so. Unticked, they always run one after another, in the order Nexus IQ, SAST, SonarQube.
+
 ### Which values follow later changes
 
-- Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the release gate, the test jobs at the same time, the Node.js build defaults and the GoldenFix policy of services that inherit it.
+- Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the order of the static scans, the release gate, the test jobs at the same time, the Node.js build defaults and the GoldenFix policy of services that inherit it.
 - The build tool, the deployment target and the source folder only prefill a new service.
 
 ### Portal monitoring
@@ -873,7 +877,7 @@ Each region has its own section: `deploy.openshift.rd` and `deploy.openshift.qc`
 | Scan source code only (Advanced) | `asoc.sourceCodeOnly` | |
 | Use the repository's AppScan configuration (Advanced) | `asoc.useAppScanConfig` | |
 | Accept any TLS certificate (Advanced) | `asoc.insecureTls` | |
-| Compile command (Advanced) | `asoc.gradle.tasks`, `asoc.maven.goals` and the other command fields | |
+| Compile command (Advanced) | `asoc.gradle.tasks`, `asoc.maven.goals` and the other command fields | Another command than the build command makes the full and security pipelines run Nexus IQ, SAST and SonarQube one after another. |
 
 The address of AppScan on Cloud comes from the Library defaults and is written to every service as `asoc.url`.
 
@@ -1016,6 +1020,7 @@ The values of Tools and servers are written to `platform`, and the per-service v
 | DAST: check for the report every | `dast.reportIntervalSec` | `defaults.dast.reportIntervalSec` |
 | Wait for the quality gate | `tools.sonar.qualityGate.waitForQualityGate` | `defaults.tools.sonar.qualityGate.waitForQualityGate` |
 | Longest wait (minutes) for the quality gate | `tools.sonar.qualityGate.timeoutMinutes` | `defaults.tools.sonar.qualityGate.timeoutMinutes` |
+| Run Nexus IQ and SonarQube while AppScan scans | `staticAnalysis.parallel` | `defaults.staticAnalysis.parallel`; ticked by default |
 | Release gate scans | `releaseGate.scanners` | written as `sast`, `sca`, `niq` and `dast` |
 | Also require the minimum line coverage | `releaseGate.requireCoverage` | `defaults.releaseGate.requireCoverage` |
 | Result file | `releaseGate.stateFile` | `defaults.releaseGate.stateFile`, fixed |
@@ -1088,6 +1093,10 @@ Changeset 032 adds the Node.js build and the shared version catalogs. It has thr
 - `032-node-defaults` adds `NODE_INSTALLATION_NAME`, `NPM_REGISTRY` and `NPMRC_CREDENTIALS_ID` to `DSO_GLOBAL_SETTINGS`.
 
 Every service starts with the Node.js build off and no catalogs, so every configuration stays as it was. A rollback drops the columns with whatever they hold.
+
+### Upgrade note: changeset 033
+
+Changeset `033-parallel-static-analysis` adds `PARALLEL_STATIC_ANALYSIS` (0 or 1, 1 by default) to `DSO_GLOBAL_SETTINGS`, with the check `CK_DSO_GLOBAL_PARALLEL_SCANS`. The saved settings get 1, so "Run Nexus IQ and SonarQube while AppScan scans" is ticked after the upgrade and the settings sent to Jenkins hold `defaults.staticAnalysis.parallel: true`. A library version without this order ignores the key. Untick the box before the next runs to keep the order Nexus IQ, SAST, SonarQube. A rollback drops the column.
 
 ## 18. Troubleshooting
 
