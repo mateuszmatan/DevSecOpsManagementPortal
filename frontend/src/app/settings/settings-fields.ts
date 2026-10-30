@@ -411,10 +411,12 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             help:
               'Ticked, the full and security pipelines first send the code of every service to AppScan. Nexus IQ and ' +
               'SonarQube then run while AppScan scans it, and the SAST results are read last. The pipeline finishes ' +
-              'sooner; the results, the report and the release gate stay the same. Jenkins shows the three scans as ' +
-              'one stage, Static analysis, and the build log lists them in this order. If SAST stops before the code ' +
-              'is sent, Nexus IQ and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run ' +
-              'one after another, as before.',
+              'sooner; the findings and the release gate stay the same, and the SAST duration in the report and the ' +
+              'metrics covers the whole Static analysis stage. Jenkins shows the three scans as one stage, Static ' +
+              'analysis, and the build log lists them in this order. If SAST stops before the code is sent, Nexus IQ ' +
+              'and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run one after another, ' +
+              'as before. The Jenkins environment variable DSO_STATIC_ANALYSIS_PARALLEL, when set to true or false, ' +
+              'overrides this box.',
           },
         ],
       },
