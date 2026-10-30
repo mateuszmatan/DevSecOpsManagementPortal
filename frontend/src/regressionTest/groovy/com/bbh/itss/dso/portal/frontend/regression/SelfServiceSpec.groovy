@@ -241,13 +241,8 @@ class SelfServiceSpec extends EditorSpecification {
         }
         store.services*.pipelines*.type == [['FULL', 'SAST'], ['FULL', 'SAST'], ['SAST']]
         store.generatedKeys.keySet() == ['backend-api', 'scanner'] as Set
-        assertThat(page.locator('.jenkinsfile-head strong')).hasText(['gui and backend-api', 'scanner'] as String[])
-        assertThat(page.locator('.jenkinsfile .code-block')).containsText([
-                "pipelineKeys: [ '${SAST_KEY_OF_GUI}', '${store.generatedKeys['backend-api']}', ]".toString(),
-                "pipelineKey: '${store.generatedKeys['scanner']}'".toString()] as String[])
-        assertThat(page.locator('.next-steps > li h3').nth(1)).hasText('Ask your Jenkins administrator for a job for each repository')
-        assertThat(page.locator('.job-names li')).hasText(['gui and backend-api: DevSecOps/CERTSCANNER/gui-sast',
-                                                           'scanner: DevSecOps/CERTSCANNER/scanner-sast'] as String[])
+        assertThat(page.locator('.jenkinsfile .code-block')).containsText([SAST_KEY_OF_GUI, store.generatedKeys['backend-api'],
+                                                                    store.generatedKeys['scanner']] as String[])
 
         when:
         button('Set up another product', true).click()

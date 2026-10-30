@@ -124,10 +124,8 @@ class PipelinesSpec extends DsoSpecification {
         assertThat(page.locator('.key-value')).hasText('7b62170e…299e')
         assertThat(fact('Jenkins agents').locator('.mono')).hasText('linux-agent')
         assertThat(fact('Jenkins job')).hasText('DevSecOps/CERTSCANNER/gui-full')
-        assertThat(page.locator('.jenkinsfile .section-help')).hasText('One Jenkinsfile with the keys of gui and backend-api ' +
-                'goes into https://bitbucket.bbh.com/projects/TA/repos/cert-scanner. Ask for one Jenkins job for the repository, ' +
-                'not one per service: one GoldenFix pull request then raises the shared catalog once.')
-        assertThat(page.locator('pre.code-block')).containsText("devSecOpsPipeline(pipelineKeys: [\n    '${GUI_FULL_KEY}',\n    '${API_FULL_KEY}',\n])")
+        assertThat(page.locator('.jenkinsfile .section-help')).containsText("The file to put in the service's repository so Jenkins runs this pipeline.")
+        assertThat(page.locator('pre.code-block')).containsText("devSecOpsPipeline(pipelineKey: '${GUI_FULL_KEY}')")
         assertThat(gridRows()).hasCount(5)
         assertThat(link('See every run and the delivery performance (DORA)', true)).hasAttribute('href', '/monitoring/pipelines/1')
         assertThat(link('Open in Jenkins', true)).hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
@@ -158,7 +156,24 @@ class PipelinesSpec extends DsoSpecification {
 
         then:
         assertThat(snackBar()).containsText('Jenkinsfile copied to the clipboard')
-        copiedTexts() == [GUI_FULL_KEY, "@Library('DevSecOpsJenkinsLibrary') _\n\ndevSecOpsPipeline(pipelineKeys: [\n    '${GUI_FULL_KEY}',\n    '${API_FULL_KEY}',\n])\n".toString()]
+        copiedTexts() == [GUI_FULL_KEY, "@Library('DevSecOpsJenkinsLibrary') _\n\ndevSecOpsPipeline(pipelineKey: '${GUI_FULL_KEY}')\n".toString()]
+        ownErrors().isEmpty()
+    }
+
+    def "the page of a pipeline that shares the Jenkins job of its repository shows the one Jenkinsfile with every key"() {
+        given:
+        def services = fixture('product-1-pipelines.json') as List<Map>
+        (services[1].pipelines as List<Map>)[0].jenkinsJob = 'DevSecOps/CERTSCANNER/gui-full'
+        api.respond('GET', '/api/products/1/pipelines', services)
+
+        when:
+        open('/pipelines/1')
+
+        then:
+        assertThat(page.locator('.jenkinsfile .section-help')).hasText('One Jenkinsfile with the keys of gui and backend-api ' +
+                'goes into https://bitbucket.bbh.com/projects/TA/repos/cert-scanner. Ask for one Jenkins job for the repository, ' +
+                'not one per service: one GoldenFix pull request then covers the whole repository.')
+        assertThat(page.locator('pre.code-block')).containsText("devSecOpsPipeline(pipelineKeys: [\n    '${GUI_FULL_KEY}',\n    '${API_FULL_KEY}',\n])")
         ownErrors().isEmpty()
     }
 

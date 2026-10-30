@@ -20,8 +20,8 @@ export function jenkinsfile(
 
 /**
  * Groups the items, in their order, whose active pipelines of one type share a Bitbucket
- * repository and their Jenkins agents: one Jenkinsfile with all their keys runs them in one
- * Jenkins job, on the agents of the first key. Every other item is a group of its own.
+ * repository, their Jenkins agents and their Jenkins job: one Jenkinsfile with all their keys
+ * runs them in that job, on the agents of the first key. Every other item is a group of its own.
  */
 export function byRepository<T>(
   items: readonly T[],
@@ -30,15 +30,20 @@ export function byRepository<T>(
 ): T[][] {
   const groups = new Map<unknown, T[]>();
   for (const item of items) {
-    const url = repositoryKey(repository(item));
     const run = pipeline(item);
-    const key =
-      url && run?.activeKey
-        ? [url, run.type, run.securityPipelineJob, run.extendedPipelineJob, agents(run)].join(' ')
-        : item;
+    const key = (run?.activeKey && jobKey(repository(item), run)) || item;
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   return [...groups.values()];
+}
+
+/** What the pipelines of one shared Jenkinsfile have in common, or '' when a pipeline can share none. */
+function jobKey(repository: string | null | undefined, run: Pipeline): string {
+  const url = repositoryKey(repository);
+  const job = run.jenkinsJob?.trim().toLowerCase();
+  return url && job
+    ? [url, job, run.type, run.securityPipelineJob, run.extendedPipelineJob, agents(run)].join()
+    : '';
 }
 
 /** A repository URL as it names one repository, whatever its case, .git ending or trailing slash. */
@@ -82,6 +87,6 @@ export function sharedRunsNote(firstService: string): string {
 /** Why services that share a repository share one Jenkins job, or '' for pipelines without GoldenFix. */
 export function sharedJobReason(type: PipelineType): string {
   return GOLDEN_FIX_TYPES.includes(type)
-    ? ': one GoldenFix pull request then raises the shared catalog once'
+    ? ': one GoldenFix pull request then covers the whole repository'
     : '';
 }

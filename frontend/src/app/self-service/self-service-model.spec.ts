@@ -786,7 +786,7 @@ describe('self-service model', () => {
     );
   });
 
-  it('shares one Jenkins job among the services whose pipelines share a repository', () => {
+  it('shares one Jenkins job among the services whose pipelines share a repository and its job', () => {
     const start = (serviceName: string, repository: string, run: Pipeline | null = pipeline()) => ({
       serviceName,
       repository,
@@ -807,6 +807,12 @@ describe('self-service model', () => {
       ['tool', 1],
       ['worker', 1],
     ]);
+    expect(
+      jenkinsJobs([
+        start('gui', shared),
+        start('api', shared, pipeline({ jenkinsJob: 'DevSecOps/CERT/api-full' })),
+      ]).map((job) => job.names),
+    ).toEqual(['gui', 'api']);
   });
 
   it('takes the repository from the Bitbucket fields of a service without a URL', () => {

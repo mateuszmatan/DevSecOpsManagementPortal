@@ -183,31 +183,46 @@ describe('PipelinePage', () => {
     ]);
   });
 
-  it('shows the one Jenkinsfile and the one job of the services that share its repository', async () => {
-    const api = (overrides: Partial<Pipeline> = {}) =>
-      pipeline({
-        id: 200,
-        serviceId: 11,
-        serviceName: 'api',
-        activeKey: { ...pipeline().activeKey!, value: 'a1b2c3d4-0000-4abc-9def-123456789abc' },
-        ...overrides,
-      });
-    const gui = pipeline();
+  const api = (overrides: Partial<Pipeline> = {}) =>
+    pipeline({
+      id: 200,
+      serviceId: 11,
+      serviceName: 'api',
+      activeKey: { ...pipeline().activeKey!, value: 'a1b2c3d4-0000-4abc-9def-123456789abc' },
+      ...overrides,
+    });
+
+  async function loadWithApi(gui: Pipeline, other: Pipeline = api()) {
     await load(
       gui,
       pipelineMonitoring(),
       [
         servicePipelines({ pipelines: [gui] }),
-        servicePipelines({ serviceId: 11, serviceName: 'api', pipelines: [api()] }),
+        servicePipelines({ serviceId: 11, serviceName: 'api', pipelines: [other] }),
       ],
       product({ services: [service(), anotherService()] }),
     );
+  }
+
+  it('shows the one Jenkinsfile of the services whose pipelines share the job of its repository', async () => {
+    await loadWithApi(pipeline());
 
     expect(text(page().querySelector('.jenkinsfile .section-help'))).toBe(
-      'One Jenkinsfile with the keys of gui and api goes into https://bitbucket.bbh.com/projects/CERT/repos/gui. Ask for one Jenkins job for the repository, not one per service: one GoldenFix pull request then raises the shared catalog once.',
+      'One Jenkinsfile with the keys of gui and api goes into https://bitbucket.bbh.com/projects/CERT/repos/gui. Ask for one Jenkins job for the repository, not one per service: one GoldenFix pull request then covers the whole repository.',
     );
     expect(text(page().querySelector('pre.code-block'))).toBe(
       "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsPipeline(pipelineKeys: [ '6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc', ])",
+    );
+  });
+
+  it('shows the own Jenkinsfile of a service whose repository other services build in their own jobs', async () => {
+    await loadWithApi(pipeline(), api({ jenkinsJob: 'DevSecOps/CERT/api-full' }));
+
+    expect(text(page().querySelector('.jenkinsfile .section-help'))).toBe(
+      "The file to put in the service's repository so Jenkins runs this pipeline. It holds only the pipeline key: Jenkins fetches every other setting from this portal.",
+    );
+    expect(text(page().querySelector('pre.code-block'))).toBe(
+      "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')",
     );
   });
 
@@ -290,7 +305,6 @@ describe('PipelinePage', () => {
     buttonOf(page(), 'Regenerate key').click();
     await fixture.whenStable();
     http.expectOne({ method: 'POST', url: '/api/pipelines/100/keys' }).flush(pipeline());
-
     await reloadedMonitoring();
 
     expect(page().querySelector('.banner.danger')).toBeNull();

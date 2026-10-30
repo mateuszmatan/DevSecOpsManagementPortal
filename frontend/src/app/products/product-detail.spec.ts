@@ -412,7 +412,7 @@ describe('ProductDetail', () => {
       ]);
 
       expect([...page().querySelectorAll('.shared-repository .notice-text')].map(text)).toEqual([
-        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their full pipelines there and ask for one Jenkins job for the repository, not one per service: one GoldenFix pull request then raises the shared catalog once. ' +
+        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their full pipelines there and ask for one Jenkins job for the repository, not one per service: one GoldenFix pull request then covers the whole repository. ' +
           MONITORED_UNDER_GUI,
         'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their SAST scanning pipelines there and ask for one Jenkins job for the repository, not one per service. ' +
           MONITORED_UNDER_GUI,
@@ -450,6 +450,33 @@ describe('ProductDetail', () => {
         'Pipeline keys generated for 2 new services: gui, api. Copy the keys into the Jenkinsfiles: services that share a repository share one Jenkinsfile, shown below.',
       );
     });
+
+    it.each([
+      ['run on other agents', { agentLabels: ['windows'] }],
+      ['run in jobs of their own', { jenkinsJob: 'DevSecOps/CERT/api-full' }],
+    ])(
+      'keeps apart the services of one repository whose pipelines %s',
+      async (_, apart: Partial<Pipeline>) => {
+        await load(product({ services: [service(), anotherService()] }), [
+          servicePipelines(),
+          servicePipelines({
+            serviceId: 11,
+            serviceName: 'api',
+            pipelines: [pipeline({ id: 200, serviceId: 11, serviceName: 'api', ...apart })],
+          }),
+        ]);
+
+        expect(page().querySelector('.shared-repository')).toBeNull();
+
+        await menu('Jenkinsfile');
+        http.expectOne('/api/settings').flush(globalSettings());
+
+        expect(opened().data['title']).toBe('Jenkinsfile of gui · Full');
+        expect(opened().data['code']).toContain(
+          "devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')",
+        );
+      },
+    );
 
     it('warns that a Jenkinsfile for several services runs them all on the agents of the first key', async () => {
       await load(product(), [

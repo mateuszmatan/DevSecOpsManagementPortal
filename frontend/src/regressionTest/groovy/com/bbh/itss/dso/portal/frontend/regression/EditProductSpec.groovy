@@ -132,8 +132,7 @@ class EditProductSpec extends EditorSpecification {
         (awaitRequest('PUT', '/api/products/1').json().services as List<Map>).collect { [it.id, it.name] } ==
                 [[1, 'gui'], [null, 'gui-copy'], [2, 'backend-api'], [null, 'worker']]
         assertThat(page.locator('.generated')).containsText('Pipeline keys generated for 2 new services: gui-copy, worker.')
-        assertThat(page.locator('.generated')).containsText('Copy the keys into the Jenkinsfiles: services that share a ' +
-                'repository share one Jenkinsfile, shown below.')
+        assertThat(page.locator('.generated')).containsText('Copy each key into the Jenkinsfile of its service.')
         store.generatedKeys.keySet() == ['gui-copy', 'worker'] as Set
         store.generatedKeys.values().every { value ->
             assertThat(holdingText(page.locator('.key-value'), value as String)).isVisible()

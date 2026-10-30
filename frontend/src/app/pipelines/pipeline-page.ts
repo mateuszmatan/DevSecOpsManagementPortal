@@ -448,7 +448,7 @@ export class PipelinePage {
         catchError(() => of(null)),
       ),
   });
-  /** The pipelines that share one Jenkinsfile with this one, because their services share a repository. */
+  /** The pipelines that share one Jenkinsfile with this one, because they run in one job for one repository. */
   private readonly together = computed(() => {
     if (!this.pipeline.hasValue()) {
       return null;

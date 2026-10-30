@@ -672,7 +672,7 @@ describe('SelfService', () => {
     ]);
   });
 
-  it('asks for one Jenkinsfile and one job for the services that share a repository', async () => {
+  async function saveWithApi(jenkinsJob: string) {
     const stored = product({ services: [service(), anotherService()] });
     const listed = [
       servicePipelines(),
@@ -684,7 +684,7 @@ describe('SelfService', () => {
             id: 200,
             serviceId: 11,
             serviceName: 'api',
-            jenkinsJob: 'DevSecOps/CERT/api-full',
+            jenkinsJob,
             activeKey: { ...pipeline().activeKey!, value: 'a1b2c3d4-0000-4abc-9def-123456789abc' },
           }),
         ],
@@ -699,6 +699,10 @@ describe('SelfService', () => {
     http.expectOne({ method: 'PUT', url: '/api/products/1?pipelineType=FULL' }).flush(stored);
     http.expectOne('/api/products/1/pipelines').flush(listed);
     await fixture.whenStable();
+  }
+
+  it('asks for one Jenkinsfile and one job for the services whose pipelines share the job of a repository', async () => {
+    await saveWithApi('DevSecOps/CERT/gui-full');
     const step = (index: number) => text(page().querySelectorAll('.next-steps > li')[index]);
 
     expect(all('.next-steps > li h3').slice(0, 2)).toEqual([
@@ -716,12 +720,25 @@ describe('SelfService', () => {
     );
     expect(buttonOf(page(), 'Copy the Jenkinsfile of gui and api')).toBeDefined();
     expect(step(1)).toContain(
-      'Ask for a Pipeline job per repository, not per service, that reads the Jenkinsfile from the repository (Pipeline script from SCM): one GoldenFix pull request then raises the shared catalog once. Use these names:',
+      'Ask for a Pipeline job per repository, not per service, that reads the Jenkinsfile from the repository (Pipeline script from SCM): one GoldenFix pull request then covers the whole repository. Use these names:',
     );
     expect(all('.job-names li')).toEqual(['gui and api: DevSecOps/CERT/gui-full']);
     expect(all('.shared-runs')).toEqual([
       'Pipeline Monitoring shows the runs of the shared job under gui, the service of the first key. To see them on the other services too, give them the same Project tag (Monitoring section) and the shared job as the Jenkins job of their pipelines.',
     ]);
+  });
+
+  it('keeps a Jenkinsfile and a job for each service of a repository whose pipelines run in jobs of their own', async () => {
+    await saveWithApi('DevSecOps/CERT/api-full');
+
+    expect(all('.next-steps > li h3')[1]).toBe(
+      'Ask your Jenkins administrator for a job for each service',
+    );
+    expect(all('.job-names li')).toEqual([
+      'gui: DevSecOps/CERT/gui-full',
+      'api: DevSecOps/CERT/api-full',
+    ]);
+    expect(page().querySelectorAll('.jenkinsfile .code-block')).toHaveLength(2);
   });
 
   it('points to the pipeline page of a service whose key is invalidated instead of its Jenkinsfile', async () => {

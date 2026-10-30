@@ -63,15 +63,25 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         ownErrors().isEmpty()
     }
 
-    def "services that share a repository are asked for one Jenkinsfile with their keys and one Jenkins job"() {
+    def "services whose pipelines share the Jenkins job of their repository are asked for one Jenkinsfile with their keys"() {
         given:
+        def services = fixture('product-1-pipelines.json') as List<Map>
         open('/admin/products/1')
 
-        expect:
+        expect: 'gui and backend-api share a repository but run in jobs of their own'
+        assertThat(pipelineRow('backend-api', 'Full')).isVisible()
+        assertThat(page.locator('.shared-repository')).hasCount(0)
+
+        when:
+        (services[1].pipelines as List<Map>)[0].jenkinsJob = 'DevSecOps/CERTSCANNER/gui-full'
+        api.respond('GET', '/api/products/1/pipelines', services)
+        open('/admin/products/1')
+
+        then:
         assertThat(page.locator('.shared-repository .notice-text')).hasText([
                 'gui and backend-api share the repository https://bitbucket.bbh.com/projects/TA/repos/cert-scanner. ' +
                         'Put one Jenkinsfile with the keys of their full pipelines there and ask for one Jenkins job for the ' +
-                        'repository, not one per service: one GoldenFix pull request then raises the shared catalog once. ' +
+                        'repository, not one per service: one GoldenFix pull request then covers the whole repository. ' +
                         'Pipeline Monitoring shows the runs of the shared job under gui, the service of the first key. To see ' +
                         'them on the other services too, give them the same Project tag (Monitoring section) and the shared ' +
                         'job as the Jenkins job of their pipelines.'

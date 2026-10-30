@@ -79,6 +79,18 @@ describe('byRepository', () => {
       ]),
     ).toEqual([['gui', 'api'], ['worker']]);
   });
+
+  it('joins only the pipelines that already run in one Jenkins job, whatever its case', () => {
+    expect(
+      names([
+        run(1, 'gui', { jenkinsJob: 'DevSecOps/CERT/gui-full' }),
+        run(2, 'api', { jenkinsJob: 'DevSecOps/CERT/api-full' }),
+        run(3, 'worker', { jenkinsJob: ' devsecops/cert/GUI-full ' }),
+        run(4, 'gui', { jenkinsJob: null }),
+        run(5, 'worker', { jenkinsJob: null }),
+      ]),
+    ).toEqual([['gui', 'worker'], ['api'], ['gui'], ['worker']]);
+  });
 });
 
 describe('repositoryGroup', () => {
@@ -98,7 +110,7 @@ describe('repositoryGroup', () => {
 describe('sharedJobReason', () => {
   it('names the shared GoldenFix pull request only where GoldenFix runs', () => {
     expect(sharedJobReason('FULL')).toBe(
-      ': one GoldenFix pull request then raises the shared catalog once',
+      ': one GoldenFix pull request then covers the whole repository',
     );
     expect(sharedJobReason('NEXUS_IQ')).toBe(sharedJobReason('SECURITY'));
     expect(sharedJobReason('SAST')).toBe('');
