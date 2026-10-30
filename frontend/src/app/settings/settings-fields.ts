@@ -441,7 +441,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             help: 'A NodeJS installation under Manage Jenkins, Tools, which needs the NodeJS plugin. A service that names its own installation or a Node.js home on the agent uses that instead.',
           }),
           line('npmRegistry', 'npm registry', 'build.node.registry', 5, {
-            help: 'The registry npm installs from, exported as npm_config_registry. It is used only without an .npmrc.',
+            help: 'The registry npm installs from, exported as npm_config_registry. It is not used while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository.',
             error: HTTP_URL_ERROR,
           }),
           mono('npmrcCredentialsId', '.npmrc credentials ID', 'build.node.npmrcCredentialsId', 3, {

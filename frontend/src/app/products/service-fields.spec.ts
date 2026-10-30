@@ -360,6 +360,26 @@ describe('ServiceFields', () => {
       },
     );
 
+    it('leaves the npm scan out of the SAST pipeline, which runs no Nexus IQ, and keeps its value', async () => {
+      await render(service({ nodeBuild: nodeBuild({ enabled: true }) }));
+      fixture.componentRef.setInput('pipeline', 'SAST');
+      await open('Build');
+      const scan = () => checkboxOf(pane(), 'Scan the npm dependencies with Nexus IQ');
+
+      expect(scan()).toBeUndefined();
+      expect(form.controls.nodeBuild.controls.nexusIqScan.value).toBe(true);
+      expect(
+        helpOf(
+          checkboxOf(pane(), 'Build the frontend with Node.js first').closest('dso-checkbox')!,
+        ),
+      ).toContain('In SAST scanning it runs only on Linux agents, while Compile');
+
+      fixture.componentRef.setInput('pipeline', 'NEXUS_IQ');
+      await fixture.whenStable();
+
+      expect(scan().checked).toBe(true);
+    });
+
     it('marks Build for an invalid Node.js field and opens it first', async () => {
       await render(
         service({

@@ -214,16 +214,27 @@ const NODE_BUILD =
   'Runs your npm commands in an extra stage 0, before the Gradle or Maven build, for example to build an Angular frontend that the Gradle or Maven build then packages into the jar. Write its output outside the build and target folders. Leave it off when the Gradle or Maven build already runs npm.';
 
 const NODE_BUILD_IN: Partial<Record<PipelineType, string>> = {
-  SAST: 'In SAST scanning it runs only while Compile is on.',
+  SAST: 'In SAST scanning it runs only on Linux agents, while Compile before preparing the IRX is on.',
   EXTENDED: 'In the Extended pipeline it runs before the release delivery rebuild.',
 };
+
+/** Left out of the SAST pipeline, which runs no Nexus IQ scan; the value stays for the other pipelines. */
+const NPM_SCAN = check(
+  'nexusIqScan',
+  'Scan the npm dependencies with Nexus IQ',
+  'build.node.nexusIqScan',
+  6,
+  {
+    help: 'Adds package-lock.json of this folder to the Nexus IQ scan, so Nexus IQ reports the npm dependencies and GoldenFix can raise them. New findings can turn the Nexus IQ stage orange.',
+  },
+);
 
 const VERSION_CATALOGS: Field[] = [
   area('versionCatalogs', 'Shared version catalogs', 'goldenFix.versionCatalogs', 8, {
     mono: true,
-    placeholder: 'gradle/libs.versions.toml',
+    placeholder: 'catalog/dependencies.toml',
     hint: 'optional; one path per line, relative to the repository root',
-    help: "Files that hold the dependency versions several services of this repository share. GoldenFix raises a version there once for every service and verifies the builds that use it. Found without listing: *.versions.toml files, the catalogs settings.gradle imports and the files 'apply from' names. List a file here when it has another name or format, such as a parent or BOM pom.xml.",
+    help: "Files that hold the dependency versions several services of this repository share. GoldenFix raises a version there once for every service and verifies the builds that use it. Found without listing: *.versions.toml files, the catalogs settings.gradle imports, the files 'apply from' names, and the parent and imported BOM pom.xml files of the repository. List a file here only when GoldenFix cannot find it by itself, for example a TOML catalog whose name does not end in .versions.toml, or a parent or BOM pom with another file name such as bom.xml.",
   }),
 ];
 
@@ -721,9 +732,7 @@ export class ServiceFields {
         hint: 'one per line, run in order; left empty: npm ci, then npm run build',
         help: 'Each line runs as one shell command, with sh on Linux agents and bat on Windows agents. A failing command fails the stage, and the later stages do not run.',
       }),
-      check('nexusIqScan', 'Scan the npm dependencies with Nexus IQ', 'build.node.nexusIqScan', 6, {
-        help: 'Adds package-lock.json of this folder to the Nexus IQ scan, so Nexus IQ reports the npm dependencies and GoldenFix can raise them. New findings can turn the Nexus IQ stage orange.',
-      }),
+      ...(this.pipeline() === 'SAST' ? [] : [NPM_SCAN]),
       line('installationName', 'Node.js installation', 'build.node.installationName', 6, {
         ...defaulted(
           defaults?.nodeInstallationName,
@@ -754,7 +763,7 @@ export class ServiceFields {
       }),
       line('registry', 'npm registry', 'build.node.registry', 6, {
         ...defaulted(defaults?.npmRegistry, c.registry.value),
-        help: 'The registry npm installs from, exported as npm_config_registry. It is used only without an .npmrc.',
+        help: 'The registry npm installs from, exported as npm_config_registry. It is not used while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository.',
         error: HTTP_URL_ERROR,
       }),
       mono('npmrcCredentialsId', '.npmrc credentials ID', 'build.node.npmrcCredentialsId', 6, {
@@ -765,7 +774,7 @@ export class ServiceFields {
         mono: true,
         placeholder: 'NODE_OPTIONS=--max-old-space-size=4096',
         hint: 'one NAME=value per line',
-        help: 'Environment variables set for the Node.js commands only.',
+        help: 'Environment variables set for the Node.js commands and for the GoldenFix verification of npm fixes.',
       }),
     ];
   }
