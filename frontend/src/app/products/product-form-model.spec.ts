@@ -1503,4 +1503,19 @@ describe('followToolDefaults', () => {
     build.tool.setValue('GRADLE');
     expect(values()).toEqual(['clean package', 'build/libs/*.jar']);
   });
+
+  it.each([
+    [null, '**/target/*.jar'],
+    [10, '**/build/libs/*.jar'],
+  ] as const)(
+    'moves the template scan pattern only for a new service (id %s)',
+    (id, scanPattern) => {
+      const form = createServiceForm({ ...service(), id });
+      TestBed.runInInjectionContext(() => followToolDefaults(form, serviceTemplate()));
+
+      form.controls.build.controls.tool.setValue('MAVEN');
+
+      expect(form.controls.nexusIqApplications.at(0).controls.scanPatterns.value).toBe(scanPattern);
+    },
+  );
 });

@@ -896,6 +896,9 @@ export function followToolDefaults(
       if (!command.controls.tasks.value || command.controls.tasks.value === before.tasks) {
         command.controls.tasks.setValue(after.tasks);
       }
+      if (service.controls.id.value !== null) {
+        return;
+      }
       const patterns = service.controls.nexusIqApplications.controls[0]?.controls.scanPatterns;
       if (patterns?.value === before.scanPattern && after.scanPattern) {
         patterns.setValue(after.scanPattern);
