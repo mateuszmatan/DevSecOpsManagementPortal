@@ -328,8 +328,48 @@ function hasPipeline(
 }
 
 /**
+ * The stored services whose active pipelines of the type already share one Jenkins job, keyed by their repository
+ * and agents. The new pipelines of that repository and agents join the job; when two such jobs exist, the first one
+ * counts, as on the server.
+ */
+function sharedJobs(
+  pipeline: WizardPipeline,
+  kept: readonly WizardService[],
+  current: readonly ServicePipelines[] | null,
+): Map<string, WizardService[]> {
+  const jobs = new Map<string, Map<string, WizardService[]>>();
+  for (const service of kept) {
+    const run = current
+      ?.find((candidate) => candidate.serviceId === service.id)
+      ?.pipelines.find((existing) => existing.type === pipeline);
+    const key = repositoryKey(service.repositoryUrl);
+    const job = run?.jenkinsJob?.trim().toLowerCase();
+    if (run?.activeKey && key && job && !run.securityPipelineJob && !run.extendedPipelineJob) {
+      const place = runsIn(key, run.agentLabels);
+      const byJob = jobs.get(place) ?? new Map<string, WizardService[]>();
+      byJob.set(job, [...(byJob.get(job) ?? []), service]);
+      jobs.set(place, byJob);
+    }
+  }
+  const shared = new Map<string, WizardService[]>();
+  for (const [place, byJob] of jobs) {
+    const group = [...byJob.values()].find((sharing) => sharing.length > 1);
+    if (group) {
+      shared.set(place, group);
+    }
+  }
+  return shared;
+}
+
+/** A repository with the Jenkins agents of a pipeline, in a stable order. */
+const runsIn = (repository: string, agentLabels: readonly string[]) =>
+  JSON.stringify([repository, [...agentLabels].sort()]);
+
+/**
  * What saving does to each service. The pipelines that one save starts for a repository share one
- * Jenkinsfile and one Jenkins job; a service that has the pipeline already keeps the ones it has.
+ * Jenkinsfile and one Jenkins job, the job that two or more pipelines of the type already share for
+ * that repository and the agents of the save, if there is one. Any other service that has the
+ * pipeline already keeps the ones it has.
  */
 export function reviewEntries(
   pipeline: WizardPipeline,
@@ -337,26 +377,39 @@ export function reviewEntries(
   stored: readonly Service[],
   removed: readonly number[],
   current: readonly ServicePipelines[] | null,
+  agentLabels: readonly string[],
 ): ReviewEntry[] {
   const kept = services.filter((service) => service.id === null || !removed.includes(service.id));
   const starts = (service: WizardService) => !hasPipeline(pipeline, service, current);
   const names = (others: readonly WizardService[]) => listed(others.map((other) => other.name));
-  return services.map((service) => {
-    const entry = reviewEntry(pipeline, service, stored, removed, current);
+  const shared = sharedJobs(pipeline, kept, current);
+  const note = (service: WizardService): string => {
     const key = repositoryKey(service.repositoryUrl);
     const sharing = kept.filter(
       (other) => other !== service && key && repositoryKey(other.repositoryUrl) === key,
     );
+    if (!kept.includes(service) || !sharing.length) {
+      return '';
+    }
     const together = sharing.filter(starts);
-    const note =
-      !kept.includes(service) || !sharing.length
-        ? ''
-        : !starts(service)
-          ? `Shares its repository with ${names(sharing)} but keeps its Jenkinsfile and Jenkins job.`
-          : together.length
-            ? `Shares its repository with ${names(together)}, so they get one Jenkinsfile and one Jenkins job.`
-            : '';
-    return note ? { ...entry, text: `${entry.text} ${note}` } : entry;
+    const joined = shared.get(runsIn(key, agentLabels));
+    if (!starts(service)) {
+      return joined?.includes(service) && together.length
+        ? `Its Jenkinsfile, which it shares with ${names(joined.filter((other) => other !== service))}, ` +
+            `gets the ${together.length > 1 ? 'keys' : 'key'} of ${names(together)}.`
+        : `Shares its repository with ${names(sharing)} but keeps its Jenkinsfile and Jenkins job.`;
+    }
+    if (joined) {
+      return `Joins the Jenkins job that ${names(joined)} share, so their Jenkinsfile gets its key.`;
+    }
+    return together.length
+      ? `Shares its repository with ${names(together)}, so they get one Jenkinsfile and one Jenkins job.`
+      : '';
+  };
+  return services.map((service) => {
+    const entry = reviewEntry(pipeline, service, stored, removed, current);
+    const text = note(service);
+    return text ? { ...entry, text: `${entry.text} ${text}` } : entry;
   });
 }
 

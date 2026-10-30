@@ -202,7 +202,7 @@ Add every service of the product in the same way. Under each service the list sh
 
 ### Step 4: Review
 
-Check the product, the pipeline, the Jenkins agents and what happens to each service. Services of one repository that get the pipeline in this save say so: they get one Jenkinsfile and one Jenkins job. A service that has the pipeline already keeps its Jenkinsfile and Jenkins job. Check the repository URLs here, because a typo in one of them gives two Jenkinsfiles and two jobs. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.
+Check the product, the pipeline, the Jenkins agents and what happens to each service. Services of one repository that get the pipeline in this save say so: they get one Jenkinsfile and one Jenkins job. When two or more services of that repository already run the pipeline in one Jenkins job on the Jenkins agents of this save, the new pipelines join that job: the new services say that they join it, and the services of that job say that their Jenkinsfile gets the new keys. Any other service that has the pipeline already keeps its Jenkinsfile and Jenkins job. Check the repository URLs here, because a typo in one of them gives two Jenkinsfiles and two jobs. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.
 
 ### Step 5: Next steps
 
@@ -455,7 +455,7 @@ The library name comes from the Library defaults (`platform.jenkinsLibrary`). Co
 
 - Each pipeline needs a Jenkins Pipeline job that reads the Jenkinsfile from the repository (Pipeline script from SCM).
 - The service template names the job, for example `DevSecOps/{CODE}/{service}-{type}` gives `DevSecOps/PAYHUB/gateway-full`.
-- The pipelines that one save starts for the services of a repository share one job and one Jenkinsfile with `pipelineKeys`. A new pipeline joins a job only when two or more pipelines of its repository run in it already. See [chapter 7](#7-shared-version-catalogs-and-the-combined-jenkinsfile).
+- The pipelines that one save starts for the services of a repository share one job and one Jenkinsfile with `pipelineKeys`. A new pipeline joins a job only when two or more pipelines of its type, repository and Jenkins agents run in it already. See [chapter 7](#7-shared-version-catalogs-and-the-combined-jenkinsfile).
 - Jenkins needs the global environment variable `DSO_PORTAL_URL`, for example `https://dso-portal.apps.bbh.com`.
 
 ## 9. Import a config.yaml and copy a service

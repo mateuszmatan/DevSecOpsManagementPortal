@@ -272,6 +272,9 @@ export class SelfService implements HasUnsavedChanges {
   });
   protected readonly productId = new FormControl<number | null>(null);
   protected readonly agents = agentLabels('', false);
+  private readonly agentList = toSignal(this.agents.valueChanges.pipe(map(commaItems)), {
+    initialValue: commaItems(this.agents.value),
+  });
 
   private readonly typedName = toSignal(
     this.productForm.controls.name.valueChanges.pipe(map((name) => name.trim() || null)),
@@ -308,6 +311,7 @@ export class SelfService implements HasUnsavedChanges {
       this.existing()?.services ?? [],
       this.removed(),
       this.current.hasValue() ? this.current.value() : null,
+      this.agentList().length ? this.agentList() : (this.template()?.agentLabels ?? []),
     ),
   );
   protected readonly doomed = computed(() =>

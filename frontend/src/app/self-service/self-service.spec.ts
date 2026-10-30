@@ -463,6 +463,49 @@ describe('SelfService', () => {
     ]);
   });
 
+  it('says in the review that a new pipeline joins the Jenkins job that two pipelines of its repository share', async () => {
+    const web = anotherService({
+      id: 12,
+      name: 'web',
+      sonar: { ...service().sonar, projectKey: 'cert-web' },
+    });
+    await chooseProduct(3, product({ services: [service(), anotherService(), web] }), [
+      servicePipelines(),
+      servicePipelines({
+        serviceId: 11,
+        serviceName: 'api',
+        pipelines: [pipeline({ id: 200, serviceId: 11, serviceName: 'api' })],
+      }),
+      servicePipelines({ serviceId: 12, serviceName: 'web', pipelines: [] }),
+    ]);
+    await next();
+    wizard()['pipeline'].set('FULL');
+    await next();
+    await next();
+
+    expect(wizard()['step']()).toBe(3);
+    const joining = [
+      'gui · Already has a Full pipeline; nothing changes. Its Jenkinsfile, which it shares with api, gets the key of web.',
+      'api · Already has a Full pipeline; nothing changes. Its Jenkinsfile, which it shares with gui, gets the key of web.',
+      'web · Gets a Full pipeline with its own key; nothing else changes. Joins the Jenkins job that gui and api share, so their Jenkinsfile gets its key.',
+    ];
+    expect(entries()).toEqual(joining);
+
+    wizard()['agents'].setValue('windows-agent');
+    await fixture.whenStable();
+
+    expect(entries()).toEqual([
+      'gui · Already has a Full pipeline; nothing changes. Shares its repository with api and web but keeps its Jenkinsfile and Jenkins job.',
+      'api · Already has a Full pipeline; nothing changes. Shares its repository with gui and web but keeps its Jenkinsfile and Jenkins job.',
+      'web · Gets a Full pipeline with its own key; nothing else changes.',
+    ]);
+
+    wizard()['agents'].setValue('');
+    await fixture.whenStable();
+
+    expect(entries()).toEqual(joining);
+  });
+
   it('asks for the Nexus IQ application and repository of every service and points to the golden pull requests', async () => {
     await chooseProduct(
       3,

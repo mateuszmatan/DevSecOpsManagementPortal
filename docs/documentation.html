@@ -253,7 +253,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 </ol>
 <p>Add every service of the product in the same way. Under each service the list shows its build tool, the folder of its Node.js build and its repository. Use Change to correct a service and Remove to take it out. Click Next.</p>
 <h3 id="step-4-review">Step 4: Review</h3>
-<p>Check the product, the pipeline, the Jenkins agents and what happens to each service. Services of one repository that get the pipeline in this save say so: they get one Jenkinsfile and one Jenkins job. A service that has the pipeline already keeps its Jenkinsfile and Jenkins job. Check the repository URLs here, because a typo in one of them gives two Jenkinsfiles and two jobs. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.</p>
+<p>Check the product, the pipeline, the Jenkins agents and what happens to each service. Services of one repository that get the pipeline in this save say so: they get one Jenkinsfile and one Jenkins job. When two or more services of that repository already run the pipeline in one Jenkins job on the Jenkins agents of this save, the new pipelines join that job: the new services say that they join it, and the services of that job say that their Jenkinsfile gets the new keys. Any other service that has the pipeline already keeps its Jenkinsfile and Jenkins job. Check the repository URLs here, because a typo in one of them gives two Jenkinsfiles and two jobs. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.</p>
 <h3 id="step-5-next-steps">Step 5: Next steps</h3>
 <ol>
 <li>Copy the Jenkinsfile of each service into a file named <code>Jenkinsfile</code> in the top folder of the repository of the service. Merge it, or send it to a developer of the service.</li>
@@ -482,7 +482,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipel
 <ul>
 <li>Each pipeline needs a Jenkins Pipeline job that reads the Jenkinsfile from the repository (Pipeline script from SCM).</li>
 <li>The service template names the job, for example <code>DevSecOps/{CODE}/{service}-{type}</code> gives <code>DevSecOps/PAYHUB/gateway-full</code>.</li>
-<li>The pipelines that one save starts for the services of a repository share one job and one Jenkinsfile with <code>pipelineKeys</code>. A new pipeline joins a job only when two or more pipelines of its repository run in it already. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</li>
+<li>The pipelines that one save starts for the services of a repository share one job and one Jenkinsfile with <code>pipelineKeys</code>. A new pipeline joins a job only when two or more pipelines of its type, repository and Jenkins agents run in it already. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</li>
 <li>Jenkins needs the global environment variable <code>DSO_PORTAL_URL</code>, for example <code>https://dso-portal.apps.bbh.com</code>.</li>
 </ul>
 </div>

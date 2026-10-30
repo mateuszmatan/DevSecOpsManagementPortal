@@ -36,6 +36,7 @@ const sharing = (names: string) =>
   `Shares its repository with ${names}, so they get one Jenkinsfile and one Jenkins job.`;
 const keeping = (names: string) =>
   `Shares its repository with ${names} but keeps its Jenkinsfile and Jenkins job.`;
+const AGENTS = ['linux-agent'];
 
 function added(overrides: Partial<WizardService> = {}): WizardService {
   return {
@@ -688,7 +689,10 @@ describe('self-service model', () => {
     const current = [
       servicePipelines({ serviceId: 10, pipelines: [pipeline({ type: 'SECURITY' })] }),
       servicePipelines({ serviceId: 11, pipelines: [pipeline()] }),
-      servicePipelines({ serviceId: 13, pipelines: [pipeline({ type: 'SECURITY' })] }),
+      servicePipelines({
+        serviceId: 13,
+        pipelines: [pipeline({ type: 'SECURITY', jenkinsJob: 'DevSecOps/CERT/web-security' })],
+      }),
     ];
     const [gui, api, batch, web] = stored.map(fromService);
 
@@ -699,6 +703,7 @@ describe('self-service model', () => {
         stored,
         [12],
         current,
+        AGENTS,
       ),
     ).toEqual([
       {
@@ -725,18 +730,83 @@ describe('self-service model', () => {
     ]);
     const docs = added({ name: 'docs', repositoryUrl: `${GUI_REPOSITORY}.git` });
     expect(
-      reviewEntries('SECURITY', [gui, api, docs], stored, [], current).map((entry) => entry.text),
+      reviewEntries('SECURITY', [gui, api, docs], stored, [], current, AGENTS).map(
+        (entry) => entry.text,
+      ),
     ).toEqual([
       `Already has a Security pipeline; nothing changes. ${keeping('api and docs')}`,
       `Gets a Security pipeline with its own key; nothing else changes. ${sharing('docs')}`,
       `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}.git. ${sharing('api')}`,
     ]);
-    expect(reviewEntries('NEXUS_IQ', [gui], stored, [], null)).toEqual([
+    expect(reviewEntries('NEXUS_IQ', [gui], stored, [], null, AGENTS)).toEqual([
       {
         name: 'gui',
         tag: null,
         text: 'Gets an OSA pipeline with its own key; nothing else changes.',
       },
+    ]);
+  });
+
+  it('says that the new pipelines of a repository join the Jenkins job that two of its pipelines share', () => {
+    const stored = [
+      service(),
+      service({ id: 11, name: 'batch' }),
+      service({ id: 13, name: 'web' }),
+    ];
+    const security = (jenkinsJob: string, overrides: Partial<Pipeline> = {}) => [
+      pipeline({ type: 'SECURITY', jenkinsJob, ...overrides }),
+    ];
+    const current = (web: Partial<Pipeline> = {}) => [
+      servicePipelines({ serviceId: 10, pipelines: security('DevSecOps/CERT/gui-security') }),
+      servicePipelines({ serviceId: 11, pipelines: security('DevSecOps/CERT/batch-security') }),
+      servicePipelines({ serviceId: 13, pipelines: security(' DevSecOps/CERT/GUI-security', web) }),
+    ];
+    const [gui, batch, web] = stored.map(fromService);
+    const docs = added({ name: 'docs', repositoryUrl: `${GUI_REPOSITORY}.git` });
+    const blog = added({ name: 'blog', repositoryUrl: `${GUI_REPOSITORY}/` });
+    const unchanged = 'Already has a Security pipeline; nothing changes.';
+    const docsAdded = `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}.git.`;
+    const texts = (
+      services: WizardService[],
+      pipelines = current(),
+      agents: readonly string[] = AGENTS,
+    ) => reviewEntries('SECURITY', services, stored, [], pipelines, agents).map((e) => e.text);
+
+    expect(texts([gui, batch, web, docs])).toEqual([
+      `${unchanged} Its Jenkinsfile, which it shares with web, gets the key of docs.`,
+      `${unchanged} ${keeping('gui, web and docs')}`,
+      `${unchanged} Its Jenkinsfile, which it shares with gui, gets the key of docs.`,
+      `${docsAdded} Joins the Jenkins job that gui and web share, so their Jenkinsfile gets its key.`,
+    ]);
+    expect(texts([gui, web, docs, blog]).slice(0, 2)).toEqual([
+      `${unchanged} Its Jenkinsfile, which it shares with web, gets the keys of docs and blog.`,
+      `${unchanged} Its Jenkinsfile, which it shares with gui, gets the keys of docs and blog.`,
+    ]);
+    expect(texts([gui, web, docs, blog]).slice(2)).toEqual([
+      `${docsAdded} Joins the Jenkins job that gui and web share, so their Jenkinsfile gets its key.`,
+      `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}/. Joins the Jenkins job that gui and web share, so their Jenkinsfile gets its key.`,
+    ]);
+    for (const [pipelines, agents] of [
+      [current(), ['windows-agent']],
+      [current({ agentLabels: ['windows-agent'] }), AGENTS],
+      [current({ activeKey: null }), AGENTS],
+      [current({ securityPipelineJob: 'DevSecOps/CERT/security' }), AGENTS],
+    ] as const) {
+      expect(texts([gui, web, docs, blog], [...pipelines], agents)).toEqual([
+        `${unchanged} ${keeping('web, docs and blog')}`,
+        `${unchanged} ${keeping('gui, docs and blog')}`,
+        `${docsAdded} ${sharing('blog')}`,
+        `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}/. ${sharing('docs')}`,
+      ]);
+    }
+    expect(
+      reviewEntries('SECURITY', [gui, web, docs], stored, [13], current(), AGENTS).map(
+        (entry) => entry.text,
+      ),
+    ).toEqual([
+      `${unchanged} ${keeping('docs')}`,
+      'Deleted, with its pipelines and their keys.',
+      docsAdded,
     ]);
   });
 
