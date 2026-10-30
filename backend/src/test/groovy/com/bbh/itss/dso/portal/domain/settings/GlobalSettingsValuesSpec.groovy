@@ -143,6 +143,17 @@ class GlobalSettingsValuesSpec extends Specification {
                                commitAuthorName: 'DevSecOps GoldenFix', commitAuthorEmail: 'devsecops-goldenfix@noreply.local']
     }
 
+    def "the Node.js Library defaults follow the source root and are left out while none is set"() {
+        when:
+        def defaults = copy(BBH, serviceDefaults: copy(BBH.serviceDefaults(), nodeInstallationName: 'NodeJS-20',
+                npmRegistry: 'https://nexus.bbh.com/repository/npm-group/')).defaultsConfig()
+
+        then:
+        (defaults.keySet() as List).take(4) == ['buildTool', 'deployTarget', 'sourceDir', 'build']
+        defaults.build == [node: [installationName: 'NodeJS-20', registry: 'https://nexus.bbh.com/repository/npm-group/']]
+        !BBH.defaultsConfig().containsKey('build')
+    }
+
     def "the global GoldenFix policy runs GoldenFix unless it says otherwise and each scanner's limits get their section"() {
         given:
         def defaults = copy(BBH, limits: [(NEXUS_IQ): new SeverityLimits(1, 4, 9), (DAST): new SeverityLimits(0, 2, 20)])
