@@ -196,6 +196,12 @@ describe('ProductEditor', () => {
       expect(service.controls.build.controls.autoSetup.value).toBe(false);
       expect(toServiceRequest(service).build.autoSetup).toBe(false);
     }
+
+    const build = editor()['form'].controls.services.at(1).controls.build.controls;
+    build.tool.setValue('GRADLE');
+
+    expect(build.autoSetup.value).toBe(true);
+    expect(build.javaPath.valid).toBe(true);
   });
 
   it('offers the Nexus IQ application of the service template once, so one that was removed stays away', async () => {

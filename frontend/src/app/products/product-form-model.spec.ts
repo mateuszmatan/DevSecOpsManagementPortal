@@ -1518,4 +1518,30 @@ describe('followToolDefaults', () => {
       expect(form.controls.nexusIqApplications.at(0).controls.scanPatterns.value).toBe(scanPattern);
     },
   );
+
+  it('turns automatic setup on for a new service that leaves Flutter, unless the user set it', () => {
+    const form = createServiceForm({
+      ...service({ build: { ...service().build, tool: 'FLUTTER' } }),
+      id: null,
+    });
+    const { tool, autoSetup } = form.controls.build.controls;
+    TestBed.runInInjectionContext(() => followToolDefaults(form, serviceTemplate()));
+
+    tool.setValue('GRADLE');
+    expect(autoSetup.value).toBe(true);
+
+    tool.setValue('FLUTTER');
+    tool.setValue('MAVEN');
+    expect(autoSetup.value).toBe(true);
+
+    tool.setValue('FLUTTER');
+    autoSetup.markAsDirty();
+    tool.setValue('GRADLE');
+    expect(autoSetup.value).toBe(false);
+
+    const stored = createServiceForm(service({ build: { ...service().build, tool: 'FLUTTER' } }));
+    TestBed.runInInjectionContext(() => followToolDefaults(stored, serviceTemplate()));
+    stored.controls.build.controls.tool.setValue('GRADLE');
+    expect(stored.controls.build.controls.autoSetup.value).toBe(false);
+  });
 });

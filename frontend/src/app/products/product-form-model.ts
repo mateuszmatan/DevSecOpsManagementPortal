@@ -884,7 +884,7 @@ export function followToolDefaults(
   template: ServiceTemplateValues | null,
   destroyRef?: DestroyRef,
 ): void {
-  const { tool, buildPath, command } = service.controls.build.controls;
+  const { tool, buildPath, command, autoSetup } = service.controls.build.controls;
   tool.valueChanges
     .pipe(startWith(tool.value), pairwise(), takeUntilDestroyed(destroyRef))
     .subscribe(([previous, next]) => {
@@ -898,6 +898,9 @@ export function followToolDefaults(
       }
       if (service.controls.id.value !== null) {
         return;
+      }
+      if (previous === 'FLUTTER' && next !== 'FLUTTER' && autoSetup.pristine) {
+        autoSetup.setValue(true);
       }
       const patterns = service.controls.nexusIqApplications.controls[0]?.controls.scanPatterns;
       if (patterns?.value === before.scanPattern && after.scanPattern) {
