@@ -11,7 +11,6 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { AbstractControl, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { of } from 'rxjs';
 import { BuildTool, DeployTarget, ServiceRequest } from '../core/models';
-import { formRevision } from '@common/shared/fields';
 import { revalidateAll } from '@common/shared/form-controls';
 import { DIALOG } from '@common/ui/dialog';
 import { FORM_FIELD } from '@common/ui/form-field';
@@ -32,10 +31,9 @@ import {
   followToolDefaults,
   nexusIqApplicationForm,
   prefillNewService,
-  sectionInvalid,
   toServiceRequest,
-  visibleSectionsForPipeline,
 } from '../products/product-form-model';
+import { MissingFields } from '../products/missing-fields';
 import { ServiceFields } from '../products/service-fields';
 import { buildDefaults } from '../shared/service-template';
 import {
@@ -63,7 +61,15 @@ export interface ServiceDialogData {
 
 @Component({
   selector: 'dso-service-dialog',
-  imports: [ReactiveFormsModule, DIALOG, FORM_FIELD, ConfigImport, ImportNotes, ServiceFields],
+  imports: [
+    ReactiveFormsModule,
+    DIALOG,
+    FORM_FIELD,
+    ConfigImport,
+    ImportNotes,
+    MissingFields,
+    ServiceFields,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
@@ -109,7 +115,9 @@ export interface ServiceDialogData {
     <div class="modal-footer">
       @if (missing().length) {
         <p class="missing" role="status">
-          Complete these sections first: {{ missing().join(', ') }}.
+          Complete these fields first:
+          <dso-missing-fields [missing]="missing()" (open)="fieldsComponent()?.reveal($event)" />
+          <span>.</span>
         </p>
       }
       <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
@@ -151,13 +159,12 @@ export class ServiceDialog {
   protected readonly data = inject<ServiceDialogData>(DIALOG_DATA);
   private readonly dialogRef = inject<DialogRef<WizardService, ServiceDialog>>(DialogRef);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly fieldsComponent = viewChild(ServiceFields);
+  protected readonly fieldsComponent = viewChild(ServiceFields);
 
   protected readonly sources = this.data.sources ?? [];
   protected readonly copyFrom = new FormControl<CopySource | null>(null);
   protected readonly imported = signal<ImportedConfig | null>(null);
   protected readonly serviceForm = signal<ServiceForm>(this.initForm());
-  private readonly changes = formRevision(this.serviceForm);
 
   protected readonly pipelineLabel = computed(() => pipelineLabel(this.data.pipeline));
   protected readonly title = computed(() =>
@@ -166,13 +173,7 @@ export class ServiceDialog {
   protected readonly submitLabel = computed(() =>
     this.data.service ? 'Save service' : 'Add service',
   );
-  protected readonly missing = computed(() => {
-    this.changes();
-    const form = this.serviceForm();
-    return visibleSectionsForPipeline(form, this.data.pipeline)
-      .filter((section) => sectionInvalid(form, section))
-      .map((section) => section.label);
-  });
+  protected readonly missing = computed(() => this.fieldsComponent()?.missing() ?? []);
 
   constructor() {
     this.use(this.serviceForm());

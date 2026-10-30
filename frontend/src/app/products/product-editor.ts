@@ -64,9 +64,7 @@ import {
   followToolDefaults,
   patchProduct,
   prefillNewService,
-  sectionInvalid,
   toProductRequest,
-  visibleSections,
 } from './product-form-model';
 import {
   ConfigImport,
@@ -76,6 +74,7 @@ import {
   prefillAgents,
 } from './config-import';
 import { GeneratedKeys } from './generated-keys';
+import { MissingField, MissingFields } from './missing-fields';
 import { NamedProduct, ProductNameDialog, ProductNameDialogData } from './product-name-dialog';
 import { ServiceFields } from './service-fields';
 import { DepartmentsApi } from '@common/core/api';
@@ -145,6 +144,7 @@ const productFields = (departments: readonly Department[], creating: boolean): F
     Fields,
     ConfigImport,
     ImportNotes,
+    MissingFields,
     ServiceFields,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -191,21 +191,20 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       .map((service, index) => ({ service, index }))
       .filter(({ service }) => !isPlaceholder(service)),
   );
-  protected readonly blockers = computed(() =>
-    this.services()
-      .filter((service) => service.invalid && !isPlaceholder(service))
-      .map((service) => {
-        const sections = visibleSections(service)
-          .filter((section) => sectionInvalid(service, section))
-          .map((section) => section.label);
-        const name = service.controls.name.value || 'new-service';
-        return sections.length ? `${name} (${sections.join(', ')})` : name;
-      }),
-  );
+  private readonly serviceFields = viewChildren(ServiceFields);
+  protected readonly blockers = computed(() => {
+    this.formEvent();
+    return this.serviceFields()
+      .filter((fields) => fields.form().invalid && !isPlaceholder(fields.form()))
+      .map((fields) => ({
+        fields,
+        name: fields.form().controls.name.value || 'new-service',
+        missing: fields.missing(),
+      }));
+  });
   protected readonly blocked = computed(() => this.blockers().length > 0);
 
   private readonly pipelineCounts = signal(new Map<number, number>());
-  private readonly serviceFields = viewChildren(ServiceFields);
   private saved = false;
   private generatedCode = '';
 
@@ -377,6 +376,11 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       danger: true,
     };
     askToConfirm(this.dialog, data).subscribe((confirmed) => confirmed && this.removeAt(index));
+  }
+
+  protected reveal(fields: ServiceFields, missing: MissingField): void {
+    this.expanded.set(this.form.controls.services.controls.indexOf(fields.form()));
+    fields.reveal(missing);
   }
 
   protected panelToggled(index: number, open: boolean): void {

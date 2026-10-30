@@ -77,7 +77,7 @@ class SelfServiceSpec extends EditorSpecification {
 
         then:
         assertThat(dialogButton('Add service')).isDisabled()
-        assertThat(dialog().locator('.missing')).hasText('Complete these sections first: AppScan SAST and DAST.')
+        assertThat(dialog().locator('.missing')).hasText('Complete these fields first: AppScan API key ID.')
 
         when:
         input(dialog(), 'AppScan API key ID').fill(APP_SCAN_KEY)

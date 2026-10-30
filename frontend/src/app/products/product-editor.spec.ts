@@ -106,7 +106,7 @@ describe('ProductEditor', () => {
 
   const names = () =>
     [...page().querySelectorAll('dso-panel .service-name')].map((name) => name.textContent?.trim());
-  const panels = () => [...page().querySelectorAll<HTMLElement>('dso-panel')];
+  const panels = () => [...page().querySelectorAll<HTMLElement>('dso-panel.service-panel')];
   const expandedPanels = () => panels().filter((panel) => panel.classList.contains('expanded'));
 
   const imageBuild = {
@@ -622,8 +622,20 @@ describe('ProductEditor', () => {
       'Add service (disabled)',
     ]);
     expect(text(page().querySelector('.blocked'))).toBe(
-      'Complete these services before adding another: gui (Deployment, OpenShift targets, AppScan SAST and DAST).',
+      'Complete these services before adding another: gui (Artifact name, Build project, BuildConfig file, ' +
+        'Dockerfile, Build context, Image pushed to, Nexus auth file, AppScan application ID, AppScan API key ID).',
     );
+
+    buttonOf(page().querySelector('.blocked')!, 'AppScan API key ID').click();
+    await fixture.whenStable();
+
+    expect(text(expandedPanels()[0].querySelector('.rail-item.active span'))).toBe(
+      'AppScan SAST and DAST',
+    );
+    expect(document.activeElement).toBe(inputOf(expandedPanels()[0], 'AppScan API key ID'));
+    expect(
+      text(fieldOf(expandedPanels()[0], 'AppScan API key ID')!.querySelector('dso-error')),
+    ).toBe('Required');
 
     fillValidProduct();
     first.controls.appScan.patchValue({ secretCredentialsId: 'asoc-secret' });
@@ -695,7 +707,7 @@ describe('ProductEditor', () => {
     );
   });
 
-  it('names Build for a stored service whose Node.js build gives the installation and its home', async () => {
+  it('names the Node.js fields of a stored service that gives the installation and its home', async () => {
     const both = service({
       nodeBuild: nodeBuild({
         enabled: true,
@@ -707,7 +719,7 @@ describe('ProductEditor', () => {
 
     expect(text(panels()[0].querySelector('.tag.error'))).toBe('Needs attention');
     expect(text(page().querySelector('.blocked'))).toBe(
-      'Complete these services before adding another: gui (Build).',
+      'Complete these services before adding another: gui (Node.js installation, Node.js home on the agent).',
     );
   });
 

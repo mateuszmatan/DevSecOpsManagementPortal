@@ -173,6 +173,43 @@ describe('ServiceFields', () => {
     }, 45_000);
   });
 
+  describe('fields that need input', () => {
+    it('names them by their labels in the order of the sections, and a rule of a list by its section', async () => {
+      const app = service().nexusIqApplications[0];
+      await render(service({ nexusIqApplications: [app, { ...app, application: 'cert-gui-2' }] }));
+      form.patchValue({
+        name: '',
+        nodeBuild: { enabled: true, installationName: 'NodeJS-20', nodePath: '/opt/node-20' },
+        appScan: { keyId: '' },
+      });
+
+      expect(
+        fixture.componentInstance.missing().map(({ section, label }) => `${section}: ${label}`),
+      ).toEqual([
+        'general: Service name',
+        'build: Node.js installation',
+        'build: Node.js home on the agent',
+        'appScan: AppScan API key ID',
+        'nexusIq: Nexus IQ',
+      ]);
+    });
+
+    it('opens the section of one, shows its error and puts the cursor in it, under Advanced settings too', async () => {
+      await render();
+      form.controls.build.controls.command.controls.label.setValue('x'.repeat(201));
+      const [missing] = fixture.componentInstance.missing();
+
+      expect(missing.label).toBe('Step label');
+
+      fixture.componentInstance.reveal(missing);
+      await fixture.whenStable();
+
+      expect(pane().querySelector('h3')?.textContent).toBe('Build');
+      expect(text(fieldOf(pane(), 'Step label')?.querySelector('dso-error'))).not.toBe('');
+      expect(document.activeElement).toBe(inputOf(pane(), 'Step label'));
+    });
+  });
+
   describe('Build', () => {
     const field = (label: string) => fieldOf(pane(), label)!;
 

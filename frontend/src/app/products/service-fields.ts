@@ -1,5 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
-import { AbstractControl, ReactiveFormsModule } from '@angular/forms';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import { AbstractControl, FormArray, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { SvgIconComponent } from 'angular-svg-icon';
 import { FLUTTER_PLATFORMS, GlobalSettings, PipelineType, REGIONS, Region } from '../core/models';
 import {
@@ -28,7 +38,8 @@ import { TOGGLES } from '@common/ui/toggle-group';
 import { GRADLE_MAVEN_FLUTTER } from '../shared/build-options';
 import { AdvancedSettings } from './advanced-settings';
 import { GoldenFixFields } from './golden-fix-fields';
-import { OpenShiftTargetFields } from './openshift-target-fields';
+import { MissingField } from './missing-fields';
+import { OpenShiftTargetFields, openShiftFields } from './openshift-target-fields';
 import {
   ServiceForm,
   ServiceSectionId,
@@ -40,8 +51,8 @@ import {
   visibleSectionsForPipeline,
 } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
-import { ToolCommandFields } from './tool-command-fields';
-import { UrbanCodeFields } from './urban-code-fields';
+import { ToolCommandFields, commandFields } from './tool-command-fields';
+import { URBAN_CODE_APPLICATION, URBAN_CODE_COMPONENT, UrbanCodeFields } from './urban-code-fields';
 
 const REGION_NAMES: Record<Region, string> = {
   RD: 'RD, the lower test region',
@@ -375,6 +386,18 @@ const FLUTTER_PLATFORM: Field[] = [
   ),
 ];
 
+/** The invalid controls of a form that hold an error themselves, in the order of the form. */
+function invalidControls(control: AbstractControl): AbstractControl[] {
+  if (!control.invalid) {
+    return [];
+  }
+  const children =
+    control instanceof FormGroup || control instanceof FormArray
+      ? Object.values<AbstractControl>(control.controls)
+      : [];
+  return [...(control.errors ? [control] : []), ...children.flatMap(invalidControls)];
+}
+
 @Component({
   selector: 'dso-service-fields',
   imports: [
@@ -403,6 +426,8 @@ export class ServiceFields {
 
   private readonly selected = signal<ServiceSectionId>('general');
   private readonly changes = formRevision(this.form);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   protected readonly regions = REGIONS;
   protected readonly regionNames = REGION_NAMES;
@@ -485,8 +510,50 @@ export class ServiceFields {
     return { label: section?.label ?? '', note: chips(NOTES[id] + (extra[id] ?? '')) };
   });
 
+  /** The fields that need input, in the order of the sections. */
+  readonly missing = computed<MissingField[]>(() => {
+    this.changes();
+    const form = this.form();
+    const labels = this.labels();
+    const missing = visibleSectionsForPipeline(form, this.pipeline()).flatMap((section) =>
+      section.keys
+        .flatMap((key) => invalidControls(form.controls[key]))
+        .map((control) => ({
+          section: section.id,
+          label: labels.get(control) ?? section.label,
+          control,
+        })),
+    );
+    return missing.filter(
+      (field, index) =>
+        missing.findIndex(
+          (other) => other.section === field.section && other.label === field.label,
+        ) === index,
+    );
+  });
+
   select(id: ServiceSectionId): void {
     this.selected.set(id);
+  }
+
+  /** Opens the section of a field that needs input, shows its error and puts the cursor in it. */
+  reveal(field: MissingField): void {
+    field.control.markAsTouched();
+    this.selected.set(field.section);
+    afterNextRender(
+      () => {
+        const shown = [
+          ...this.host.nativeElement.querySelectorAll<HTMLElement>('.pane .has-error'),
+        ];
+        const target =
+          shown.find(
+            (candidate) =>
+              candidate.querySelector('dso-label')?.textContent?.trim() === field.label,
+          ) ?? shown[0];
+        target?.querySelector<HTMLElement>('input, select, textarea')?.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   revealFirstProblem(): boolean {
@@ -495,6 +562,52 @@ export class ServiceFields {
       this.selected.set(id);
     }
     return id !== null;
+  }
+
+  /** The label of each field of the form that has one. */
+  private labels(): Map<AbstractControl, string> {
+    const form = this.form();
+    const c = form.controls;
+    const commands = [
+      c.build.controls.command,
+      c.unitTests.controls.command,
+      c.sonar.controls.command,
+      c.appScan.controls.compileCommand,
+      c.delivery,
+    ];
+    const groups: (readonly [AbstractControl, readonly Field[]])[] = [
+      [form, [...GENERAL, ...VERSION_CATALOGS]],
+      [c.build, [...this.buildFields(), ...this.buildOptions()]],
+      [c.nodeBuild, [...this.nodeSwitch(), ...this.nodeFields(), ...this.nodeOptions()]],
+      [c.unitTests, [...this.unitTestFields(), ...UNIT_TEST_OPTIONS]],
+      [c.deployment, this.deploymentFields()],
+      [c.appScan, [...APP_SCAN, ...APP_SCAN_OPTIONS, ...DAST_ENABLED, ...DAST]],
+      [c.sonar, [...this.sonarFields(), ...this.sonarOptions()]],
+      [c.nexusIq, this.nexusIqFields()],
+      [c.scm, [...SCM, ...SCM_OPTIONS, ...BITBUCKET_REPOSITORY]],
+      [c.goldenFix, this.goldenFixField()],
+      [c.metrics, [...this.metricsFields(), ...this.metricsOptions()]],
+      [c.flutter, [...FLUTTER_PLATFORM, ...FLUTTER_MODULES, ...FLUTTER_CREDENTIALS]],
+      [c.flutter, [...FLUTTER_SONAR, ...this.flutterDelivery()]],
+      ...commands.map((command) => [command, commandFields(this.tool(), '')] as const),
+      ...REGIONS.flatMap((region) => [
+        [c.sshTargets.controls[region], this.sshFields(region)] as const,
+        [c.openShiftTargets.controls[region], openShiftFields(region)] as const,
+      ]),
+      ...c.nexusIqApplications.controls.map((app) => [app, NEXUS_IQ_APPLICATION] as const),
+      ...c.urbanCodeApplications.controls.flatMap((app) => [
+        [app, URBAN_CODE_APPLICATION] as const,
+        ...app.controls.components.controls.map((part) => [part, URBAN_CODE_COMPONENT] as const),
+      ]),
+    ];
+    return new Map(
+      groups.flatMap(([group, fields]) =>
+        fields.flatMap((field) => {
+          const control = group.get(field.key);
+          return control ? [[control, field.label] as const] : [];
+        }),
+      ),
+    );
   }
 
   protected tool() {

@@ -110,6 +110,15 @@ const PINNED_IMAGE: Record<Region, Field[]> = {
   ],
 };
 
+/** Every field of the target of a region. */
+export const openShiftFields = (region: Region): Field[] => [
+  ...IMAGE_BUILD,
+  ...REGISTRY,
+  ...DEPLOYMENT,
+  ...REPOSITORY,
+  ...PINNED_IMAGE[region],
+];
+
 const PINNED_NOTE: Record<Region, { delivered: string; undelivered: string }> = {
   RD: {
     delivered: 'Optional; a run that builds the image replaces these values.',

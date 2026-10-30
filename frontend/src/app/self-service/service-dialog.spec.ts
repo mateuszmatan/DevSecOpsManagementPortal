@@ -3,7 +3,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormControl } from '@angular/forms';
-import { buttonOf, choose, optionsOf, selectOf, text } from '@common/testing/dom';
+import { buttonOf, choose, inputOf, optionsOf, selectOf, text } from '@common/testing/dom';
 import {
   anotherService,
   globalSettings,
@@ -83,14 +83,20 @@ describe('ServiceDialog', () => {
     });
   });
 
-  it('keeps Add service disabled and names the sections that need input until the form is complete', async () => {
+  it('keeps Add service disabled and names the fields that need input until the form is complete', async () => {
     await open({ pipeline: 'SECURITY' });
 
     expect(submit().disabled).toBe(true);
     expect(text(page().querySelector('.missing'))).toBe(
-      'Complete these sections first: General, AppScan SAST and DAST.',
+      'Complete these fields first: Service name, AppScan application ID, AppScan API key ID.',
     );
     expect(marked()).toEqual(['General', 'AppScan SAST and DAST']);
+
+    buttonOf(page().querySelector('.missing')!, 'AppScan API key ID').click();
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.rail-item.active span'))).toBe('AppScan SAST and DAST');
+    expect(document.activeElement).toBe(inputOf(page(), 'AppScan API key ID'));
 
     fillIn();
     await fixture.whenStable();
@@ -121,7 +127,9 @@ describe('ServiceDialog', () => {
     await fixture.whenStable();
 
     expect(submit().disabled).toBe(true);
-    expect(text(page().querySelector('.missing'))).toBe('Complete these sections first: Build.');
+    expect(text(page().querySelector('.missing'))).toBe(
+      'Complete these fields first: Node.js installation, Node.js home on the agent.',
+    );
     expect(marked()).toEqual(['Build']);
 
     component['save']();

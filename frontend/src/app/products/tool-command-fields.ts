@@ -1,8 +1,66 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { BuildTool } from '../core/models';
 import { Field, Fields, area, check, line, mono } from '@common/shared/fields';
 import { SHELL_SAFE_ERROR } from '@common/shared/form-controls';
 import { ToolCommandForm } from './product-form-model';
+
+/** The fields of a Gradle or Maven command whose config.yaml keys start with path. */
+export function commandFields(
+  tool: BuildTool,
+  path: string,
+  gradleExample = '',
+  mavenExample = '',
+): Field[] {
+  const maven = tool === 'MAVEN';
+  const key = `${path}.${maven ? 'maven' : 'gradle'}`;
+  return [
+    mono(
+      'tasks',
+      maven ? 'Maven goals' : 'Gradle tasks',
+      `${key}.${maven ? 'goals' : 'tasks'}`,
+      6,
+      {
+        placeholder: maven ? mavenExample : gradleExample,
+        hint: 'separated by spaces',
+        help: maven
+          ? 'The goals the step passes to Maven: the mvn of the Maven home, otherwise ./mvnw when the repository has it, otherwise the mvn of the agent.'
+          : 'The tasks the step passes to the Gradle wrapper (./gradlew) of the repository.',
+      },
+    ),
+    mono('directory', 'Directory', `${key}.dir`, maven ? 3 : 6, {
+      placeholder: '.',
+      help: 'The folder of the workspace in which the command runs. Left empty: the workspace root.',
+    }),
+    ...(maven
+      ? [
+          mono('mavenHome', 'Maven home', `${key}.mvnPath`, 3, {
+            placeholder: '/opt/maven',
+            error: SHELL_SAFE_ERROR,
+            help: 'The Maven installation on the agent. The step then runs its bin/mvn with M2_HOME set to this folder.',
+          }),
+        ]
+      : []),
+    area('flags', 'Flags', `${key}.flags`, 6, {
+      mono: true,
+      placeholder: maven ? '-B' : '--refresh-dependencies',
+      hint: 'one per line',
+      help: 'Command line options added after the goals or tasks, such as system properties or profiles.',
+    }),
+    area('environment', 'Environment variables', `${key}.env`, 6, {
+      mono: true,
+      placeholder: 'JAVA_OPTS=-Xmx1g',
+      hint: 'one NAME=value per line',
+      help: 'Environment variables set for this command only.',
+    }),
+    line('label', 'Step label', `${key}.label`, 6, {
+      hint: 'the name Jenkins shows for the step',
+      help: 'Left empty, the step is named after the tool and the command, for example Gradle: clean build.',
+    }),
+    check('returnStdout', 'Return the output to the pipeline', `${key}.returnStdout`, 6, {
+      help: 'Captures the console output of the command instead of printing it to the build log; the pipeline does not use the captured output.',
+    }),
+  ];
+}
 
 @Component({
   selector: 'dso-tool-command-fields',
@@ -23,66 +81,16 @@ export class ToolCommandFields {
   readonly mavenExample = input('');
   readonly part = input<'all' | 'tasks' | 'options'>('all');
 
-  private readonly maven = computed(() => this.tool() === 'MAVEN');
-  private readonly key = computed(() => `${this.path()}.${this.maven() ? 'maven' : 'gradle'}`);
-
   protected fields(): Field[] {
     const part = this.part();
-    const fields = this.all();
+    const fields = commandFields(
+      this.tool(),
+      this.path(),
+      this.gradleExample(),
+      this.mavenExample(),
+    );
     return part === 'all'
       ? fields
       : fields.filter((field) => (field.key === 'tasks') === (part === 'tasks'));
-  }
-
-  private all(): Field[] {
-    const maven = this.maven();
-    const key = this.key();
-    return [
-      mono(
-        'tasks',
-        maven ? 'Maven goals' : 'Gradle tasks',
-        `${key}.${maven ? 'goals' : 'tasks'}`,
-        6,
-        {
-          placeholder: maven ? this.mavenExample() : this.gradleExample(),
-          hint: 'separated by spaces',
-          help: maven
-            ? 'The goals the step passes to Maven: the mvn of the Maven home, otherwise ./mvnw when the repository has it, otherwise the mvn of the agent.'
-            : 'The tasks the step passes to the Gradle wrapper (./gradlew) of the repository.',
-        },
-      ),
-      mono('directory', 'Directory', `${key}.dir`, maven ? 3 : 6, {
-        placeholder: '.',
-        help: 'The folder of the workspace in which the command runs. Left empty: the workspace root.',
-      }),
-      ...(maven
-        ? [
-            mono('mavenHome', 'Maven home', `${key}.mvnPath`, 3, {
-              placeholder: '/opt/maven',
-              error: SHELL_SAFE_ERROR,
-              help: 'The Maven installation on the agent. The step then runs its bin/mvn with M2_HOME set to this folder.',
-            }),
-          ]
-        : []),
-      area('flags', 'Flags', `${key}.flags`, 6, {
-        mono: true,
-        placeholder: maven ? '-B' : '--refresh-dependencies',
-        hint: 'one per line',
-        help: 'Command line options added after the goals or tasks, such as system properties or profiles.',
-      }),
-      area('environment', 'Environment variables', `${key}.env`, 6, {
-        mono: true,
-        placeholder: 'JAVA_OPTS=-Xmx1g',
-        hint: 'one NAME=value per line',
-        help: 'Environment variables set for this command only.',
-      }),
-      line('label', 'Step label', `${key}.label`, 6, {
-        hint: 'the name Jenkins shows for the step',
-        help: 'Left empty, the step is named after the tool and the command, for example Gradle: clean build.',
-      }),
-      check('returnStdout', 'Return the output to the pipeline', `${key}.returnStdout`, 6, {
-        help: 'Captures the console output of the command instead of printing it to the build log; the pipeline does not use the captured output.',
-      }),
-    ];
   }
 }

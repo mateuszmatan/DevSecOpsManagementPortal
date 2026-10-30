@@ -87,7 +87,16 @@ class AddProductSpec extends EditorSpecification {
 
         then:
         assertThat(button('Add service', true)).isDisabled()
-        assertThat(page.locator('.blocked')).containsText('Complete these services before adding another: gui (')
+        assertThat(page.locator('.blocked')).hasText('Complete these services before adding another: ' +
+                'gui (UrbanCode Deploy, AppScan application ID, AppScan API key ID).')
+
+        when:
+        buttonIn(page.locator('.blocked'), 'AppScan API key ID').click()
+
+        then:
+        assertThat(openService().locator('.pane-header h3')).hasText('AppScan SAST and DAST')
+        assertThat(input(openService(), 'AppScan API key ID')).isFocused()
+        assertThat(errorOf(openService(), 'AppScan API key ID')).hasText('Required')
 
         when:
         showSection('Build')
