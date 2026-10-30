@@ -46,7 +46,7 @@ The guide is rendered by plain Groovy in `gradle/documentation.gradle`, with no 
 offline on Windows too. `checkDocumentation`, part of `check`, fails when `docs/documentation.html` is not the page
 the Markdown renders to, or when a link names a heading or a file that does not exist: run `./gradlew documentation`
 and commit both files. The Vitest spec `frontend/src/app/documentation.spec.ts` fails when a field shows a
-`config.yaml` key chip that the guide does not name, so a new field needs a line in chapter 16 of the guide.
+`devsecops_config.yaml` key chip that the guide does not name, so a new field needs a line in chapter 16 of the guide.
 
 ## Running locally
 
@@ -91,6 +91,9 @@ Each Jenkinsfile holds only a pipeline key. Before the stages start, the library
 environment variable of Jenkins, for example `https://dso-portal.apps.bbh.com`. Jenkins needs no database account and
 no other setting.
 
+A Jenkinsfile without a key makes the library read `devsecops_config.yaml`, else `config.yaml`, from the root of the
+repository instead; the product page downloads that file and offers that Jenkinsfile.
+
 | Answer | Meaning for the build |
 |--------|-----------------------|
 | 200 with the configuration | the portal renders it from its database at that moment and records the key's last use |
@@ -117,17 +120,17 @@ service template's.
 
 ## Importing a service from a config file
 
-`POST /api/service-configs/import` reads a `config.yaml`, a configuration the portal rendered, or its JSON form, and
-returns one service form per project with notes on what it did not take over: settings the portal has no field for,
-global and pipeline settings, and secrets such as `asoc.keySecret`, `influx.token` or a test job's `token`, which are
-never echoed. A value equal to the global settings or to a Library default the service inherits (`tests.maxParallel`,
-the GoldenFix policy, the Node.js installation and npm settings) comes back empty, so the service keeps inheriting it;
-so do the library's own Node.js defaults (`npm ci` then `npm run build`, 30 minutes, the Nexus IQ scan of
-`package-lock.json`). `build.node` without `enabled: true`, or in a Flutter project, comes back switched off with its
-values. `nexusDeliveryEnabled` is read only from the section of the service's own deploy target. The file may hold at
-most 262,144 characters and 50 projects. A malformed file is refused with the line and column of the problem, never
-with its text; so is a file that names no project setting (a `docker-compose.yml`, for example) or holds an alias
-inside the value it refers to. The call stores nothing, so the action history does not record it.
+`POST /api/service-configs/import` reads a `devsecops_config.yaml` or `config.yaml`, a configuration the portal
+rendered, or its JSON form, and returns one service form per project with notes on what it did not take over: settings
+the portal has no field for, global and pipeline settings, and secrets such as `asoc.keySecret`, `influx.token` or a
+test job's `token`, which are never echoed. A value equal to the global settings or to a Library default the service
+inherits (`tests.maxParallel`, the GoldenFix policy, the Node.js installation and npm settings) comes back empty, so
+the service keeps inheriting it; so do the library's own Node.js defaults (`npm ci` then `npm run build`, 30 minutes,
+the Nexus IQ scan of `package-lock.json`). `build.node` without `enabled: true`, or in a Flutter project, comes back
+switched off with its values. `nexusDeliveryEnabled` is read only from the section of the service's own deploy target.
+The file may hold at most 262,144 characters and 50 projects. A malformed file is refused with the line and column of
+the problem, never with its text; so is a file that names no project setting (a `docker-compose.yml`, for example) or
+holds an alias inside the value it refers to. The call stores nothing, so the action history does not record it.
 
 ## Architecture
 

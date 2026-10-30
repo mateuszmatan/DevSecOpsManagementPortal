@@ -24,7 +24,7 @@ product page, or from `api/pipeline-key.sh`.
 | [api/rotate-key.sh](api/rotate-key.sh) | a new key for a pipeline |
 | [api/revoke-key.sh](api/revoke-key.sh) | invalidating a pipeline's key with a reason |
 | [api/dso-config.sh](api/dso-config.sh) | the configuration the library reads for a key, as JSON and as YAML |
-| [api/import-config.sh](api/import-config.sh) | a `config.yaml` or a rendered configuration read back into new service forms |
+| [api/import-config.sh](api/import-config.sh) | a `devsecops_config.yaml`, a `config.yaml` or a rendered configuration read back into new service forms |
 | [api/monitoring.sh](api/monitoring.sh) | the monitoring status, every product, all pipelines together, one product and one pipeline |
 | [config/payhub-gateway-full.json](config/payhub-gateway-full.json), [.yaml](config/payhub-gateway-full.yaml) | the configuration of the full pipeline of the sample product Payments Hub, service `gateway` |
 
@@ -33,8 +33,8 @@ product page, or from `api/pipeline-key.sh`.
 Each file is the whole Jenkinsfile of one Jenkins job, in the form the Self-service wizard and the product page
 generate: the `@Library` line loads the shared library named in the library defaults (`platform.jenkinsLibrary`,
 `DevSecOpsJenkinsLibrary` by default), and the entry point of the pipeline type receives the pipeline key as a string.
-Nothing else is in the file: no `config.yaml`, no credentials ID and no tool server. The library reads everything else
-from the portal by the key, at `DSO_PORTAL_URL`, as described in
+Nothing else is in the file: no `devsecops_config.yaml`, no credentials ID and no tool server. The library reads
+everything else from the portal by the key, at `DSO_PORTAL_URL`, as described in
 [How DSOEnhanced reads its configuration](../README.md#how-dsoenhanced-reads-its-configuration). During the cutover,
 pin the portal-integrated version in the `@Library` line and in the library defaults, for example
 `DevSecOpsJenkinsLibrary@main`.
@@ -137,7 +137,7 @@ OpenShift targets, Bitbucket repository and InfluxDB tags). It names Jenkins cre
 BOM `bom/pom.xml` in `goldenFix.versionCatalogs`. Its build is delivered to Nexus, so the document has no
 `deploy.openshift.rd.nexusDeliveryEnabled`; a service that is not delivered renders it as `false`.
 `platform.jenkinsUrl` is the Jenkins URL of the library defaults. Run `api/dso-config.sh` to see the configuration
-of the portal you run. The [user and administrator guide](../docs/documentation.md#16-field-reference-from-the-portal-to-configyaml)
+of the portal you run. The [user and administrator guide](../docs/documentation.md#16-field-reference-from-the-portal-to-devsecops_configyaml)
 lists every key with the field that sets it.
 
 ## Screenshots
