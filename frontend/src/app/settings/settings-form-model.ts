@@ -124,6 +124,9 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       }),
       sourceDir: text(settings?.serviceDefaults.sourceDir ?? '.', max(500)),
       testsMaxParallel: integer(settings?.serviceDefaults.testsMaxParallel, 1, INT_MAX, filled),
+      nodeInstallationName: text(settings?.serviceDefaults.nodeInstallationName, max(200)),
+      npmRegistry: url(settings?.serviceDefaults.npmRegistry, 500),
+      npmrcCredentialsId: text(settings?.serviceDefaults.npmrcCredentialsId, max(200)),
     }),
     goldenFix: createGlobalGoldenFixForm(settings?.goldenFix),
   });

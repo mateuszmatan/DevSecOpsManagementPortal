@@ -1,5 +1,9 @@
-import { Field, check, choice, count, mono } from '@common/shared/fields';
-import { SHELL_SAFE_ERROR, SHELL_SAFE_URL_ERROR } from '@common/shared/form-controls';
+import { Field, check, choice, count, line, mono } from '@common/shared/fields';
+import {
+  HTTP_URL_ERROR,
+  SHELL_SAFE_ERROR,
+  SHELL_SAFE_URL_ERROR,
+} from '@common/shared/form-controls';
 import { GRADLE_MAVEN_FLUTTER, VM_OPENSHIFT } from '../shared/build-options';
 import { SettingsSectionId } from './settings-form-model';
 
@@ -409,8 +413,8 @@ export const SETTINGS_PAGE: SettingsSection[] = [
     label: 'Service defaults',
     note:
       'What a new service starts with in the product editor and in self-service. A saved ' +
-      'service keeps its own values; only the number of test jobs at the same time also ' +
-      'applies later, to every service that leaves it empty.',
+      'service keeps its own values; only the number of test jobs at the same time and the ' +
+      'Node.js build values also apply later, to every service that leaves them empty.',
     fields: [
       choice('buildTool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 3, {
         help: 'The build tool a new service starts with. It decides which commands, test reports and artifacts the pipeline expects.',
@@ -427,6 +431,24 @@ export const SETTINGS_PAGE: SettingsSection[] = [
         min: 1,
         help: 'The most jobs of one test stage that run at the same time, for every service that sets no limit of its own.',
       }),
+    ],
+    blocks: [
+      {
+        heading: 'Node.js build',
+        note: 'What the optional Node.js build of a service uses when the service leaves it empty.',
+        fields: [
+          line('nodeInstallationName', 'Node.js installation', 'build.node.installationName', 4, {
+            help: 'A NodeJS installation under Manage Jenkins, Tools, which needs the NodeJS plugin. A service that names its own installation or a Node.js home on the agent uses that instead.',
+          }),
+          line('npmRegistry', 'npm registry', 'build.node.registry', 5, {
+            help: 'The registry npm installs from, exported as npm_config_registry. It is used only without an .npmrc.',
+            error: HTTP_URL_ERROR,
+          }),
+          mono('npmrcCredentialsId', '.npmrc credentials ID', 'build.node.npmrcCredentialsId', 3, {
+            help: 'The ID of a Jenkins Secret file credential with an .npmrc, which npm then reads, its registry included.',
+          }),
+        ],
+      },
     ],
   },
   {

@@ -465,6 +465,9 @@ export function globalSettings(overrides: Partial<GlobalSettings> = {}): GlobalS
       deployTarget: 'OPENSHIFT',
       sourceDir: 'app',
       testsMaxParallel: 20,
+      nodeInstallationName: 'NodeJS-20',
+      npmRegistry: null,
+      npmrcCredentialsId: null,
     },
     goldenFix: {
       enabled: true,

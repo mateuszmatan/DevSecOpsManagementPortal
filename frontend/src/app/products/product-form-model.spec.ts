@@ -59,6 +59,9 @@ const DEFAULTS: ServiceDefaults = {
   deployTarget: 'OPENSHIFT',
   sourceDir: 'app',
   testsMaxParallel: 20,
+  nodeInstallationName: null,
+  npmRegistry: null,
+  npmrcCredentialsId: null,
 };
 
 describe('createServiceForm', () => {

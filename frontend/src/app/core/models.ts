@@ -497,6 +497,9 @@ export interface ServiceDefaults {
   deployTarget: DeployTarget;
   sourceDir: string;
   testsMaxParallel: number;
+  nodeInstallationName: string | null;
+  npmRegistry: string | null;
+  npmrcCredentialsId: string | null;
 }
 
 export interface ServiceTemplateValues {
