@@ -34,6 +34,8 @@ const REPOSITORY = 'https://bitbucket.bbh.com/projects/PAY/repos/gateway';
 const GUI_REPOSITORY = 'https://bitbucket.bbh.com/projects/CERT/repos/gui';
 const sharing = (names: string) =>
   `Shares its repository with ${names}, so they get one Jenkinsfile and one Jenkins job.`;
+const keeping = (names: string) =>
+  `Shares its repository with ${names} but keeps its Jenkinsfile and Jenkins job.`;
 
 function added(overrides: Partial<WizardService> = {}): WizardService {
   return {
@@ -702,24 +704,32 @@ describe('self-service model', () => {
       {
         name: 'gui',
         tag: null,
-        text: `Already has a Security pipeline; nothing changes. ${sharing('api and web')}`,
+        text: `Already has a Security pipeline; nothing changes. ${keeping('api and web')}`,
       },
       {
         name: 'api',
         tag: 'Changed',
-        text: `Gets a Security pipeline with its own key. Built with Maven instead of Gradle, with the default build settings. ${sharing('gui and web')}`,
+        text: 'Gets a Security pipeline with its own key. Built with Maven instead of Gradle, with the default build settings.',
       },
       { name: 'batch', tag: 'Removed', text: 'Deleted, with its pipelines and their keys.' },
       {
         name: 'web',
         tag: 'Changed',
-        text: `Keeps its Security pipeline. No description. ${sharing('gui and api')}`,
+        text: `Keeps its Security pipeline. No description. ${keeping('gui and api')}`,
       },
       {
         name: 'gateway',
         tag: 'New',
         text: 'Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines.',
       },
+    ]);
+    const docs = added({ name: 'docs', repositoryUrl: `${GUI_REPOSITORY}.git` });
+    expect(
+      reviewEntries('SECURITY', [gui, api, docs], stored, [], current).map((entry) => entry.text),
+    ).toEqual([
+      `Already has a Security pipeline; nothing changes. ${keeping('api and docs')}`,
+      `Gets a Security pipeline with its own key; nothing else changes. ${sharing('docs')}`,
+      `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}.git. ${sharing('api')}`,
     ]);
     expect(reviewEntries('NEXUS_IQ', [gui], stored, [], null)).toEqual([
       {

@@ -298,11 +298,7 @@ function reviewEntry(
   if (removed.includes(before.id)) {
     return { name, tag: 'Removed', text: 'Deleted, with its pipelines and their keys.' };
   }
-  const has = !!current?.some(
-    (candidate) =>
-      candidate.serviceId === before.id &&
-      candidate.pipelines.some((existing) => existing.type === pipeline),
-  );
+  const has = hasPipeline(pipeline, service, current);
   const changes = changesOf(pipeline, service, before);
   if (!changes.length) {
     return {
@@ -319,6 +315,22 @@ function reviewEntry(
   return { name, tag: 'Changed', text: `${pipelineText} ${sentence(changes.join('; '))}` };
 }
 
+function hasPipeline(
+  pipeline: WizardPipeline,
+  service: WizardService,
+  current: readonly ServicePipelines[] | null,
+): boolean {
+  return !!current?.some(
+    (candidate) =>
+      candidate.serviceId === service.id &&
+      candidate.pipelines.some((existing) => existing.type === pipeline),
+  );
+}
+
+/**
+ * What saving does to each service. The pipelines that one save starts for a repository share one
+ * Jenkinsfile and one Jenkins job; a service that has the pipeline already keeps the ones it has.
+ */
 export function reviewEntries(
   pipeline: WizardPipeline,
   services: readonly WizardService[],
@@ -327,18 +339,24 @@ export function reviewEntries(
   current: readonly ServicePipelines[] | null,
 ): ReviewEntry[] {
   const kept = services.filter((service) => service.id === null || !removed.includes(service.id));
+  const starts = (service: WizardService) => !hasPipeline(pipeline, service, current);
+  const names = (others: readonly WizardService[]) => listed(others.map((other) => other.name));
   return services.map((service) => {
     const entry = reviewEntry(pipeline, service, stored, removed, current);
     const key = repositoryKey(service.repositoryUrl);
-    const others = kept
-      .filter((other) => other !== service && key && repositoryKey(other.repositoryUrl) === key)
-      .map((other) => other.name);
-    return others.length && kept.includes(service)
-      ? {
-          ...entry,
-          text: `${entry.text} Shares its repository with ${listed(others)}, so they get one Jenkinsfile and one Jenkins job.`,
-        }
-      : entry;
+    const sharing = kept.filter(
+      (other) => other !== service && key && repositoryKey(other.repositoryUrl) === key,
+    );
+    const together = sharing.filter(starts);
+    const note =
+      !kept.includes(service) || !sharing.length
+        ? ''
+        : !starts(service)
+          ? `Shares its repository with ${names(sharing)} but keeps its Jenkinsfile and Jenkins job.`
+          : together.length
+            ? `Shares its repository with ${names(together)}, so they get one Jenkinsfile and one Jenkins job.`
+            : '';
+    return note ? { ...entry, text: `${entry.text} ${note}` } : entry;
   });
 }
 

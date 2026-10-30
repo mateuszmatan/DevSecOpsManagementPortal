@@ -202,7 +202,7 @@ Add every service of the product in the same way. Under each service the list sh
 
 ### Step 4: Review
 
-Check the product, the pipeline, the Jenkins agents and what happens to each service. A service that shares its repository with others says so: they get one Jenkinsfile and one Jenkins job. Check the repository URLs here, because a typo in one of them gives two Jenkinsfiles and two jobs. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.
+Check the product, the pipeline, the Jenkins agents and what happens to each service. Services of one repository that get the pipeline in this save say so: they get one Jenkinsfile and one Jenkins job. A service that has the pipeline already keeps its Jenkinsfile and Jenkins job. Check the repository URLs here, because a typo in one of them gives two Jenkinsfiles and two jobs. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.
 
 ### Step 5: Next steps
 
