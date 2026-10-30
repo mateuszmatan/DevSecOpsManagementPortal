@@ -175,7 +175,7 @@ describe('PipelinePage', () => {
     expect(product.getAttribute('href')).toBe('/admin/products/1');
     expect([...document.querySelectorAll('.dso-menu button')].map(text)).toEqual([
       'Configure service',
-      'Settings sent to Jenkins (config.yaml)',
+      'Settings sent to Jenkins (devsecops_config.yaml format)',
       'Key history',
       'Replace key',
       'Invalidate key',
@@ -374,7 +374,7 @@ describe('PipelinePage', () => {
   it('shows the configuration and replaces the key once confirmed', async () => {
     await load();
 
-    await menu('Settings sent to Jenkins (config.yaml)');
+    await menu('Settings sent to Jenkins (devsecops_config.yaml format)');
     http.expectOne('/api/pipelines/100/config').flush('projects: {}');
     expect(opened()).toMatchObject({
       component: CodeDialog,

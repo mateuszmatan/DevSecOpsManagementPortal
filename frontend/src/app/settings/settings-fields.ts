@@ -302,8 +302,8 @@ export const SETTINGS_PAGE: SettingsSection[] = [
     id: 'scans',
     label: 'Scans and coverage',
     note:
-      'How much of the code the unit tests must cover, and how long the pipelines wait for each ' +
-      'scan before they give up. The waiting times rarely need to change.',
+      'How much of the code the unit tests must cover, how long the pipelines wait for each scan ' +
+      'before they give up, and the order of the static scans. The waiting times rarely need to change.',
     blocks: [
       {
         heading: 'Coverage',
@@ -313,7 +313,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             min: 1,
             max: 100,
             hint: '1 to 100',
-            help: 'Below it, the Unit tests stage of the service turns orange, which blocks the Nexus release and the QC deployment.',
+            help: 'Below it, the Unit tests stage of the service turns orange, which blocks the Nexus release and the QC deployment. A service with several coverage reports is measured by the average of its reports.',
           }),
         ],
       },
@@ -398,6 +398,30 @@ export const SETTINGS_PAGE: SettingsSection[] = [
           ),
         ],
       },
+      {
+        heading: 'Speed',
+        note: 'How the full and security pipelines order their static scans.',
+        fields: [
+          {
+            key: 'parallelStaticAnalysis',
+            label: 'Run Nexus IQ and SonarQube while AppScan scans',
+            code: 'staticAnalysis.parallel',
+            span: 12,
+            kind: 'check',
+            help:
+              'Ticked, the full and security pipelines first send the code of every service to AppScan. Nexus IQ and ' +
+              'SonarQube then run while AppScan scans it, and the SAST results are read last. The pipeline finishes ' +
+              'sooner; the findings and the release gate stay the same, and the SAST duration in the report and the ' +
+              'metrics covers the whole Static analysis stage. Jenkins shows the three scans as one stage, Static ' +
+              'analysis, and the build log lists them in this order. If SAST stops before the code is sent, Nexus IQ ' +
+              'and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run one after another, ' +
+              'as before. The Jenkins environment variable DSO_STATIC_ANALYSIS_PARALLEL, when set to true or false, ' +
+              'overrides this box. A Jenkinsfile without a key does not follow this box: it runs the three scans ' +
+              'one after another unless DSO_STATIC_ANALYSIS_PARALLEL is true or every service of the run sets ' +
+              'staticAnalysis.parallel: true in devsecops_config.yaml.',
+          },
+        ],
+      },
     ],
   },
   {
@@ -406,7 +430,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
     note:
       'The last check of a run before its build is released to Nexus and deployed to QC. It ' +
       'blocks both when an earlier stage is not green, when a selected scan is above its ' +
-      'security limits and, if ticked, when the line coverage is below the minimum.',
+      'security limits and, if ticked, when the line coverage of a service is below the minimum.',
   },
   {
     id: 'serviceDefaults',
@@ -474,7 +498,7 @@ export const RELEASE_GATE_FIELDS: Field[] = [
     'releaseGate.requireCoverage',
     6,
     {
-      help: 'Lists a line coverage below the minimum as a gate violation. The Unit tests stage turns orange in that case as well, which also blocks the release.',
+      help: 'Lists each service whose line coverage, the average of its coverage reports, is below the minimum as a gate violation. The Unit tests stage turns orange in that case as well, which also blocks the release.',
     },
   ),
   mono('stateFile', 'Result file', 'releaseGate.stateFile', 6, {

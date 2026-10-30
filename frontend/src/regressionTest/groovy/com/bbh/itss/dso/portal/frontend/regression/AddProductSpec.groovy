@@ -179,7 +179,7 @@ class AddProductSpec extends EditorSpecification {
 
         expect:
         assertThat(serviceNames()).hasText(['new-service'] as String[])
-        assertThat(button('Import config.yaml', true)).isEnabled()
+        assertThat(button('Import devsecops_config.yaml', true)).isEnabled()
         assertThat(page.locator('.blocked')).hasCount(0)
 
         when:
@@ -192,6 +192,30 @@ class AddProductSpec extends EditorSpecification {
         assertThat(input(productFields(), 'Jenkins agents')).hasValue('docker-agent')
         assertThat(page.locator('dso-import-notes')).containsText('ledger-api was imported from config.yaml.')
         api.requests('POST', '/api/service-configs/import').size() == 1
+        ownErrors().isEmpty()
+    }
+
+    def "a new product imports devsecops_config.yaml from two chosen files and says that config.yaml was not read"() {
+        given:
+        def ledger = (fixture('product-2.json') as Map).services.find { it.name == 'ledger' }
+        api.respond('POST', '/api/service-configs/import', [
+                services: [[name: 'ledger-api', service: ledger, notes: []]],
+                pipeline: [type: 'FULL', agentLabels: ['docker-agent']],
+                notes   : []])
+        startProduct('Ledger Next')
+
+        when:
+        page.locator('.service-actions input[type=file]').setInputFiles([
+                new FilePayload('config.yaml', 'application/yaml', 'projects: {old: {}}'.getBytes('UTF-8')),
+                new FilePayload('devsecops_config.yaml', 'application/yaml', 'projects: {}'.getBytes('UTF-8'))
+        ] as FilePayload[])
+
+        then:
+        assertThat(serviceNames()).hasText(['ledger-api'] as String[])
+        assertThat(page.locator('dso-import-notes')).containsText('ledger-api was imported from devsecops_config.yaml.')
+        assertThat(page.locator('dso-import-notes')).containsText(
+                'The import did not read config.yaml: the DevSecOps library reads devsecops_config.yaml when a repository has both')
+        api.requests('POST', '/api/service-configs/import')*.json()*.content == ['projects: {}']
         ownErrors().isEmpty()
     }
 

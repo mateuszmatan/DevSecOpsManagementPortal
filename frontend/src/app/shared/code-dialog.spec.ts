@@ -37,6 +37,7 @@ describe('CodeDialog', () => {
 
     expect(createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
+    expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe('cert.yaml');
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:config');
     vi.unstubAllGlobals();
     click.mockRestore();

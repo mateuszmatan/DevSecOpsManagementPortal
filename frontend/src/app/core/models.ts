@@ -499,6 +499,7 @@ export interface ScanSettings {
   dastReportIntervalSeconds: number;
   sonarWaitForQualityGate: boolean;
   sonarQualityGateTimeoutMinutes: number;
+  parallelStaticAnalysis: boolean;
 }
 
 export interface ReleaseGateSettings {

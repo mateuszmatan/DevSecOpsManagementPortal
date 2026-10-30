@@ -112,7 +112,7 @@ describe('docs/documentation.md', () => {
     ['FLUTTER', 'VM'],
     ['FLUTTER', 'OPENSHIFT'],
   ])(
-    'names every config.yaml key of a %s service on %s',
+    'names every devsecops_config.yaml key of a %s service on %s',
     async (tool, target) => {
       const codes = await serviceCodes(everyField(tool, target));
 
@@ -123,7 +123,7 @@ describe('docs/documentation.md', () => {
     30_000,
   );
 
-  it('names every config.yaml key of the Library defaults', async () => {
+  it('names every devsecops_config.yaml key of the Library defaults', async () => {
     TestBed.configureTestingModule({ imports: [GoldenFixFields] });
     const fixture = TestBed.createComponent(GoldenFixFields);
     fixture.componentRef.setInput('group', createGlobalGoldenFixForm(globalSettings().goldenFix));
@@ -144,11 +144,12 @@ describe('docs/documentation.md', () => {
     ];
 
     expect(codes).toContain('build.node.installationName');
+    expect(codes).toContain('staticAnalysis.parallel');
     expect(codes).toContain('verify.enabled');
     expect(undocumented(codes)).toEqual([]);
   });
 
-  it('names every config.yaml key of a product and its pipelines', async () => {
+  it('names every devsecops_config.yaml key of a product and its pipelines', async () => {
     TestBed.configureTestingModule({
       imports: [ProductEditor, PipelineDialog],
       providers: [

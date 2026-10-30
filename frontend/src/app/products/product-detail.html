@@ -90,7 +90,7 @@
               class="dropdown-item"
               (cdkMenuItemTriggered)="showProductConfig(p)"
             >
-              Settings sent to Jenkins (config.yaml)
+              Settings sent to Jenkins (devsecops_config.yaml)
             </button>
             <hr class="dropdown-divider" />
             <button
@@ -383,7 +383,7 @@
                       class="dropdown-item"
                       (cdkMenuItemTriggered)="showPipelineConfig(pipeline)"
                     >
-                      Settings sent to Jenkins (config.yaml)
+                      Settings sent to Jenkins (devsecops_config.yaml format)
                     </button>
                     <button
                       type="button"
@@ -392,6 +392,14 @@
                       (cdkMenuItemTriggered)="showJenkinsfile(jenkinsfileGroup(pipeline))"
                     >
                       Jenkinsfile
+                    </button>
+                    <button
+                      type="button"
+                      cdkMenuItem
+                      class="dropdown-item"
+                      (cdkMenuItemTriggered)="showJenkinsfile(keylessGroup(pipeline), true)"
+                    >
+                      Jenkinsfile without a key
                     </button>
                     @if (sameTypeElsewhere(pipeline).length) {
                       <button

@@ -40,6 +40,54 @@ describe('jenkinsfile', () => {
         '])\n',
     );
   });
+
+  it('writes the services of the repository and the agents of the first pipeline without a key', () => {
+    const agentLabels = ['linux-agent', 'windows-agent'];
+    const expected =
+      "@Library('DevSecOpsJenkinsLibrary') _\n\n" +
+      "devSecOpsPipeline(projectNames: 'gui,api', agentNames: ['linux-agent', 'windows-agent'])\n";
+
+    expect(
+      jenkinsfile(
+        [
+          pipeline({ agentLabels }),
+          pipeline({ serviceName: 'api', agentLabels: ['docker-agent'] }),
+        ],
+        null,
+        true,
+      ),
+    ).toBe(expected);
+    expect(
+      jenkinsfile(
+        [pipeline({ agentLabels, activeKey: null }), pipeline({ serviceName: 'api' })],
+        null,
+        true,
+      ),
+    ).toBe(expected);
+  });
+
+  it('names the security job of an extended pipeline without a key', () => {
+    const job = { securityPipelineJob: 'DevSecOps/CERT/gui-security' };
+
+    expect(
+      jenkinsfile(
+        [pipeline({ ...job, type: 'EXTENDED', entryPoint: 'devSecOpsExtendedPipeline' })],
+        'BBHLibrary',
+        true,
+      ),
+    ).toBe(
+      "@Library('BBHLibrary') _\n\n" +
+        "devSecOpsExtendedPipeline(projectNames: 'gui', agentNames: ['linux-agent'], " +
+        "securityPipeline: 'DevSecOps/CERT/gui-security')\n",
+    );
+    expect(
+      jenkinsfile(
+        [pipeline({ ...job, type: 'SECURITY', entryPoint: 'devSecOpsSecurityPipeline' })],
+        'BBHLibrary',
+        true,
+      ),
+    ).toContain("devSecOpsSecurityPipeline(projectNames: 'gui', agentNames: ['linux-agent'])\n");
+  });
 });
 
 describe('byRepository', () => {
@@ -52,11 +100,12 @@ describe('byRepository', () => {
     worker: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
     tool: null,
   };
-  const names = (pipelines: readonly Pipeline[]) =>
+  const names = (pipelines: readonly Pipeline[], keyed = true) =>
     byRepository(
       pipelines,
       (p) => repositories[p.serviceName],
       (p) => p,
+      keyed,
     ).map((group) => group.map((p) => p.serviceName));
 
   it('puts the active pipelines of one type that share a repository together, in their order', () => {
@@ -74,6 +123,18 @@ describe('byRepository', () => {
         run(4, 'api', { securityPipelineJob: 'CERT/api-security' }),
       ]),
     ).toEqual([['gui'], ['api'], ['worker'], ['api']]);
+  });
+
+  it('joins the pipelines whose key is invalidated for a Jenkinsfile without a key', () => {
+    const pipelines = [
+      run(1, 'gui', { activeKey: null }),
+      run(2, 'api'),
+      run(3, 'worker', { activeKey: null, type: 'NEXUS_IQ' }),
+      run(4, 'tool', { activeKey: null }),
+    ];
+
+    expect(names(pipelines, false)).toEqual([['gui', 'api'], ['worker'], ['tool']]);
+    expect(names(pipelines)).toEqual([['gui'], ['api'], ['worker'], ['tool']]);
   });
 
   it('keeps apart pipelines that run on other Jenkins agents, whatever their order', () => {

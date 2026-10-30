@@ -39,6 +39,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
             limits == [SAST    : [maxCritical: 0, maxHigh: 0, maxMedium: 0], SCA: [maxCritical: 0, maxHigh: 0, maxMedium: 0],
                        NEXUS_IQ: [maxCritical: 0, maxHigh: 0, maxMedium: 0], DAST: [maxCritical: 0, maxHigh: 0, maxMedium: 0]]
             scans.coverageMinLine == 60
+            scans.parallelStaticAnalysis == true
             releaseGate.scanners == ['SAST', 'SCA', 'NEXUS_IQ', 'DAST']
             serviceDefaults == [buildTool           : 'GRADLE', deployTarget: 'VM', sourceDir: '.', testsMaxParallel: 20,
                                 nodeInstallationName: null, npmRegistry: null, npmrcCredentialsId: null]
@@ -58,7 +59,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         def changed = api.put('/api/settings', original + [
                 platform: original.platform + [jenkinsUrl: 'https://jenkins.bbh.com/', sonarServerUrl: 'https://sonar.bbh.com'],
                 limits  : original.limits + [SAST: [maxCritical: 0, maxHigh: 2, maxMedium: 10]],
-                scans   : original.scans + [coverageMinLine: 80],
+                scans   : original.scans + [coverageMinLine: 80, parallelStaticAnalysis: false],
                 serviceDefaults: original.serviceDefaults + [nodeInstallationName: 'NodeJS-20',
                                                              npmrcCredentialsId: 'npmrc-file']])
 
@@ -74,6 +75,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         config.platform.jenkinsUrl == 'https://jenkins.bbh.com/'
         config.defaults.sast.maxHigh == 2
         config.defaults.coverage.minLine == 80
+        config.defaults.staticAnalysis == [parallel: false]
         config.defaults.build == [node: [installationName: 'NodeJS-20', npmrcCredentialsId: 'npmrc-file']]
         config.projects.gui.tools.sonar.serverUrl == 'https://sonar.bbh.com'
 

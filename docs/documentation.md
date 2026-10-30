@@ -14,26 +14,26 @@ The guide is written in `docs/documentation.md`. The page `docs/documentation.ht
 - [6. Build the frontend with Node.js first (stage 0)](#6-build-the-frontend-with-nodejs-first-stage-0)
 - [7. Shared version catalogs and the combined Jenkinsfile](#7-shared-version-catalogs-and-the-combined-jenkinsfile)
 - [8. Pipeline types, pipeline keys, the Jenkinsfile and the Jenkins jobs](#8-pipeline-types-pipeline-keys-the-jenkinsfile-and-the-jenkins-jobs)
-- [9. Import a config.yaml and copy a service](#9-import-a-configyaml-and-copy-a-service)
+- [9. Import a devsecops_config.yaml and copy a service](#9-import-a-devsecops_configyaml-and-copy-a-service)
 - [10. GoldenFix](#10-goldenfix)
 - [11. The service template](#11-the-service-template)
 - [12. Library defaults (Global Settings)](#12-library-defaults-global-settings)
 - [13. Pipeline Monitoring and DORA](#13-pipeline-monitoring-and-dora)
 - [14. Business Services](#14-business-services)
 - [15. Action history](#15-action-history)
-- [16. Field reference: from the portal to config.yaml](#16-field-reference-from-the-portal-to-configyaml)
+- [16. Field reference: from the portal to devsecops_config.yaml](#16-field-reference-from-the-portal-to-devsecops_configyaml)
 - [17. Database and environments](#17-database-and-environments)
 - [18. Troubleshooting](#18-troubleshooting)
 
 ## 1. What the portal does
 
-The portal holds the DevSecOps settings of every BBH product. Jenkins runs the pipelines of the DevSecOps library DSOEnhanced. Each pipeline asks the portal for its settings when it starts. The settings never live in the repository of the service.
+The portal holds the DevSecOps settings of every BBH product. Jenkins runs the pipelines of the DevSecOps library DSOEnhanced. Each pipeline with a key asks the portal for its settings when it starts, so its settings never live in the repository of the service. A Jenkinsfile without a key makes the library read them from the repository instead, see [A Jenkinsfile without a key](#a-jenkinsfile-without-a-key).
 
 The portal does five things:
 
 1. It records the products, their services and the pipelines of each service.
-2. It issues a secret pipeline key for each pipeline. The key is the only thing the Jenkinsfile holds.
-3. It renders the settings of a pipeline as a `config.yaml` document when Jenkins asks for them with the key.
+2. It issues a secret pipeline key for each pipeline. The key is the only thing a Jenkinsfile with a key holds.
+3. It renders the settings of a pipeline as a `devsecops_config.yaml` document when Jenkins asks for them with the key.
 4. It shows how the pipelines are doing: the latest runs and the delivery performance (DORA).
 5. It records every change in the action history.
 
@@ -46,8 +46,8 @@ The portal does five things:
 | Service | One part of a product that is built and deployed on its own, for example its API or its web front end. |
 | Pipeline | The automated build, test and security checks that Jenkins runs on the code of one service. A service has at most one pipeline of each type. |
 | Pipeline key | The secret code that the Jenkins job of a pipeline uses to fetch its settings from the portal. |
-| Jenkinsfile | The file in the repository of the service that tells Jenkins to run the pipeline. It holds only the pipeline key. |
-| config.yaml | The settings document that the library reads. The portal renders it from its database each time a pipeline starts. |
+| Jenkinsfile | The file in the repository of the service that tells Jenkins to run the pipeline. It holds the pipeline key or, without a key, the services and the Jenkins agents of the run; see [A Jenkinsfile without a key](#a-jenkinsfile-without-a-key). |
+| devsecops_config.yaml | The settings document that the library reads. The portal renders it from its database each time a pipeline with a key starts. A Jenkinsfile without a key makes the library read it from the root of the repository instead, or `config.yaml`, its former name, when there is none. |
 | Library defaults | The values on the Library defaults page (Admin, Library defaults), also called the Global Settings. They apply to every service that leaves a field empty. |
 | Service template | The values a new service starts with, such as its build tasks and the name of its Nexus IQ application. |
 | GoldenFix | The part of the library that opens pull requests that raise vulnerable dependencies to safe versions. |
@@ -77,7 +77,7 @@ The menu at the top has five entries.
 
 ### The help icons and the key chips
 
-Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as `build.node.enabled`. The chip is the key the field writes in `config.yaml`. [Chapter 16](#16-field-reference-from-the-portal-to-configyaml) lists every chip.
+Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as `build.node.enabled`. The chip is the key the field writes in `devsecops_config.yaml`. [Chapter 16](#16-field-reference-from-the-portal-to-devsecops_configyaml) lists every chip.
 
 A hint that says "Library default: X" shows the value the service takes from the Library defaults page. A hint that says "Library default" alone shows that the field still holds that value.
 
@@ -89,7 +89,7 @@ A product has these fields:
 
 | Field | Meaning |
 |-------|---------|
-| Code | Two to 50 upper-case letters, digits, '-' or '_', starting with a letter, for example `PAYHUB`. The portal suggests it from the name. It is used in Jenkins job names and reports. It becomes `pipeline.product` in `config.yaml`. |
+| Code | Two to 50 upper-case letters, digits, '-' or '_', starting with a letter, for example `PAYHUB`. The portal suggests it from the name. It is used in Jenkins job names and reports. It becomes `pipeline.product` in `devsecops_config.yaml`. |
 | Name | The full name of the product. No other product may use it. |
 | Business Service | The group the product belongs to. |
 | Owner team | The team that looks after the product. |
@@ -97,7 +97,7 @@ A product has these fields:
 | Contact e-mail | Where the DevSecOps team reaches the owners. A team mailbox is better than a personal address. |
 | Jenkins agents | Only when you add a product: the agent labels of the pipelines that the save creates, separated by commas. The first one is the default. |
 
-The product page (Admin, Products, then a product) lists the services and their pipelines. Its More menu shows "Settings sent to Jenkins (config.yaml)" for the whole product and "Delete product". "Edit product" opens the admin editor.
+The product page (Admin, Products, then a product) lists the services and their pipelines. Its More menu shows "Settings sent to Jenkins (devsecops_config.yaml)" for the whole product and "Delete product". Its Download button saves the file as devsecops_config.yaml, ready to commit for a Jenkinsfile without a key. "Edit product" opens the admin editor.
 
 ### The service
 
@@ -107,7 +107,7 @@ A service has sections. The left-hand list of the service form shows them. A red
 |---------|---------------|
 | General | The service name and a description. |
 | Build | The build tool, its tasks, the artifact, the JDK and the optional Node.js build (stage 0). |
-| Unit tests and coverage | The unit test command, the test reports and the coverage report. |
+| Unit tests and coverage | The unit test command, the test reports and the coverage reports. |
 | Test jobs | The smoke, regression and performance test jobs after a deployment. |
 | Deployment | Virtual machines or OpenShift, the application and artifact names, and the Nexus delivery. |
 | UrbanCode Deploy | Virtual machines only: the UrbanCode Deploy applications and components. |
@@ -186,7 +186,7 @@ Have these at hand:
 ### Step 3: Services
 
 1. Click "Add a service". The dialog "Add a service" opens. Its tag shows the pipeline.
-2. To start from another service of the product, choose it in "Copy values from". To start from a file, click "Import config.yaml". Both are optional. See [chapter 9](#9-import-a-configyaml-and-copy-a-service).
+2. To start from another service of the product, choose it in "Copy values from". To start from a file, click "Import devsecops_config.yaml". Both are optional. See [chapter 9](#9-import-a-devsecops_configyaml-and-copy-a-service).
 3. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.
 4. In Build, choose the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven and "The code has a pubspec.yaml file" means Flutter. The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
 5. If the repository holds a frontend that npm builds, for example an Angular application, tick "Build the frontend with Node.js first". Type the "Folder with package.json", for example `frontend`. Leave the other Node.js fields as they are. See [chapter 6](#6-build-the-frontend-with-nodejs-first-stage-0).
@@ -235,7 +235,7 @@ The admin editor is for the DevSecOps team. It shows every field of a service.
 2. Under Services, click one of:
    - "Add service" for an empty service with the service template values;
    - "Copy values from existing service" to copy another service of the product;
-   - "Import config.yaml" to fill a new service from a file.
+   - "Import devsecops_config.yaml" to fill a new service from a file.
 3. While a service still has missing fields, the buttons are disabled. The text "Complete these services before adding another:" names each service and its missing fields. Click a field name to open it.
 4. Use "Duplicate service", "Move up", "Move down" and "Remove service" on a service panel as needed. Removing a stored service deletes its pipelines and keys when you save.
 5. Click "Save changes". New services get a Full pipeline with their own key.
@@ -269,7 +269,7 @@ The fields are in the Build section, under the heading "Node.js build (stage 0)"
 | .npmrc credentials ID (Advanced) | the Library default | A Jenkins Secret file credential with an .npmrc, which npm reads as its user configuration, with its registry and login. A registry line of an .npmrc in the repository still wins over it. |
 | Node.js environment variables (Advanced) | none | `NAME=value` lines for the Node.js commands and for the GoldenFix verification of npm fixes, for example `NODE_OPTIONS=--max-old-space-size=4096`. |
 
-The portal writes `build.node` to `config.yaml` only while the checkbox is ticked. The library then reads the keys under `projects.<service>.build.node`. The Library defaults page can give every service a Node.js installation, an npm registry and an .npmrc credentials ID under `defaults.build.node`. The portal never writes `defaults.build.node.enabled`: every service switches the stage on for itself.
+The portal writes `build.node` to `devsecops_config.yaml` only while the checkbox is ticked. The library then reads the keys under `projects.<service>.build.node`. The Library defaults page can give every service a Node.js installation, an npm registry and an .npmrc credentials ID under `defaults.build.node`. The portal never writes `defaults.build.node.enabled`: every service switches the stage on for itself.
 
 ### What the pipelines do
 
@@ -277,6 +277,7 @@ The portal writes `build.node` to `config.yaml` only while the checkbox is ticke
 - In SAST scanning a service needs the stage only while "Compile before preparing the IRX" is on and the agent is not Windows.
 - In a run in which some service builds, each other service logs why it does not: `[NODE] <service>: build.node.enabled is not set - no Node.js build`, or in SAST scanning, for a service whose "Compile before preparing the IRX" is off, `[NODE] <service>: the SAST scan does not compile this service - no Node.js build`.
 - The Extended pipeline builds the frontend again right before the release delivery, which rebuilds the artifact.
+- Do not put the frontend unit tests, such as `ng test --code-coverage`, into the Commands. The commands run in every pipeline above, and a failing test would stop each of them at stage 0, the release included. Run the frontend tests from the unit test command of the Gradle or Maven build instead: they then run only in the Unit tests stage, a failure turns that stage orange, and the stage reads their LCOV report next to the JaCoCo report. On Windows agents, name both reports in Coverage reports (see Unit tests and coverage).
 - The log names where Node.js comes from, for example `[NODE] gateway: Node.js from installation NodeJS-20 in console: npm ci && npm run build`.
 - After a Node.js build, the AppScan static scan leaves out `node_modules`. This applies on Linux agents while no included folder is set. The minified bundles of the built frontend are still scanned.
 
@@ -350,7 +351,7 @@ You do not need to list these files:
 
 ### When to list a catalog
 
-Use the field "Shared version catalogs" in the GoldenFix section of the service. Write one path per line, relative to the repository root. `*` matches within one folder and `**` matches across folders, for example `catalog/*.toml`. A leading `./` is dropped. Name a file, not its folder: a path that ends in `/` is refused, also in an imported config.yaml. List a file only when GoldenFix misses it, for example a parent or BOM pom with another file name, such as `platform/bom.xml`. A listed `.toml` file is read as a Gradle catalog, an `.xml` file as a Maven pom, and any other file as a Gradle build file. A listed TOML file that no `settings.gradle` imports is used by no build, so it is raised without verification. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as `goldenFix.versionCatalogs`.
+Use the field "Shared version catalogs" in the GoldenFix section of the service. Write one path per line, relative to the repository root. `*` matches within one folder and `**` matches across folders, for example `catalog/*.toml`. A leading `./` is dropped. Name a file, not its folder: a path that ends in `/` is refused, also in an imported file. List a file only when GoldenFix misses it, for example a parent or BOM pom with another file name, such as `platform/bom.xml`. A listed `.toml` file is read as a Gradle catalog, an `.xml` file as a Maven pom, and any other file as a Gradle build file. A listed TOML file that no `settings.gradle` imports is used by no build, so it is raised without verification. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as `goldenFix.versionCatalogs`.
 
 A listed path that matches nothing gives the run note `version catalog <path> not found in the repository`. A path that leaves the repository gives `version catalog <path> is outside the repository`.
 
@@ -417,10 +418,10 @@ In one run, the first service with fixes opens the pull request. Each further se
 |-------|---------|
 | Pipeline type | Fixed once the pipeline exists. A service has at most one pipeline of each type. |
 | Jenkins agents | Agent labels or label expressions, separated by commas. The first is the default. A run uses the one chosen in its AGENT_NAME parameter. Written as `pipeline.agentNames`. |
-| Jenkins job | The path of the job, for example `DevSecOps/CERT/backend-api-full`, or its full address. The portal links the pipeline and its runs to it. It is not written to `config.yaml`. |
+| Jenkins job | The path of the job, for example `DevSecOps/CERT/backend-api-full`, or its full address. The portal links the pipeline and its runs to it. It is not written to `devsecops_config.yaml`. |
 | Extended pipeline job | Security only, optional: the Extended pipeline started after the scans. Written as `jenkins.pipeline.extendedPipeline`. |
 | Security pipeline job | Extended only: the Security pipeline whose build this pipeline deploys and tests. Written as `pipeline.securityPipeline`. |
-| Description | A note for the people who look after the pipeline. It is not written to `config.yaml`. |
+| Description | A note for the people who look after the pipeline. It is not written to `devsecops_config.yaml`. |
 
 ### Pipeline keys
 
@@ -437,7 +438,7 @@ Each pipeline has one active key. The pipeline page and the product page show th
 > [!IMPORTANT]
 > Treat a pipeline key like a password. Anyone who has it can read the settings of the pipeline. Replace the key when it may have leaked.
 
-The portal records when Jenkins last used a key. "Settings sent to Jenkins (config.yaml)" shows the settings without counting as a use.
+The portal records when Jenkins last used a key. "Settings sent to Jenkins (devsecops_config.yaml format)" shows the settings without counting as a use.
 
 ### The Jenkinsfile
 
@@ -451,6 +452,27 @@ devSecOpsPipeline(pipelineKey: '<pipeline key>')
 
 The library name comes from the Library defaults (`platform.jenkinsLibrary`). Copy the Jenkinsfile from the pipeline page, from the product page or from the Next steps of the Self-service wizard. For a pipeline that shares the Jenkins job of its repository with other services, each of these shows the combined Jenkinsfile with the keys of all of them. When such a key is invalidated, the pipeline page asks you to replace the shared Jenkinsfile once the key is regenerated.
 
+### A Jenkinsfile without a key
+
+A Jenkinsfile without a key also works. The library then reads the settings from the repository: devsecops_config.yaml at its root or, when there is none, config.yaml, the name the file had before the portal. Commit two files at the root of the repository:
+
+1. devsecops_config.yaml: on the product page, More, "Settings sent to Jenkins (devsecops_config.yaml)", Download. If the browser saves it as `devsecops_config (1).yaml`, rename it to exactly `devsecops_config.yaml`.
+2. The Jenkinsfile: on the product page, the More menu of the pipeline, "Jenkinsfile without a key". For example:
+
+```groovy
+@Library('DevSecOpsJenkinsLibrary') _
+
+devSecOpsPipeline(projectNames: 'gateway', agentNames: ['linux-agent'])
+```
+
+- `projectNames` names the services of the repository. The downloaded file holds every service of the product; without `projectNames` the library would build all of them from this repository.
+- `agentNames` lists the Jenkins agents the pipeline may run on. It is required without a key.
+- Such a pipeline does not ask the portal for its settings. A change in the portal reaches it only when you download and commit the file again. The Library defaults written under `defaults`, such as the security limits, the GoldenFix policy and the Node.js build defaults, reach it through the copy kept in the library, with the next library version; that copy leaves out the order of the static scans. The values written to `platform`, such as the AppScan, proxy, Nexus snapshot repository and iOS build agent values, never reach it; see [chapter 12](#12-library-defaults-global-settings).
+- A security pipeline that should start its extended pipeline needs `jenkins.pipeline.extendedPipeline` under its service in the file. The product download leaves it out, because the portal keeps it with the security pipeline.
+- The pipeline report says "No pipeline key: settings from devsecops_config.yaml in the repository".
+- The Jenkins administrators can require a key for every pipeline; such a Jenkinsfile then stops at its start.
+- A Jenkinsfile with a key never reads the file. Delete the file from the repository once its pipelines have keys.
+
 ### Jenkins jobs
 
 - Each pipeline needs a Jenkins Pipeline job that reads the Jenkinsfile from the repository (Pipeline script from SCM).
@@ -458,11 +480,11 @@ The library name comes from the Library defaults (`platform.jenkinsLibrary`). Co
 - While the service template names a job, the pipelines that one save starts for the services of a repository share one job and one Jenkinsfile with `pipelineKeys`. A new pipeline joins a job only when two or more pipelines of its type, repository and Jenkins agents run in it already. See [chapter 7](#7-shared-version-catalogs-and-the-combined-jenkinsfile).
 - Jenkins needs the global environment variable `DSO_PORTAL_URL`, for example `https://dso-portal.apps.bbh.com`.
 
-## 9. Import a config.yaml and copy a service
+## 9. Import a devsecops_config.yaml and copy a service
 
-### Import a config.yaml
+### Import a devsecops_config.yaml
 
-"Import config.yaml" reads a `config.yaml` of the library, a configuration the portal rendered or its JSON form. It fills a new service form. Nothing is stored until you save.
+"Import devsecops_config.yaml" reads a `devsecops_config.yaml` or `config.yaml` of the library, a configuration the portal rendered or its JSON form. It fills a new service form. Nothing is stored until you save.
 
 - A file with several projects asks which service to import.
 - The notes under the form list what the portal did not take over ("Not imported") and what you should check ("Check").
@@ -474,6 +496,7 @@ The library name comes from the Library defaults (`platform.jenkinsLibrary`). Co
 - In the admin editor, the imported service keeps what the file gives: an empty repository URL, Bitbucket credentials ID or Nexus IQ application stays empty, also when you change its name. So a service without a repository does not come to need a Bitbucket credentials ID. A new name only replaces the values that still hold what the service template gives for the old name, such as the repository URL, the Nexus IQ application and the OpenShift names, and on OpenShift it fills in an empty application name. In the Self-service dialog, the imported service follows its name like a new service: the service template fills in an empty repository URL and Nexus IQ application, and a repository URL filled in that way makes the Bitbucket credentials ID required. In both, the Bitbucket credentials ID stays as the file gives it, even when it is empty. The notes do not list the values filled in, so check them in the Bitbucket and Nexus IQ sections.
 - The Jenkins agents of the imported pipeline fill the Jenkins agents of the product while you have not changed them.
 - The file may hold at most 262,144 characters and 50 projects.
+- You may choose several files at once, for example both files of a repository. The import then reads devsecops_config.yaml and, when it is not among them, config.yaml, as the library does, and a note under "Check" names the files it did not read. It refuses several files of which none has either name. The help icon next to the button says the same.
 
 ### Copy a service
 
@@ -563,23 +586,29 @@ Admin, Library defaults holds the values every pipeline shares. A service that l
 | Tools and servers | Jenkins (Jenkins URL, shared library), HCL AppScan (service URL, scan client downloads, proxy), SonarQube and Nexus IQ servers, the Nexus snapshot repository, InfluxDB, the iOS build agent and the Portal monitoring block (the InfluxDB the portal reads and the Grafana dashboards) |
 | Deployment defaults | The UrbanCode Deploy site and process, and the RD and QC test servers with their SSH user, deploy script and version file |
 | Security limits | The most critical, high and medium findings each scan (SAST, SCA, Nexus IQ, DAST) may report |
-| Scans and coverage | The minimum line coverage and how long the pipelines wait for each scan |
+| Scans and coverage | The minimum line coverage, how long the pipelines wait for each scan, and the order of the static scans |
 | Release gate | Which scans the release gate checks, whether it requires the coverage, and its result file |
 | Service defaults | The build tool, deployment target and source folder a new service starts with; the test jobs at the same time; the Node.js build defaults |
 | GoldenFix defaults | Whether GoldenFix runs by default and the GoldenFix policy |
 
+A Jenkinsfile without a key does not read this page. The values written under `defaults` reach it through the copy the DevSecOps library keeps of them, which the DevSecOps team updates from "Shared settings sent to Jenkins (devsecops_config.yaml format)" before each library release. That copy leaves out `staticAnalysis.parallel`, the order of the static scans, so such a Jenkinsfile does not follow the box "Run Nexus IQ and SonarQube while AppScan scans". The per-service servers and the Deployment defaults reach it in devsecops_config.yaml, once the file is downloaded and committed again. The values written to `platform`, such as the AppScan on Cloud URL of the scans, the scan client downloads, the proxy, the OIS host, the Nexus snapshot repository and the iOS build agent, never reach it: the library takes them from the environment of the Jenkins agent or uses its own.
+
 ### Node.js build defaults
 
-The block "Node.js build" in Service defaults has three fields: Node.js installation, npm registry and .npmrc credentials ID. A new service shows them as its "Library default". A service that leaves them empty takes them later as well, through `defaults.build.node` in `config.yaml`. A service that names its own installation or a Node.js home on the agent uses that instead. The BBH seed leaves all three empty.
+The block "Node.js build" in Service defaults has three fields: Node.js installation, npm registry and .npmrc credentials ID. A new service shows them as its "Library default". A service that leaves them empty takes them later as well, through `defaults.build.node` in `devsecops_config.yaml`. A service that names its own installation or a Node.js home on the agent uses that instead. The BBH seed leaves all three empty.
+
+### Nexus IQ and SonarQube while AppScan scans
+
+The block "Speed" in Scans and coverage has one checkbox, "Run Nexus IQ and SonarQube while AppScan scans". It is ticked by default. The full and security pipelines then send the code of every service to AppScan first, run Nexus IQ and SonarQube while AppScan scans it, and read the SAST results last. The findings and the release gate are the same as one after another, and the run is shorter; in the report and the metrics, the SAST duration covers the whole Static analysis stage. Jenkins shows the three scans as one stage, Static analysis. If SAST stops before the code is sent, Nexus IQ and SonarQube do not run in that build. A service whose SAST compile command differs from its build command makes the pipelines run the three scans one after another, and the build log says so. Unticked, they run one after another, in the order Nexus IQ, SAST, SonarQube. The Jenkins environment variable `DSO_STATIC_ANALYSIS_PARALLEL`, when set to `true` or `false`, overrides this checkbox. A Jenkinsfile without a key does not follow this checkbox: it runs the three scans one after another unless `DSO_STATIC_ANALYSIS_PARALLEL` is `true` or every service of the run sets `staticAnalysis.parallel: true` in devsecops_config.yaml.
 
 ### Which values follow later changes
 
-- Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the release gate, the test jobs at the same time, the Node.js build defaults and the GoldenFix policy of services that inherit it.
+- Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the order of the static scans, the release gate, the test jobs at the same time, the Node.js build defaults and the GoldenFix policy of services that inherit it.
 - The build tool, the deployment target and the source folder only prefill a new service.
 
 ### Portal monitoring
 
-The Portal monitoring block sets the InfluxDB the portal reads (URL, organization, bucket and read token) and up to two Grafana instances. Values saved here win over the variables `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET`, `INFLUX_TOKEN` and `GRAFANA_*`. The read token is stored and never shown again. These settings are for the portal itself and are not written to `config.yaml`.
+The Portal monitoring block sets the InfluxDB the portal reads (URL, organization, bucket and read token) and up to two Grafana instances. Values saved here win over the variables `INFLUX_URL`, `INFLUX_ORG`, `INFLUX_BUCKET`, `INFLUX_TOKEN` and `GRAFANA_*`. The read token is stored and never shown again. These settings are for the portal itself and are not written to `devsecops_config.yaml`.
 
 ## 13. Pipeline Monitoring and DORA
 
@@ -616,13 +645,13 @@ The Pipelines page shows the pipelines of one Business Service at a time. Its fi
 
 The Action history records every change made in the portal: who did it, when, what was done, on which resource and with which result. Search by user, resource or details, and filter by action, resource and status.
 
-The recorded actions are: create, update and delete a product; create, update and delete a pipeline; issue a new key; invalidate a key; create, rename and delete a business service; update the service template; update the library defaults; initialize the portal. An import of a config.yaml stores nothing and is not recorded.
+The recorded actions are: create, update and delete a product; create, update and delete a pipeline; issue a new key; invalidate a key; create, rename and delete a business service; update the service template; update the library defaults; initialize the portal. An import of a devsecops_config.yaml or config.yaml stores nothing and is not recorded.
 
 The portal has no sign-in yet. Every action is recorded as the default administrator until BBH single sign-on is added.
 
-## 16. Field reference: from the portal to config.yaml
+## 16. Field reference: from the portal to devsecops_config.yaml
 
-This chapter lists every field that writes to `config.yaml`. The column "Key" shows the key in the code chip of the field. Service keys sit under `projects.<service>`. A chip that shows only the last part of a key is listed with its full key. A field that is empty writes nothing, and a checkbox that is off writes nothing unless the table says otherwise.
+This chapter lists every field that writes to `devsecops_config.yaml`. The column "Key" shows the key in the code chip of the field. Service keys sit under `projects.<service>`. A chip that shows only the last part of a key is listed with its full key. A field that is empty writes nothing, and a checkbox that is off writes nothing unless the table says otherwise.
 
 ### Product and pipeline
 
@@ -689,10 +718,14 @@ Five steps share the same command fields: the build, the unit tests, the SonarQu
 | Field | Key | Notes |
 |-------|-----|-------|
 | Test results | `tests.unitTests.unitTestResult` | Gradle builds |
-| Coverage report | `coverage.reportPath` | |
+| Coverage reports | `coverage.reportPath` | Usually left empty; one path or pattern per line |
 | Root folder (Advanced) | `tests.unitTests.rootDir` | Maven builds |
 | Report folder (Advanced) | `tests.unitTests.reportOutDir` | Maven builds |
 | Accept a run without test results (Advanced) | `tests.unitTests.allowEmptyResults` | Maven builds |
+
+Leave Coverage reports empty unless the pipeline reads the wrong reports. Empty, the Unit tests stage finds every JaCoCo XML and LCOV report of the service by itself: in the Directory of its unit test command, otherwise of its build command, otherwise in the Source folder; also in the Folder with package.json of its Node.js build; and, when it finds none there, in the whole repository. On Windows agents the stage does not look for LCOV reports: it reads the usual JaCoCo report of the build tool, and when that is missing every `jacoco.xml` of the workspace, or `total_lcov.info` for Flutter, so a service on a Windows agent names every report in Coverage reports, the LCOV report of the frontend included. A JaCoCo report needs `python3` on the agent. In a folder that several services share, each service takes the reports of its own build tool, and the report of the run says when a report also counts for another service. The line coverage of the service is the average of its reports. The report of the run lists every report it found, and says why a report is not counted, for example because it is a copy of another one or combines other reports.
+
+Filled in, only the reports named in the field count. Name the report of the frontend too, and for a Flutter service the `lcov.info` of each package: the library now reads the field for Flutter as well, where it ignored it before. Paths are relative to the repository root; `*`, `?` and `**` are allowed. When none of them exists, the stage searches as if the field were empty. An imported `coverage.reportPath` longer than the 500 characters the portal keeps is left out with a note.
 
 ### Test jobs
 
@@ -844,7 +877,7 @@ Each region has its own section: `deploy.openshift.rd` and `deploy.openshift.qc`
 | Scan source code only (Advanced) | `asoc.sourceCodeOnly` | |
 | Use the repository's AppScan configuration (Advanced) | `asoc.useAppScanConfig` | |
 | Accept any TLS certificate (Advanced) | `asoc.insecureTls` | |
-| Compile command (Advanced) | `asoc.gradle.tasks`, `asoc.maven.goals` and the other command fields | |
+| Compile command (Advanced) | `asoc.gradle.tasks`, `asoc.maven.goals` and the other command fields | Another command than the build command makes the full and security pipelines run Nexus IQ, SAST and SonarQube one after another. |
 
 The address of AppScan on Cloud comes from the Library defaults and is written to every service as `asoc.url`.
 
@@ -987,6 +1020,7 @@ The values of Tools and servers are written to `platform`, and the per-service v
 | DAST: check for the report every | `dast.reportIntervalSec` | `defaults.dast.reportIntervalSec` |
 | Wait for the quality gate | `tools.sonar.qualityGate.waitForQualityGate` | `defaults.tools.sonar.qualityGate.waitForQualityGate` |
 | Longest wait (minutes) for the quality gate | `tools.sonar.qualityGate.timeoutMinutes` | `defaults.tools.sonar.qualityGate.timeoutMinutes` |
+| Run Nexus IQ and SonarQube while AppScan scans | `staticAnalysis.parallel` | `defaults.staticAnalysis.parallel`; ticked by default |
 | Release gate scans | `releaseGate.scanners` | written as `sast`, `sca`, `niq` and `dast` |
 | Also require the minimum line coverage | `releaseGate.requireCoverage` | `defaults.releaseGate.requireCoverage` |
 | Result file | `releaseGate.stateFile` | `defaults.releaseGate.stateFile`, fixed |
@@ -1000,7 +1034,7 @@ The values of Tools and servers are written to `platform`, and the per-service v
 | GoldenFix runs by default | `goldenFix.enabled` | `defaults.goldenFix.enabled` |
 | The GoldenFix policy fields | as in the GoldenFix table above | under `defaults.goldenFix` |
 
-The Portal monitoring block sets the portal itself and is not written to `config.yaml`:
+The Portal monitoring block sets the portal itself and is not written to `devsecops_config.yaml`:
 
 | Field | Portal setting |
 |-------|----------------|
@@ -1059,6 +1093,10 @@ Changeset 032 adds the Node.js build and the shared version catalogs. It has thr
 - `032-node-defaults` adds `NODE_INSTALLATION_NAME`, `NPM_REGISTRY` and `NPMRC_CREDENTIALS_ID` to `DSO_GLOBAL_SETTINGS`.
 
 Every service starts with the Node.js build off and no catalogs, so every configuration stays as it was. A rollback drops the columns with whatever they hold.
+
+### Upgrade note: changeset 033
+
+Changeset `033-parallel-static-analysis` adds `PARALLEL_STATIC_ANALYSIS` (0 or 1, 1 by default) to `DSO_GLOBAL_SETTINGS`, with the check `CK_DSO_GLOBAL_PARALLEL_SCANS`. The saved settings get 1, so "Run Nexus IQ and SonarQube while AppScan scans" is ticked after the upgrade and the settings sent to Jenkins hold `defaults.staticAnalysis.parallel: true`. A library version without this order ignores the key. Untick the box before the next runs to keep the order Nexus IQ, SAST, SonarQube. A rollback drops the column.
 
 ## 18. Troubleshooting
 
@@ -1134,9 +1172,9 @@ The upgrades are in the shared pull request, but the comment that lists them fai
 - 403 `Pipeline key invalidated`: the key was invalidated. Issue a new key on the pipeline page and put it in the Jenkinsfile.
 - 404 `Unknown DevSecOps pipeline key`: the Jenkinsfile holds a key the portal never issued. Copy the Jenkinsfile again from the portal.
 
-### The import of a config.yaml is refused
+### The import of a devsecops_config.yaml or config.yaml is refused
 
-The portal names the line and the column of the problem. It also refuses a file that names no project setting, a file larger than 262,144 characters and a file with more than 50 projects.
+The portal names the line and the column of the problem. It also refuses a file that names no project setting, a file larger than 262,144 characters and a file with more than 50 projects. It also refuses several files of which none is named devsecops_config.yaml or config.yaml.
 
 ### Saving fails because someone else changed the product
 

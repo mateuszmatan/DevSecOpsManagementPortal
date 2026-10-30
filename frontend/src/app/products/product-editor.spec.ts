@@ -640,12 +640,14 @@ describe('ProductEditor', () => {
   it('leaves the blank new service out of the service actions and names the services that block them', async () => {
     await start();
     const actions = () =>
-      [...page().querySelectorAll<HTMLButtonElement>('.service-actions button')].map(
-        (button) => `${text(button)}${button.disabled ? ' (disabled)' : ''}`,
-      );
+      [
+        ...page().querySelectorAll<HTMLButtonElement>(
+          '.service-actions button:not(.dso-help-trigger)',
+        ),
+      ].map((button) => `${text(button)}${button.disabled ? ' (disabled)' : ''}`);
     const first = editor()['form'].controls.services.at(0);
 
-    expect(actions()).toEqual(['Import config.yaml', 'Add service']);
+    expect(actions()).toEqual(['Import devsecops_config.yaml', 'Add service']);
     expect(page().querySelector('.blocked')).toBeNull();
 
     first.controls.name.setValue('gui');
@@ -654,7 +656,7 @@ describe('ProductEditor', () => {
 
     expect(actions()).toEqual([
       'Copy values from existing service (disabled)',
-      'Import config.yaml (disabled)',
+      'Import devsecops_config.yaml (disabled)',
       'Add service (disabled)',
     ]);
     expect(text(page().querySelector('.blocked'))).toBe(
@@ -679,7 +681,7 @@ describe('ProductEditor', () => {
 
     expect(actions()).toEqual([
       'Copy values from existing service',
-      'Import config.yaml',
+      'Import devsecops_config.yaml',
       'Add service',
     ]);
     expect(page().querySelector('.blocked')).toBeNull();
@@ -692,12 +694,12 @@ describe('ProductEditor', () => {
     expect([added.keyId, added.secretCredentialsId]).toEqual(['bbh_key', 'asoc-secret']);
     expect(actions()).toEqual([
       'Copy values from existing service',
-      'Import config.yaml',
+      'Import devsecops_config.yaml',
       'Add service',
     ]);
   });
 
-  it('fills the blank new service from an imported config.yaml and marks what it lacks', async () => {
+  it('fills the blank new service from an imported devsecops_config.yaml and marks what it lacks', async () => {
     await start();
 
     editor()['importService']({
@@ -717,7 +719,7 @@ describe('ProductEditor', () => {
     expect(editor()['expanded']()).toBe(0);
   });
 
-  it('imports a config.yaml as it is and keeps its empty repository, also once the service is renamed', async () => {
+  it('imports a devsecops_config.yaml as it is and keeps its empty repository, also once the service is renamed', async () => {
     await start();
     const legacy = {
       ...anotherService(),
@@ -945,7 +947,7 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
   });
 
-  it('adds a service imported from a config.yaml with the agents of its pipeline and lists the notes', async () => {
+  it('adds a service imported from a devsecops_config.yaml with the agents of its pipeline and lists the notes', async () => {
     await start();
     fillValidProduct();
 

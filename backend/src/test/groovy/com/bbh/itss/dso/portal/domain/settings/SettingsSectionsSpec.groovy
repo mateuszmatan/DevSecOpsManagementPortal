@@ -45,11 +45,14 @@ class SettingsSectionsSpec extends Specification {
                 'npmrc-file').writeTo(it) }.build ==
                 [node: [installationName: 'NodeJS-20', registry: 'https://nexus.bbh.com/npm-group/',
                         npmrcCredentialsId: 'npmrc-file']]
-        written { new ScanSettings(80, 10, 20, 15, 45, 55, 65, 75, false, 9).writeTo(it) } ==
+        written { new ScanSettings(80, 10, 20, 15, 45, 55, 65, 75, false, 9, false).writeTo(it) } ==
                 [coverage: [minLine: 80],
                  tools   : [sonar: [qualityGate: [waitForQualityGate: false, timeoutMinutes: 9]]],
                  sast    : [prepareTimeoutMin: 10, pollTimeoutMin: 20, pollIntervalSec: 15],
-                 dast    : [pollTimeoutMin: 45, pollIntervalSec: 55, reportTimeoutMin: 65, reportIntervalSec: 75]]
+                 dast    : [pollTimeoutMin: 45, pollIntervalSec: 55, reportTimeoutMin: 65, reportIntervalSec: 75],
+                 staticAnalysis: [parallel: false]]
+        written { new ScanSettings(80, 10, 20, 15, 45, 55, 65, 75, false, 9, null).writeTo(it) }.keySet() ==
+                ['coverage', 'tools', 'sast', 'dast'] as Set
     }
 
     def "service defaults use the source root #expected for #sourceDir"() {

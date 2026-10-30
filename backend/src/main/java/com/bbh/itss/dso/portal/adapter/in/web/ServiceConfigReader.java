@@ -47,12 +47,12 @@ import static org.apache.commons.lang3.StringUtils.capitalize;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 /**
- * Reads a config.yaml, a rendered product or pipeline config, or their JSON form into new service forms: the inverse of
- * the services' writeTo, as a table from config keys to request fields. A value the portal writes into every project
- * from the global settings, or one equal to the Library default the project inherits (tests.maxParallel, GoldenFix,
- * the Node.js installation and npm settings) or to the library's own default of a Node.js build setting, comes back
- * unset, so the service keeps inheriting it. A value the portal cannot hold becomes a note, not an error, so a partial
- * import still fills the form.
+ * Reads a devsecops_config.yaml or config.yaml, a rendered product or pipeline config, or their JSON form into new
+ * service forms: the inverse of the services' writeTo, as a table from config keys to request fields. A value the
+ * portal writes into every project from the global settings, or one equal to the Library default the project inherits
+ * (tests.maxParallel, GoldenFix, the Node.js installation and npm settings) or to the library's own default of a
+ * Node.js build setting, comes back unset, so the service keeps inheriting it. A value the portal cannot hold becomes a
+ * note, not an error, so a partial import still fills the form.
  */
 final class ServiceConfigReader {
 
@@ -60,6 +60,8 @@ final class ServiceConfigReader {
     static final String PIPELINE = "not imported: a pipeline setting, chosen when the pipeline is created";
     static final String RUN_TIME = "check: a run that builds the image replaces it";
     static final String NODE_WITH_FLUTTER = "check: the Node.js build is not used with Flutter";
+    static final String LONG_PATHS = "not imported: longer than the 500 characters the portal keeps; name fewer"
+            + " reports, or one pattern such as **/build/reports/jacoco/test/*.xml";
     static final String NO_PROJECT = "found no project: expected a projects map or the settings of one project";
     static final int MAX_PROJECTS = 50;
 
@@ -88,6 +90,13 @@ final class ServiceConfigReader {
         return files;
     };
     private static final Conversion COMMAS = value -> items(value, ",");
+    private static final Conversion PATHS = value -> {
+        String paths = String.join("\n", items(value, null));
+        if (paths.length() > 500) {
+            throw new NotImported(LONG_PATHS);
+        }
+        return paths;
+    };
     private static final Conversion WORDS = value -> items(value, "\\s+");
     private static final Conversion ENV = value -> {
         if (value instanceof Map<?, ?> variables) {
@@ -372,7 +381,7 @@ final class ServiceConfigReader {
                 rule("influx.project", "metrics.influxProject", TEXT),
                 rule("influx.env", "metrics.influxEnv", TEXT),
                 rule("tests.unitTests.unitTestResult", "unitTests.resultPattern", TEXT),
-                rule("coverage.reportPath", "unitTests.coverageReportPath", TEXT),
+                rule("coverage.reportPath", "unitTests.coverageReportPath", PATHS),
                 rule("tests.maxParallel", "tests.maxParallel", NUMBER),
                 rule("tools.sonar.authToken", "sonar.authTokenCredentialsId", TEXT),
                 rule("scm.bitbucket.url", "scm.repositoryUrl", TEXT),

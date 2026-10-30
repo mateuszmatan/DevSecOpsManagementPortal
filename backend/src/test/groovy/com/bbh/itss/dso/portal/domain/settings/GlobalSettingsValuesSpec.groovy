@@ -28,7 +28,7 @@ class GlobalSettingsValuesSpec extends Specification {
         BBH.deployment() == new DeploymentDefaults('deploy.bbh.com', 'tomcat-app-process', 'rdltaapps1.testbbh.com',
                 'qcltaapps1.testbbh.com', 'taadmin', 'scripts/deployment/zero-downtime-deployment.sh',
                 'scripts/deployment/version.properties')
-        BBH.scans() == new ScanSettings(60, 120, 50, 30, 60, 60, 30, 30, true, 5)
+        BBH.scans() == new ScanSettings(60, 120, 50, 30, 60, 60, 30, 30, true, 5, true)
         BBH.releaseGate() == new ReleaseGateSettings([SAST, SCA, NEXUS_IQ, DAST], true, 'release-gate.json')
         BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20, null, null, null)
         BBH.goldenFix() == GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true).minThreatLevel(2)
@@ -126,7 +126,7 @@ class GlobalSettingsValuesSpec extends Specification {
 
         then:
         defaults.keySet() as List == ['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tools', 'sast', 'sca',
-                                      'dast', 'tests', 'releaseGate', 'goldenFix']
+                                      'dast', 'staticAnalysis', 'tests', 'releaseGate', 'goldenFix']
         defaults.subMap(['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tests']) ==
                 [buildTool: 'gradle', deployTarget: 'vm', sourceDir: '.', coverage: [minLine: 60], tests: [maxParallel: 20]]
         defaults.tools == [sonar: [qualityGate: [waitForQualityGate: true, timeoutMinutes: 5]], nexusIq: zero]
@@ -134,6 +134,7 @@ class GlobalSettingsValuesSpec extends Specification {
         defaults.sast == [prepareTimeoutMin: 120, pollTimeoutMin: 50, pollIntervalSec: 30] + zero
         defaults.sca == zero
         defaults.dast == [pollTimeoutMin: 60, pollIntervalSec: 60, reportTimeoutMin: 30, reportIntervalSec: 30] + zero
+        defaults.staticAnalysis == [parallel: true]
         defaults.releaseGate == [scanners: ['sast', 'sca', 'niq', 'dast'], requireCoverage: true,
                                  stateFile: 'release-gate.json']
         defaults.goldenFix == [enabled: true, onlyDirectDependencies: true, minThreatLevel: 2,

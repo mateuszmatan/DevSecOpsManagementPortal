@@ -12,7 +12,12 @@ import { RevokeKeyDialog } from '../products/revoke-key-dialog';
 import { ServiceConfigDialog, ServiceConfigDialogData } from './service-config-dialog';
 import { CodeDialogData, showCode } from '../shared/code-dialog';
 import { ConfirmDialogData, askToConfirm } from '@common/shared/confirm-dialog';
-import { JENKINSFILE_HELP, pipelineName, typeName } from './pipeline-texts';
+import {
+  JENKINSFILE_HELP,
+  KEYLESS_JENKINSFILE_HELP,
+  pipelineName,
+  typeName,
+} from './pipeline-texts';
 
 export { typeName } from './pipeline-texts';
 
@@ -31,10 +36,11 @@ export class PipelineActions {
     this.api.config(pipeline.id).subscribe({
       next: (code) =>
         this.openCode({
-          title: `Settings sent to Jenkins for ${pipelineName(pipeline)} (config.yaml)`,
+          title: `Settings sent to Jenkins for ${pipelineName(pipeline)} (devsecops_config.yaml format)`,
           subtitle:
-            'What the Jenkins job of this pipeline receives when it fetches its settings with its key, in the ' +
-            'config.yaml format of the DevSecOps library. Opening it here does not count as a use of the key.',
+            'What the Jenkins job of this pipeline receives when it fetches its settings with its key, ' +
+            'in the devsecops_config.yaml format of the DevSecOps library. Opening it here does not ' +
+            'count as a use of the key.',
           code,
           fileName: `${pipeline.productCode.toLowerCase()}-${pipeline.serviceName}-${pipelineTypeSlug(pipeline.type)}.yaml`,
         }),
@@ -42,7 +48,7 @@ export class PipelineActions {
     });
   }
 
-  showJenkinsfile(pipelines: readonly Pipeline[]): void {
+  showJenkinsfile(pipelines: readonly Pipeline[], keyless = false): void {
     const together = pipelines.length > 1;
     const subtitle = together
       ? `One run builds ${pipelines.map((p) => p.serviceName).join(', ')}; the first key is that of the ` +
@@ -57,11 +63,11 @@ export class PipelineActions {
       .pipe(catchError(() => of(null)))
       .subscribe((settings) =>
         this.openCode({
-          title: together
-            ? 'Jenkinsfile for several services'
-            : `Jenkinsfile of ${pipelineName(pipelines[0])}`,
-          subtitle,
-          code: jenkinsfile(pipelines, settings?.platform.jenkinsLibrary),
+          title:
+            (keyless ? 'Jenkinsfile without a key' : 'Jenkinsfile') +
+            (together ? ' for several services' : ` of ${pipelineName(pipelines[0])}`),
+          subtitle: keyless ? KEYLESS_JENKINSFILE_HELP : subtitle,
+          code: jenkinsfile(pipelines, settings?.platform.jenkinsLibrary, keyless),
           fileName: 'Jenkinsfile',
         }),
       );

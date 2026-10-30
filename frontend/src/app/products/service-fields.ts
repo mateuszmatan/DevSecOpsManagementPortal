@@ -64,7 +64,7 @@ const NOTES: Record<ServiceSectionId, string> = {
   build:
     'How Jenkins builds the service, with an optional Node.js build first, and where the build leaves its result (the artifact). A service in a subfolder of its repository names that folder under Advanced settings.',
   unitTests:
-    'The unit tests that run after the build, and where their results and coverage report are. Without a test command the step is skipped.',
+    'The unit tests that run after the build, and where their results and coverage reports are. Without a test command the step is skipped.',
   testJobs:
     'The Jenkins jobs that run the smoke, regression and performance tests after a deployment. The pipeline starts them and waits for their results.',
   deployment: 'Where the service runs: on virtual machines or on OpenShift.',
@@ -518,7 +518,10 @@ export class ServiceFields {
     const section = this.sections().find((candidate) => candidate.id === id);
     const coverage = this.defaults()?.scans.coverageMinLine;
     const extra: Partial<Record<ServiceSectionId, string>> = {
-      unitTests: coverage === undefined ? '' : ` BBH policy requires ${coverage}% line coverage.`,
+      unitTests:
+        coverage === undefined
+          ? ''
+          : ` BBH policy requires ${coverage}% line coverage, the average of the coverage reports of the service.`,
       deployment: this.isVm()
         ? ' Its environments are set under UrbanCode Deploy and SSH targets.'
         : ' Its environments are set under OpenShift targets.',
@@ -786,9 +789,10 @@ export class ServiceFields {
         hint: 'JUnit XML files',
         help: 'Gradle builds: the pattern of the test reports Jenkins publishes. Maven builds use the folders under Advanced settings.',
       }),
-      mono('coverageReportPath', 'Coverage report', 'coverage.reportPath', 6, {
-        placeholder: 'build/reports/jacoco/test/jacocoTestReport.xml',
-        help: 'Gradle and Maven builds: the JaCoCo XML report the line coverage is read from. Left empty, the usual report paths of the build tool are tried, then any jacoco.xml in the workspace.',
+      area('coverageReportPath', 'Coverage reports', 'coverage.reportPath', 6, {
+        mono: true,
+        hint: 'usually left empty; one per line, *, ? and ** allowed',
+        help: 'Usually left empty: the pipeline then finds every JaCoCo XML and LCOV report of the service by itself, in the folder of its unit tests (the Directory of the unit test command or of the build command, otherwise the Source folder), in the folder of its Node.js build, or else in the whole repository. On Windows agents it does not look for LCOV reports: it reads the usual JaCoCo report of the build tool, and when that is missing every jacoco.xml of the workspace, or total_lcov.info for Flutter, so name every report here for those agents. A JaCoCo report needs python3 on the agent. The line coverage of the service is the average of its reports. Fill it in only to choose the reports: then only the reports named here count, so name the report of the frontend too, and for Flutter the lcov.info of each package. Paths are relative to the repository root, for example **/build/reports/jacoco/test/*.xml. When none of them exists, the pipeline searches as if the field were empty.',
       }),
     ];
   }

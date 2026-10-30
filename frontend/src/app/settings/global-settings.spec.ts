@@ -4,7 +4,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { buttonOf, fieldOf, helpOf, text, toast, unexplained } from '@common/testing/dom';
+import {
+  buttonOf,
+  checkboxOf,
+  fieldOf,
+  helpOf,
+  text,
+  toast,
+  unexplained,
+} from '@common/testing/dom';
 import { globalSettings } from '../testing/fixtures';
 import { GlobalSettingsPage } from './global-settings';
 
@@ -92,6 +100,54 @@ describe('GlobalSettingsPage', () => {
     expect(helpOf(page().querySelector('.gate .field-label')!)).toContain(
       'The scans whose findings the gate compares with their security limits.',
     );
+  });
+
+  it('measures the line coverage of a service with several coverage reports by their average', async () => {
+    await load();
+
+    expect(helpOf(fieldOf(page(), 'Minimum line coverage (%)')!)).toContain(
+      'A service with several coverage reports is measured by the average of its reports.',
+    );
+    expect(text(page().querySelector('#settings-releaseGate .section-help'))).toContain(
+      'when the line coverage of a service is below the minimum',
+    );
+    expect(
+      helpOf(checkboxOf(page(), 'Also require the minimum line coverage').closest('dso-checkbox')!),
+    ).toContain(
+      'Lists each service whose line coverage, the average of its coverage reports, is below the minimum',
+    );
+  });
+
+  it('runs Nexus IQ and SonarQube while AppScan scans unless the box under Speed is unticked', async () => {
+    await load();
+    const section = page().querySelector('#settings-scans')!;
+    const block = [...section.querySelectorAll('.form-block')].find(
+      (candidate) => text(candidate.querySelector('h3')) === 'Speed',
+    )!;
+    const box = checkboxOf(block, 'Run Nexus IQ and SonarQube while AppScan scans');
+
+    expect(text(section.querySelector('.section-help'))).toBe(
+      'How much of the code the unit tests must cover, how long the pipelines wait for each scan before they give up, and the order of the static scans. The waiting times rarely need to change.',
+    );
+    expect(text(block.querySelector('header p'))).toBe(
+      'How the full and security pipelines order their static scans.',
+    );
+    expect(text(block)).toContain('staticAnalysis.parallel');
+    expect(helpOf(box.closest('dso-checkbox')!)).toBe(
+      'Ticked, the full and security pipelines first send the code of every service to AppScan. Nexus IQ and SonarQube then run while AppScan scans it, and the SAST results are read last. The pipeline finishes sooner; the findings and the release gate stay the same, and the SAST duration in the report and the metrics covers the whole Static analysis stage. Jenkins shows the three scans as one stage, Static analysis, and the build log lists them in this order. If SAST stops before the code is sent, Nexus IQ and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run one after another, as before. The Jenkins environment variable DSO_STATIC_ANALYSIS_PARALLEL, when set to true or false, overrides this box. A Jenkinsfile without a key does not follow this box: it runs the three scans one after another unless DSO_STATIC_ANALYSIS_PARALLEL is true or every service of the run sets staticAnalysis.parallel: true in devsecops_config.yaml.',
+    );
+    expect(box.checked).toBe(true);
+
+    box.click();
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/settings' });
+    expect(request.request.body.scans).toEqual({
+      ...globalSettings().scans,
+      parallelStaticAnalysis: false,
+    });
+    request.flush(globalSettings());
+    await fixture.whenStable();
   });
 
   it('shows why the settings cannot be read and loads them again on request', async () => {
@@ -294,10 +350,14 @@ describe('GlobalSettingsPage', () => {
 
     expect(open).toHaveBeenCalledTimes(1);
     expect(open.mock.calls[0][1]?.data).toMatchObject({
-      title: 'Shared settings sent to Jenkins (config.yaml)',
+      title: 'Shared settings sent to Jenkins (devsecops_config.yaml format)',
       subtitle:
-        'The part of config.yaml every pipeline receives along with the settings of its own service, built from the saved library defaults.',
+        'The part of the settings every pipeline with a key receives along with the settings of its own ' +
+        'service, built from the saved library defaults. A Jenkinsfile without a key receives only the ' +
+        'defaults part, from the copy kept in the DevSecOps library; it never receives the platform part. ' +
+        'That copy leaves out staticAnalysis.parallel.',
       code: 'platform:\n  jenkinsLibrary: DevSecOpsJenkinsLibrary\n',
+      fileName: 'devsecops-global.yaml',
     });
   });
 

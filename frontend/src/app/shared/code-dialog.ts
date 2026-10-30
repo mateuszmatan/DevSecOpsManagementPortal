@@ -26,8 +26,8 @@ export interface CodeDialogData {
       <pre class="code-block">{{ data.code }}</pre>
     </div>
     <div class="modal-footer">
-      @if (data.fileName) {
-        <button type="button" class="btn btn-link" (click)="download()">Download</button>
+      @if (data.fileName; as fileName) {
+        <button type="button" class="btn btn-link" (click)="download(fileName)">Download</button>
       }
       <button
         type="button"
@@ -54,11 +54,11 @@ export class CodeDialog {
     this.notifier.info('Copied to the clipboard');
   }
 
-  protected download(): void {
+  protected download(fileName: string): void {
     const url = URL.createObjectURL(new Blob([this.data.code], { type: 'application/yaml' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = this.data.fileName ?? 'config.yaml';
+    link.download = fileName;
     link.click();
     URL.revokeObjectURL(url);
   }

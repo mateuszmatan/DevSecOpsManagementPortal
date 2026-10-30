@@ -18,6 +18,8 @@ import { Notifier } from '@common/core/notifier';
 import { joinWords } from '@common/shared/form-controls';
 import { capitalized } from '@common/shared/formatting';
 import { DIALOG } from '@common/ui/dialog';
+import { DsoHelp } from '@common/ui/help';
+import { CONFIG_FILE, CONFIG_FILE_NAMES, configFileOf } from '../shared/config-file';
 import { ServiceForm, createServiceForm } from './product-form-model';
 
 export const MAX_CONFIG_BYTES = 262_144;
@@ -106,8 +108,24 @@ export class ConfigServicePicker {
   protected readonly services = inject<readonly ImportedService[]>(DIALOG_DATA);
 }
 
+/** The note that names the chosen files an import did not read. */
+const skippedNotes = (file: File, skipped: readonly File[]): FieldProblem[] =>
+  skipped.length
+    ? [
+        {
+          field: '',
+          message:
+            `check: the import did not read ${skipped.map((f) => f.name).join(', ')}` +
+            (file.name === CONFIG_FILE && skipped.some((f) => f.name === CONFIG_FILE_NAMES[1])
+              ? `: the DevSecOps library reads ${CONFIG_FILE} when a repository has both`
+              : ''),
+        },
+      ]
+    : [];
+
 @Component({
   selector: 'dso-config-import',
+  imports: [DsoHelp],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'dso-config-import' },
   template: `
@@ -117,16 +135,28 @@ export class ConfigServicePicker {
       [disabled]="disabled() || busy()"
       (click)="file.click()"
     >
-      Import config.yaml
+      Import devsecops_config.yaml
     </button>
+    <dso-help
+      label="Import devsecops_config.yaml"
+      text="Reads a devsecops_config.yaml, a config.yaml (its former name), a configuration the portal rendered or its JSON form. Choose several files, for example both files of a repository, and the import reads devsecops_config.yaml, else config.yaml, as the DevSecOps library does."
+    />
     <input
       #file
       type="file"
       accept=".yaml,.yml,.json"
+      multiple
       hidden
-      aria-label="config.yaml to import"
+      aria-label="devsecops_config.yaml or config.yaml to import"
       (change)="read(file)"
     />
+  `,
+  styles: `
+    :host {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
   `,
 })
 export class ConfigImport {
@@ -141,11 +171,20 @@ export class ConfigImport {
   protected readonly busy = signal(false);
 
   protected read(input: HTMLInputElement): void {
-    const file = input.files?.[0];
+    const files = Array.from(input.files ?? []);
     input.value = '';
-    if (!file) {
+    if (!files.length) {
       return;
     }
+    const choice = configFileOf(files);
+    if (!choice) {
+      this.notifier.error(
+        'None of the chosen files is named devsecops_config.yaml or config.yaml. ' +
+          'Choose one of them, or a single file of any name.',
+      );
+      return;
+    }
+    const { file, skipped } = choice;
     if (file.size > MAX_CONFIG_BYTES) {
       this.notifier.error(`${file.name} is larger than 256 KiB and cannot be imported.`);
       return;
@@ -168,7 +207,7 @@ export class ConfigImport {
             file: file.name,
             name: picked.chosen.name ?? '',
             service: picked.chosen.service,
-            notes: [...picked.result.notes, ...picked.chosen.notes],
+            notes: [...skippedNotes(file, skipped), ...picked.result.notes, ...picked.chosen.notes],
             agentLabels: picked.result.pipeline?.agentLabels ?? null,
           }),
         error: (error) => this.notifier.error(this.failure(file.name, error)),

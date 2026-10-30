@@ -8,17 +8,17 @@ import static java.nio.file.Files.readString
 
 class ConfigPreviewSpec extends ProductPageSpecification {
 
-    def "a pipeline's config.yaml is shown as the library receives it, and can be downloaded and copied"() {
+    def "a pipeline's settings in the devsecops_config.yaml format are shown as the library receives them, and can be downloaded and copied"() {
         given:
         recordClipboard()
         def yaml = fixtureText('pipeline-1-config.yaml')
         open('/admin/products/1')
 
         when:
-        pipelineAction('gui', 'Full', 'Settings sent to Jenkins (config.yaml)')
+        pipelineAction('gui', 'Full', 'Settings sent to Jenkins (devsecops_config.yaml format)')
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins for gui · Full (config.yaml)')
+        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins for gui · Full (devsecops_config.yaml format)')
         assertThat(dialog().locator('.subtitle')).containsText('Opening it here does not count as a use of the key.')
         dialog().locator('pre.code-block').textContent() == yaml
         api.requests('GET', '/api/pipelines/1/config').size() == 1
@@ -45,6 +45,26 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         ownErrors().isEmpty()
     }
 
+    def "the product's settings are downloaded as devsecops_config.yaml, ready to commit for a Jenkinsfile without a key"() {
+        given:
+        open('/admin/products/1')
+
+        when:
+        productAction('Settings sent to Jenkins (devsecops_config.yaml)')
+
+        then:
+        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins (devsecops_config.yaml) for CertScanner')
+        assertThat(dialog().locator('.subtitle')).containsText('it also serves a Jenkinsfile without a pipeline key')
+
+        when:
+        def download = page.waitForDownload { dialogButton('Download').click() }
+
+        then:
+        download.suggestedFilename() == 'devsecops_config.yaml'
+        readString(download.path()) == fixtureText('product-1-config.yaml')
+        ownErrors().isEmpty()
+    }
+
     def "the Jenkinsfile of a pipeline loads the shared library of the global settings with the pipeline's key"() {
         given:
         def settings = fixture('settings.json') as Map
@@ -60,6 +80,24 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         assertThat(dialog().locator('.subtitle')).hasText("The file to put in the service's repository so Jenkins runs this pipeline. It holds only the pipeline key: Jenkins fetches every other setting from this portal.")
         dialog().locator('pre.code-block').textContent() ==
                 "@Library('BbhDevSecOps@2.4') _\n\ndevSecOpsSASTScanningPipeline(pipelineKey: '2c0ca4f4-a1a6-472a-9685-0c75f22fe713')\n"
+        ownErrors().isEmpty()
+    }
+
+    def "the Jenkinsfile without a key of a pipeline names its service and its agents"() {
+        given:
+        def settings = fixture('settings.json') as Map
+        settings.platform.jenkinsLibrary = 'BbhDevSecOps@2.4'
+        api.respond('GET', '/api/settings', settings)
+        open('/admin/products/1')
+
+        when:
+        pipelineAction('gui', 'SAST scanning', 'Jenkinsfile without a key')
+
+        then:
+        assertThat(dialog().locator('h2')).hasText('Jenkinsfile without a key of gui · SAST scanning')
+        assertThat(dialog().locator('.subtitle')).containsText('so the other services of that file are not built')
+        dialog().locator('pre.code-block').textContent() ==
+                "@Library('BbhDevSecOps@2.4') _\n\ndevSecOpsSASTScanningPipeline(projectNames: 'gui', agentNames: ['linux-agent'])\n"
         ownErrors().isEmpty()
     }
 

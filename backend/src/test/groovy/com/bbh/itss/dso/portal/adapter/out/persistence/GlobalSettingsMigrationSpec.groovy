@@ -22,8 +22,9 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 class GlobalSettingsMigrationSpec extends MigrationSpecification {
 
     static final List<String> SCA = ['SCA_ENABLED', 'SCA_POLL_TIMEOUT_MIN', 'SCA_POLL_INTERVAL_SEC']
+    static final String PARALLEL_SCANS = 'CK_DSO_GLOBAL_PARALLEL_SCANS'
     static final List<String> CHECKS = ['CK_DSO_GLOBAL_BUILD_TOOL', 'CK_DSO_GLOBAL_DEPLOY_TARGET', 'CK_DSO_GLOBAL_FLAGS',
-                                        'CK_DSO_GLOBAL_SETTINGS_ROW']
+                                        PARALLEL_SCANS, 'CK_DSO_GLOBAL_SETTINGS_ROW']
 
     @Autowired
     GlobalSettingsPersistenceAdapter settings
@@ -81,7 +82,7 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
         then:
         jdbc.queryForMap('SELECT SCA_ENABLED, SCA_POLL_TIMEOUT_MIN, SCA_POLL_INTERVAL_SEC FROM DSO_GLOBAL_SETTINGS') ==
                 [SCA_ENABLED: 1, SCA_POLL_TIMEOUT_MIN: 40, SCA_POLL_INTERVAL_SEC: 30]
-        checks() == CHECKS
+        checks() == CHECKS - PARALLEL_SCANS
 
         when:
         jdbc.update('UPDATE DSO_GLOBAL_SETTINGS SET SCA_ENABLED = 2')
@@ -95,6 +96,34 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
         then:
         SCA.every { !(it in columns('DSO_GLOBAL_SETTINGS')) }
         settings.load().get().values() == GlobalSettings.bbhDefaults().values()
+    }
+
+    def "033 switches the order on for saved settings, refuses other values, and its rollback removes the column"() {
+        given:
+        jdbc.execute('DROP ALL OBJECTS')
+        liquibase.update('')
+        settings.save(GlobalSettings.bbhDefaults())
+
+        when:
+        rollBackSince('033-')
+
+        then:
+        !('PARALLEL_STATIC_ANALYSIS' in columns('DSO_GLOBAL_SETTINGS'))
+        checks() == CHECKS - PARALLEL_SCANS
+
+        when:
+        liquibase.update('')
+
+        then:
+        settings.load().get().values().scans().parallelStaticAnalysis()
+        !nullable('DSO_GLOBAL_SETTINGS', 'PARALLEL_STATIC_ANALYSIS')
+        checks() == CHECKS
+
+        when:
+        jdbc.update('UPDATE DSO_GLOBAL_SETTINGS SET PARALLEL_STATIC_ANALYSIS = 2')
+
+        then:
+        thrown(DataIntegrityViolationException)
     }
 
     private List<String> checks() {

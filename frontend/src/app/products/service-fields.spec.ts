@@ -410,6 +410,46 @@ describe('ServiceFields', () => {
     });
   });
 
+  describe('Unit tests and coverage', () => {
+    it('takes one coverage report per line, left empty to let the pipeline find them, for every build tool', async () => {
+      await render();
+      await open('Unit tests and coverage');
+      const field = () => fieldOf(pane(), 'Coverage reports')!;
+
+      expect(text(pane().querySelector('.pane-header p'))).toContain(
+        'BBH policy requires 60% line coverage, the average of the coverage reports of the service.',
+      );
+      expect(field().querySelector('textarea')).not.toBeNull();
+      expect(text(field().querySelector('dso-hint'))).toBe(
+        'Usually left empty; one per line, *, ? and ** allowed · coverage.reportPath',
+      );
+      expect(helpOf(field())).toContain(
+        'finds every JaCoCo XML and LCOV report of the service by itself',
+      );
+      expect(helpOf(field())).toContain(
+        'On Windows agents it does not look for LCOV reports: it reads the usual JaCoCo report of ' +
+          'the build tool, and when that is missing every jacoco.xml of the workspace, or ' +
+          'total_lcov.info for Flutter, so name every report here for those agents. A JaCoCo ' +
+          'report needs python3 on the agent.',
+      );
+      expect(helpOf(field())).not.toContain('without python3');
+      expect(helpOf(field())).toContain(
+        'only the reports named here count, so name the report of the frontend too',
+      );
+
+      const input = inputOf(pane(), 'Coverage reports');
+      input.value = 'build/reports/jacoco/test/jacocoTestReport.xml\nweb/coverage/lcov.info';
+      input.dispatchEvent(new Event('input'));
+      expect(form.controls.unitTests.controls.coverageReportPath.value).toBe(
+        'build/reports/jacoco/test/jacocoTestReport.xml\nweb/coverage/lcov.info',
+      );
+
+      form.controls.build.controls.tool.setValue('FLUTTER');
+      await fixture.whenStable();
+      expect(helpOf(field())).toContain('and for Flutter the lcov.info of each package');
+    });
+  });
+
   describe('Deployment', () => {
     it('switches the deployment target and its sections with the toggles', async () => {
       await render();
@@ -591,6 +631,22 @@ describe('ServiceFields', () => {
       expect(text(pane().querySelector('dso-advanced-settings .panel-description'))).toBe(
         'Scan name, scanned folders, AppScan client and the options of the static scan',
       );
+    });
+
+    it('says under the compile command that another command keeps the static scans one after another', async () => {
+      await render();
+      await open('AppScan SAST and DAST');
+      const notes = () => [...pane().querySelectorAll('dso-advanced-settings .note')].map(text);
+      const note =
+        'Left empty, the SAST compile runs the build command of the service. Another command makes the full and security pipelines run Nexus IQ, SAST and SonarQube one after another, because it may not rebuild the files Nexus IQ scans.';
+
+      expect(notes()).toContain(note);
+
+      checkboxOf(pane(), 'Compile before preparing the IRX').click();
+      await fixture.whenStable();
+
+      expect(form.controls.appScan.controls.compile.value).toBe(false);
+      expect(notes()).not.toContain(note);
     });
   });
 

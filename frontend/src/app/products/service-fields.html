@@ -200,6 +200,11 @@
             <dso-fields [group]="scan" [fields]="appScanOptions" />
             @if (!flutter() && scan.controls.compile.value) {
               <h4 class="sub-heading span-12">Compile command</h4>
+              <p class="note span-12">
+                Left empty, the SAST compile runs the build command of the service. Another command
+                makes the full and security pipelines run Nexus IQ, SAST and SonarQube one after
+                another, because it may not rebuild the files Nexus IQ scans.
+              </p>
               <dso-tool-command-fields
                 [group]="scan.controls.compileCommand"
                 [tool]="tool()"

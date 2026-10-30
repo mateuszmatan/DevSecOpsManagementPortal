@@ -6,7 +6,7 @@ import { FormControl } from '@angular/forms';
 import { of } from 'rxjs';
 import { ImportedService, ServiceConfigImport } from '../core/models';
 import { Notifier } from '@common/core/notifier';
-import { buttonOf, text } from '@common/testing/dom';
+import { buttonOf, helpOf, text } from '@common/testing/dom';
 import { nodeBuild, service } from '../testing/fixtures';
 import {
   ConfigImport,
@@ -52,13 +52,16 @@ describe('ConfigImport', () => {
 
   afterEach(() => http.verify());
 
-  const button = () => buttonOf(fixture.nativeElement, 'Import config.yaml');
+  const button = () => buttonOf(fixture.nativeElement, 'Import devsecops_config.yaml');
+  const fileInput = () =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[type=file]')!;
 
-  async function pick(file = upload()) {
-    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-      'input[type=file]',
-    )!;
-    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+  async function pick(...files: File[]) {
+    const input = fileInput();
+    Object.defineProperty(input, 'files', {
+      value: files.length ? files : [upload()],
+      configurable: true,
+    });
     input.dispatchEvent(new Event('change'));
   }
 
@@ -147,6 +150,96 @@ describe('ConfigImport', () => {
       'config.yaml could not be imported. The file describes no service.',
     );
     expect(emitted).toEqual([]);
+  });
+
+  it('the input takes several YAML or JSON files and names both file names', () => {
+    const help = button().nextElementSibling as HTMLElement;
+
+    expect(fileInput().multiple).toBe(true);
+    expect(fileInput().accept).toBe('.yaml,.yml,.json');
+    expect(fileInput().getAttribute('aria-label')).toBe(
+      'devsecops_config.yaml or config.yaml to import',
+    );
+    expect(help.tagName).toBe('DSO-HELP');
+    expect(help.querySelector('button')!.getAttribute('aria-label')).toBe(
+      'More information about Import devsecops_config.yaml',
+    );
+    expect(helpOf(help)).toBe(
+      'Reads a devsecops_config.yaml, a config.yaml (its former name), a configuration the portal rendered ' +
+        'or its JSON form. Choose several files, for example both files of a repository, and the import ' +
+        'reads devsecops_config.yaml, else config.yaml, as the DevSecOps library does.',
+    );
+  });
+
+  it('imports devsecops_config.yaml from several files and notes that config.yaml was not read', async () => {
+    await pick(
+      upload('projects: {old: {}}', 'config.yaml'),
+      upload(CONFIG, 'devsecops_config.yaml'),
+    );
+    const request = await sent();
+
+    expect(request.request.body).toEqual({ content: CONFIG, serviceName: 'portal' });
+
+    request.flush({ services: [imported('gateway', [])], pipeline: null, notes: [] });
+    await fixture.whenStable();
+
+    expect(emitted[0].file).toBe('devsecops_config.yaml');
+    expect(emitted[0].notes[0]).toEqual({
+      field: '',
+      message:
+        'check: the import did not read config.yaml: the DevSecOps library reads devsecops_config.yaml ' +
+        'when a repository has both',
+    });
+    expect(noteGroups(emitted[0].notes)).toEqual([
+      {
+        title: 'Check',
+        notes: [
+          {
+            field: '',
+            message:
+              'The import did not read config.yaml: the DevSecOps library reads devsecops_config.yaml ' +
+              'when a repository has both',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('notes a skipped file of another name without the library order', async () => {
+    await pick(upload(CONFIG, 'config.yaml'), upload('x', 'README.md'));
+    await answer({ services: [imported('gateway', [])] });
+
+    expect(emitted[0].file).toBe('config.yaml');
+    expect(emitted[0].notes).toEqual([
+      { field: '', message: 'check: the import did not read README.md' },
+    ]);
+  });
+
+  it('refuses several files without either name and sends nothing', async () => {
+    await pick(upload(CONFIG, 'cert-gui-full.yaml'), upload(CONFIG, 'Config.yaml'));
+
+    http.expectNone(URL);
+    expect(error).toHaveBeenCalledWith(
+      'None of the chosen files is named devsecops_config.yaml or config.yaml. ' +
+        'Choose one of them, or a single file of any name.',
+    );
+    expect(emitted).toEqual([]);
+  });
+
+  it('checks the size of the chosen file only', async () => {
+    const huge = (name: string) => upload('x'.repeat(MAX_CONFIG_BYTES + 1), name);
+
+    await pick(huge('config.yaml'), upload(CONFIG, 'devsecops_config.yaml'));
+    await answer({ services: [imported('gateway')] });
+
+    expect(emitted.map((config) => config.file)).toEqual(['devsecops_config.yaml']);
+
+    await pick(upload(CONFIG, 'config.yaml'), huge('devsecops_config.yaml'));
+
+    http.expectNone(URL);
+    expect(error).toHaveBeenCalledWith(
+      'devsecops_config.yaml is larger than 256 KiB and cannot be imported.',
+    );
   });
 
   it('is disabled while the form cannot take another service', async () => {

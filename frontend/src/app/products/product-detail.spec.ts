@@ -305,17 +305,23 @@ describe('ProductDetail', () => {
     it('opens the configuration of the product and of a pipeline', async () => {
       await load();
 
-      await menu('Settings sent to Jenkins (config.yaml)', 'More actions of CertScanner');
+      await menu('Settings sent to Jenkins (devsecops_config.yaml)', 'More actions of CertScanner');
       http.expectOne('/api/products/1/config').flush('projects: {}');
-      await menu('Settings sent to Jenkins (config.yaml)');
+      await menu('Settings sent to Jenkins (devsecops_config.yaml format)');
       http.expectOne('/api/pipelines/100/config').flush('projects:\n  gui: {}');
 
       expect(opened(0)).toMatchObject({
         component: CodeDialog,
         data: {
-          title: 'Settings sent to Jenkins (config.yaml) for CertScanner',
+          title: 'Settings sent to Jenkins (devsecops_config.yaml) for CertScanner',
+          subtitle:
+            'What the pipelines of every service receive from the portal, in the format of the DevSecOps ' +
+            'library, with the BBH defaults filled in. Committed as devsecops_config.yaml at the root of a ' +
+            'repository, it also serves a Jenkinsfile without a pipeline key: take that Jenkinsfile from ' +
+            '"Jenkinsfile without a key" in the More menu of a pipeline, so that only the services of that ' +
+            'repository are built. Rename a second download to exactly devsecops_config.yaml before you commit it.',
           code: 'projects: {}',
-          fileName: 'cert-config.yaml',
+          fileName: 'devsecops_config.yaml',
         },
       });
       expect(opened(1).data['fileName']).toBe('cert-gui-full.yaml');
@@ -356,7 +362,7 @@ describe('ProductDetail', () => {
 
       await menu('Delete pipeline', 'More actions of the Nexus IQ GoldenFix pipeline');
       await menu(
-        'Settings sent to Jenkins (config.yaml)',
+        'Settings sent to Jenkins (devsecops_config.yaml format)',
         'More actions of the Nexus IQ GoldenFix pipeline',
       );
       http.expectOne('/api/pipelines/100/config').flush('projects: {}');
@@ -365,7 +371,8 @@ describe('ProductDetail', () => {
         'The Nexus IQ GoldenFix pipeline of gui and its key history are deleted.',
       );
       expect(opened(1).data).toMatchObject({
-        title: 'Settings sent to Jenkins for gui · Nexus IQ GoldenFix (config.yaml)',
+        title:
+          'Settings sent to Jenkins for gui · Nexus IQ GoldenFix (devsecops_config.yaml format)',
         fileName: 'cert-gui-nexusiq.yaml',
       });
     });
@@ -432,6 +439,78 @@ describe('ProductDetail', () => {
       expect(opened(1).data['title']).toBe('Jenkinsfile for several services');
       expect(opened(1).data['code']).toContain(
         "(pipelineKeys: [\n    '6f1c2d3e-0000-4abc-9def-123456789abc',\n    'a1b2c3d4",
+      );
+    });
+
+    it('offers a Jenkinsfile without a key with the services of the repository', async () => {
+      const api = (overrides: Partial<Pipeline> = {}) =>
+        pipeline({ id: 200, serviceId: 11, serviceName: 'api', ...overrides });
+      await load(product({ services: [service(), anotherService()] }), [
+        servicePipelines({ pipelines: [pipeline(), pipeline({ id: 101, type: 'SAST' })] }),
+        servicePipelines({
+          serviceId: 11,
+          serviceName: 'api',
+          pipelines: [api(), api({ id: 201, type: 'SAST' })],
+        }),
+      ]);
+
+      await menu('Jenkinsfile without a key', 'More actions of the SAST scanning pipeline');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened()).toMatchObject({
+        component: CodeDialog,
+        data: {
+          title: 'Jenkinsfile without a key for several services',
+          subtitle:
+            'For a repository that keeps the settings of its services in devsecops_config.yaml instead of ' +
+            'fetching them with a pipeline key. Commit it at the root of the repository with ' +
+            'devsecops_config.yaml, which "Settings sent to Jenkins (devsecops_config.yaml)" in the More menu ' +
+            'of the product downloads. It names the services of this repository, so the other services of ' +
+            'that file are not built. A change in the portal reaches the pipeline only when the file is ' +
+            'downloaded and committed again. The Jenkins administrators can require a pipeline key; this ' +
+            'Jenkinsfile then stops at its start.',
+          code:
+            "@Library('DevSecOpsJenkinsLibrary') _\n\n" +
+            "devSecOpsPipeline(projectNames: 'gui,api', agentNames: ['linux-agent'])\n",
+          fileName: 'Jenkinsfile',
+        },
+      });
+    });
+
+    it('names every service of the repository without a key, also when a key is invalidated', async () => {
+      await load(product({ services: [service(), anotherService()] }), [
+        servicePipelines({ pipelines: [pipeline({ activeKey: null })] }),
+        servicePipelines({
+          serviceId: 11,
+          serviceName: 'api',
+          pipelines: [pipeline({ id: 200, serviceId: 11, serviceName: 'api' })],
+        }),
+      ]);
+
+      await menu('Jenkinsfile without a key');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened().data['title']).toBe('Jenkinsfile without a key for several services');
+      expect(opened().data['code']).toContain(
+        "devSecOpsPipeline(projectNames: 'gui,api', agentNames: ['linux-agent'])",
+      );
+
+      await menu('Jenkinsfile');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened(1).data['title']).toBe('Jenkinsfile of gui · Full');
+      expect(opened(1).data['code']).toContain("pipelineKey: '<issue a new key first>'");
+    });
+
+    it('names the pipeline in the Jenkinsfile without a key of a service of its own', async () => {
+      await load();
+
+      await menu('Jenkinsfile without a key');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened().data['title']).toBe('Jenkinsfile without a key of gui · Full');
+      expect(opened().data['code']).toContain(
+        "devSecOpsPipeline(projectNames: 'gui', agentNames: ['linux-agent'])",
       );
     });
 
