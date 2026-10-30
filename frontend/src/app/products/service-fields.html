@@ -132,6 +132,15 @@
             />
           </div>
           <dso-fields [group]="f.controls.deployment" [fields]="deploymentFields()" />
+          @if (delivers()) {
+            <dso-advanced-settings
+              summary="Name of the built file"
+              [controls]="advanced().deployment"
+              [submitted]="submitted()"
+            >
+              <dso-fields [group]="f.controls.deployment" [fields]="deploymentOptions()" />
+            </dso-advanced-settings>
+          }
         </div>
         @if (isVm() && tool() === 'MAVEN' && delivers()) {
           <div class="form-fields block">
@@ -184,7 +193,7 @@
             }
           }
           <dso-advanced-settings
-            summary="Scan name, AppScan client and the options of the static scan"
+            summary="Scan name, scanned folders, AppScan client and the options of the static scan"
             [controls]="advanced().appScan"
             [submitted]="submitted()"
           >
@@ -217,7 +226,7 @@
             />
           }
           <dso-advanced-settings
-            summary="Scanner credentials, server, badges and analysis command options"
+            summary="Tokens, scanner credentials, server, badges and analysis command options"
             [controls]="advanced().sonar"
             [submitted]="submitted()"
           >

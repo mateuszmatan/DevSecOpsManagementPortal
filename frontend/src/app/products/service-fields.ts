@@ -133,18 +133,6 @@ const APP_SCAN: Field[] = [
     hint: 'left empty: the key ID',
     help: `${SECRET_TEXT} that holds the secret of the API key.`,
   }),
-  area('includedDirs', 'Included folders', 'includedDirs', 6, {
-    mono: true,
-    placeholder: 'src',
-    hint: 'one per line, left empty: all',
-    help: 'The folders the static scan includes. On Linux agents a folder name matches at any depth below the source folder.',
-  }),
-  area('excludedDirs', 'Excluded folders', 'excludedDirs', 6, {
-    mono: true,
-    placeholder: 'src/test',
-    hint: 'one per line',
-    help: 'The folders the static scan leaves out. They apply on Linux agents, and only while no folder is included.',
-  }),
 ];
 
 const APP_SCAN_OPTIONS: Field[] = [
@@ -157,6 +145,18 @@ const APP_SCAN_OPTIONS: Field[] = [
     hint: 'needed on Windows agents',
     help: 'The path of appscan.bat relative to the workspace, starting with a slash; Windows agents run the AppScan client from there. Linux agents use the client the pipeline downloads.',
     error: POWERSHELL_PATH_ERROR,
+  }),
+  area('includedDirs', 'Included folders', 'includedDirs', 6, {
+    mono: true,
+    placeholder: 'src',
+    hint: 'one per line, left empty: all',
+    help: 'The folders the static scan includes. On Linux agents a folder name matches at any depth below the source folder.',
+  }),
+  area('excludedDirs', 'Excluded folders', 'excludedDirs', 6, {
+    mono: true,
+    placeholder: 'src/test',
+    hint: 'one per line',
+    help: 'The folders the static scan leaves out. They apply on Linux agents, and only while no folder is included.',
   }),
   check('compile', 'Compile before preparing the IRX', 'asoc.doCompile', 6, {
     help: 'Linux agents only: runs the compile command first, so the scan includes the compiled classes.',
@@ -484,8 +484,13 @@ export class ServiceFields {
         ...of(c.unitTests, 'rootDir', 'reportOutDir', 'allowEmptyResults'),
         ...options(c.unitTests.controls.command),
       ],
-      appScan: of(scan, 'scanName', 'clientPath', 'compileCommand'),
-      sonar: [...of(sonar, 'credentialsId', 'serverUrl'), ...options(sonar.controls.command)],
+      deployment: of(c.deployment, 'baseArtifactName'),
+      appScan: of(scan, 'scanName', 'clientPath', 'includedDirs', 'excludedDirs', 'compileCommand'),
+      sonar: [
+        ...of(sonar, 'authTokenCredentialsId', 'credentialsId', 'serverUrl'),
+        ...of(sonar, 'badgeToken', 'badgeCredentialsId'),
+        ...options(sonar.controls.command),
+      ],
       nexusIq: [c.nexusIq],
       scm: of(c.scm, 'cloneUrl', 'apiUrl', 'workspace', 'projectKey', 'repoSlug'),
       metrics: of(c.metrics, 'influxUrl', 'influxCredentialsId'),
@@ -580,7 +585,7 @@ export class ServiceFields {
       [c.build, [...this.buildTool(), ...this.buildFields(), ...this.buildOptions()]],
       [c.nodeBuild, [...this.nodeSwitch(), ...this.nodeFields(), ...this.nodeOptions()]],
       [c.unitTests, [...this.unitTestFields(), ...UNIT_TEST_OPTIONS]],
-      [c.deployment, this.deploymentFields()],
+      [c.deployment, [...this.deploymentFields(), ...this.deploymentOptions()]],
       [c.appScan, [...APP_SCAN, ...APP_SCAN_OPTIONS, ...DAST_ENABLED, ...DAST]],
       [c.sonar, [...this.sonarFields(), ...this.sonarOptions()]],
       [c.nexusIq, this.nexusIqFields()],
@@ -807,14 +812,19 @@ export class ServiceFields {
               help: 'The file, in the folder of the artifact path, that is copied into the image build context under this name.',
               error: SHELL_SAFE_ERROR,
             }),
-            mono('baseArtifactName', 'Built file name', 'baseArtifactName', 4, {
-              placeholder: 'app-1.0.0.jar',
-              hint: 'renamed to the artifact name',
-              help: 'The name of the file the build produces, when it differs from the artifact name.',
-              error: SHELL_SAFE_ERROR,
-            }),
           ]
         : []),
+    ];
+  }
+
+  protected deploymentOptions(): Field[] {
+    return [
+      mono('baseArtifactName', 'Built file name', 'baseArtifactName', 6, {
+        placeholder: 'app-1.0.0.jar',
+        hint: 'renamed to the artifact name',
+        help: 'The name of the file the build produces, when it differs from the artifact name.',
+        error: SHELL_SAFE_ERROR,
+      }),
     ];
   }
 
@@ -868,8 +878,22 @@ export class ServiceFields {
         ...defaulted(platform?.sonarInstallationName, c.installationName.value),
         help: 'The name of the SonarQube server configured in Jenkins, which the analysis and the quality gate use.',
       }),
+    ];
+  }
+
+  protected sonarOptions(): Field[] {
+    const platform = this.defaults()?.platform;
+    return [
       mono('authTokenCredentialsId', 'Token credentials ID', 'tools.sonar.authToken', 6, {
         help: `${SECRET_TEXT} with a SonarQube token. The pipeline reads the open vulnerability counts with it; the report shows them and the SCA security limits are checked against them.`,
+      }),
+      mono('credentialsId', 'Scanner credentials ID', 'tools.sonar.credentialsId', 6, {
+        help: `${SECRET_TEXT} that replaces the server token of the Jenkins installation for Gradle and Maven analyses.`,
+      }),
+      line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 12, {
+        ...defaulted(platform?.sonarServerUrl, this.form().controls.sonar.controls.serverUrl.value),
+        help: 'The SonarQube address of the dashboard link, the issue counts and the badges. Flutter analyses are also sent to it.',
+        error: HTTP_URL_ERROR,
       }),
       mono('badgeToken', 'Badge token', 'tools.sonar.badgeToken', 6, {
         placeholder: 'sqb_1a2b3c',
@@ -886,20 +910,6 @@ export class ServiceFields {
           help: `${SECRET_TEXT} that holds the badge token, so the token is not stored in the portal.`,
         },
       ),
-    ];
-  }
-
-  protected sonarOptions(): Field[] {
-    const platform = this.defaults()?.platform;
-    return [
-      mono('credentialsId', 'Scanner credentials ID', 'tools.sonar.credentialsId', 4, {
-        help: `${SECRET_TEXT} that replaces the server token of the Jenkins installation for Gradle and Maven analyses.`,
-      }),
-      line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 8, {
-        ...defaulted(platform?.sonarServerUrl, this.form().controls.sonar.controls.serverUrl.value),
-        help: 'The SonarQube address of the dashboard link, the issue counts and the badges. Flutter analyses are also sent to it.',
-        error: HTTP_URL_ERROR,
-      }),
       check('addBadges', 'Badges in the Jenkins build description', 'tools.sonar.addBadges', 6, {
         help: 'Adds the SonarQube badges of the project to the description of the Jenkins build. Gradle and Maven builds only.',
       }),

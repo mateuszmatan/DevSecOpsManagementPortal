@@ -393,6 +393,7 @@ describe('ServiceFields', () => {
 
       expect(text(box().closest('dso-checkbox'))).toContain('deploy.vm.rd.nexusDeliveryEnabled');
       expect(labels()).toContain('Artifact name');
+      expect(fieldOf(pane(), 'Built file name')?.closest('dso-advanced-settings')).not.toBeNull();
       expect(pane().querySelector('.block h4')?.textContent).toBe('Delivery');
 
       box().click();
@@ -519,7 +520,7 @@ describe('ServiceFields', () => {
   });
 
   describe('AppScan', () => {
-    it('asks for the key of the service with the application and moves the scan name into the advanced settings', async () => {
+    it('asks for the key of the service with the application and keeps the scan name and folders under Advanced settings', async () => {
       await render();
       await open('AppScan SAST and DAST');
       const main = [...pane().querySelectorAll(':scope > .form-fields > dso-fields dso-label')].map(
@@ -530,33 +531,32 @@ describe('ServiceFields', () => {
         'AppScan application ID',
         'AppScan API key ID',
         'API key secret credentials ID',
-        'Included folders',
-        'Excluded folders',
       ]);
       expect(text(fieldOf(pane(), 'API key secret credentials ID'))).toContain(
         'Left empty: the key ID · asoc.token',
       );
       expect(text(fieldOf(pane(), 'SAST scan name'))).toContain('sast.scanName');
-      expect(fieldOf(pane(), 'SAST scan name')?.closest('dso-advanced-settings')).not.toBeNull();
+      ['SAST scan name', 'Included folders', 'Excluded folders'].forEach((label) =>
+        expect(fieldOf(pane(), label)?.closest('dso-advanced-settings'), label).not.toBeNull(),
+      );
+      expect(text(pane().querySelector('dso-advanced-settings .panel-description'))).toBe(
+        'Scan name, scanned folders, AppScan client and the options of the static scan',
+      );
     });
   });
 
   describe('SonarQube', () => {
-    it('shows the project, its credentials and badge settings first and refuses both badge values', async () => {
+    it('shows the project first, keeps the tokens and badges under Advanced settings and refuses both badge values', async () => {
       await render();
       await open('SonarQube');
       const main = [...pane().querySelectorAll(':scope > .form-fields > dso-fields dso-label')].map(
         (label) => text(label),
       );
 
-      expect(main).toEqual([
-        'Project name',
-        'Project key',
-        'Jenkins installation',
-        'Token credentials ID',
-        'Badge token',
-        'Badge token credentials ID',
-      ]);
+      expect(main).toEqual(['Project name', 'Project key', 'Jenkins installation']);
+      ['Token credentials ID', 'Badge token', 'Badge token credentials ID'].forEach((label) =>
+        expect(fieldOf(pane(), label)?.closest('dso-advanced-settings'), label).not.toBeNull(),
+      );
       expect(text(fieldOf(pane(), 'Project key'))).toContain(
         'Left empty, the scan still runs without dashboard link, issue counts and badges',
       );
@@ -572,6 +572,7 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
 
       expect(text(fieldOf(pane(), 'Badge token')?.querySelector('dso-error'))).toBe(BADGE_TWICE);
+      expect(pane().querySelector('dso-advanced-settings .has-errors')).not.toBeNull();
     });
   });
 
