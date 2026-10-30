@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -35,7 +36,9 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineKey.normalize;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
+import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.groupingBy;
+import static org.apache.commons.lang3.ObjectUtils.allNull;
 
 @UseCase
 @RequiredArgsConstructor
@@ -93,14 +96,44 @@ public class PipelineService implements PipelinesUseCase {
         Product product = products.load(productId).orElseThrow(() -> notFound("Product", productId));
         String jenkinsUrl = jenkinsUrl();
         ServiceTemplate defaults = template.current().template();
+        Map<String, String> sharedJobs = sharedJobs(product, type);
         return serviceIds.stream()
                 .map(serviceId -> product.service(serviceId)
                         .orElseThrow(() -> notFound("Service", serviceId)))
                 .filter(service -> !pipelines.existsForService(service.id(), type))
-                .map(service -> PipelineView.of(product, create(product, service, type,
-                        withLabels(defaults.pipelineSettings(product.code(), service.name(), type), agentLabels)),
-                        jenkinsUrl))
+                .map(service -> PipelineView.of(product, create(product, service, type, sharingJob(service,
+                        withLabels(defaults.pipelineSettings(product.code(), service.name(), type), agentLabels),
+                        sharedJobs)), jenkinsUrl))
                 .toList();
+    }
+
+    /**
+     * The Jenkins job of the first active pipeline of the type that runs for a repository with the same agents: the
+     * services of one repository share one Jenkinsfile, and so one job.
+     */
+    private Map<String, String> sharedJobs(Product product, PipelineType type) {
+        Map<String, String> jobs = new HashMap<>();
+        pipelines.findByProductId(product.id()).stream()
+                .filter(pipeline -> pipeline.type() == type && pipeline.activeKey().isPresent()
+                        && allNull(pipeline.settings().securityPipelineJob(), pipeline.settings().extendedPipelineJob()))
+                .forEach(pipeline -> product.service(pipeline.service().serviceId())
+                        .flatMap(service -> jobKey(service, pipeline.settings()))
+                        .ifPresent(key -> jobs.putIfAbsent(key, pipeline.settings().jenkinsJob())));
+        return jobs;
+    }
+
+    private static PipelineSettings sharingJob(Service service, PipelineSettings settings, Map<String, String> jobs) {
+        return jobKey(service, settings)
+                .map(key -> settings.toBuilder().jenkinsJob(jobs.computeIfAbsent(key, k -> settings.jenkinsJob()))
+                        .build())
+                .orElse(settings);
+    }
+
+    private static Optional<String> jobKey(Service service, PipelineSettings settings) {
+        String url = service.settings().scm().repositoryUrl();
+        return url == null || settings.jenkinsJob() == null ? Optional.empty()
+                : Optional.of(url.replaceFirst("(\\.git)?/*$", "").toLowerCase(ROOT) + " "
+                        + settings.agentLabels().stream().sorted().toList());
     }
 
     @Override
