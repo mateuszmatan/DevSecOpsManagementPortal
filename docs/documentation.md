@@ -370,7 +370,7 @@ The library takes the Jenkins agents of a run from the first key, so only pipeli
 - The product page shows a notice for each repository and pipeline type that several services share on the same agents. It names the services and offers "Show the Jenkinsfile". The Jenkinsfile item of each of these pipelines and the pipeline page show the same combined Jenkinsfile.
 - The Next steps of the Self-service wizard show one Jenkinsfile for the services of a repository and ask for one Jenkins job for each repository.
 - A pipeline the portal starts for a service of such a repository gets the Jenkins job of the first pipeline of its type there, so every pipeline of the group links to the one job.
-- The More menu of a pipeline offers "Jenkinsfile for several services" when other services have a pipeline of the same type on the same agents.
+- The More menu of a pipeline offers "Jenkinsfile for several services" when other services have a pipeline of the same type. When their Jenkins agents differ, the dialog warns that the job runs every service on the agents of the first key.
 
 Pipeline Monitoring shows the runs of a shared job under the service of the first key: the library reports every run with the monitoring project tag of that service. To see the runs on the other services too, give them the same Project tag (Monitoring section) and the shared job as the Jenkins job of their pipelines. With a shared tag, the portal matches the runs to a pipeline by its Jenkins job, so each pipeline of the group then shows the runs of the shared job.
 

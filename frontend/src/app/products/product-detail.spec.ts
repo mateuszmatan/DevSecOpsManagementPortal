@@ -387,6 +387,7 @@ describe('ProductDetail', () => {
 
       expect(opened().data['title']).toBe('Jenkinsfile for several services');
       expect(opened().data['subtitle']).toContain('One run builds gui, api');
+      expect(opened().data['subtitle']).not.toContain('Jenkins agents');
       expect(opened().data['code']).toContain(
         "pipelineKeys: [\n    '6f1c2d3e-0000-4abc-9def-123456789abc',\n    'a1b2c3d4",
       );
@@ -450,8 +451,8 @@ describe('ProductDetail', () => {
       );
     });
 
-    it('keeps apart the services of one repository whose pipelines run on other agents', async () => {
-      await load(product({ services: [service(), anotherService()] }), [
+    it('warns that a Jenkinsfile for several services runs them all on the agents of the first key', async () => {
+      await load(product(), [
         servicePipelines(),
         servicePipelines({
           serviceId: 11,
@@ -462,11 +463,11 @@ describe('ProductDetail', () => {
         }),
       ]);
 
-      expect(page().querySelector('.shared-repository')).toBeNull();
-      buttonOf(page(), 'More actions of the full pipeline').click();
-      await fixture.whenStable();
-      expect([...document.querySelectorAll('.dso-menu button')].map(text)).not.toContain(
-        'Jenkinsfile for several services',
+      await menu('Jenkinsfile for several services');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened().data['subtitle']).toContain(
+        'and Jenkins fetches every other setting from this portal. The pipelines name different Jenkins agents: the job runs every service on the Jenkins agents of the first key.',
       );
     });
 

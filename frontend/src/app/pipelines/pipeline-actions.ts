@@ -5,7 +5,7 @@ import { EMPTY, Observable, catchError, filter, map, of, switchMap, tap } from '
 import { PipelinesApi, SettingsApi } from '../core/api';
 import { Pipeline, pipelineTypeLabel, pipelineTypeSlug } from '../core/models';
 import { Notifier } from '@common/core/notifier';
-import { jenkinsfile } from '../products/jenkinsfile';
+import { agents, jenkinsfile } from '../products/jenkinsfile';
 import { KeyHistoryDialog } from '../products/key-history-dialog';
 import { PipelineDialog, PipelineDialogData } from '../products/pipeline-dialog';
 import { RevokeKeyDialog } from '../products/revoke-key-dialog';
@@ -47,7 +47,10 @@ export class PipelineActions {
     const subtitle = together
       ? `One run builds ${pipelines.map((p) => p.serviceName).join(', ')}; the first key is that of the ` +
         "primary service. Put the file in the primary service's repository: it holds only the pipeline keys, " +
-        'and Jenkins fetches every other setting from this portal.'
+        'and Jenkins fetches every other setting from this portal.' +
+        (new Set(pipelines.map(agents)).size > 1
+          ? ' The pipelines name different Jenkins agents: the job runs every service on the Jenkins agents of the first key.'
+          : '')
       : JENKINSFILE_HELP;
     this.settings
       .get()

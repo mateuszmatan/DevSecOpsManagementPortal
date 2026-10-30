@@ -31,7 +31,7 @@ import { DsoLoading } from '@common/ui/loading';
 import { MENU_AT_END } from '@common/ui/menu';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/build-options';
 import { GeneratedKeys } from './generated-keys';
-import { agents, byRepository, sharedJobReason, sharedRunsNote } from './jenkinsfile';
+import { byRepository, sharedJobReason, sharedRunsNote } from './jenkinsfile';
 import { pipelineTally } from './pipeline-tally';
 import { DepartmentsApi } from '@common/core/api';
 
@@ -205,8 +205,7 @@ export class ProductDetail {
           other.serviceId !== pipeline.serviceId &&
           other.activeKey &&
           other.securityPipelineJob === pipeline.securityPipelineJob &&
-          other.extendedPipelineJob === pipeline.extendedPipelineJob &&
-          agents(other) === agents(pipeline),
+          other.extendedPipelineJob === pipeline.extendedPipelineJob,
       );
   }
 
