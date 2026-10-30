@@ -2,6 +2,7 @@ import {
   BuildTool,
   DeployTarget,
   GlobalSettings,
+  NodeBuildSettings,
   OpenShiftTarget,
   Pipeline,
   PipelineType,
@@ -25,7 +26,7 @@ import {
   nexusIqApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
-import { byRepository } from '../products/jenkinsfile';
+import { byRepository, repositoryKey } from '../products/jenkinsfile';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { TOOL_LABELS } from '../shared/build-options';
 import { Choice } from '../shared/choice-tiles';
@@ -159,6 +160,8 @@ export interface WizardService {
   openShiftProject: string;
   nexusIqApplication: string;
   repositoryUrl: string;
+  /** The folder of the Node.js build that runs first, '' for the repository root; null without one. */
+  nodeDirectory?: string | null;
   serviceRequest?: ServiceRequest;
 }
 
@@ -175,6 +178,12 @@ const nexusIqApplicationOf = (service?: Service) =>
 
 const repositoryOf = (service?: Service) => service?.scm.repositoryUrl ?? '';
 
+export const nodeDirectoryOf = (node?: NodeBuildSettings | null) =>
+  node?.enabled ? (node.directory ?? '') : null;
+
+const nodeBuildIn = (directory: string) =>
+  `a Node.js build in ${directory || 'the repository root'}`;
+
 export function fromService(service: Service): WizardService {
   return {
     id: service.id,
@@ -186,6 +195,7 @@ export function fromService(service: Service): WizardService {
     openShiftProject: service.openShiftTargets?.RD?.projectBuild?.replace(/-build$/, '') ?? '',
     nexusIqApplication: nexusIqApplicationOf(service),
     repositoryUrl: repositoryOf(service),
+    nodeDirectory: nodeDirectoryOf(service.nodeBuild),
   };
 }
 
@@ -207,12 +217,18 @@ function sentence(text: string): string {
 
 export function serviceSummary(pipeline: WizardPipeline, service: WizardService): string {
   const target = deploysWith(pipeline, service);
-  const parts = [`built with ${toolName(service.tool)}`];
+  const node = service.nodeDirectory ?? null;
+  const parts = [
+    `built with ${toolName(service.tool)}${node === null ? '' : ` after ${nodeBuildIn(node)}`}`,
+  ];
   if (target && (deploys(pipeline) || service.id !== null)) {
     parts.push(runsOn(target, target === 'OPENSHIFT' ? service.openShiftProject : ''));
   }
   if (pipeline === 'NEXUS_IQ' && service.nexusIqApplication) {
     parts.push(`Nexus IQ application ${service.nexusIqApplication}`);
+  }
+  if (service.repositoryUrl) {
+    parts.push(`repository ${service.repositoryUrl}`);
   }
   return sentence(parts.join(', '));
 }
@@ -247,6 +263,10 @@ export function changesOf(
   }
   if (pipeline === 'NEXUS_IQ' && service.repositoryUrl !== repositoryOf(stored)) {
     changes.push('new Bitbucket repository');
+  }
+  const node = service.nodeDirectory;
+  if (node !== undefined && node !== nodeDirectoryOf(stored.nodeBuild)) {
+    changes.push(node === null ? 'no Node.js build' : `built after ${nodeBuildIn(node)}`);
   }
   return changes;
 }
@@ -306,7 +326,20 @@ export function reviewEntries(
   removed: readonly number[],
   current: readonly ServicePipelines[] | null,
 ): ReviewEntry[] {
-  return services.map((service) => reviewEntry(pipeline, service, stored, removed, current));
+  const kept = services.filter((service) => service.id === null || !removed.includes(service.id));
+  return services.map((service) => {
+    const entry = reviewEntry(pipeline, service, stored, removed, current);
+    const key = repositoryKey(service.repositoryUrl);
+    const others = kept
+      .filter((other) => other !== service && key && repositoryKey(other.repositoryUrl) === key)
+      .map((other) => other.name);
+    return others.length && kept.includes(service)
+      ? {
+          ...entry,
+          text: `${entry.text} Shares its repository with ${listed(others)}, so they get one Jenkinsfile and one Jenkins job.`,
+        }
+      : entry;
+  });
 }
 
 type TargetText = Partial<Omit<Record<keyof OpenShiftTarget, string>, 'skipConfigDeploy'>>;

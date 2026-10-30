@@ -490,8 +490,8 @@ describe('SelfService', () => {
 
     expect(wizard()['step']()).toBe(3);
     expect(entries()).toEqual([
-      'gui · Gets an OSA pipeline with its own key; nothing else changes.',
-      'api · Changed · Gets an OSA pipeline with its own key. New Nexus IQ application.',
+      'gui · Gets an OSA pipeline with its own key; nothing else changes. Shares its repository with api, so they get one Jenkinsfile and one Jenkins job.',
+      'api · Changed · Gets an OSA pipeline with its own key. New Nexus IQ application. Shares its repository with gui, so they get one Jenkinsfile and one Jenkins job.',
     ]);
 
     await next();

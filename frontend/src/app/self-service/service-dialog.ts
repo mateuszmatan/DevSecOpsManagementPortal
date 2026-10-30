@@ -40,6 +40,7 @@ import {
   WizardDefaults,
   WizardPipeline,
   WizardService,
+  nodeDirectoryOf,
   deploys,
   openShiftTargets,
   pipelineLabel,
@@ -324,6 +325,7 @@ export class ServiceDialog {
       openShiftProject,
       nexusIqApplication: nexusIqApp,
       repositoryUrl,
+      nodeDirectory: nodeDirectoryOf(req.nodeBuild),
       serviceRequest: req,
     });
   }

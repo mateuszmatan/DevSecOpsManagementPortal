@@ -31,6 +31,9 @@ import {
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
 const TEMPLATE = serviceTemplate();
 const REPOSITORY = 'https://bitbucket.bbh.com/projects/PAY/repos/gateway';
+const GUI_REPOSITORY = 'https://bitbucket.bbh.com/projects/CERT/repos/gui';
+const sharing = (names: string) =>
+  `Shares its repository with ${names}, so they get one Jenkinsfile and one Jenkins job.`;
 
 function added(overrides: Partial<WizardService> = {}): WizardService {
   return {
@@ -489,7 +492,11 @@ describe('self-service model', () => {
       openShiftProject: '',
       nexusIqApplication: 'cert-gui',
       repositoryUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/gui',
+      nodeDirectory: null,
     });
+    expect(fromService(service({ nodeBuild: nodeBuild({ enabled: true }) })).nodeDirectory).toBe(
+      '',
+    );
     expect(
       fromService(
         service({ nexusIqApplications: [], scm: { ...service().scm, repositoryUrl: null } }),
@@ -600,19 +607,25 @@ describe('self-service model', () => {
     );
     expect(serviceSummary('SAST', openShift)).toBe('Built with Gradle.');
     expect(serviceSummary('SAST', fromService(service()))).toBe(
-      'Built with Gradle, runs on virtual machines.',
+      `Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}.`,
+    );
+    expect(serviceSummary('SAST', added({ nodeDirectory: 'web' }))).toBe(
+      'Built with Gradle after a Node.js build in web.',
+    );
+    expect(serviceSummary('SAST', added({ nodeDirectory: '', repositoryUrl: REPOSITORY }))).toBe(
+      `Built with Gradle after a Node.js build in the repository root, repository ${REPOSITORY}.`,
     );
     expect(
       serviceSummary(
         'SECURITY',
         fromService(service({ build: { ...service().build, tool: 'FLUTTER' } })),
       ),
-    ).toBe('Built with Flutter, runs on virtual machines.');
+    ).toBe(`Built with Flutter, runs on virtual machines, repository ${GUI_REPOSITORY}.`);
     expect(serviceSummary('NEXUS_IQ', { ...openShift, nexusIqApplication: 'payhub-gateway' })).toBe(
       'Built with Gradle, Nexus IQ application payhub-gateway.',
     );
     expect(serviceSummary('NEXUS_IQ', fromService(service()))).toBe(
-      'Built with Gradle, runs on virtual machines, Nexus IQ application cert-gui.',
+      `Built with Gradle, runs on virtual machines, Nexus IQ application cert-gui, repository ${GUI_REPOSITORY}.`,
     );
     expect(serviceSummary('NEXUS_IQ', added())).toBe('Built with Gradle.');
   });
@@ -654,6 +667,13 @@ describe('self-service model', () => {
       'new Bitbucket repository',
     ]);
     expect(changesOf('FULL', nexusIq, stored)).toEqual([]);
+    expect(changesOf('FULL', { ...same, nodeDirectory: 'web' }, stored)).toEqual([
+      'built after a Node.js build in web',
+    ]);
+    const node = service({ nodeBuild: nodeBuild({ enabled: true, directory: 'web' }) });
+    expect(changesOf('FULL', { ...fromService(node), nodeDirectory: null }, node)).toEqual([
+      'no Node.js build',
+    ]);
   });
 
   it('says in plain words what saving does to each service', () => {
@@ -679,17 +699,21 @@ describe('self-service model', () => {
         current,
       ),
     ).toEqual([
-      { name: 'gui', tag: null, text: 'Already has a Security pipeline; nothing changes.' },
+      {
+        name: 'gui',
+        tag: null,
+        text: `Already has a Security pipeline; nothing changes. ${sharing('api and web')}`,
+      },
       {
         name: 'api',
         tag: 'Changed',
-        text: 'Gets a Security pipeline with its own key. Built with Maven instead of Gradle, with the default build settings.',
+        text: `Gets a Security pipeline with its own key. Built with Maven instead of Gradle, with the default build settings. ${sharing('gui and web')}`,
       },
       { name: 'batch', tag: 'Removed', text: 'Deleted, with its pipelines and their keys.' },
       {
         name: 'web',
         tag: 'Changed',
-        text: 'Keeps its Security pipeline. No description.',
+        text: `Keeps its Security pipeline. No description. ${sharing('gui and api')}`,
       },
       {
         name: 'gateway',

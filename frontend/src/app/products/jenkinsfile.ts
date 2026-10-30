@@ -30,10 +30,7 @@ export function byRepository<T>(
 ): T[][] {
   const groups = new Map<unknown, T[]>();
   for (const item of items) {
-    const url = repository(item)
-      ?.trim()
-      .replace(/(\.git)?\/*$/, '')
-      .toLowerCase();
+    const url = repositoryKey(repository(item));
     const run = pipeline(item);
     const key =
       url && run?.activeKey
@@ -42,6 +39,16 @@ export function byRepository<T>(
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   return [...groups.values()];
+}
+
+/** A repository URL as it names one repository, whatever its case, .git ending or trailing slash. */
+export function repositoryKey(url: string | null | undefined): string {
+  return (
+    url
+      ?.trim()
+      .replace(/(\.git)?\/*$/, '')
+      .toLowerCase() ?? ''
+  );
 }
 
 /** The Jenkins agents of a pipeline, in a stable order. */

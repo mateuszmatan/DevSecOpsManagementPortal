@@ -112,8 +112,20 @@ describe('ServiceDialog', () => {
         name: 'new-service',
         appScanId: APP_ID,
         repositoryUrl: REPOSITORY,
+        nodeDirectory: null,
       }),
     );
+  });
+
+  it('tells the wizard the folder of the Node.js build, so the Services and Review steps can show it', async () => {
+    await open({ pipeline: 'SECURITY' });
+    fillIn();
+    form().controls.nodeBuild.patchValue({ enabled: true, directory: './web/' });
+    await fixture.whenStable();
+
+    submit().click();
+
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ nodeDirectory: './web/' }));
   });
 
   it('keeps Add service disabled while a Node.js build field is invalid and opens Build on save', async () => {
