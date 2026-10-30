@@ -312,6 +312,7 @@ export class SelfService implements HasUnsavedChanges {
       this.removed(),
       this.current.hasValue() ? this.current.value() : null,
       this.agentList().length ? this.agentList() : (this.template()?.agentLabels ?? []),
+      !!this.template()?.jenkinsJob,
     ),
   );
   protected readonly doomed = computed(() =>

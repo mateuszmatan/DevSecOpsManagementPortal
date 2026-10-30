@@ -369,7 +369,8 @@ const runsIn = (repository: string, agentLabels: readonly string[]) =>
  * What saving does to each service. The pipelines that one save starts for a repository share one
  * Jenkinsfile and one Jenkins job, the job that two or more pipelines of the type already share for
  * that repository and the agents of the save, if there is one. Any other service that has the
- * pipeline already keeps the ones it has.
+ * pipeline already keeps the ones it has. The server gives the new pipelines a Jenkins job only
+ * from the service template, so without templateJob each of them gets a Jenkinsfile of its own.
  */
 export function reviewEntries(
   pipeline: WizardPipeline,
@@ -378,11 +379,14 @@ export function reviewEntries(
   removed: readonly number[],
   current: readonly ServicePipelines[] | null,
   agentLabels: readonly string[],
+  templateJob: boolean,
 ): ReviewEntry[] {
   const kept = services.filter((service) => service.id === null || !removed.includes(service.id));
   const starts = (service: WizardService) => !hasPipeline(pipeline, service, current);
   const names = (others: readonly WizardService[]) => listed(others.map((other) => other.name));
-  const shared = sharedJobs(pipeline, kept, current);
+  const shared = templateJob
+    ? sharedJobs(pipeline, kept, current)
+    : new Map<string, WizardService[]>();
   const note = (service: WizardService): string => {
     const key = repositoryKey(service.repositoryUrl);
     const sharing = kept.filter(
@@ -391,7 +395,7 @@ export function reviewEntries(
     if (!kept.includes(service) || !sharing.length) {
       return '';
     }
-    const together = sharing.filter(starts);
+    const together = templateJob ? sharing.filter(starts) : [];
     const joined = shared.get(runsIn(key, agentLabels));
     if (!starts(service)) {
       return joined?.includes(service) && together.length

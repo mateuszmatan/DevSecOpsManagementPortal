@@ -463,7 +463,7 @@ describe('SelfService', () => {
     ]);
   });
 
-  it('says in the review that a new pipeline joins the Jenkins job that two pipelines of its repository share', async () => {
+  it('says in the review that a new pipeline joins the Jenkins job that two pipelines of its repository share, while the service template names a job', async () => {
     const web = anotherService({
       id: 12,
       name: 'web',
@@ -491,19 +491,26 @@ describe('SelfService', () => {
     ];
     expect(entries()).toEqual(joining);
 
-    wizard()['agents'].setValue('windows-agent');
-    await fixture.whenStable();
-
-    expect(entries()).toEqual([
+    const keeping = [
       'gui · Already has a Full pipeline; nothing changes. Shares its repository with api and web but keeps its Jenkinsfile and Jenkins job.',
       'api · Already has a Full pipeline; nothing changes. Shares its repository with gui and web but keeps its Jenkinsfile and Jenkins job.',
       'web · Gets a Full pipeline with its own key; nothing else changes.',
-    ]);
+    ];
+
+    wizard()['agents'].setValue('windows-agent');
+    await fixture.whenStable();
+
+    expect(entries()).toEqual(keeping);
 
     wizard()['agents'].setValue('');
     await fixture.whenStable();
 
     expect(entries()).toEqual(joining);
+
+    wizard()['serviceTemplate'].set(serviceTemplate({ jenkinsJob: null }));
+    await fixture.whenStable();
+
+    expect(entries()).toEqual(keeping);
   });
 
   it('asks for the Nexus IQ application and repository of every service and points to the golden pull requests', async () => {

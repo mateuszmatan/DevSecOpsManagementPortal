@@ -704,6 +704,7 @@ describe('self-service model', () => {
         [12],
         current,
         AGENTS,
+        true,
       ),
     ).toEqual([
       {
@@ -730,7 +731,7 @@ describe('self-service model', () => {
     ]);
     const docs = added({ name: 'docs', repositoryUrl: `${GUI_REPOSITORY}.git` });
     expect(
-      reviewEntries('SECURITY', [gui, api, docs], stored, [], current, AGENTS).map(
+      reviewEntries('SECURITY', [gui, api, docs], stored, [], current, AGENTS, true).map(
         (entry) => entry.text,
       ),
     ).toEqual([
@@ -738,7 +739,7 @@ describe('self-service model', () => {
       `Gets a Security pipeline with its own key; nothing else changes. ${sharing('docs')}`,
       `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}.git. ${sharing('api')}`,
     ]);
-    expect(reviewEntries('NEXUS_IQ', [gui], stored, [], null, AGENTS)).toEqual([
+    expect(reviewEntries('NEXUS_IQ', [gui], stored, [], null, AGENTS, true)).toEqual([
       {
         name: 'gui',
         tag: null,
@@ -747,7 +748,7 @@ describe('self-service model', () => {
     ]);
   });
 
-  it('says that the new pipelines of a repository join the Jenkins job that two of its pipelines share', () => {
+  it('says that the new pipelines of a repository join the Jenkins job that two of its pipelines share, if the service template names a job', () => {
     const stored = [
       service(),
       service({ id: 11, name: 'batch' }),
@@ -770,7 +771,11 @@ describe('self-service model', () => {
       services: WizardService[],
       pipelines = current(),
       agents: readonly string[] = AGENTS,
-    ) => reviewEntries('SECURITY', services, stored, [], pipelines, agents).map((e) => e.text);
+      templateJob = true,
+    ) =>
+      reviewEntries('SECURITY', services, stored, [], pipelines, agents, templateJob).map(
+        (e) => e.text,
+      );
 
     expect(texts([gui, batch, web, docs])).toEqual([
       `${unchanged} Its Jenkinsfile, which it shares with web, gets the key of docs.`,
@@ -799,8 +804,14 @@ describe('self-service model', () => {
         `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}/. ${sharing('docs')}`,
       ]);
     }
+    expect(texts([gui, web, docs, blog], current(), AGENTS, false)).toEqual([
+      `${unchanged} ${keeping('web, docs and blog')}`,
+      `${unchanged} ${keeping('gui, docs and blog')}`,
+      docsAdded,
+      `Added with a Security pipeline and its own key. Built with Gradle, runs on virtual machines, repository ${GUI_REPOSITORY}/.`,
+    ]);
     expect(
-      reviewEntries('SECURITY', [gui, web, docs], stored, [13], current(), AGENTS).map(
+      reviewEntries('SECURITY', [gui, web, docs], stored, [13], current(), AGENTS, true).map(
         (entry) => entry.text,
       ),
     ).toEqual([
