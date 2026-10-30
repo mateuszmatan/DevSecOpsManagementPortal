@@ -83,6 +83,24 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         ownErrors().isEmpty()
     }
 
+    def "the Jenkinsfile without a key of a pipeline names its service and its agents"() {
+        given:
+        def settings = fixture('settings.json') as Map
+        settings.platform.jenkinsLibrary = 'BbhDevSecOps@2.4'
+        api.respond('GET', '/api/settings', settings)
+        open('/admin/products/1')
+
+        when:
+        pipelineAction('gui', 'SAST scanning', 'Jenkinsfile without a key')
+
+        then:
+        assertThat(dialog().locator('h2')).hasText('Jenkinsfile without a key of gui · SAST scanning')
+        assertThat(dialog().locator('.subtitle')).containsText('so the other services of that file are not built')
+        dialog().locator('pre.code-block').textContent() ==
+                "@Library('BbhDevSecOps@2.4') _\n\ndevSecOpsSASTScanningPipeline(projectNames: 'gui', agentNames: ['linux-agent'])\n"
+        ownErrors().isEmpty()
+    }
+
     def "services whose pipelines share the Jenkins job of their repository are asked for one Jenkinsfile with their keys"() {
         given:
         def services = fixture('product-1-pipelines.json') as List<Map>

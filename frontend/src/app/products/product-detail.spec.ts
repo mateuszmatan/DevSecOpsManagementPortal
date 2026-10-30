@@ -442,6 +442,53 @@ describe('ProductDetail', () => {
       );
     });
 
+    it('offers a Jenkinsfile without a key with the services of the repository', async () => {
+      const api = (overrides: Partial<Pipeline> = {}) =>
+        pipeline({ id: 200, serviceId: 11, serviceName: 'api', ...overrides });
+      await load(product({ services: [service(), anotherService()] }), [
+        servicePipelines({ pipelines: [pipeline(), pipeline({ id: 101, type: 'SAST' })] }),
+        servicePipelines({
+          serviceId: 11,
+          serviceName: 'api',
+          pipelines: [api(), api({ id: 201, type: 'SAST' })],
+        }),
+      ]);
+
+      await menu('Jenkinsfile without a key', 'More actions of the SAST scanning pipeline');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened()).toMatchObject({
+        component: CodeDialog,
+        data: {
+          title: 'Jenkinsfile without a key for several services',
+          subtitle:
+            'For a repository that keeps the settings of its services in devsecops_config.yaml instead of ' +
+            'fetching them with a pipeline key. Commit it at the root of the repository with ' +
+            'devsecops_config.yaml, which "Settings sent to Jenkins (devsecops_config.yaml)" in the More menu ' +
+            'of the product downloads. It names the services of this repository, so the other services of ' +
+            'that file are not built. A change in the portal reaches the pipeline only when the file is ' +
+            'downloaded and committed again. The Jenkins administrators can require a pipeline key; this ' +
+            'Jenkinsfile then stops at its start.',
+          code:
+            "@Library('DevSecOpsJenkinsLibrary') _\n\n" +
+            "devSecOpsPipeline(projectNames: 'gui,api', agentNames: ['linux-agent'])\n",
+          fileName: 'Jenkinsfile',
+        },
+      });
+    });
+
+    it('names the pipeline in the Jenkinsfile without a key of a service of its own', async () => {
+      await load();
+
+      await menu('Jenkinsfile without a key');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened().data['title']).toBe('Jenkinsfile without a key of gui · Full');
+      expect(opened().data['code']).toContain(
+        "devSecOpsPipeline(projectNames: 'gui', agentNames: ['linux-agent'])",
+      );
+    });
+
     it('asks to copy the new keys into the shared Jenkinsfile of a shared repository', async () => {
       TestBed.inject(GeneratedKeys).record(1, ['gui', 'api']);
       await load(product({ services: [service(), anotherService()] }), [

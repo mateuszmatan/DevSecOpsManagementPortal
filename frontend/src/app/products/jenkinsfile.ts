@@ -3,19 +3,38 @@ import { DEFAULT_JENKINS_LIBRARY, Pipeline, PipelineType } from '../core/models'
 /** The pipeline types whose Nexus IQ stage runs GoldenFix. */
 const GOLDEN_FIX_TYPES: readonly PipelineType[] = ['FULL', 'SECURITY', 'NEXUS_IQ'];
 
+/**
+ * The Jenkinsfile of the pipelines: with their keys or, without a key, with their services and the
+ * Jenkins agents of the first one.
+ */
 export function jenkinsfile(
   pipelines: readonly Pipeline[],
   library: string | null | undefined,
+  keyless = false,
 ): string {
+  const name = library?.trim() || DEFAULT_JENKINS_LIBRARY;
+  const call = (keyless ? keylessArguments : keyArguments)(pipelines);
+  return `@Library('${name}') _\n\n${pipelines[0].entryPoint}(${call})\n`;
+}
+
+function keyArguments(pipelines: readonly Pipeline[]): string {
   const keys = pipelines.map(
     (pipeline) => `'${pipeline.activeKey?.value ?? '<issue a new key first>'}'`,
   );
-  const name = library?.trim() || DEFAULT_JENKINS_LIBRARY;
-  const call =
-    keys.length === 1
-      ? `pipelineKey: ${keys[0]}`
-      : `pipelineKeys: [\n${keys.map((key) => `    ${key},`).join('\n')}\n]`;
-  return `@Library('${name}') _\n\n${pipelines[0].entryPoint}(${call})\n`;
+  return keys.length === 1
+    ? `pipelineKey: ${keys[0]}`
+    : `pipelineKeys: [\n${keys.map((key) => `    ${key},`).join('\n')}\n]`;
+}
+
+function keylessArguments(pipelines: readonly Pipeline[]): string {
+  const [first] = pipelines;
+  return (
+    `projectNames: '${pipelines.map((p) => p.serviceName).join(',')}', ` +
+    `agentNames: [${first.agentLabels.map((label) => `'${label}'`).join(', ')}]` +
+    (first.type === 'EXTENDED' && first.securityPipelineJob
+      ? `, securityPipeline: '${first.securityPipelineJob}'`
+      : '')
+  );
 }
 
 /**

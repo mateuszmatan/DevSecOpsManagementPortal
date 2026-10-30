@@ -40,6 +40,54 @@ describe('jenkinsfile', () => {
         '])\n',
     );
   });
+
+  it('writes the services of the repository and the agents of the first pipeline without a key', () => {
+    const agentLabels = ['linux-agent', 'windows-agent'];
+    const expected =
+      "@Library('DevSecOpsJenkinsLibrary') _\n\n" +
+      "devSecOpsPipeline(projectNames: 'gui,api', agentNames: ['linux-agent', 'windows-agent'])\n";
+
+    expect(
+      jenkinsfile(
+        [
+          pipeline({ agentLabels }),
+          pipeline({ serviceName: 'api', agentLabels: ['docker-agent'] }),
+        ],
+        null,
+        true,
+      ),
+    ).toBe(expected);
+    expect(
+      jenkinsfile(
+        [pipeline({ agentLabels, activeKey: null }), pipeline({ serviceName: 'api' })],
+        null,
+        true,
+      ),
+    ).toBe(expected);
+  });
+
+  it('names the security job of an extended pipeline without a key', () => {
+    const job = { securityPipelineJob: 'DevSecOps/CERT/gui-security' };
+
+    expect(
+      jenkinsfile(
+        [pipeline({ ...job, type: 'EXTENDED', entryPoint: 'devSecOpsExtendedPipeline' })],
+        'BBHLibrary',
+        true,
+      ),
+    ).toBe(
+      "@Library('BBHLibrary') _\n\n" +
+        "devSecOpsExtendedPipeline(projectNames: 'gui', agentNames: ['linux-agent'], " +
+        "securityPipeline: 'DevSecOps/CERT/gui-security')\n",
+    );
+    expect(
+      jenkinsfile(
+        [pipeline({ ...job, type: 'SECURITY', entryPoint: 'devSecOpsSecurityPipeline' })],
+        'BBHLibrary',
+        true,
+      ),
+    ).toContain("devSecOpsSecurityPipeline(projectNames: 'gui', agentNames: ['linux-agent'])\n");
+  });
 });
 
 describe('byRepository', () => {

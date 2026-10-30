@@ -393,6 +393,14 @@
                     >
                       Jenkinsfile
                     </button>
+                    <button
+                      type="button"
+                      cdkMenuItem
+                      class="dropdown-item"
+                      (cdkMenuItemTriggered)="showJenkinsfile(jenkinsfileGroup(pipeline), true)"
+                    >
+                      Jenkinsfile without a key
+                    </button>
                     @if (sameTypeElsewhere(pipeline).length) {
                       <button
                         type="button"

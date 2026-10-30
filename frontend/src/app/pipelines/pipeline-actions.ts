@@ -12,7 +12,12 @@ import { RevokeKeyDialog } from '../products/revoke-key-dialog';
 import { ServiceConfigDialog, ServiceConfigDialogData } from './service-config-dialog';
 import { CodeDialogData, showCode } from '../shared/code-dialog';
 import { ConfirmDialogData, askToConfirm } from '@common/shared/confirm-dialog';
-import { JENKINSFILE_HELP, pipelineName, typeName } from './pipeline-texts';
+import {
+  JENKINSFILE_HELP,
+  KEYLESS_JENKINSFILE_HELP,
+  pipelineName,
+  typeName,
+} from './pipeline-texts';
 
 export { typeName } from './pipeline-texts';
 
@@ -43,7 +48,7 @@ export class PipelineActions {
     });
   }
 
-  showJenkinsfile(pipelines: readonly Pipeline[]): void {
+  showJenkinsfile(pipelines: readonly Pipeline[], keyless = false): void {
     const together = pipelines.length > 1;
     const subtitle = together
       ? `One run builds ${pipelines.map((p) => p.serviceName).join(', ')}; the first key is that of the ` +
@@ -58,11 +63,11 @@ export class PipelineActions {
       .pipe(catchError(() => of(null)))
       .subscribe((settings) =>
         this.openCode({
-          title: together
-            ? 'Jenkinsfile for several services'
-            : `Jenkinsfile of ${pipelineName(pipelines[0])}`,
-          subtitle,
-          code: jenkinsfile(pipelines, settings?.platform.jenkinsLibrary),
+          title:
+            (keyless ? 'Jenkinsfile without a key' : 'Jenkinsfile') +
+            (together ? ' for several services' : ` of ${pipelineName(pipelines[0])}`),
+          subtitle: keyless ? KEYLESS_JENKINSFILE_HELP : subtitle,
+          code: jenkinsfile(pipelines, settings?.platform.jenkinsLibrary, keyless),
           fileName: 'Jenkinsfile',
         }),
       );

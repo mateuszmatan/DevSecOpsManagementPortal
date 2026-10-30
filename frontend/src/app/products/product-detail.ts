@@ -229,8 +229,8 @@ export class ProductDetail {
     return [pipeline, ...this.sameTypeElsewhere(pipeline)];
   }
 
-  protected showJenkinsfile(pipelines: readonly Pipeline[]): void {
-    this.actions.showJenkinsfile(pipelines);
+  protected showJenkinsfile(pipelines: readonly Pipeline[], keyless = false): void {
+    this.actions.showJenkinsfile(pipelines, keyless);
   }
 
   protected addPipeline(product: Product, service: ServicePipelines): void {
