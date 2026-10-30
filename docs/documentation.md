@@ -524,7 +524,7 @@ GoldenFix runs in the Nexus IQ stage of the Full, Security and Nexus IQ GoldenFi
 
 ### Where the verification runs
 
-- Maven: in the folder of each changed `pom.xml`. A parent or BOM pom that other poms use is verified in the folder of the multi-module pom that builds them together.
+- Maven: in the folder of each changed `pom.xml`. A parent or BOM pom that other poms use is verified in the folder of the multi-module pom that builds them together. When a shared pom with a name other than `pom.xml` is built in its own folder, the library adds `-f` and its file name at the end of the command. It does so for a Maven command you set in the policy fields too, so write that command as one `mvn` call, for example `mvn -B -q -DskipTests verify`.
 - Gradle: in the folder of each changed build or properties file. A catalog, a settings file or a platform is verified in the folder of each build that uses it.
 - npm: in the folder of each changed `package.json`, in the Node.js environment of the service while its Node.js build is on.
 - pip and pub: in the folder of each changed file.

@@ -712,7 +712,9 @@ describe('ServiceFields', () => {
         'in the folder of the multi-module pom that builds them together, otherwise in the folder of the root pom.xml or of that pom',
       );
       expect(help('Maven command')).toContain(
-        'with -f and the file name for a pom with another name that is built in its own folder',
+        'When a shared pom with a name other than pom.xml is built in its own folder, the library adds -f and its file name at the end of the command. ' +
+          'It does so for a command set here too, so write it as one mvn call, for example mvn -B -q -DskipTests verify. ' +
+          'Exit code 0 passes the check. When no command is set, the library runs mvn -B -q -DskipTests compile.',
       );
       expect(help('npm command')).toContain(
         'A command set here runs as it is, without the refresh of package-lock.json',

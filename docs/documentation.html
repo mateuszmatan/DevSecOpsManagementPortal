@@ -557,7 +557,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipel
 </table>
 <h3 id="where-the-verification-runs">Where the verification runs</h3>
 <ul>
-<li>Maven: in the folder of each changed <code>pom.xml</code>. A parent or BOM pom that other poms use is verified in the folder of the multi-module pom that builds them together.</li>
+<li>Maven: in the folder of each changed <code>pom.xml</code>. A parent or BOM pom that other poms use is verified in the folder of the multi-module pom that builds them together. When a shared pom with a name other than <code>pom.xml</code> is built in its own folder, the library adds <code>-f</code> and its file name at the end of the command. It does so for a Maven command you set in the policy fields too, so write that command as one <code>mvn</code> call, for example <code>mvn -B -q -DskipTests verify</code>.</li>
 <li>Gradle: in the folder of each changed build or properties file. A catalog, a settings file or a platform is verified in the folder of each build that uses it.</li>
 <li>npm: in the folder of each changed <code>package.json</code>, in the Node.js environment of the service while its Node.js build is on.</li>
 <li>pip and pub: in the folder of each changed file.</li>

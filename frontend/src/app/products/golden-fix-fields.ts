@@ -30,8 +30,8 @@ const COMMANDS: Field[] = [
   command(
     'Maven',
     'Maven',
-    'in the folder of each changed pom.xml; for a parent or BOM pom that other poms use, in the folder of the multi-module pom that builds them together, otherwise in the folder of the root pom.xml or of that pom',
-    'mvn -B -q -DskipTests compile, with -f and the file name for a pom with another name that is built in its own folder',
+    'in the folder of each changed pom.xml; for a parent or BOM pom that other poms use, in the folder of the multi-module pom that builds them together, otherwise in the folder of the root pom.xml or of that pom. When a shared pom with a name other than pom.xml is built in its own folder, the library adds -f and its file name at the end of the command. It does so for a command set here too, so write it as one mvn call, for example mvn -B -q -DskipTests verify',
+    'mvn -B -q -DskipTests compile',
   ),
   command(
     'Gradle',
