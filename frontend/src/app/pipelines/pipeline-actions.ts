@@ -31,10 +31,11 @@ export class PipelineActions {
     this.api.config(pipeline.id).subscribe({
       next: (code) =>
         this.openCode({
-          title: `Settings sent to Jenkins for ${pipelineName(pipeline)} (config.yaml)`,
+          title: `Settings sent to Jenkins for ${pipelineName(pipeline)} (devsecops_config.yaml format)`,
           subtitle:
-            'What the Jenkins job of this pipeline receives when it fetches its settings with its key, in the ' +
-            'config.yaml format of the DevSecOps library. Opening it here does not count as a use of the key.',
+            'What the Jenkins job of this pipeline receives when it fetches its settings with its key, ' +
+            'in the devsecops_config.yaml format of the DevSecOps library. Opening it here does not ' +
+            'count as a use of the key.',
           code,
           fileName: `${pipeline.productCode.toLowerCase()}-${pipeline.serviceName}-${pipelineTypeSlug(pipeline.type)}.yaml`,
         }),

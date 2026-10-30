@@ -8,17 +8,17 @@ import static java.nio.file.Files.readString
 
 class ConfigPreviewSpec extends ProductPageSpecification {
 
-    def "a pipeline's config.yaml is shown as the library receives it, and can be downloaded and copied"() {
+    def "a pipeline's settings in the devsecops_config.yaml format are shown as the library receives them, and can be downloaded and copied"() {
         given:
         recordClipboard()
         def yaml = fixtureText('pipeline-1-config.yaml')
         open('/admin/products/1')
 
         when:
-        pipelineAction('gui', 'Full', 'Settings sent to Jenkins (config.yaml)')
+        pipelineAction('gui', 'Full', 'Settings sent to Jenkins (devsecops_config.yaml format)')
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins for gui · Full (config.yaml)')
+        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins for gui · Full (devsecops_config.yaml format)')
         assertThat(dialog().locator('.subtitle')).containsText('Opening it here does not count as a use of the key.')
         dialog().locator('pre.code-block').textContent() == yaml
         api.requests('GET', '/api/pipelines/1/config').size() == 1
@@ -42,6 +42,26 @@ class ConfigPreviewSpec extends ProductPageSpecification {
 
         then:
         assertThat(dialog()).hasCount(0)
+        ownErrors().isEmpty()
+    }
+
+    def "the product's settings are downloaded as devsecops_config.yaml, ready to commit for a Jenkinsfile without a key"() {
+        given:
+        open('/admin/products/1')
+
+        when:
+        productAction('Settings sent to Jenkins (devsecops_config.yaml)')
+
+        then:
+        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins (devsecops_config.yaml) for CertScanner')
+        assertThat(dialog().locator('.subtitle')).containsText('it also serves a Jenkinsfile without a pipeline key')
+
+        when:
+        def download = page.waitForDownload { dialogButton('Download').click() }
+
+        then:
+        download.suggestedFilename() == 'devsecops_config.yaml'
+        readString(download.path()) == fixtureText('product-1-config.yaml')
         ownErrors().isEmpty()
     }
 

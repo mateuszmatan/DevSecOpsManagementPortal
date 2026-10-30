@@ -47,12 +47,12 @@ import static org.apache.commons.lang3.StringUtils.capitalize;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 /**
- * Reads a config.yaml, a rendered product or pipeline config, or their JSON form into new service forms: the inverse of
- * the services' writeTo, as a table from config keys to request fields. A value the portal writes into every project
- * from the global settings, or one equal to the Library default the project inherits (tests.maxParallel, GoldenFix,
- * the Node.js installation and npm settings) or to the library's own default of a Node.js build setting, comes back
- * unset, so the service keeps inheriting it. A value the portal cannot hold becomes a note, not an error, so a partial
- * import still fills the form.
+ * Reads a devsecops_config.yaml or config.yaml, a rendered product or pipeline config, or their JSON form into new
+ * service forms: the inverse of the services' writeTo, as a table from config keys to request fields. A value the
+ * portal writes into every project from the global settings, or one equal to the Library default the project inherits
+ * (tests.maxParallel, GoldenFix, the Node.js installation and npm settings) or to the library's own default of a
+ * Node.js build setting, comes back unset, so the service keeps inheriting it. A value the portal cannot hold becomes a
+ * note, not an error, so a partial import still fills the form.
  */
 final class ServiceConfigReader {
 

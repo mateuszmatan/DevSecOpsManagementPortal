@@ -25,6 +25,7 @@ import {
 } from '../core/sections';
 import { PipelineActions, typeName } from '../pipelines/pipeline-actions';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
+import { CONFIG_FILE } from '../shared/config-file';
 import { RelativeTimePipe, counted, listed } from '@common/shared/formatting';
 import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
@@ -183,11 +184,16 @@ export class ProductDetail {
     this.products.config(product.id).subscribe({
       next: (code) =>
         this.actions.openCode({
-          title: `Settings sent to Jenkins (config.yaml) for ${product.name}`,
+          title: `Settings sent to Jenkins (devsecops_config.yaml) for ${product.name}`,
           subtitle:
-            'What the pipelines of every service receive from the portal, in the format of the DevSecOps library, with the BBH defaults filled in.',
+            'What the pipelines of every service receive from the portal, in the format of the ' +
+            'DevSecOps library, with the BBH defaults filled in. Committed as devsecops_config.yaml ' +
+            'at the root of a repository, it also serves a Jenkinsfile without a pipeline key: take ' +
+            'that Jenkinsfile from "Jenkinsfile without a key" in the More menu of a pipeline, so ' +
+            'that only the services of that repository are built. Rename a second download to ' +
+            'exactly devsecops_config.yaml before you commit it.',
           code,
-          fileName: `${product.code.toLowerCase()}-config.yaml`,
+          fileName: CONFIG_FILE,
         }),
       error: (error) => this.notifier.error(error),
     });

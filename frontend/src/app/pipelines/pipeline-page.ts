@@ -115,7 +115,7 @@ const RECENT_RUNS = 5;
                 >
                 <hr class="dropdown-divider" />
                 <button cdkMenuItem class="dropdown-item" (click)="actions.showConfig(p)">
-                  Settings sent to Jenkins (config.yaml)
+                  Settings sent to Jenkins (devsecops_config.yaml format)
                 </button>
                 <button cdkMenuItem class="dropdown-item" (click)="keyHistory(p)">
                   Key history

@@ -318,10 +318,13 @@ describe('GlobalSettingsPage', () => {
 
     expect(open).toHaveBeenCalledTimes(1);
     expect(open.mock.calls[0][1]?.data).toMatchObject({
-      title: 'Shared settings sent to Jenkins (config.yaml)',
+      title: 'Shared settings sent to Jenkins (devsecops_config.yaml format)',
       subtitle:
-        'The part of config.yaml every pipeline receives along with the settings of its own service, built from the saved library defaults.',
+        'The part of the settings every pipeline with a key receives along with the settings of its own ' +
+        'service, built from the saved library defaults. A Jenkinsfile without a key uses the copy of these ' +
+        'defaults kept in the DevSecOps library.',
       code: 'platform:\n  jenkinsLibrary: DevSecOpsJenkinsLibrary\n',
+      fileName: 'devsecops-global.yaml',
     });
   });
 

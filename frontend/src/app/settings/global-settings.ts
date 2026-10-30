@@ -195,10 +195,11 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
       .subscribe({
         next: (code) =>
           showCode(this.dialog, {
-            title: 'Shared settings sent to Jenkins (config.yaml)',
+            title: 'Shared settings sent to Jenkins (devsecops_config.yaml format)',
             subtitle:
-              'The part of config.yaml every pipeline receives along with the settings of its ' +
-              'own service, built from the saved library defaults.' +
+              'The part of the settings every pipeline with a key receives along with the settings ' +
+              'of its own service, built from the saved library defaults. A Jenkinsfile without a key ' +
+              'uses the copy of these defaults kept in the DevSecOps library.' +
               (this.form.dirty ? ' Your unsaved changes are not included.' : ''),
             code,
             fileName: 'devsecops-global.yaml',

@@ -125,7 +125,7 @@ class GlobalSettingsSpec extends DsoSpecification {
         button(SHOW_CONFIG, true).click()
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Shared settings sent to Jenkins (config.yaml)')
+        assertThat(dialog().locator('h2')).hasText('Shared settings sent to Jenkins (devsecops_config.yaml format)')
         dialog().locator('pre.code-block').textContent() == fixtureText('settings-config.yaml')
         awaitRequest('GET', '/api/settings/config').params() == [format: 'yaml']
 

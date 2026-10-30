@@ -305,17 +305,23 @@ describe('ProductDetail', () => {
     it('opens the configuration of the product and of a pipeline', async () => {
       await load();
 
-      await menu('Settings sent to Jenkins (config.yaml)', 'More actions of CertScanner');
+      await menu('Settings sent to Jenkins (devsecops_config.yaml)', 'More actions of CertScanner');
       http.expectOne('/api/products/1/config').flush('projects: {}');
-      await menu('Settings sent to Jenkins (config.yaml)');
+      await menu('Settings sent to Jenkins (devsecops_config.yaml format)');
       http.expectOne('/api/pipelines/100/config').flush('projects:\n  gui: {}');
 
       expect(opened(0)).toMatchObject({
         component: CodeDialog,
         data: {
-          title: 'Settings sent to Jenkins (config.yaml) for CertScanner',
+          title: 'Settings sent to Jenkins (devsecops_config.yaml) for CertScanner',
+          subtitle:
+            'What the pipelines of every service receive from the portal, in the format of the DevSecOps ' +
+            'library, with the BBH defaults filled in. Committed as devsecops_config.yaml at the root of a ' +
+            'repository, it also serves a Jenkinsfile without a pipeline key: take that Jenkinsfile from ' +
+            '"Jenkinsfile without a key" in the More menu of a pipeline, so that only the services of that ' +
+            'repository are built. Rename a second download to exactly devsecops_config.yaml before you commit it.',
           code: 'projects: {}',
-          fileName: 'cert-config.yaml',
+          fileName: 'devsecops_config.yaml',
         },
       });
       expect(opened(1).data['fileName']).toBe('cert-gui-full.yaml');
@@ -356,7 +362,7 @@ describe('ProductDetail', () => {
 
       await menu('Delete pipeline', 'More actions of the Nexus IQ GoldenFix pipeline');
       await menu(
-        'Settings sent to Jenkins (config.yaml)',
+        'Settings sent to Jenkins (devsecops_config.yaml format)',
         'More actions of the Nexus IQ GoldenFix pipeline',
       );
       http.expectOne('/api/pipelines/100/config').flush('projects: {}');
@@ -365,7 +371,8 @@ describe('ProductDetail', () => {
         'The Nexus IQ GoldenFix pipeline of gui and its key history are deleted.',
       );
       expect(opened(1).data).toMatchObject({
-        title: 'Settings sent to Jenkins for gui · Nexus IQ GoldenFix (config.yaml)',
+        title:
+          'Settings sent to Jenkins for gui · Nexus IQ GoldenFix (devsecops_config.yaml format)',
         fileName: 'cert-gui-nexusiq.yaml',
       });
     });

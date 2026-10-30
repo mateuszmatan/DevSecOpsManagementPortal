@@ -4,7 +4,7 @@ import { Field, Fields, area, check, line, mono } from '@common/shared/fields';
 import { SHELL_SAFE_ERROR } from '@common/shared/form-controls';
 import { ToolCommandForm } from './product-form-model';
 
-/** The fields of a Gradle or Maven command whose config.yaml keys start with path. */
+/** The fields of a Gradle or Maven command whose devsecops_config.yaml keys start with path. */
 export function commandFields(
   tool: BuildTool,
   path: string,
