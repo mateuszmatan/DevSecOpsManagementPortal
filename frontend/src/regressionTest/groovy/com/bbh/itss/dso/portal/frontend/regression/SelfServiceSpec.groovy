@@ -137,6 +137,64 @@ class SelfServiceSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
+    def "a novice adds a Gradle service with a Node.js frontend by filling only what the portal cannot know"() {
+        given:
+        def store = ProductStore.created(api, 3)
+
+        when:
+        open('/self-service')
+        choose(step(), 'Business Service', 'Custody')
+        input(step(), 'Product name').fill('Trade Archive')
+
+        then:
+        assertThat(hintOf(step(), 'Product name')).hasText('Its product code will be TRADEARCHIVE, the short name used in job names')
+
+        when:
+        button('Next: Pipeline', true).click()
+        radio(step(), OSA).click()
+        button('Next: Services', true).click()
+        button('Add a service', true).click()
+        input(dialog(), 'Service name').fill('archive-web')
+        showDialogSection('Build')
+        checkbox(dialog(), 'Build the frontend with Node.js first').check()
+        input(dialog(), 'Folder with package.json').fill('frontend')
+        showDialogSection('AppScan SAST and DAST')
+        input(dialog(), 'AppScan application ID').fill(GUI_APPLICATION)
+        input(dialog(), 'AppScan API key ID').fill(APP_SCAN_KEY)
+
+        then:
+        assertThat(dialog().locator("dso-advanced-settings .panel-toggle:text-is('Hide')")).hasCount(0)
+        assertThat(dialog().locator('.missing')).hasCount(0)
+        assertThat(dialogButton('Add service')).isEnabled()
+
+        when:
+        dialogButton('Add service').click()
+        button('Next: Review', true).click()
+        button('Create the pipelines', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('Trade Archive is saved. Now do these steps in order')
+        def request = awaitRequest('POST', '/api/products', 1)
+        request.params() == [pipelineType: 'NEXUS_IQ']
+        with((request.json() as Map).services[0] as Map) {
+            name == 'archive-web'
+            build.tool == 'GRADLE'
+            build.autoSetup == true
+            nodeBuild.enabled == true
+            nodeBuild.directory == 'frontend'
+            nodeBuild.commands == []
+            appScan.applicationId == SelfServiceSpec.GUI_APPLICATION
+            appScan.keyId == SelfServiceSpec.APP_SCAN_KEY
+            scm.repositoryUrl == 'https://bitbucket.bbh.com/projects/TRADEARCHIVE/repos/tradearchive-archive-web'
+            nexusIqApplications*.application == ['tradearchive-archive-web']
+            nexusIqApplications*.scanPatterns == [['**/build/libs/*.jar']]
+            versionCatalogs == []
+        }
+        assertThat(page.locator('.jenkinsfile .code-block')).hasText(
+                "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsNexusIqGoldenFixPipeline(pipelineKey: '${store.generatedKeys['archive-web']}')".toString())
+        ownErrors().isEmpty()
+    }
+
     def "a product in the portal gets a SAST pipeline next to the pipelines it has, a new service included"() {
         given:
         def store = ProductStore.recorded(api, 1)
