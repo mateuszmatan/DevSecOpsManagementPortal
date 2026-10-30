@@ -9,6 +9,7 @@ import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixtureText
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.json
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
+import static com.bbh.itss.dso.portal.frontend.support.StubResponse.yaml
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.CHECKBOX
 
@@ -145,6 +146,41 @@ class GlobalSettingsSpec extends DsoSpecification {
         then:
         assertThat(snackBar()).containsText('The configuration renderer is restarting')
         ownErrors().findAll { !it.contains('503') }.isEmpty()
+    }
+
+    def "unticking Nexus IQ and SonarQube while AppScan scans is saved and reaches the settings sent to Jenkins"() {
+        given:
+        api.get('/api/settings/config') {
+            yaml(fixtureText('settings-config.yaml').replace('parallel: true', "parallel: ${stored.scans.parallelStaticAnalysis}"))
+        }
+        open('/admin/settings')
+        def box = page.getByRole(CHECKBOX, new Page.GetByRoleOptions().setName('Run Nexus IQ and SonarQube while AppScan scans'))
+        assertThat(box).isChecked()
+
+        when:
+        button(SHOW_CONFIG, true).click()
+
+        then:
+        dialog().locator('pre.code-block').textContent() == fixtureText('settings-config.yaml')
+
+        when:
+        dialogButton('Close').click()
+        box.uncheck()
+        button('Save settings', true).click()
+
+        then:
+        def body = awaitRequest('PUT', '/api/settings').json() as Map
+        body.scans == (fixture('settings.json') as Map).scans + [parallelStaticAnalysis: false]
+        body.findAll { it.key != 'scans' } == (fixture('settings.json') as Map).findAll { !(it.key in ['scans', 'updatedAt']) }
+        assertThat(saved()).containsText('(version 2)')
+
+        when:
+        button(SHOW_CONFIG, true).click()
+
+        then:
+        dialog().locator('pre.code-block').textContent() ==
+                fixtureText('settings-config.yaml').replace('parallel: true', 'parallel: false')
+        ownErrors().isEmpty()
     }
 
     Locator saved() {

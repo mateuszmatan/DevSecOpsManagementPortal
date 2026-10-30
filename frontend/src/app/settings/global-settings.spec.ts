@@ -118,6 +118,38 @@ describe('GlobalSettingsPage', () => {
     );
   });
 
+  it('runs Nexus IQ and SonarQube while AppScan scans unless the box under Speed is unticked', async () => {
+    await load();
+    const section = page().querySelector('#settings-scans')!;
+    const block = [...section.querySelectorAll('.form-block')].find(
+      (candidate) => text(candidate.querySelector('h3')) === 'Speed',
+    )!;
+    const box = checkboxOf(block, 'Run Nexus IQ and SonarQube while AppScan scans');
+
+    expect(text(section.querySelector('.section-help'))).toBe(
+      'How much of the code the unit tests must cover, how long the pipelines wait for each scan before they give up, and the order of the static scans. The waiting times rarely need to change.',
+    );
+    expect(text(block.querySelector('header p'))).toBe(
+      'How the full and security pipelines order their static scans.',
+    );
+    expect(text(block)).toContain('staticAnalysis.parallel');
+    expect(helpOf(box.closest('dso-checkbox')!)).toBe(
+      'Ticked, the full and security pipelines first send the code of every service to AppScan. Nexus IQ and SonarQube then run while AppScan scans it, and the SAST results are read last. The pipeline finishes sooner; the results, the report and the release gate stay the same. Jenkins shows the three scans as one stage, Static analysis, and the build log lists them in this order. If SAST stops before the code is sent, Nexus IQ and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run one after another, as before.',
+    );
+    expect(box.checked).toBe(true);
+
+    box.click();
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/settings' });
+    expect(request.request.body.scans).toEqual({
+      ...globalSettings().scans,
+      parallelStaticAnalysis: false,
+    });
+    request.flush(globalSettings());
+    await fixture.whenStable();
+  });
+
   it('shows why the settings cannot be read and loads them again on request', async () => {
     await fixture.whenStable();
     http

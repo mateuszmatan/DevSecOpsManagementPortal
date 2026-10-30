@@ -34,6 +34,7 @@ describe('createSettingsForm', () => {
       npmRegistry: '',
       npmrcCredentialsId: '',
     });
+    expect(value.scans.parallelStaticAnalysis).toBe(true);
   });
 
   it('requires the tool servers, the AppScan proxy, the deployment defaults and every limit', () => {
@@ -111,6 +112,17 @@ describe('toSettingsRequest', () => {
       version: 4,
       ...values(),
     });
+  });
+
+  it('keeps Nexus IQ and SonarQube while AppScan scans unticked once it was stored unticked', () => {
+    const settings = globalSettings();
+    const form = createSettingsForm({
+      ...settings,
+      scans: { ...settings.scans, parallelStaticAnalysis: false },
+    });
+
+    expect(form.controls.scans.controls.parallelStaticAnalysis.value).toBe(false);
+    expect(toSettingsRequest(form, 4).scans.parallelStaticAnalysis).toBe(false);
   });
 
   it('always sends release-gate.json as the release gate file, the only name the library reads', () => {

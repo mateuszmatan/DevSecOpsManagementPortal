@@ -625,6 +625,22 @@ describe('ServiceFields', () => {
         'Scan name, scanned folders, AppScan client and the options of the static scan',
       );
     });
+
+    it('says under the compile command that another command keeps the static scans one after another', async () => {
+      await render();
+      await open('AppScan SAST and DAST');
+      const notes = () => [...pane().querySelectorAll('dso-advanced-settings .note')].map(text);
+      const note =
+        'Left empty, the SAST compile runs the build command of the service. Another command makes the full and security pipelines run Nexus IQ, SAST and SonarQube one after another, because it may not rebuild the files Nexus IQ scans.';
+
+      expect(notes()).toContain(note);
+
+      checkboxOf(pane(), 'Compile before preparing the IRX').click();
+      await fixture.whenStable();
+
+      expect(form.controls.appScan.controls.compile.value).toBe(false);
+      expect(notes()).not.toContain(note);
+    });
   });
 
   describe('SonarQube', () => {

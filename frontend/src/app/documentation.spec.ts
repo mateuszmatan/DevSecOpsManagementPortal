@@ -144,6 +144,7 @@ describe('docs/documentation.md', () => {
     ];
 
     expect(codes).toContain('build.node.installationName');
+    expect(codes).toContain('staticAnalysis.parallel');
     expect(codes).toContain('verify.enabled');
     expect(undocumented(codes)).toEqual([]);
   });

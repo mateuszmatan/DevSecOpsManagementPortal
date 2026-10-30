@@ -473,6 +473,7 @@ export function globalSettings(overrides: Partial<GlobalSettings> = {}): GlobalS
       dastReportIntervalSeconds: 30,
       sonarWaitForQualityGate: true,
       sonarQualityGateTimeoutMinutes: 5,
+      parallelStaticAnalysis: true,
     },
     releaseGate: {
       scanners: ['SAST', 'SCA', 'NEXUS_IQ', 'DAST'],

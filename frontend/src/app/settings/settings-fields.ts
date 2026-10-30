@@ -302,8 +302,8 @@ export const SETTINGS_PAGE: SettingsSection[] = [
     id: 'scans',
     label: 'Scans and coverage',
     note:
-      'How much of the code the unit tests must cover, and how long the pipelines wait for each ' +
-      'scan before they give up. The waiting times rarely need to change.',
+      'How much of the code the unit tests must cover, how long the pipelines wait for each scan ' +
+      'before they give up, and the order of the static scans. The waiting times rarely need to change.',
     blocks: [
       {
         heading: 'Coverage',
@@ -396,6 +396,26 @@ export const SETTINGS_PAGE: SettingsSection[] = [
               help: 'A quality gate result that does not arrive in time counts as not passed and turns the stage orange.',
             },
           ),
+        ],
+      },
+      {
+        heading: 'Speed',
+        note: 'How the full and security pipelines order their static scans.',
+        fields: [
+          {
+            key: 'parallelStaticAnalysis',
+            label: 'Run Nexus IQ and SonarQube while AppScan scans',
+            code: 'staticAnalysis.parallel',
+            span: 12,
+            kind: 'check',
+            help:
+              'Ticked, the full and security pipelines first send the code of every service to AppScan. Nexus IQ and ' +
+              'SonarQube then run while AppScan scans it, and the SAST results are read last. The pipeline finishes ' +
+              'sooner; the results, the report and the release gate stay the same. Jenkins shows the three scans as ' +
+              'one stage, Static analysis, and the build log lists them in this order. If SAST stops before the code ' +
+              'is sent, Nexus IQ and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run ' +
+              'one after another, as before.',
+          },
         ],
       },
     ],
