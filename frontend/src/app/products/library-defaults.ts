@@ -1,3 +1,4 @@
+import type { AbstractControl } from '@angular/forms';
 import { GlobalSettings, REGIONS } from '../core/models';
 import { joinLines } from '@common/shared/form-controls';
 import type { ServiceForm } from './product-form-model';
@@ -42,6 +43,7 @@ function goldenFixDefaults({ goldenFix: { enabled, ...policy } }: GlobalSettings
 }
 
 const prefilled = new WeakMap<ServiceForm, Map<string, unknown>>();
+const defaultOf = new WeakMap<AbstractControl, unknown>();
 
 const empty = (value: unknown) =>
   value === null ||
@@ -58,8 +60,9 @@ function prefill(form: ServiceForm, values: Record<string, unknown>): void {
   for (const [path, value] of Object.entries(values)) {
     const control = form.get(path);
     if (control && !empty(value) && empty(control.value)) {
-      control.setValue(value);
+      defaultOf.set(control, value);
       record.set(path, value);
+      control.setValue(value);
     }
   }
 }
@@ -74,6 +77,11 @@ export function applyLibraryDefaults(form: ServiceForm, settings: GlobalSettings
   const override = () => !inherit.value && prefill(form, goldenFixDefaults(settings));
   inherit.valueChanges.subscribe(override);
   override();
+}
+
+/** Whether the control still holds the Library default it was prefilled with, which is sent as null. */
+export function isUntouchedDefault(control: AbstractControl | null | undefined): boolean {
+  return !!control && defaultOf.has(control) && same(control.value, defaultOf.get(control));
 }
 
 /** The form value with every prefilled default the user left unchanged taken out again. */

@@ -318,6 +318,12 @@ describe('ServiceFields', () => {
         'Source folder, build command and Node.js options',
       );
       expect(field('Node.js home on the agent').closest('dso-advanced-settings')).not.toBeNull();
+      form.controls.nodeBuild.controls.nodePath.setValue('/opt/node-20');
+      await fixture.whenStable();
+      expect(text(field('Node.js installation').querySelector('dso-hint'))).toBe(
+        'Not used: the Node.js home on the agent is set · build.node.installationName',
+      );
+      expect(form.controls.nodeBuild.valid).toBe(true);
       expect(helpOf(field('Source folder'))).toContain(
         'the Gradle, Maven and Node.js builds have their own folder fields',
       );

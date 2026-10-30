@@ -730,6 +730,7 @@ export class ServiceFields {
           c.installationName.value,
           'left empty: node and npm from the agent',
         ),
+        ...(c.nodePath.value.trim() && { hint: 'not used: the Node.js home on the agent is set' }),
         help: 'A NodeJS installation under Manage Jenkins, Tools, which needs the NodeJS plugin. Its node and npm run the commands.',
       }),
     ];

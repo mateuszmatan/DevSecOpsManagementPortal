@@ -74,7 +74,11 @@ import {
 import { Observable, combineLatest, filter, map, pairwise, startWith } from 'rxjs';
 import { agentLabels } from '../shared/build-options';
 import { buildDefaults, imageRepository, namedDefaults } from '../shared/service-template';
-import { applyLibraryDefaults, withoutUntouchedDefaults } from './library-defaults';
+import {
+  applyLibraryDefaults,
+  isUntouchedDefault,
+  withoutUntouchedDefaults,
+} from './library-defaults';
 
 export const SERVICE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 export const UUID =
@@ -1075,12 +1079,17 @@ function unique(key: string, message: string): ValidatorFn {
   };
 }
 
-/** Refuses a value next to one in the other control; with a switch, only while that switch is on. */
+/**
+ * Refuses a value next to one in the other control; with a switch, only while that switch is on. A Library default
+ * the user left as prefilled is no value of the service: it is sent as null.
+ */
 function notWith(other: string, message: string, whileOn?: string): ValidatorFn {
+  const given = (control: AbstractControl | null | undefined) =>
+    !!control && !isUntouchedDefault(control) && !!optional(String(control.value ?? ''));
   return (control) =>
     (!whileOn || control.parent?.get(whileOn)?.value) &&
-    optional(String(control.value ?? '')) &&
-    optional(String(control.parent?.get(other)?.value ?? ''))
+    given(control) &&
+    given(control.parent?.get(other))
       ? { rule: message }
       : null;
 }
