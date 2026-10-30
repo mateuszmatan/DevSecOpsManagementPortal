@@ -48,9 +48,10 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 /**
  * Reads a config.yaml, a rendered product or pipeline config, or their JSON form into new service forms: the inverse of
  * the services' writeTo, as a table from config keys to request fields. A value the portal writes into every project
- * from the global settings, or one equal to the Library default the project inherits (tests.maxParallel, GoldenFix)
- * or to the library's own default of a Node.js build setting, comes back unset, so the service keeps inheriting it.
- * A value the portal cannot hold becomes a note, not an error, so a partial import still fills the form.
+ * from the global settings, or one equal to the Library default the project inherits (tests.maxParallel, GoldenFix,
+ * the Node.js installation and npm settings) or to the library's own default of a Node.js build setting, comes back
+ * unset, so the service keeps inheriting it. A value the portal cannot hold becomes a note, not an error, so a partial
+ * import still fills the form.
  */
 final class ServiceConfigReader {
 
@@ -154,6 +155,7 @@ final class ServiceConfigReader {
         global.deployment().fillIn(inherited, VM);
         global.goldenFix().writeTo(inherited);
         inherited.set("tests.maxParallel", global.serviceDefaults().testsMaxParallel());
+        global.serviceDefaults().writeNodeTo(inherited);
         inherited.set("build.node.commands", List.of("npm ci", "npm run build")).set("build.node.timeoutMin", 30)
                 .set("build.node.nexusIqScan", true);
         this.inherited = inherited.toMap();

@@ -130,6 +130,9 @@ public record GlobalSettingsDto(
             @NotNull BuildTool buildTool,
             @NotNull DeployTarget deployTarget,
             @Size(max = 500) String sourceDir,
-            @NotNull @Min(1) Integer testsMaxParallel) implements Mirrors<ServiceDefaults> {
+            @NotNull @Min(1) Integer testsMaxParallel,
+            @Size(max = 200) String nodeInstallationName,
+            @Size(max = 500) @Pattern(regexp = URL, message = URL_MESSAGE) String npmRegistry,
+            @Size(max = 200) String npmrcCredentialsId) implements Mirrors<ServiceDefaults> {
     }
 }

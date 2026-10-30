@@ -30,7 +30,7 @@ class GlobalSettingsValuesSpec extends Specification {
                 'scripts/deployment/version.properties')
         BBH.scans() == new ScanSettings(60, 120, 50, 30, 60, 60, 30, 30, true, 5)
         BBH.releaseGate() == new ReleaseGateSettings([SAST, SCA, NEXUS_IQ, DAST], true, 'release-gate.json')
-        BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20)
+        BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20, null, null, null)
         BBH.goldenFix() == GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true).minThreatLevel(2)
                 .ecosystems(['maven', 'npm', 'pypi'])
                 .goldenVersionTypes(['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'])

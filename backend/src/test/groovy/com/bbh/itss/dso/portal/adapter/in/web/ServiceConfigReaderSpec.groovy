@@ -45,6 +45,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.fullCommand
@@ -122,6 +123,32 @@ class ServiceConfigReaderSpec extends Specification {
             [enabled(), onlyDirectDependencies(), verifyMaxAttempts()] == [null, null, null]
             [minThreatLevel(), verifyTimeoutMinutes()] == [7, 45]
         }
+    }
+
+    def "Node.js build values equal to the Library defaults or to the library's own defaults come back empty"() {
+        given:
+        global = globalSettings { copy(it, serviceDefaults: copy(it.serviceDefaults(), nodeInstallationName: 'NodeJS-20',
+                npmRegistry: 'https://nexus.bbh.com/repository/npm-group/')) }
+        reader = new ServiceConfigReader(global, json)
+
+        when:
+        def service = imported('''
+            appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+            build:
+              node:
+                enabled: true
+                commands: [npm ci, npm run build]
+                installationName: NodeJS-20
+                registry: https://nexus.bbh.com/repository/npm-group/
+                npmrcCredentialsId: cert-npmrc
+                timeoutMin: 30
+                nexusIqScan: true
+            '''.stripIndent()).services()[0]
+
+        then:
+        service.notes() == []
+        service.service().nodeBuild() ==
+                new NodeBuildSettingsDto(true, null, [], null, null, [], null, 'cert-npmrc', null, null)
     }
 
     def "Node.js build keys without enabled: true come back as a build that is switched off and keeps its values"() {

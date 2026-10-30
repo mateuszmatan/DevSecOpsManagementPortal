@@ -20,6 +20,7 @@ class CatalogNodeMigrationSpec extends MigrationSpecification {
                                                  'NODE_INSTALLATION_NAME', 'NODE_PATH', 'NODE_ENVIRONMENT',
                                                  'NODE_REGISTRY', 'NODE_NPMRC_CREDENTIALS_ID', 'NODE_TIMEOUT_MINUTES',
                                                  'NODE_NEXUS_IQ_SCAN', 'GOLDEN_FIX_VERSION_CATALOGS']
+    static final List<String> SETTINGS_COLUMNS = ['NODE_INSTALLATION_NAME', 'NPM_REGISTRY', 'NPMRC_CREDENTIALS_ID']
 
     @Override
     protected String changelogFile() {
@@ -40,6 +41,7 @@ class CatalogNodeMigrationSpec extends MigrationSpecification {
 
         then:
         columns('DSO_SERVICE').containsAll(SERVICE_COLUMNS)
+        columns('DSO_GLOBAL_SETTINGS').containsAll(SETTINGS_COLUMNS)
         !nullable('DSO_SERVICE', 'NODE_ENABLED')
         nullable('DSO_SERVICE', 'NODE_NEXUS_IQ_SCAN')
         jdbc.queryForMap('SELECT NODE_ENABLED, NODE_NEXUS_IQ_SCAN, GOLDEN_FIX_VERSION_CATALOGS FROM DSO_SERVICE') ==
@@ -63,6 +65,7 @@ class CatalogNodeMigrationSpec extends MigrationSpecification {
 
         then:
         columns('DSO_SERVICE').intersect(SERVICE_COLUMNS) == []
+        columns('DSO_GLOBAL_SETTINGS').intersect(SETTINGS_COLUMNS) == []
         jdbc.queryForList('SELECT NAME FROM DSO_SERVICE', String) == ['gui']
 
         when:
