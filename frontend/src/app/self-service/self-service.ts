@@ -45,7 +45,7 @@ import {
 } from '../core/sections';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { byDepartment } from '@common/departments/departments';
-import { jenkinsfile, sharedJobReason } from '../products/jenkinsfile';
+import { jenkinsfile, sharedJobReason, sharedRunsNote } from '../products/jenkinsfile';
 import { deploysToDv } from '../products/product-form-model';
 import { commaItems, filled, joinWords, max, text } from '@common/shared/form-controls';
 import { errorText } from '@common/shared/form-errors';
@@ -125,6 +125,7 @@ export class SelfService implements HasUnsavedChanges {
   protected readonly preparation = preparation;
   protected readonly jobName = jobName;
   protected readonly sharedJobReason = sharedJobReason;
+  protected readonly sharedRunsNote = sharedRunsNote;
   protected readonly pipelineNames = pipelineNames;
 
   protected readonly step = signal(0);

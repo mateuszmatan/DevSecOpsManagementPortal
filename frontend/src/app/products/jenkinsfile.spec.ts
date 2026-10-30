@@ -1,6 +1,6 @@
 import { Pipeline } from '../core/models';
 import { pipeline } from '../testing/fixtures';
-import { byRepository, jenkinsfile, sharedJobReason } from './jenkinsfile';
+import { byRepository, jenkinsfile, repositoryGroup, sharedJobReason } from './jenkinsfile';
 
 describe('jenkinsfile', () => {
   it('loads the library the global settings name and passes the active key', () => {
@@ -78,6 +78,20 @@ describe('byRepository', () => {
         run(3, 'worker', { agentLabels: ['windows'] }),
       ]),
     ).toEqual([['gui', 'api'], ['worker']]);
+  });
+});
+
+describe('repositoryGroup', () => {
+  const repository = () => 'https://bitbucket.bbh.com/projects/CERT/repos/cert';
+
+  it('gives the pipelines of the Jenkinsfile of a pipeline, with the pipeline as it is now', () => {
+    const gui = pipeline({ activeKey: null });
+    const api = pipeline({ id: 200, serviceId: 11, serviceName: 'api' });
+    const renewed = pipeline();
+
+    expect(repositoryGroup(gui, [gui, api], repository)).toEqual([gui]);
+    expect(repositoryGroup(renewed, [gui, api], repository)).toEqual([renewed, api]);
+    expect(repositoryGroup(renewed, [], repository)).toEqual([renewed]);
   });
 });
 

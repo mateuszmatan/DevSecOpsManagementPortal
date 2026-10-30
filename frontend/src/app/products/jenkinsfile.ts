@@ -49,6 +49,29 @@ export function agents(pipeline: Pipeline): string {
   return [...pipeline.agentLabels].sort().join(',');
 }
 
+/** The pipelines that share one Jenkinsfile with the given one, in their order; only itself when none does. */
+export function repositoryGroup(
+  pipeline: Pipeline,
+  all: readonly Pipeline[],
+  repository: (pipeline: Pipeline) => string | null | undefined,
+): Pipeline[] {
+  const current = all.some((other) => other.id === pipeline.id)
+    ? all.map((other) => (other.id === pipeline.id ? pipeline : other))
+    : [...all, pipeline];
+  return byRepository(current, repository, (other) => other).find((group) =>
+    group.includes(pipeline),
+  )!;
+}
+
+/** Where Pipeline Monitoring shows the runs of a Jenkins job that several services share. */
+export function sharedRunsNote(firstService: string): string {
+  return (
+    `Pipeline Monitoring shows the runs of the shared job under ${firstService}, the service of ` +
+    'the first key. To see them on the other services too, give them the same Project tag ' +
+    '(Monitoring section) and the shared job as the Jenkins job of their pipelines.'
+  );
+}
+
 /** Why services that share a repository share one Jenkins job, or '' for pipelines without GoldenFix. */
 export function sharedJobReason(type: PipelineType): string {
   return GOLDEN_FIX_TYPES.includes(type)

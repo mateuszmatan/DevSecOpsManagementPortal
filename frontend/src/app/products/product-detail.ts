@@ -31,7 +31,7 @@ import { DsoLoading } from '@common/ui/loading';
 import { MENU_AT_END } from '@common/ui/menu';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/build-options';
 import { GeneratedKeys } from './generated-keys';
-import { agents, byRepository, sharedJobReason } from './jenkinsfile';
+import { agents, byRepository, sharedJobReason, sharedRunsNote } from './jenkinsfile';
 import { pipelineTally } from './pipeline-tally';
 import { DepartmentsApi } from '@common/core/api';
 
@@ -119,14 +119,14 @@ export class ProductDetail {
     )
       .filter((pipelines) => pipelines.length > 1)
       .map((pipelines) => {
-        const { serviceId, type } = pipelines[0];
+        const { serviceId, serviceName, type } = pipelines[0];
         const names = listed(pipelines.map((pipeline) => pipeline.serviceName));
         return {
           pipelines,
           text:
             `${names} share the repository ${this.repositories().get(serviceId)}. Put one Jenkinsfile ` +
             `with the keys of their ${typeName(type)} pipelines there and ask for one Jenkins job for ` +
-            `the repository, not one per service${sharedJobReason(type)}.`,
+            `the repository, not one per service${sharedJobReason(type)}. ${sharedRunsNote(serviceName)}`,
         };
       }),
   );
@@ -208,6 +208,15 @@ export class ProductDetail {
           other.extendedPipelineJob === pipeline.extendedPipelineJob &&
           agents(other) === agents(pipeline),
       );
+  }
+
+  /** The pipelines that share one Jenkinsfile with this one because their services share a repository. */
+  protected jenkinsfileGroup(pipeline: Pipeline): readonly Pipeline[] {
+    return (
+      this.sharedRepositories().find((shared) =>
+        shared.pipelines.some((other) => other.id === pipeline.id),
+      )?.pipelines ?? [pipeline]
+    );
   }
 
   protected together(pipeline: Pipeline): Pipeline[] {

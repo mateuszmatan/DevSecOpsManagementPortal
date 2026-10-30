@@ -4,14 +4,15 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { catchError, finalize, map, of } from 'rxjs';
-import { MonitoringApi, PipelinesApi, SettingsApi } from '../core/api';
+import { catchError, finalize, forkJoin, map, of } from 'rxjs';
+import { MonitoringApi, PipelinesApi, ProductsApi, SettingsApi } from '../core/api';
 import { PIPELINE_TYPES, Pipeline, PipelineType, pipelineTypeLabel } from '../core/models';
 import { PIPELINES, adminProduct, monitoringPipeline } from '../core/sections';
 import { MetricsBanner } from '../monitoring/metrics-banner';
 import { RunGrid } from '../monitoring/run-grid';
-import { jenkinsfile } from '../products/jenkinsfile';
-import { CountedPipe, TIME_ZONE_NOTE, capitalized } from '@common/shared/formatting';
+import { jenkinsfile, repositoryGroup, sharedJobReason } from '../products/jenkinsfile';
+import { bitbucketRepositoryUrl } from '../shared/bitbucket';
+import { CountedPipe, TIME_ZONE_NOTE, capitalized, listed } from '@common/shared/formatting';
 import { StatusChip } from '../shared/status-chip';
 import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
@@ -287,7 +288,7 @@ const RECENT_RUNS = 5;
               Copy the Jenkinsfile
             </button>
           </header>
-          <p class="section-help">{{ jenkinsfileHelp }}</p>
+          <p class="section-help">{{ jenkinsfileHelp() }}</p>
           <pre class="code-block">{{ jenkinsfileText() }}</pre>
         </section>
 
@@ -398,6 +399,7 @@ export class PipelinePage {
   readonly id = input.required<string>();
 
   private readonly api = inject(PipelinesApi);
+  private readonly products = inject(ProductsApi);
   private readonly monitoringApi = inject(MonitoringApi);
   private readonly router = inject(Router);
   protected readonly actions = inject(PipelineActions);
@@ -408,7 +410,6 @@ export class PipelinePage {
   protected readonly typeLabel = pipelineTypeLabel;
   protected readonly name = pipelineName;
   protected readonly keyHelp = capitalized(KEY_MEANING);
-  protected readonly jenkinsfileHelp = JENKINSFILE_HELP;
   protected readonly timeZoneNote = TIME_ZONE_NOTE;
   protected readonly dateTime = 'd MMM y, HH:mm';
   protected readonly recentRuns = RECENT_RUNS;
@@ -437,9 +438,50 @@ export class PipelinePage {
     this.monitoring.hasValue() ? this.monitoring.value() : null,
   );
   protected readonly runs = computed(() => this.health()?.recentRuns.slice(0, RECENT_RUNS) ?? []);
-  protected readonly jenkinsfileText = computed(() =>
-    this.pipeline.hasValue() ? jenkinsfile([this.pipeline.value()], this.library()) : '',
+  private readonly productId = computed(() =>
+    this.pipeline.hasValue() ? this.pipeline.value().productId : undefined,
   );
+  private readonly product = rxResource({
+    params: this.productId,
+    stream: ({ params }) =>
+      forkJoin([this.products.get(params), this.api.listForProduct(params)]).pipe(
+        catchError(() => of(null)),
+      ),
+  });
+  /** The pipelines that share one Jenkinsfile with this one, because their services share a repository. */
+  private readonly together = computed(() => {
+    if (!this.pipeline.hasValue()) {
+      return null;
+    }
+    const pipeline = this.pipeline.value();
+    const [product, services] = (this.product.hasValue() && this.product.value()) || [null, []];
+    const repositories = new Map(
+      product?.services.map((service) => [service.id, bitbucketRepositoryUrl(service.scm)]),
+    );
+    return {
+      pipelines: repositoryGroup(
+        pipeline,
+        services.flatMap((service) => service.pipelines),
+        (other) => repositories.get(other.serviceId),
+      ),
+      repository: repositories.get(pipeline.serviceId),
+    };
+  });
+  protected readonly jenkinsfileText = computed(() => {
+    const together = this.together();
+    return together ? jenkinsfile(together.pipelines, this.library()) : '';
+  });
+  protected readonly jenkinsfileHelp = computed(() => {
+    const together = this.together();
+    if (!together || together.pipelines.length < 2) {
+      return JENKINSFILE_HELP;
+    }
+    const names = listed(together.pipelines.map((pipeline) => pipeline.serviceName));
+    return (
+      `One Jenkinsfile with the keys of ${names} goes into ${together.repository}. Ask for one ` +
+      `Jenkins job for the repository, not one per service${sharedJobReason(together.pipelines[0].type)}.`
+    );
+  });
   protected readonly revealed = signal(false);
   protected readonly regenerating = signal(false);
 

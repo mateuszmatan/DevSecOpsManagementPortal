@@ -25,6 +25,9 @@ import { ProductDetail } from './product-detail';
 import { RevokeKeyDialog } from './revoke-key-dialog';
 import { buttonOf, text, toast } from '@common/testing/dom';
 
+const MONITORED_UNDER_GUI =
+  'Pipeline Monitoring shows the runs of the shared job under gui, the service of the first key. To see them on the other services too, give them the same Project tag (Monitoring section) and the shared job as the Jenkins job of their pipelines.';
+
 describe('ProductDetail', () => {
   let fixture: ComponentFixture<ProductDetail>;
   let http: HttpTestingController;
@@ -408,8 +411,10 @@ describe('ProductDetail', () => {
       ]);
 
       expect([...page().querySelectorAll('.shared-repository .notice-text')].map(text)).toEqual([
-        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their full pipelines there and ask for one Jenkins job for the repository, not one per service: one GoldenFix pull request then raises the shared catalog once.',
-        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their SAST scanning pipelines there and ask for one Jenkins job for the repository, not one per service.',
+        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their full pipelines there and ask for one Jenkins job for the repository, not one per service: one GoldenFix pull request then raises the shared catalog once. ' +
+          MONITORED_UNDER_GUI,
+        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their SAST scanning pipelines there and ask for one Jenkins job for the repository, not one per service. ' +
+          MONITORED_UNDER_GUI,
       ]);
 
       buttonOf(page().querySelector('.shared-repository')!, 'Show the Jenkinsfile').click();
@@ -418,6 +423,30 @@ describe('ProductDetail', () => {
       expect(opened().data['title']).toBe('Jenkinsfile for several services');
       expect(opened().data['code']).toContain(
         "devSecOpsPipeline(pipelineKeys: [\n    '6f1c2d3e-0000-4abc-9def-123456789abc',\n    'a1b2c3d4",
+      );
+
+      await menu('Jenkinsfile', 'More actions of the SAST scanning pipeline');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened(1).data['title']).toBe('Jenkinsfile for several services');
+      expect(opened(1).data['code']).toContain(
+        "(pipelineKeys: [\n    '6f1c2d3e-0000-4abc-9def-123456789abc',\n    'a1b2c3d4",
+      );
+    });
+
+    it('asks to copy the new keys into the shared Jenkinsfile of a shared repository', async () => {
+      TestBed.inject(GeneratedKeys).record(1, ['gui', 'api']);
+      await load(product({ services: [service(), anotherService()] }), [
+        servicePipelines(),
+        servicePipelines({
+          serviceId: 11,
+          serviceName: 'api',
+          pipelines: [pipeline({ id: 200, serviceId: 11, serviceName: 'api' })],
+        }),
+      ]);
+
+      expect(text(page().querySelector('.generated .notice-text'))).toBe(
+        'Pipeline keys generated for 2 new services: gui, api. Copy the keys into the Jenkinsfiles: services that share a repository share one Jenkinsfile, shown below.',
       );
     });
 
@@ -440,6 +469,7 @@ describe('ProductDetail', () => {
         'Jenkinsfile for several services',
       );
     });
+
     it('asks for no shared job when the services have their own repositories', async () => {
       await load(
         product({

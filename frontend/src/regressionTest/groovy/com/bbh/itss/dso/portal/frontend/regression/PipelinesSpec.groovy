@@ -13,6 +13,7 @@ import static com.microsoft.playwright.options.AriaRole.MENUITEM
 class PipelinesSpec extends DsoSpecification {
 
     static final String GUI_FULL_KEY = '7b62170e-5c42-4bec-8cbc-035977e3299e'
+    static final String API_FULL_KEY = 'c44f8956-8e07-4ac8-b801-d6a1222a9c1f'
     static final String REGENERATED_KEY = '3f9d2c4e-8a1b-4c7d-9e2f-5b6a7c8d1e04'
 
     def "a developer picks the department and filters and sorts its pipelines in the table header"() {
@@ -123,8 +124,10 @@ class PipelinesSpec extends DsoSpecification {
         assertThat(page.locator('.key-value')).hasText('7b62170e…299e')
         assertThat(fact('Jenkins agents').locator('.mono')).hasText('linux-agent')
         assertThat(fact('Jenkins job')).hasText('DevSecOps/CERTSCANNER/gui-full')
-        assertThat(page.locator('.jenkinsfile .section-help')).containsText("The file to put in the service's repository so Jenkins runs this pipeline.")
-        assertThat(page.locator('pre.code-block')).containsText("devSecOpsPipeline(pipelineKey: '${GUI_FULL_KEY}')")
+        assertThat(page.locator('.jenkinsfile .section-help')).hasText('One Jenkinsfile with the keys of gui and backend-api ' +
+                'goes into https://bitbucket.bbh.com/projects/TA/repos/cert-scanner. Ask for one Jenkins job for the repository, ' +
+                'not one per service: one GoldenFix pull request then raises the shared catalog once.')
+        assertThat(page.locator('pre.code-block')).containsText("devSecOpsPipeline(pipelineKeys: [\n    '${GUI_FULL_KEY}',\n    '${API_FULL_KEY}',\n])")
         assertThat(gridRows()).hasCount(5)
         assertThat(link('See every run and the delivery performance (DORA)', true)).hasAttribute('href', '/monitoring/pipelines/1')
         assertThat(link('Open in Jenkins', true)).hasAttribute('href', 'https://jenkins.bbh.com/job/DevSecOps/job/CERTSCANNER/job/gui-full/')
@@ -155,7 +158,7 @@ class PipelinesSpec extends DsoSpecification {
 
         then:
         assertThat(snackBar()).containsText('Jenkinsfile copied to the clipboard')
-        copiedTexts() == [GUI_FULL_KEY, "@Library('DevSecOpsJenkinsLibrary') _\n\ndevSecOpsPipeline(pipelineKey: '${GUI_FULL_KEY}')\n".toString()]
+        copiedTexts() == [GUI_FULL_KEY, "@Library('DevSecOpsJenkinsLibrary') _\n\ndevSecOpsPipeline(pipelineKeys: [\n    '${GUI_FULL_KEY}',\n    '${API_FULL_KEY}',\n])\n".toString()]
         ownErrors().isEmpty()
     }
 

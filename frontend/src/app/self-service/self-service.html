@@ -536,6 +536,11 @@
                 <a [routerLink]="monitoringProduct(done.product.id)">Pipeline Monitoring</a>
                 shows whether each run passed and how often changes reach production.
               </p>
+              @for (job of done.jobs; track job.names) {
+                @if (job.starts.length > 1) {
+                  <p class="shared-runs">{{ sharedRunsNote(job.starts[0].serviceName) }}</p>
+                }
+              }
             </li>
           </ol>
         }

@@ -719,6 +719,9 @@ describe('SelfService', () => {
       'Ask for a Pipeline job per repository, not per service, that reads the Jenkinsfile from the repository (Pipeline script from SCM): one GoldenFix pull request then raises the shared catalog once. Use these names:',
     );
     expect(all('.job-names li')).toEqual(['gui and api: DevSecOps/CERT/gui-full']);
+    expect(all('.shared-runs')).toEqual([
+      'Pipeline Monitoring shows the runs of the shared job under gui, the service of the first key. To see them on the other services too, give them the same Project tag (Monitoring section) and the shared job as the Jenkins job of their pipelines.',
+    ]);
   });
 
   it('points to the pipeline page of a service whose key is invalidated instead of its Jenkinsfile', async () => {

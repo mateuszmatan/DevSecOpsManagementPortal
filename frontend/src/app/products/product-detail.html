@@ -110,8 +110,14 @@
     @if (generated().length) {
       <div class="banner info notice generated" role="status">
         <span class="notice-text"
-          >{{ generatedNotice() }} Copy each key into the Jenkinsfile of its service.</span
-        >
+          >{{ generatedNotice() }}
+          @if (sharedRepositories().length) {
+            Copy the keys into the Jenkinsfiles: services that share a repository share one
+            Jenkinsfile, shown below.
+          } @else {
+            Copy each key into the Jenkinsfile of its service.
+          }
+        </span>
         <button type="button" class="text-link" (click)="dismissGenerated()">Dismiss</button>
       </div>
     }
@@ -383,7 +389,7 @@
                       type="button"
                       cdkMenuItem
                       class="dropdown-item"
-                      (cdkMenuItemTriggered)="showJenkinsfile([pipeline])"
+                      (cdkMenuItemTriggered)="showJenkinsfile(jenkinsfileGroup(pipeline))"
                     >
                       Jenkinsfile
                     </button>
