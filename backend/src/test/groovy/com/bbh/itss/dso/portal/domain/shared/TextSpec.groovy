@@ -5,6 +5,8 @@ import spock.lang.Specification
 import static com.bbh.itss.dso.portal.domain.shared.Text.abbreviateBytes
 import static com.bbh.itss.dso.portal.domain.shared.Text.bytes
 import static com.bbh.itss.dso.portal.domain.shared.Text.clean
+import static com.bbh.itss.dso.portal.domain.shared.Text.relativePath
+import static com.bbh.itss.dso.portal.domain.shared.Text.relativePaths
 import static com.bbh.itss.dso.portal.domain.shared.Text.trimmed
 
 class TextSpec extends Specification {
@@ -15,6 +17,30 @@ class TextSpec extends Specification {
         trimmed([' -s ', 'settings.xml', '', null, ' ', '-gs', 'settings.xml ']) ==
                 ['-s', 'settings.xml', '-gs', 'settings.xml']
         [clean(null), trimmed(null), trimmed([])] == [[], [], []]
+    }
+
+    def "a relative path loses its '.' and empty folders and its trailing slash: '#path' is #expected"() {
+        expect:
+        relativePath(path) == expected
+
+        where:
+        path                         || expected
+        ' ./frontend/ '              || 'frontend'
+        '././web//app/./ui/'         || 'web/app/ui'
+        '.'                          || null
+        './'                         || null
+        ' '                          || null
+        null                         || null
+        '**/catalog/*.versions.toml' || '**/catalog/*.versions.toml'
+        '../catalog/deps.toml'       || '../catalog/deps.toml'
+        '/shared/deps.toml'          || '/shared/deps.toml'
+    }
+
+    def "relative paths are listed once each, in their order, without the root"() {
+        expect:
+        relativePaths(['./bom/pom.xml', 'bom/pom.xml/', '.', null, 'gradle//deps.toml']) ==
+                ['bom/pom.xml', 'gradle/deps.toml']
+        relativePaths(null) == []
     }
 
     def "abbreviate cuts a text to the UTF-8 bytes of an Oracle column on a character boundary"() {

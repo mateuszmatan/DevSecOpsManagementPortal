@@ -92,6 +92,12 @@ class ServiceSettingsSpec extends Specification {
         written(settings()).get('goldenFix') == null
     }
 
+    def "shared version catalogs are stored and written relative to the repository root"() {
+        expect:
+        settings(versionCatalogs: ['./bom/pom.xml', 'bom/pom.xml/', 'gradle//deps.toml', '.']).versionCatalogs() ==
+                ['bom/pom.xml', 'gradle/deps.toml']
+    }
+
     def "a Flutter service cannot run a Node.js build before its build"() {
         expect:
         reported(settings(build: build(tool: FLUTTER, javaPath: null),

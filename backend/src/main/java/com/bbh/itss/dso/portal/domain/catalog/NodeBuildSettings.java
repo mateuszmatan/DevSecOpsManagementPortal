@@ -10,6 +10,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.environmentMap;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_4000;
+import static com.bbh.itss.dso.portal.domain.shared.Text.relativePath;
 import static com.bbh.itss.dso.portal.domain.shared.Text.trimmed;
 import static java.lang.Boolean.FALSE;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
@@ -28,7 +29,7 @@ public record NodeBuildSettings(Boolean enabled, String directory, List<String> 
 
     public NodeBuildSettings {
         enabled = isTrue(enabled);
-        directory = trimToNull(directory);
+        directory = relativePath(directory);
         commands = trimmed(commands);
         installationName = trimToNull(installationName);
         nodePath = trimToNull(nodePath);

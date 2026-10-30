@@ -33,7 +33,8 @@ final class InputFormats {
     static final String MODULE = "^[A-Za-z0-9._/-]{1,100}$";
     static final String MODULE_MESSAGE = "must be a module folder name";
     static final String RELATIVE_FOLDER = "^(?![/\\\\])(?!.*\\.\\.)[^'\"\\p{Cntrl}]*$";
-    static final String RELATIVE_FOLDER_MESSAGE = "must be a folder relative to the workspace, without '..' or quotes";
+    static final String RELATIVE_FOLDER_MESSAGE = "must be a folder relative to the repository root, without '..'"
+            + " or quotes";
     static final String ABSOLUTE_FOLDER = "^((/|[A-Za-z]:[/\\\\]|\\\\\\\\)[^'\"\\p{Cntrl}]*)?$";
     static final String ABSOLUTE_FOLDER_MESSAGE = "must be an absolute folder such as /opt/node-20 or"
             + " C:\\Program Files\\nodejs, without quotes";

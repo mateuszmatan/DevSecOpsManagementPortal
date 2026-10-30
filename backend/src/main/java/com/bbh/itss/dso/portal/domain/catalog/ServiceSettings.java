@@ -20,7 +20,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.Region.QC;
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD;
 import static com.bbh.itss.dso.portal.domain.catalog.TestSettings.DEFAULTS;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
-import static com.bbh.itss.dso.portal.domain.shared.Text.clean;
+import static com.bbh.itss.dso.portal.domain.shared.Text.relativePaths;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
 import static lombok.AccessLevel.PRIVATE;
@@ -56,7 +56,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         nexusIqApplications = List.copyOf(emptyIfNull(nexusIqApplications));
         scm = getIfNull(scm, ScmSettings.NONE);
         goldenFix = getIfNull(goldenFix, INHERITED);
-        versionCatalogs = clean(versionCatalogs);
+        versionCatalogs = relativePaths(versionCatalogs);
         metrics = getIfNull(metrics, MetricsSettings.DEFAULTS);
         flutter = getIfNull(flutter, FlutterSettings.NONE);
     }

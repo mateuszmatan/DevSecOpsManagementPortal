@@ -26,6 +26,19 @@ class NodeBuildSettingsSpec extends Specification {
         FULL.nexusIqScan() == false
     }
 
+    def "the folder of a Node.js build is written relative to the repository root, and '#directory' is #expected"() {
+        expect:
+        NodeBuildSettings.builder().enabled(true).directory(directory).build().directory() == expected
+        written(NodeBuildSettings.builder().enabled(true).directory(directory).build()).build.node.dir == expected
+
+        where:
+        directory      || expected
+        './frontend'   || 'frontend'
+        'web/ui/'      || 'web/ui'
+        '.'            || null
+        './'           || null
+    }
+
     def "an enabled Node.js build writes every value it sets under build.node and the Nexus IQ scan only when it is off"() {
         expect:
         written(FULL) == [build: [node: [enabled           : true, dir: 'frontend', commands: ['npm ci', 'npm run build:prod'],
