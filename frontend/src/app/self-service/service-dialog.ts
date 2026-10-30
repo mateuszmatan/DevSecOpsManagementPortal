@@ -246,10 +246,11 @@ export class ServiceDialog {
   }
 
   /**
-   * Sets up a form; a copy's values that the source took from its name follow the name typed here instead. An
-   * imported service keeps the Bitbucket credentials ID its file gives, even an empty one.
+   * Sets up a form; a copy's values that the source took from its name follow the name typed here instead. The name
+   * never fills the Bitbucket credentials ID: a new service starts with the one of the service template, and a copy
+   * or an import keeps the one it brings, even an empty one.
    */
-  private use(form: ServiceForm, copiedFrom = '', imported = false): void {
+  private use(form: ServiceForm, copiedFrom = ''): void {
     form.controls.name.addValidators((control: AbstractControl) => {
       const name = String(control.value ?? '')
         .trim()
@@ -276,7 +277,7 @@ export class ServiceDialog {
     }
     if (!this.data.service) {
       const { template, productCode } = this.data.defaults;
-      followName(form, template, of(productCode), this.destroyRef, copiedFrom, false, !imported);
+      followName(form, template, of(productCode), this.destroyRef, copiedFrom, false, false);
     }
   }
 
@@ -292,7 +293,7 @@ export class ServiceDialog {
       this.data.defaults.settings?.serviceDefaults,
       this.serviceForm().controls.name.value,
     );
-    this.use(form, '', true);
+    this.use(form);
     this.serviceForm.set(form);
     this.copyFrom.setValue(null, { emitEvent: false });
     prefillAgents(this.data.agents, imported.agentLabels);

@@ -407,7 +407,7 @@ describe('ServiceDialog', () => {
     expect(scm.credentialsId.value).toBe('');
   });
 
-  it('gives a new service the Bitbucket credentials ID of the service template', async () => {
+  it('gives a new service the Bitbucket credentials ID of the service template, never from its name', async () => {
     await open();
     const scm = form().controls.scm.controls;
 
@@ -417,7 +417,31 @@ describe('ServiceDialog', () => {
     form().controls.name.setValue('ledger');
 
     expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger');
-    expect(scm.credentialsId.value).toBe('bitbucket-http-credentials');
+    expect(scm.credentialsId.value).toBe('');
+  });
+
+  it('keeps the empty Bitbucket credentials ID of a copied service, also when it is renamed', async () => {
+    const gui = service({
+      scm: {
+        ...service().scm,
+        repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/pay-gui',
+        credentialsId: '',
+      },
+    });
+    await open({ sources: [{ name: 'gui', request: gui }] });
+    form().controls.name.setValue('portal');
+
+    choose(selectOf(page(), 'Copy values from'), 'gui');
+    await fixture.whenStable();
+    const scm = form().controls.scm.controls;
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-portal');
+    expect(scm.credentialsId.value).toBe('');
+
+    form().controls.name.setValue('ledger');
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger');
+    expect(scm.credentialsId.value).toBe('');
   });
 
   it('loads existing service settings into form', async () => {

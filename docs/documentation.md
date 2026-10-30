@@ -187,7 +187,7 @@ Have these at hand:
 
 1. Click "Add a service". The dialog "Add a service" opens. Its tag shows the pipeline.
 2. To start from another service of the product, choose it in "Copy values from". To start from a file, click "Import config.yaml". Both are optional. See [chapter 9](#9-import-a-configyaml-and-copy-a-service).
-3. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Bitbucket credentials ID, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name.
+3. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.
 4. In Build, choose the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven and "The code has a pubspec.yaml file" means Flutter. The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
 5. If the repository holds a frontend that npm builds, for example an Angular application, tick "Build the frontend with Node.js first". Type the "Folder with package.json", for example `frontend`. Leave the other Node.js fields as they are. See [chapter 6](#6-build-the-frontend-with-nodejs-first-stage-0).
 6. In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.
@@ -482,6 +482,8 @@ The library name comes from the Library defaults (`platform.jenkinsLibrary`). Co
 - The name. A duplicate is named `<source>-copy`.
 - The SonarQube project name and key, the monitoring project tag and the SAST scan name stay empty.
 - The OpenShift application name, the image repositories and the Nexus IQ application follow the name you type.
+
+In the Self-service dialog, a copy keeps the Bitbucket credentials ID of its source, even an empty one.
 
 A new service in the Self-service wizard also takes the AppScan API key ID of another service of the product.
 
