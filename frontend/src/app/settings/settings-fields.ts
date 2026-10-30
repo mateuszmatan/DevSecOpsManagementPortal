@@ -313,7 +313,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             min: 1,
             max: 100,
             hint: '1 to 100',
-            help: 'Below it, the Unit tests stage of the service turns orange, which blocks the Nexus release and the QC deployment.',
+            help: 'Below it, the Unit tests stage of the service turns orange, which blocks the Nexus release and the QC deployment. A service with several coverage reports is measured by the average of its reports.',
           }),
         ],
       },
@@ -406,7 +406,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
     note:
       'The last check of a run before its build is released to Nexus and deployed to QC. It ' +
       'blocks both when an earlier stage is not green, when a selected scan is above its ' +
-      'security limits and, if ticked, when the line coverage is below the minimum.',
+      'security limits and, if ticked, when the line coverage of a service is below the minimum.',
   },
   {
     id: 'serviceDefaults',
@@ -474,7 +474,7 @@ export const RELEASE_GATE_FIELDS: Field[] = [
     'releaseGate.requireCoverage',
     6,
     {
-      help: 'Lists a line coverage below the minimum as a gate violation. The Unit tests stage turns orange in that case as well, which also blocks the release.',
+      help: 'Lists each service whose line coverage, the average of its coverage reports, is below the minimum as a gate violation. The Unit tests stage turns orange in that case as well, which also blocks the release.',
     },
   ),
   mono('stateFile', 'Result file', 'releaseGate.stateFile', 6, {

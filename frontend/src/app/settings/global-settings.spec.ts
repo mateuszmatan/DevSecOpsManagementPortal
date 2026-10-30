@@ -4,7 +4,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { buttonOf, fieldOf, helpOf, text, toast, unexplained } from '@common/testing/dom';
+import {
+  buttonOf,
+  checkboxOf,
+  fieldOf,
+  helpOf,
+  text,
+  toast,
+  unexplained,
+} from '@common/testing/dom';
 import { globalSettings } from '../testing/fixtures';
 import { GlobalSettingsPage } from './global-settings';
 
@@ -91,6 +99,22 @@ describe('GlobalSettingsPage', () => {
     ).toEqual([true, true, true, true]);
     expect(helpOf(page().querySelector('.gate .field-label')!)).toContain(
       'The scans whose findings the gate compares with their security limits.',
+    );
+  });
+
+  it('measures the line coverage of a service with several coverage reports by their average', async () => {
+    await load();
+
+    expect(helpOf(fieldOf(page(), 'Minimum line coverage (%)')!)).toContain(
+      'A service with several coverage reports is measured by the average of its reports.',
+    );
+    expect(text(page().querySelector('#settings-releaseGate .section-help'))).toContain(
+      'when the line coverage of a service is below the minimum',
+    );
+    expect(
+      helpOf(checkboxOf(page(), 'Also require the minimum line coverage').closest('dso-checkbox')!),
+    ).toContain(
+      'Lists each service whose line coverage, the average of its coverage reports, is below the minimum',
     );
   });
 

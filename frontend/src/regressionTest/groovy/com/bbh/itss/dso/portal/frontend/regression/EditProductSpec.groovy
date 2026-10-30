@@ -108,6 +108,24 @@ class EditProductSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
+    def "several coverage reports are typed one per line and saved as typed"() {
+        given:
+        ProductStore.recorded(api, 1)
+        open('/admin/products/1/edit')
+
+        when:
+        expandService('gui')
+        showSection('Unit tests and coverage')
+        input(openService(), 'Coverage reports').fill('**/build/reports/jacoco/test/*.xml\ngui/coverage/gui/lcov.info')
+        button('Save changes', true).click()
+        page.waitForURL('**/admin/products/1')
+
+        then:
+        ((awaitRequest('PUT', '/api/products/1').json().services as List<Map>)[0].unitTests as Map).coverageReportPath ==
+                '**/build/reports/jacoco/test/*.xml\ngui/coverage/gui/lcov.info'
+        ownErrors().isEmpty()
+    }
+
     def "new services of an existing product get their pipeline keys, shown once after the save"() {
         given:
         def store = ProductStore.recorded(api, 1)
