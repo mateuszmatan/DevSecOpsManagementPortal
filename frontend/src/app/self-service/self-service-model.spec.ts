@@ -1,3 +1,4 @@
+import { Pipeline } from '../core/models';
 import { RETRY, UNREACHABLE } from '@common/core/errors';
 import {
   globalSettings,
@@ -13,6 +14,7 @@ import {
   changesOf,
   deploys,
   fromService,
+  jenkinsJobs,
   jobName,
   notLoaded,
   pipelineChoices,
@@ -748,6 +750,53 @@ describe('self-service model', () => {
     expect(notLoaded('The service template', 'Database unavailable', true)).toBe(
       'The service template could not be loaded. Database unavailable.',
     );
+  });
+
+  it('shares one Jenkins job among the services whose pipelines share a repository', () => {
+    const start = (serviceName: string, repository: string, run: Pipeline | null = pipeline()) => ({
+      serviceName,
+      repository,
+      pipeline: run,
+    });
+    const shared = 'https://bitbucket.bbh.com/projects/CERT/repos/cert';
+    const jobs = jenkinsJobs([
+      start('gui', shared),
+      start('batch', 'https://bitbucket.bbh.com/projects/CERT/repos/batch'),
+      start('api', `${shared}/`),
+      start('tool', shared, null),
+      start('worker', ''),
+    ]);
+
+    expect(jobs.map((job) => [job.names, job.starts.length])).toEqual([
+      ['gui and api', 2],
+      ['batch', 1],
+      ['tool', 1],
+      ['worker', 1],
+    ]);
+  });
+
+  it('takes the repository from the Bitbucket fields of a service without a URL', () => {
+    const stored = service();
+    const [start] = servicesToStart(
+      [servicePipelines()],
+      'FULL',
+      product({
+        services: [
+          {
+            ...stored,
+            scm: {
+              ...stored.scm,
+              repositoryUrl: null,
+              apiUrl: 'https://bitbucket.bbh.com',
+              projectKey: 'CERT',
+              repoSlug: 'cert',
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(start.repository).toBe('https://bitbucket.bbh.com/projects/CERT/repos/cert');
   });
 
   it('finds the pipeline of the chosen type for every service', () => {

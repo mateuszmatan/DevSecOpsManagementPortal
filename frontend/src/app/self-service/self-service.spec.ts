@@ -672,6 +672,55 @@ describe('SelfService', () => {
     ]);
   });
 
+  it('asks for one Jenkinsfile and one job for the services that share a repository', async () => {
+    const stored = product({ services: [service(), anotherService()] });
+    const listed = [
+      servicePipelines(),
+      servicePipelines({
+        serviceId: 11,
+        serviceName: 'api',
+        pipelines: [
+          pipeline({
+            id: 200,
+            serviceId: 11,
+            serviceName: 'api',
+            jenkinsJob: 'DevSecOps/CERT/api-full',
+            activeKey: { ...pipeline().activeKey!, value: 'a1b2c3d4-0000-4abc-9def-123456789abc' },
+          }),
+        ],
+      }),
+    ];
+    await chooseProduct(3, stored, listed);
+    await next();
+    wizard()['pipeline'].set('FULL');
+    await next();
+    await next();
+    await next();
+    http.expectOne({ method: 'PUT', url: '/api/products/1?pipelineType=FULL' }).flush(stored);
+    http.expectOne('/api/products/1/pipelines').flush(listed);
+    await fixture.whenStable();
+    const step = (index: number) => text(page().querySelectorAll('.next-steps > li')[index]);
+
+    expect(all('.next-steps > li h3').slice(0, 2)).toEqual([
+      "Put the Jenkinsfile in each service's repository",
+      'Ask your Jenkins administrator for a job for each repository',
+    ]);
+    expect(step(0)).toContain(
+      'Services that share a repository share one Jenkinsfile with all their keys.',
+    );
+    expect(all('.jenkinsfile-head')).toEqual([
+      'gui and api · goes into https://bitbucket.bbh.com/projects/CERT/repos/gui Copy',
+    ]);
+    expect(text(page().querySelector('.jenkinsfile .code-block'))).toContain(
+      "devSecOpsPipeline(pipelineKeys: [ '6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc', ])",
+    );
+    expect(buttonOf(page(), 'Copy the Jenkinsfile of gui and api')).toBeDefined();
+    expect(step(1)).toContain(
+      'Ask for a Pipeline job per repository, not per service, that reads the Jenkinsfile from the repository (Pipeline script from SCM): one GoldenFix pull request then raises the shared catalog once. Use these names:',
+    );
+    expect(all('.job-names li')).toEqual(['gui and api: DevSecOps/CERT/gui-full']);
+  });
+
   it('points to the pipeline page of a service whose key is invalidated instead of its Jenkinsfile', async () => {
     await chooseProduct(3);
     await next();

@@ -18,13 +18,15 @@ import {
   pipelineTypeSlug,
 } from '../core/models';
 import { RETRY, UNREACHABLE } from '@common/core/errors';
-import { labelOf } from '@common/shared/formatting';
+import { labelOf, listed } from '@common/shared/formatting';
 import {
   ServiceForm,
   createServiceForm,
   nexusIqApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
+import { byRepository } from '../products/jenkinsfile';
+import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { TOOL_LABELS } from '../shared/build-options';
 import { Choice } from '../shared/choice-tiles';
 import { buildDefaults, imageRepository } from '../shared/service-template';
@@ -544,9 +546,26 @@ export function servicesToStart(
 ): ServiceStart[] {
   return services.map((service) => ({
     serviceName: service.serviceName,
-    repository: repositoryOf(product.services.find((stored) => stored.id === service.serviceId)),
+    repository:
+      bitbucketRepositoryUrl(
+        product.services.find((stored) => stored.id === service.serviceId)?.scm,
+      ) ?? '',
     pipeline: service.pipelines.find((candidate) => candidate.type === pipeline) ?? null,
   }));
+}
+
+/** One Jenkinsfile and one Jenkins job, shared by the services whose pipelines share a repository. */
+export interface JenkinsJob {
+  names: string;
+  starts: ServiceStart[];
+}
+
+export function jenkinsJobs(starts: readonly ServiceStart[]): JenkinsJob[] {
+  return byRepository(
+    starts,
+    (start) => start.repository,
+    (start) => start.pipeline,
+  ).map((group) => ({ names: listed(group.map((start) => start.serviceName)), starts: group }));
 }
 
 export function jobName(pipeline: Pipeline): string {

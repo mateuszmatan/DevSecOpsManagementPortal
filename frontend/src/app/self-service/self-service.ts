@@ -45,7 +45,7 @@ import {
 } from '../core/sections';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { byDepartment } from '@common/departments/departments';
-import { jenkinsfile } from '../products/jenkinsfile';
+import { jenkinsfile, sharedJobReason } from '../products/jenkinsfile';
 import { deploysToDv } from '../products/product-form-model';
 import { commaItems, filled, joinWords, max, text } from '@common/shared/form-controls';
 import { errorText } from '@common/shared/form-errors';
@@ -60,10 +60,11 @@ import {
   WizardService,
   PRODUCT_MODES,
   ProductMode,
-  ServiceStart,
+  JenkinsJob,
   WizardDefaults,
   deploys,
   fromService,
+  jenkinsJobs,
   jobName,
   notLoaded,
   pipelineChoices,
@@ -82,7 +83,8 @@ import { DepartmentsApi } from '@common/core/api';
 
 interface Onboarded {
   product: Product;
-  starts: ServiceStart[];
+  jobs: JenkinsJob[];
+  shared: boolean;
 }
 
 const STEPS = ['Product', 'Pipeline', 'Services', 'Review', 'Next steps'];
@@ -122,6 +124,7 @@ export class SelfService implements HasUnsavedChanges {
   protected readonly notLoaded = notLoaded;
   protected readonly preparation = preparation;
   protected readonly jobName = jobName;
+  protected readonly sharedJobReason = sharedJobReason;
   protected readonly pipelineNames = pipelineNames;
 
   protected readonly step = signal(0);
@@ -445,8 +448,9 @@ export class SelfService implements HasUnsavedChanges {
     return `Saving deletes ${service.name}, its pipelines${names ? ` (${names})` : ''} and their keys. Jenkins jobs that use these keys stop working.`;
   }
 
-  protected jenkinsfileOf(start: ServiceStart): string {
-    return start.pipeline ? jenkinsfile([start.pipeline], this.library()) : '';
+  protected jenkinsfileOf(job: JenkinsJob): string {
+    const pipelines = job.starts.flatMap((start) => (start.pipeline ? [start.pipeline] : []));
+    return pipelines.length ? jenkinsfile(pipelines, this.library()) : '';
   }
 
   protected copied(): void {
@@ -622,7 +626,10 @@ export class SelfService implements HasUnsavedChanges {
         switchMap((product) =>
           this.pipelinesApi.listForProduct(product.id).pipe(
             catchError(() => of([])),
-            map((services) => ({ product, starts: servicesToStart(services, pipeline, product) })),
+            map((services) => {
+              const jobs = jenkinsJobs(servicesToStart(services, pipeline, product));
+              return { product, jobs, shared: jobs.some((job) => job.starts.length > 1) };
+            }),
           ),
         ),
         finalize(() => this.saving.set(false)),

@@ -1,5 +1,6 @@
+import { Pipeline } from '../core/models';
 import { pipeline } from '../testing/fixtures';
-import { jenkinsfile } from './jenkinsfile';
+import { byRepository, jenkinsfile, sharedJobReason } from './jenkinsfile';
 
 describe('jenkinsfile', () => {
   it('loads the library the global settings name and passes the active key', () => {
@@ -32,5 +33,51 @@ describe('jenkinsfile', () => {
         "    'a1b2c3d4-0000-4abc-9def-123456789abc',\n" +
         '])\n',
     );
+  });
+});
+
+describe('byRepository', () => {
+  const run = (id: number, serviceName: string, overrides: Partial<Pipeline> = {}) =>
+    pipeline({ id, serviceId: id, serviceName, ...overrides });
+  const repositories: Record<string, string | null> = {
+    gui: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
+    api: ' https://bitbucket.bbh.com/projects/cert/repos/cert.git/ ',
+    batch: 'https://bitbucket.bbh.com/projects/CERT/repos/batch',
+    worker: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
+    tool: null,
+  };
+  const names = (pipelines: readonly Pipeline[]) =>
+    byRepository(
+      pipelines,
+      (p) => repositories[p.serviceName],
+      (p) => p,
+    ).map((group) => group.map((p) => p.serviceName));
+
+  it('puts the active pipelines of one type that share a repository together, in their order', () => {
+    expect(
+      names([run(1, 'gui'), run(2, 'batch'), run(3, 'api'), run(4, 'tool'), run(5, 'worker')]),
+    ).toEqual([['gui', 'api', 'worker'], ['batch'], ['tool']]);
+  });
+
+  it('keeps apart other types, invalidated keys and other linked jobs', () => {
+    expect(
+      names([
+        run(1, 'gui'),
+        run(2, 'api', { type: 'NEXUS_IQ' }),
+        run(3, 'worker', { activeKey: null }),
+        run(4, 'api', { securityPipelineJob: 'CERT/api-security' }),
+      ]),
+    ).toEqual([['gui'], ['api'], ['worker'], ['api']]);
+  });
+});
+
+describe('sharedJobReason', () => {
+  it('names the shared GoldenFix pull request only where GoldenFix runs', () => {
+    expect(sharedJobReason('FULL')).toBe(
+      ': one GoldenFix pull request then raises the shared catalog once',
+    );
+    expect(sharedJobReason('NEXUS_IQ')).toBe(sharedJobReason('SECURITY'));
+    expect(sharedJobReason('SAST')).toBe('');
+    expect(sharedJobReason('EXTENDED')).toBe('');
   });
 });
