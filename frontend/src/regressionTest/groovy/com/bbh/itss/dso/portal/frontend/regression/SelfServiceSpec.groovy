@@ -70,6 +70,8 @@ class SelfServiceSpec extends EditorSpecification {
         fillIn(dialog(), ['Service name': 'archive-api', 'Description': 'REST API of the archive'])
         showDialogSection('Build')
         choose(dialog(), 'Build tool', 'Maven')
+        checkbox(dialog(), 'Build the frontend with Node.js first').check()
+        input(dialog(), 'Folder with package.json').fill('frontend')
         showDialogSection('AppScan SAST and DAST')
         input(dialog(), 'AppScan application ID').fill(API_APPLICATION)
 
@@ -114,6 +116,11 @@ class SelfServiceSpec extends EditorSpecification {
             services*.appScan*.applicationId == [SelfServiceSpec.API_APPLICATION, SelfServiceSpec.GUI_APPLICATION]
             services*.appScan*.keyId == [SelfServiceSpec.APP_SCAN_KEY, SelfServiceSpec.APP_SCAN_KEY]
             services*.build*.tool == ['MAVEN', 'GRADLE']
+            services*.nodeBuild*.enabled == [true, false]
+            services[0].nodeBuild.directory == 'frontend'
+            services[0].nodeBuild.commands == []
+            services[0].nodeBuild.nexusIqScan == null
+            services*.versionCatalogs == [[], []]
         }
         store.services*.pipelines*.type == [['SECURITY'], ['SECURITY']]
         assertThat(page.locator('.jenkinsfile .code-block')).hasText(store.services.collect { service ->
