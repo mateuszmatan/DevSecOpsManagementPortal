@@ -901,7 +901,9 @@ export function followName(
   copiedFrom = '',
 ): void {
   const name = service.controls.name;
+  const apps = service.controls.nexusIqApplications;
   let named: Naming | null = null;
+  let offered = apps.length > 0;
   combineLatest([productCode, name.valueChanges.pipe(startWith(name.value))])
     .pipe(
       map(([code, typed]) => ({ code: code.trim(), name: typed.trim() })),
@@ -909,16 +911,19 @@ export function followName(
       takeUntilDestroyed(destroyRef),
     )
     .subscribe((next) => {
-      rename(service, template, named ?? { ...next, name: copiedFrom }, next);
+      rename(service, template, named ?? { ...next, name: copiedFrom }, next, offered);
       named = next;
+      offered ||= apps.length > 0;
     });
 }
 
+/** Renames the values the name gives; a Nexus IQ application is offered once, so one the user removed stays away. */
 function rename(
   service: ServiceForm,
   template: ServiceTemplateValues | null,
   previous: Naming,
   next: Naming,
+  offered: boolean,
 ): void {
   const before = namedValues(service, template, previous);
   const after = namedValues(service, template, next);
@@ -926,10 +931,11 @@ function rename(
   if (application) {
     const { scanPattern } = buildDefaults(template, service.controls.build.controls.tool.value);
     const apps = service.controls.nexusIqApplications;
-    if (!apps.length) {
+    const first = apps.at(0);
+    if (!first && !offered) {
       apps.push(nexusIqApplicationForm(application, scanPattern));
-    } else if (!apps.at(0).controls.scanPatterns.value && scanPattern) {
-      apps.at(0).controls.scanPatterns.setValue(scanPattern);
+    } else if (first && !first.controls.scanPatterns.value && scanPattern) {
+      first.controls.scanPatterns.setValue(scanPattern);
     }
   }
   for (const [path, value] of Object.entries(after)) {

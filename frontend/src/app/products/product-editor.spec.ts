@@ -198,6 +198,21 @@ describe('ProductEditor', () => {
     }
   });
 
+  it('offers the Nexus IQ application of the service template once, so one that was removed stays away', async () => {
+    await start();
+    const gui = editor()['form'].controls.services.at(0);
+    gui.controls.name.setValue('gui');
+    expect(gui.controls.nexusIqApplications.length).toBe(1);
+
+    gui.controls.nexusIqApplications.removeAt(0);
+    gui.controls.name.setValue('gui2');
+
+    expect(gui.controls.nexusIqApplications.length).toBe(0);
+    expect(gui.controls.scm.controls.repositoryUrl.value).toBe(
+      'https://bitbucket.bbh.com/projects/CERTSCANNER/repos/certscanner-gui2',
+    );
+  });
+
   it('fills what a new service takes from its name and the product code from the service template', async () => {
     await start();
     const gui = editor()['form'].controls.services.at(0);
