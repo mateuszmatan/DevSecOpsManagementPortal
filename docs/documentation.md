@@ -482,6 +482,7 @@ The library name comes from the Library defaults (`platform.jenkinsLibrary`). Co
 - The name. A duplicate is named `<source>-copy`.
 - The SonarQube project name and key, the monitoring project tag and the SAST scan name stay empty.
 - The OpenShift application name, the image repositories and the Nexus IQ application follow the name you type.
+- The repository URL follows the name too while it is the URL the service template gives for the name of the source. When both services build from one repository, set the repository URL of the copy back to that of its source.
 
 A copy keeps the Bitbucket credentials ID of its source, even an empty one. In the admin editor, a copy also keeps an empty repository URL, so a copy of a service without a repository needs no credentials ID. In the Self-service dialog, the service template fills in an empty repository URL from the name, and a copy without a Bitbucket credentials ID then needs one.
 
