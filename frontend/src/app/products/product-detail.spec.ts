@@ -421,6 +421,25 @@ describe('ProductDetail', () => {
       );
     });
 
+    it('keeps apart the services of one repository whose pipelines run on other agents', async () => {
+      await load(product({ services: [service(), anotherService()] }), [
+        servicePipelines(),
+        servicePipelines({
+          serviceId: 11,
+          serviceName: 'api',
+          pipelines: [
+            pipeline({ id: 200, serviceId: 11, serviceName: 'api', agentLabels: ['windows'] }),
+          ],
+        }),
+      ]);
+
+      expect(page().querySelector('.shared-repository')).toBeNull();
+      buttonOf(page(), 'More actions of the full pipeline').click();
+      await fixture.whenStable();
+      expect([...document.querySelectorAll('.dso-menu button')].map(text)).not.toContain(
+        'Jenkinsfile for several services',
+      );
+    });
     it('asks for no shared job when the services have their own repositories', async () => {
       await load(
         product({

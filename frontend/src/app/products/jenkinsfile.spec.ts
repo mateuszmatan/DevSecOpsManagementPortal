@@ -69,6 +69,16 @@ describe('byRepository', () => {
       ]),
     ).toEqual([['gui'], ['api'], ['worker'], ['api']]);
   });
+
+  it('keeps apart pipelines that run on other Jenkins agents, whatever their order', () => {
+    expect(
+      names([
+        run(1, 'gui', { agentLabels: ['linux', 'docker'] }),
+        run(2, 'api', { agentLabels: ['docker', 'linux'] }),
+        run(3, 'worker', { agentLabels: ['windows'] }),
+      ]),
+    ).toEqual([['gui', 'api'], ['worker']]);
+  });
 });
 
 describe('sharedJobReason', () => {

@@ -20,8 +20,8 @@ export function jenkinsfile(
 
 /**
  * Groups the items, in their order, whose active pipelines of one type share a Bitbucket
- * repository: one Jenkinsfile with all their keys runs them in one Jenkins job. Every other item
- * is a group of its own.
+ * repository and their Jenkins agents: one Jenkinsfile with all their keys runs them in one
+ * Jenkins job, on the agents of the first key. Every other item is a group of its own.
  */
 export function byRepository<T>(
   items: readonly T[],
@@ -37,11 +37,16 @@ export function byRepository<T>(
     const run = pipeline(item);
     const key =
       url && run?.activeKey
-        ? [url, run.type, run.securityPipelineJob, run.extendedPipelineJob].join(' ')
+        ? [url, run.type, run.securityPipelineJob, run.extendedPipelineJob, agents(run)].join(' ')
         : item;
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   return [...groups.values()];
+}
+
+/** The Jenkins agents of a pipeline, in a stable order. */
+export function agents(pipeline: Pipeline): string {
+  return [...pipeline.agentLabels].sort().join(',');
 }
 
 /** Why services that share a repository share one Jenkins job, or '' for pipelines without GoldenFix. */
