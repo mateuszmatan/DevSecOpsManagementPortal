@@ -427,10 +427,12 @@ describe('ServiceFields', () => {
         'finds every JaCoCo XML and LCOV report of the service by itself',
       );
       expect(helpOf(field())).toContain(
-        'On Windows agents and on agents without python3 it does not search: it reads only the ' +
-          'usual JaCoCo report of the build tool, or total_lcov.info for Flutter, so name every ' +
-          'report here for such agents.',
+        'On Windows agents it does not look for LCOV reports: it reads the usual JaCoCo report of ' +
+          'the build tool, and when that is missing every jacoco.xml of the workspace, or ' +
+          'total_lcov.info for Flutter, so name every report here for those agents. A JaCoCo ' +
+          'report needs python3 on the agent.',
       );
+      expect(helpOf(field())).not.toContain('without python3');
       expect(helpOf(field())).toContain(
         'only the reports named here count, so name the report of the frontend too',
       );
