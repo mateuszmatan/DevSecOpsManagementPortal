@@ -240,7 +240,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <ol>
 <li>Click &quot;Add a service&quot;. The dialog &quot;Add a service&quot; opens. Its tag shows the pipeline.</li>
 <li>To start from another service of the product, choose it in &quot;Copy values from&quot;. To start from a file, click &quot;Import config.yaml&quot;. Both are optional. See <a href="#9-import-a-configyaml-and-copy-a-service">chapter 9</a>.</li>
-<li>In General, type the service name, for example <code>backend-api</code>. The portal then fills in, from the service template: the Bitbucket repository URL, the Bitbucket credentials ID, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories.</li>
+<li>In General, type the service name, for example <code>backend-api</code>. The portal then fills in, from the service template: the Bitbucket repository URL, the Bitbucket credentials ID, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name.</li>
 <li>In Build, choose the build tool. The hint tells you how to recognise it: &quot;The code has a build.gradle file&quot; means Gradle, &quot;The code has a pom.xml file&quot; means Maven and &quot;The code has a pubspec.yaml file&quot; means Flutter. The tasks and the artifact path come from the service template. Leave &quot;Set up the build tool automatically&quot; on.</li>
 <li>If the repository holds a frontend that npm builds, for example an Angular application, tick &quot;Build the frontend with Node.js first&quot;. Type the &quot;Folder with package.json&quot;, for example <code>frontend</code>. Leave the other Node.js fields as they are. See <a href="#6-build-the-frontend-with-nodejs-first-stage-0">chapter 6</a>.</li>
 <li>In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.</li>
@@ -251,9 +251,9 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>Look at the bottom of the dialog. While something is missing, it says &quot;Complete these fields first:&quot; followed by the names of the fields. Click a name: the dialog opens its section and puts the cursor in the field.</li>
 <li>When nothing is missing, &quot;Add service&quot; is active. Click it.</li>
 </ol>
-<p>Add every service of the product in the same way. Use Change to correct a service and Remove to take it out. Click Next.</p>
+<p>Add every service of the product in the same way. Under each service the list shows its build tool, the folder of its Node.js build and its repository. Use Change to correct a service and Remove to take it out. Click Next.</p>
 <h3 id="step-4-review">Step 4: Review</h3>
-<p>Check the product, the pipeline, the Jenkins agents and what happens to each service. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.</p>
+<p>Check the product, the pipeline, the Jenkins agents and what happens to each service. A service that shares its repository with others says so: they get one Jenkinsfile and one Jenkins job. Check the repository URLs here, because a typo in one of them gives two Jenkinsfiles and two jobs. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.</p>
 <h3 id="step-5-next-steps">Step 5: Next steps</h3>
 <ol>
 <li>Copy the Jenkinsfile of each service into a file named <code>Jenkinsfile</code> in the top folder of the repository of the service. Merge it, or send it to a developer of the service.</li>
@@ -263,7 +263,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>For an OSA pipeline, ask a developer to review and merge the golden pull requests.</li>
 <li>Follow the results in Pipeline Monitoring.</li>
 </ol>
-<p>When two or more services share one Bitbucket repository, the step shows one Jenkinsfile with all their keys and asks for one Jenkins job for each repository. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</p>
+<p>When two or more services share one Bitbucket repository and their pipelines run on the same Jenkins agents, the step shows one Jenkinsfile with all their keys, asks for one Jenkins job for each repository and says where Pipeline Monitoring shows the runs of that job. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</p>
 </div>
 
 <div class="section" id="5-add-a-service-in-the-admin-editor">
@@ -275,9 +275,9 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>The dialog &quot;Add product&quot; asks for the product name and the Business Service. Click Continue.</li>
 <li>The editor opens with the suggested product code, the Jenkins agents of the service template and one new service.</li>
 <li>Fill in the product fields: Owner team, Description and Contact e-mail are optional.</li>
-<li>Open the service panel (&quot;Edit settings&quot;) and fill in the service as in <a href="#step-3-services">step 3 of chapter 4</a>. A new service starts with &quot;Set up the build tool automatically&quot; on. Typing its name fills in the repository URL, the Bitbucket credentials ID, the Nexus IQ application and its scan pattern from the service template.</li>
+<li>Open the service panel (&quot;Edit settings&quot;) and fill in the service as in <a href="#step-3-services">step 3 of chapter 4</a>. A new service starts with &quot;Set up the build tool automatically&quot; on; a Flutter service starts with it off, because Flutter needs the JDK path. Typing its name fills in the repository URL, the Bitbucket credentials ID, the Nexus IQ application and its scan pattern from the service template.</li>
 <li>Every new service gets a Full pipeline. A service on virtual machines therefore needs an UrbanCode Deploy application for DV.</li>
-<li>Click &quot;Add product&quot;. Each service gets a Full pipeline with its own key. The product page opens with the notice &quot;Pipeline keys generated for ...&quot; and asks you to copy each key into the Jenkinsfile of its service. &quot;Show key&quot; and &quot;Copy key&quot; give a key at any time.</li>
+<li>Click &quot;Add product&quot;. Each service gets a Full pipeline with its own key. The product page opens with the notice &quot;Pipeline keys generated for ...&quot; and asks you to copy each key into the Jenkinsfile of its service; services that share a repository share one Jenkinsfile, shown below the notice. &quot;Show key&quot; and &quot;Copy key&quot; give a key at any time.</li>
 </ol>
 <h3 id="a-service-of-an-existing-product">A service of an existing product</h3>
 <ol>
@@ -313,15 +313,15 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 </thead>
 <tbody>
 <tr><td>Build the frontend with Node.js first</td><td>off</td><td>Switches the stage on for this service.</td></tr>
-<tr><td>Folder with package.json</td><td>the repository root</td><td>The folder of the frontend. The commands run in it.</td></tr>
+<tr><td>Folder with package.json</td><td>the repository root</td><td>The folder of the frontend, relative to the repository root. The commands run in it. A leading <code>./</code> and a trailing <code>/</code> are dropped, and <code>.</code> is the repository root.</td></tr>
 <tr><td>Commands</td><td><code>npm ci</code>, then <code>npm run build</code></td><td>One shell command per line, run in order. A failing command fails the stage, and the later stages do not run.</td></tr>
-<tr><td>Scan the npm dependencies with Nexus IQ</td><td>on</td><td>Adds the <code>package-lock.json</code> of the folder to the Nexus IQ scan, so that Nexus IQ reports the npm dependencies and GoldenFix can raise them. New findings can turn the Nexus IQ stage orange.</td></tr>
-<tr><td>Node.js installation</td><td>the Library default, else node and npm from the agent</td><td>A NodeJS installation under Manage Jenkins, Tools. It needs the NodeJS plugin of Jenkins.</td></tr>
-<tr><td>Node.js home on the agent (Advanced)</td><td>none</td><td>An absolute folder of Node.js on the agent, such as <code>/opt/node-20</code> or <code>C:\Program Files\nodejs</code>. It wins over the Node.js installation, the Library default included. Give the installation or the home, not both.</td></tr>
+<tr><td>Scan the npm dependencies with Nexus IQ</td><td>on</td><td>Adds the <code>package-lock.json</code> of the folder to the Nexus IQ scan, so that Nexus IQ reports the npm dependencies and GoldenFix can raise them. New findings can turn the Nexus IQ stage orange. Not shown in a SAST pipeline, which runs no Nexus IQ; the value is kept for the other pipelines.</td></tr>
+<tr><td>Node.js installation</td><td>the Library default, else node and npm from the agent</td><td>A NodeJS installation under Manage Jenkins, Tools. It needs the NodeJS plugin of Jenkins. While a Node.js home on the agent is set, its hint says it is not used.</td></tr>
+<tr><td>Node.js home on the agent (Advanced)</td><td>none</td><td>An absolute folder of Node.js on the agent, such as <code>/opt/node-20</code> or <code>C:\Program Files\nodejs</code>. It wins over the Node.js installation, the Library default included. Type the installation or the home, not both; the Library default installation left as prefilled does not count and is sent empty.</td></tr>
 <tr><td>Node.js timeout (minutes) (Advanced)</td><td>30</td><td>How long the commands may take together.</td></tr>
-<tr><td>npm registry (Advanced)</td><td>the Library default</td><td>The registry npm installs from, exported as <code>npm_config_registry</code>. It is used only without an .npmrc.</td></tr>
+<tr><td>npm registry (Advanced)</td><td>the Library default</td><td>The registry npm installs from, exported as <code>npm_config_registry</code>. It is not used while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository.</td></tr>
 <tr><td>.npmrc credentials ID (Advanced)</td><td>the Library default</td><td>A Jenkins Secret file credential with an .npmrc. npm reads it, its registry included.</td></tr>
-<tr><td>Node.js environment variables (Advanced)</td><td>none</td><td><code>NAME=value</code> lines for the Node.js commands only, for example <code>NODE_OPTIONS=--max-old-space-size=4096</code>.</td></tr>
+<tr><td>Node.js environment variables (Advanced)</td><td>none</td><td><code>NAME=value</code> lines for the Node.js commands and for the GoldenFix verification of npm fixes, for example <code>NODE_OPTIONS=--max-old-space-size=4096</code>.</td></tr>
 </tbody>
 </table>
 <p>The portal writes <code>build.node</code> to <code>config.yaml</code> only while the checkbox is ticked. The library then reads the keys under <code>projects.&lt;service&gt;.build.node</code>. The Library defaults page can give every service a Node.js installation, an npm registry and an .npmrc credentials ID under <code>defaults.build.node</code>. The portal never writes <code>defaults.build.node.enabled</code>: every service switches the stage on for itself.</p>
@@ -388,7 +388,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>Maven parent poms (through <code>relativePath</code>) and BOM poms imported with <code>&lt;scope&gt;import&lt;/scope&gt;</code> inside the repository.</li>
 </ul>
 <h3 id="when-to-list-a-catalog">When to list a catalog</h3>
-<p>Use the field &quot;Shared version catalogs&quot; in the GoldenFix section of the service. Write one path per line, relative to the repository root. <code>*</code> matches within one folder and <code>**</code> matches across folders, for example <code>gradle/*.versions.toml</code>. List a file when it has another name or format, such as a parent or BOM <code>pom.xml</code>. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as <code>goldenFix.versionCatalogs</code>.</p>
+<p>Use the field &quot;Shared version catalogs&quot; in the GoldenFix section of the service. Write one path per line, relative to the repository root. <code>*</code> matches within one folder and <code>**</code> matches across folders, for example <code>catalog/*.toml</code>. A leading <code>./</code> and a trailing <code>/</code> are dropped. List a file only when GoldenFix cannot find it by itself, for example a TOML catalog whose name does not end in <code>.versions.toml</code>, such as <code>catalog/dependencies.toml</code>, or a parent or BOM pom with another file name such as <code>bom.xml</code>. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as <code>goldenFix.versionCatalogs</code>.</p>
 <p>A listed path that matches nothing gives the run note <code>version catalog &lt;path&gt; not found in the repository</code>. A path that leaves the repository gives <code>version catalog &lt;path&gt; is outside the repository</code>.</p>
 <h3 id="what-the-pull-request-contains">What the pull request contains</h3>
 <ul>
@@ -399,12 +399,14 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 </ul>
 <h3 id="one-jenkins-job-for-each-repository">One Jenkins job for each repository</h3>
 <p>Services that share a repository and a catalog must run in one Jenkins job. One GoldenFix pull request then raises the shared catalog once. Two jobs of one repository that run in the same minute compute the same branch name, and the second job fails with <code>[GOLDENFIX] The branch &lt;branch&gt; already exists in &lt;repository&gt; - another GoldenFix job of this repository ran in the same minute; run one GoldenFix job for all services of a repository (pipelineKeys)</code>.</p>
-<p>The portal helps you with this:</p>
+<p>The library takes the Jenkins agents of a run from the first key, so only pipelines that run on the same agents share a job. The portal helps you with this:</p>
 <ul>
-<li>The product page shows a notice for each repository and pipeline type that several services share. It names the services and offers &quot;Show the Jenkinsfile&quot;.</li>
+<li>The product page shows a notice for each repository and pipeline type that several services share on the same agents. It names the services and offers &quot;Show the Jenkinsfile&quot;. The Jenkinsfile item of each of these pipelines and the pipeline page show the same combined Jenkinsfile.</li>
 <li>The Next steps of the Self-service wizard show one Jenkinsfile for the services of a repository and ask for one Jenkins job for each repository.</li>
-<li>The More menu of a pipeline offers &quot;Jenkinsfile for several services&quot; when other services have a pipeline of the same type.</li>
+<li>A pipeline the portal starts for a service of such a repository gets the Jenkins job of the first pipeline of its type there, so every pipeline of the group links to the one job.</li>
+<li>The More menu of a pipeline offers &quot;Jenkinsfile for several services&quot; when other services have a pipeline of the same type on the same agents.</li>
 </ul>
+<p>Pipeline Monitoring shows the runs of a shared job under the service of the first key: the library reports every run with the monitoring project tag of that service. To see the runs on the other services too, give them the same Project tag (Monitoring section) and the shared job as the Jenkins job of their pipelines. With a shared tag, the portal matches the runs to a pipeline by its Jenkins job, so each pipeline of the group then shows the runs of the shared job.</p>
 <p>The combined Jenkinsfile passes every key in <code>pipelineKeys</code>. The first key belongs to the primary service:</p>
 <pre><code><span class="kw">@Library</span>(<span class="s">'DevSecOpsJenkinsLibrary'</span>) _
 
@@ -474,12 +476,12 @@ devSecOpsNexusIqGoldenFixPipeline(<span class="k">pipelineKeys</span>: [
 <pre><code><span class="kw">@Library</span>(<span class="s">'DevSecOpsJenkinsLibrary'</span>) _
 
 devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipeline key&gt;'</span>)</code></pre>
-<p>The library name comes from the Library defaults (<code>platform.jenkinsLibrary</code>). Copy the Jenkinsfile from the pipeline page, from the product page or from the Next steps of the Self-service wizard.</p>
+<p>The library name comes from the Library defaults (<code>platform.jenkinsLibrary</code>). Copy the Jenkinsfile from the pipeline page, from the product page or from the Next steps of the Self-service wizard. For a service that shares its repository, each of these shows the combined Jenkinsfile with the keys of all its services.</p>
 <h3 id="jenkins-jobs">Jenkins jobs</h3>
 <ul>
 <li>Each pipeline needs a Jenkins Pipeline job that reads the Jenkinsfile from the repository (Pipeline script from SCM).</li>
 <li>The service template names the job, for example <code>DevSecOps/{CODE}/{service}-{type}</code> gives <code>DevSecOps/PAYHUB/gateway-full</code>.</li>
-<li>Services that share a repository share one job and one Jenkinsfile with <code>pipelineKeys</code>. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</li>
+<li>Services that share a repository share one job and one Jenkinsfile with <code>pipelineKeys</code>. A pipeline the portal starts for such a service gets the job of the first one. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</li>
 <li>Jenkins needs the global environment variable <code>DSO_PORTAL_URL</code>, for example <code>https://dso-portal.apps.bbh.com</code>.</li>
 </ul>
 </div>
@@ -496,6 +498,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipel
 <li><code>build.node</code> without <code>enabled: true</code> comes back switched off, with its values kept.</li>
 <li>A Flutter file with <code>build.node.enabled: true</code> comes back switched off with the note &quot;Check: the Node.js build is not used with Flutter&quot;.</li>
 <li><code>goldenFix.versionCatalogs</code> fills &quot;Shared version catalogs&quot;.</li>
+<li>Like a new service, the imported service follows its name: an empty repository URL, Bitbucket credentials ID and Nexus IQ application are filled from the service template. The notes do not list these values; check them in the Bitbucket and Nexus IQ sections.</li>
 <li>The Jenkins agents of the imported pipeline fill the Jenkins agents of the product while you have not changed them.</li>
 <li>The file may hold at most 262,144 characters and 50 projects.</li>
 </ul>
@@ -1160,7 +1163,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipel
 <h3 id="a-service-shows-needs-attention">A service shows &quot;Needs attention&quot;</h3>
 <p>A field of the service has a problem. Open the service and look for the red marks in the list of sections. Saving opens the first section with a problem.</p>
 <h3 id="give-the-nodejs-installation-or-its-home-on-the-agent-not-both">&quot;give the Node.js installation or its home on the agent, not both&quot;</h3>
-<p>The service names a Node.js installation and a Node.js home on the agent. Empty one of them. The home wins in the library, so keep the home when the agent has a fixed Node.js folder.</p>
+<p>The service names a Node.js installation and a Node.js home on the agent. Empty one of them. The Library default installation that a new service, a copy or an import shows as prefilled does not count while you leave it unchanged. The home wins in the library, so keep the home when the agent has a fixed Node.js folder.</p>
 <h3 id="must-be-off-for-flutter-a-flutter-build-has-no-gradle-or-maven-stage-for-the-nodejs-build-to-run-before">&quot;must be off for Flutter: a Flutter build has no Gradle or Maven stage for the Node.js build to run before&quot;</h3>
 <p>A Flutter service cannot use the Node.js build. Switch it off, or choose Gradle or Maven when the service is not a Flutter app.</p>
 <h3 id="the-nodejs-build-does-not-run">The Node.js build does not run</h3>
@@ -1171,7 +1174,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipel
 <h3 id="the-nodejs-build-fails">The Node.js build fails</h3>
 <ul>
 <li><code>npm: not found</code> or <code>node: not found</code>: the agent has no Node.js on its path. Set the Node.js installation (NodeJS plugin, Manage Jenkins, Tools) or the Node.js home on the agent.</li>
-<li>npm cannot reach its registry: set the npm registry, or an .npmrc credentials ID whose file names the registry. A registry is ignored while an .npmrc is used.</li>
+<li>npm cannot reach its registry: set the npm registry, or an .npmrc credentials ID whose file names the registry. The npm registry is ignored while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository, so leave it empty when that .npmrc names a registry the packages need.</li>
 <li>The stage times out: raise the Node.js timeout (30 minutes by default).</li>
 <li>A failing command fails the stage, and the later stages are shown as blocked.</li>
 </ul>
@@ -1207,7 +1210,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipel
 <h3 id="saving-fails-because-someone-else-changed-the-product">Saving fails because someone else changed the product</h3>
 <p>Another user saved the product after you opened it. Reload the page and make your change again.</p>
 <h3 id="pipeline-monitoring-shows-no-runs">Pipeline Monitoring shows no runs</h3>
-<p>The InfluxDB of the portal is not set, or the pipeline has not run yet. Set it in Library defaults, Portal monitoring, or with <code>INFLUX_URL</code>, and check that the service writes its metrics (&quot;Write pipeline metrics to InfluxDB&quot;).</p>
+<p>The InfluxDB of the portal is not set, or the pipeline has not run yet. Set it in Library defaults, Portal monitoring, or with <code>INFLUX_URL</code>, and check that the service writes its metrics (&quot;Write pipeline metrics to InfluxDB&quot;). A service that runs in the shared job of its repository, but not with the first key, gets no runs of its own: see &quot;One Jenkins job for each repository&quot; in <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</p>
 <h3 id="the-appscan-key-of-a-product-disappeared-after-the-upgrade">The AppScan key of a product disappeared after the upgrade</h3>
 <p>Changeset 031 moved the key to the services. A product without services lost it. Enter the key on the first service of the product.</p>
 </div>
