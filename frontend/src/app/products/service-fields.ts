@@ -669,7 +669,7 @@ export class ServiceFields {
       check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 6, {
         help: 'Gradle and Maven builds: reads the Java version from pom.xml or the Gradle build file and selects a JDK of that version installed on the agent, instead of the JDK path.',
       }),
-      ...(c.autoSetup.value
+      ...(c.autoSetup.value && !this.flutter()
         ? []
         : [
             mono('javaPath', 'JDK path', 'javaPath', 12, {

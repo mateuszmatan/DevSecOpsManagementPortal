@@ -25,7 +25,7 @@ import {
   unexplained,
 } from '@common/testing/dom';
 import { GeneratedKeys } from './generated-keys';
-import { createUrbanCodeApplicationForm } from './product-form-model';
+import { createUrbanCodeApplicationForm, toServiceRequest } from './product-form-model';
 import { ProductEditor } from './product-editor';
 import { ProductNameDialog } from './product-name-dialog';
 
@@ -68,11 +68,11 @@ describe('ProductEditor', () => {
         request.url === '/api/products/code-suggestion' && request.params.get('name') === name,
     );
 
-  async function start(name = 'CertScanner', code = 'CERTSCANNER') {
+  async function start(name = 'CertScanner', code = 'CERTSCANNER', settings = globalSettings()) {
     naming(name);
     await fixture.whenStable();
     http.expectOne('/api/departments').flush(departments);
-    http.expectOne('/api/settings').flush(globalSettings());
+    http.expectOne('/api/settings').flush(settings);
     template();
     suggestion(name).flush({ code });
     await fixture.whenStable();
@@ -181,6 +181,21 @@ describe('ProductEditor', () => {
 
     expect(build.autoSetup.value).toBe(true);
     expect(build.javaPath.valid).toBe(true);
+  });
+
+  it('starts a new Flutter service of the Library defaults without automatic setup, which Flutter cannot use', async () => {
+    const settings = globalSettings();
+    await start('CertScanner', 'CERTSCANNER', {
+      ...settings,
+      serviceDefaults: { ...settings.serviceDefaults, buildTool: 'FLUTTER' },
+    });
+    editor()['addService']();
+
+    for (const service of editor()['form'].controls.services.controls) {
+      expect(service.controls.build.controls.tool.value).toBe('FLUTTER');
+      expect(service.controls.build.controls.autoSetup.value).toBe(false);
+      expect(toServiceRequest(service).build.autoSetup).toBe(false);
+    }
   });
 
   it('fills what a new service takes from its name and the product code from the service template', async () => {

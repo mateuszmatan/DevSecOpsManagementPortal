@@ -328,9 +328,14 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected addService(): void {
     const service = createServiceForm(undefined, this.settings()?.serviceDefaults);
     const template = this.template();
-    const build = buildDefaults(template, service.controls.build.controls.tool.value);
+    const tool = service.controls.build.controls.tool.value;
+    const build = buildDefaults(template, tool);
     service.patchValue({
-      build: { autoSetup: true, buildPath: build.artifact, command: { tasks: build.tasks } },
+      build: {
+        autoSetup: tool !== 'FLUTTER',
+        buildPath: build.artifact,
+        command: { tasks: build.tasks },
+      },
       delivery: { tasks: template?.deliveryTasks ?? '' },
     });
     this.add(this.prepared(service));

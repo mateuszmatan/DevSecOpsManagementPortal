@@ -271,6 +271,10 @@ describe('ServiceFields', () => {
       expect(field('JDK path').textContent).toContain('Required');
       expect(checkboxOf(pane(), 'Set up the build tool automatically').disabled).toBe(true);
       expect(pane().querySelector('.note')?.textContent).toContain('needs the JDK path');
+
+      form.controls.build.controls.autoSetup.setValue(true);
+      await fixture.whenStable();
+      expect(field('JDK path').textContent).toContain('Required');
     });
 
     it('names the artifact the Nexus delivery uploads for Maven on virtual machines', async () => {
