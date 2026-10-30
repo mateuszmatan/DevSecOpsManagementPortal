@@ -275,7 +275,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>The dialog &quot;Add product&quot; asks for the product name and the Business Service. Click Continue.</li>
 <li>The editor opens with the suggested product code, the Jenkins agents of the service template and one new service.</li>
 <li>Fill in the product fields: Owner team, Description and Contact e-mail are optional.</li>
-<li>Open the service panel (&quot;Edit settings&quot;) and fill in the service as in <a href="#step-3-services">step 3 of chapter 4</a>. A new service starts with &quot;Set up the build tool automatically&quot; on; a Flutter service starts with it off, because Flutter needs the JDK path. Typing its name fills in the repository URL, the Bitbucket credentials ID, the Nexus IQ application and its scan pattern from the service template.</li>
+<li>Open the service panel (&quot;Edit settings&quot;) and fill in the service as in <a href="#step-3-services">step 3 of chapter 4</a>. A new service starts with &quot;Set up the build tool automatically&quot; on; a Flutter service starts with it off, because Flutter needs the JDK path, and turns it on when you choose Gradle or Maven while you have not changed the checkbox. Typing its name fills in the repository URL, the Bitbucket credentials ID, the Nexus IQ application and its scan pattern from the service template.</li>
 <li>Every new service gets a Full pipeline. A service on virtual machines therefore needs an UrbanCode Deploy application for DV.</li>
 <li>Click &quot;Add product&quot;. Each service gets a Full pipeline with its own key. The product page opens with the notice &quot;Pipeline keys generated for ...&quot; and asks you to copy each key into the Jenkinsfile of its service; services whose pipelines share the Jenkins job of their repository share one Jenkinsfile, shown below the notice. &quot;Show key&quot; and &quot;Copy key&quot; give a key at any time.</li>
 </ol>
@@ -320,16 +320,16 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><td>Node.js home on the agent (Advanced)</td><td>none</td><td>An absolute folder of Node.js on the agent, such as <code>/opt/node-20</code> or <code>C:\Program Files\nodejs</code>. It wins over the Node.js installation, the Library default included. Type the installation or the home, not both; the Library default installation left as prefilled does not count and is sent empty.</td></tr>
 <tr><td>Node.js timeout (minutes) (Advanced)</td><td>30</td><td>How long the commands may take together.</td></tr>
 <tr><td>npm registry (Advanced)</td><td>the Library default</td><td>The registry npm installs from, exported as <code>npm_config_registry</code>. It is not used while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository.</td></tr>
-<tr><td>.npmrc credentials ID (Advanced)</td><td>the Library default</td><td>A Jenkins Secret file credential with an .npmrc. npm reads it, its registry included.</td></tr>
+<tr><td>.npmrc credentials ID (Advanced)</td><td>the Library default</td><td>A Jenkins Secret file credential with an .npmrc, which npm reads as its user configuration, with its registry and login. A registry line of an .npmrc in the repository still wins over it.</td></tr>
 <tr><td>Node.js environment variables (Advanced)</td><td>none</td><td><code>NAME=value</code> lines for the Node.js commands and for the GoldenFix verification of npm fixes, for example <code>NODE_OPTIONS=--max-old-space-size=4096</code>.</td></tr>
 </tbody>
 </table>
 <p>The portal writes <code>build.node</code> to <code>config.yaml</code> only while the checkbox is ticked. The library then reads the keys under <code>projects.&lt;service&gt;.build.node</code>. The Library defaults page can give every service a Node.js installation, an npm registry and an .npmrc credentials ID under <code>defaults.build.node</code>. The portal never writes <code>defaults.build.node.enabled</code>: every service switches the stage on for itself.</p>
 <h3 id="what-the-pipelines-do">What the pipelines do</h3>
 <ul>
-<li>The stage is named &quot;Node.js build&quot;. It runs right after &quot;Monitor source changes&quot; in the Full, Security, SAST scanning and Nexus IQ GoldenFix pipelines. The report numbers it 0, or 0.1, 0.2 and so on for several services, and Grafana shows it as Node.js.</li>
-<li>A service without the Node.js build logs <code>[NODE] &lt;service&gt;: build.node.enabled is not set - no Node.js build</code>.</li>
-<li>In SAST scanning the stage runs only while &quot;Compile before preparing the IRX&quot; is on and the agent is not Windows. Otherwise the log says <code>[NODE] &lt;service&gt;: the SAST scan does not compile this service - no Node.js build</code>.</li>
+<li>The stage is named &quot;Node.js build&quot;. It runs right after &quot;Monitor source changes&quot; in the Full, Security, SAST scanning and Nexus IQ GoldenFix pipelines when at least one service of the run needs it. When no service needs it, the stage is left out and nothing is logged. The report numbers it 0, or 0.1, 0.2 and so on for several services, and Grafana shows it as Node.js.</li>
+<li>In SAST scanning a service needs the stage only while &quot;Compile before preparing the IRX&quot; is on and the agent is not Windows.</li>
+<li>In a run in which some service builds, each other service logs why it does not: <code>[NODE] &lt;service&gt;: build.node.enabled is not set - no Node.js build</code>, or in SAST scanning, for a service whose &quot;Compile before preparing the IRX&quot; is off, <code>[NODE] &lt;service&gt;: the SAST scan does not compile this service - no Node.js build</code>.</li>
 <li>The Extended pipeline builds the frontend again right before the release delivery, which rebuilds the artifact.</li>
 <li>The log names where Node.js comes from, for example <code>[NODE] gateway: Node.js from installation NodeJS-20 in console: npm ci &amp;&amp; npm run build</code>.</li>
 <li>After a Node.js build, the AppScan static scan leaves out <code>node_modules</code>. This applies on Linux agents while no included folder is set. The minified bundles of the built frontend are still scanned.</li>
@@ -370,31 +370,32 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <h3 id="nexus-iq-and-goldenfix-for-npm">Nexus IQ and GoldenFix for npm</h3>
 <ul>
 <li>With &quot;Scan the npm dependencies with Nexus IQ&quot; on, the library adds <code>&lt;folder&gt;/package-lock.json</code> to the scan patterns of the Nexus IQ application of the service. It never creates a scan for a service without scan patterns.</li>
-<li>GoldenFix verifies an npm fix inside the Node.js environment of the service: the same Node.js, registry and .npmrc. It first refreshes <code>package-lock.json</code> with <code>npm install --package-lock-only --ignore-scripts</code> and commits the refreshed file in the pull request.</li>
+<li>GoldenFix verifies an npm fix inside the Node.js environment of the service: the same Node.js, registry and .npmrc. With the default npm command, it first refreshes a <code>package-lock.json</code> next to the <code>package.json</code> with <code>npm install --package-lock-only --ignore-scripts</code> and commits the refreshed file in the pull request. An npm command set in the GoldenFix section of the service runs as it is, without that refresh.</li>
 <li>GoldenFix also raises npm <code>overrides</code> and yarn <code>resolutions</code> entries that pin a vulnerable version.</li>
 </ul>
 </div>
 
 <div class="section" id="7-shared-version-catalogs-and-the-combined-jenkinsfile">
 <h2><span class="num">7</span> Shared version catalogs and the combined Jenkinsfile</h2>
-<p>A multimodule repository often holds several services that share one list of dependency versions. That list is a version catalog. GoldenFix raises a version there once, for every service, and verifies the builds that use it.</p>
+<p>A multimodule repository often holds several services that share one list of dependency versions. That list is a version catalog. GoldenFix raises a version there once, for every service. It verifies a Gradle catalog in the builds that use it, and a Maven pom in the aggregator pom that builds it with the poms that use it.</p>
 <h3 id="what-goldenfix-finds-by-itself">What GoldenFix finds by itself</h3>
 <p>You do not need to list these files:</p>
 <ul>
 <li>Gradle version catalogs: <code>gradle/libs.versions.toml</code> and any other <code>*.versions.toml</code> file.</li>
-<li>The catalogs that <code>settings.gradle</code> or <code>settings.gradle.kts</code> imports in <code>versionCatalogs { }</code>, under any name, and the <code>version()</code> and <code>library()</code> entries written there.</li>
+<li>The catalogs that <code>settings.gradle</code> or <code>settings.gradle.kts</code> imports with <code>from(files(...))</code> in <code>versionCatalogs { }</code>, under any name, and the <code>version()</code> and <code>library()</code> entries written there.</li>
 <li>The files that <code>apply from:</code> names, such as <code>gradle/dependencies.gradle</code> with <code>ext.versions = [...]</code>.</li>
 <li>Gradle <code>java-platform</code> modules with their <code>constraints</code>.</li>
-<li>Maven parent poms (through <code>relativePath</code>) and BOM poms imported with <code>&lt;scope&gt;import&lt;/scope&gt;</code> inside the repository.</li>
+<li>Maven parent poms (through <code>relativePath</code>) and BOM poms imported with <code>&lt;scope&gt;import&lt;/scope&gt;</code> inside the repository, when they are named <code>pom.xml</code>.</li>
 </ul>
 <h3 id="when-to-list-a-catalog">When to list a catalog</h3>
-<p>Use the field &quot;Shared version catalogs&quot; in the GoldenFix section of the service. Write one path per line, relative to the repository root. <code>*</code> matches within one folder and <code>**</code> matches across folders, for example <code>catalog/*.toml</code>. A leading <code>./</code> is dropped. Name a file, not its folder: a path that ends in <code>/</code> is refused, also in an imported config.yaml. List a file only when GoldenFix cannot find it by itself, for example a TOML catalog whose name does not end in <code>.versions.toml</code>, such as <code>catalog/dependencies.toml</code>, or a parent or BOM pom with another file name such as <code>bom.xml</code>. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as <code>goldenFix.versionCatalogs</code>.</p>
+<p>Use the field &quot;Shared version catalogs&quot; in the GoldenFix section of the service. Write one path per line, relative to the repository root. <code>*</code> matches within one folder and <code>**</code> matches across folders, for example <code>catalog/*.toml</code>. A leading <code>./</code> is dropped. Name a file, not its folder: a path that ends in <code>/</code> is refused, also in an imported config.yaml. List a file only when GoldenFix misses it, for example a parent or BOM pom with another file name, such as <code>platform/bom.xml</code>. A listed <code>.toml</code> file is read as a Gradle catalog, an <code>.xml</code> file as a Maven pom, and any other file as a Gradle build file. A listed TOML file that no <code>settings.gradle</code> imports is used by no build, so it is raised without verification. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as <code>goldenFix.versionCatalogs</code>.</p>
 <p>A listed path that matches nothing gives the run note <code>version catalog &lt;path&gt; not found in the repository</code>. A path that leaves the repository gives <code>version catalog &lt;path&gt; is outside the repository</code>.</p>
 <h3 id="what-the-pull-request-contains">What the pull request contains</h3>
 <ul>
 <li>The version is raised in the catalog, once. A declaration of the same dependency elsewhere is raised to at least the catalog version. The pull request lists it as <code>declared outside the catalog &lt;file&gt; (&lt;alias&gt;)</code>, so that reviewers can move it into the catalog.</li>
 <li>The report, the pull request description and the commit message name the catalog file and the alias.</li>
 <li>A changed catalog is verified in each Gradle build that uses it. A catalog that no build uses is logged as <code>GoldenFix: no Gradle build found for &lt;file&gt; - not verified</code>.</li>
+<li>A changed parent or BOM pom is verified in the folder of the multi-module pom whose modules reach it and a pom that uses it. Without such an aggregator, GoldenFix builds the root <code>pom.xml</code>, or else the shared pom alone, so the poms that use it are not built.</li>
 <li>A dependency that a BOM or a platform manages gets the reason <code>managed by BOM g:a:v imported in &lt;file&gt;: raise the BOM or add an override to the catalog</code>.</li>
 </ul>
 <h3 id="one-jenkins-job-for-each-repository">One Jenkins job for each repository</h3>
@@ -498,7 +499,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipel
 <li><code>build.node</code> without <code>enabled: true</code> comes back switched off, with its values kept.</li>
 <li>A Flutter file with <code>build.node.enabled: true</code> comes back switched off with the note &quot;Check: the Node.js build is not used with Flutter&quot;.</li>
 <li><code>goldenFix.versionCatalogs</code> fills &quot;Shared version catalogs&quot;.</li>
-<li>Like a new service, the imported service follows its name: an empty repository URL, Bitbucket credentials ID and Nexus IQ application are filled from the service template. The notes do not list these values; check them in the Bitbucket and Nexus IQ sections.</li>
+<li>In the admin editor, the imported service keeps what the file gives: an empty repository URL, Bitbucket credentials ID or Nexus IQ application stays empty. Only when you change its name does the service template fill them in, as for a new service. In the Self-service dialog, the imported service follows its name like a new service; the notes do not list the values it fills in, so check them in the Bitbucket and Nexus IQ sections.</li>
 <li>The Jenkins agents of the imported pipeline fill the Jenkins agents of the product while you have not changed them.</li>
 <li>The file may hold at most 262,144 characters and 50 projects.</li>
 </ul>
@@ -1168,13 +1169,14 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipel
 <p>A Flutter service cannot use the Node.js build. Switch it off, or choose Gradle or Maven when the service is not a Flutter app.</p>
 <h3 id="the-nodejs-build-does-not-run">The Node.js build does not run</h3>
 <ul>
-<li>The log says <code>[NODE] &lt;service&gt;: build.node.enabled is not set - no Node.js build</code>: tick &quot;Build the frontend with Node.js first&quot; for the service.</li>
-<li>The log says <code>[NODE] &lt;service&gt;: the SAST scan does not compile this service - no Node.js build</code>: in SAST scanning the stage runs only while &quot;Compile before preparing the IRX&quot; is on and on Linux agents.</li>
+<li>The report shows no &quot;Node.js build&quot; stage and the log has no <code>[NODE]</code> line: no service of the run needs the build. Tick &quot;Build the frontend with Node.js first&quot; for the service. In SAST scanning, also turn on &quot;Compile before preparing the IRX&quot;, and run the pipeline on an agent that is not Windows.</li>
+<li>The log says <code>[NODE] &lt;service&gt;: build.node.enabled is not set - no Node.js build</code>: another service of the run builds, this one does not. Tick &quot;Build the frontend with Node.js first&quot; for the service.</li>
+<li>The log says <code>[NODE] &lt;service&gt;: the SAST scan does not compile this service - no Node.js build</code>: in SAST scanning a service builds only while &quot;Compile before preparing the IRX&quot; is on.</li>
 </ul>
 <h3 id="the-nodejs-build-fails">The Node.js build fails</h3>
 <ul>
 <li><code>npm: not found</code> or <code>node: not found</code>: the agent has no Node.js on its path. Set the Node.js installation (NodeJS plugin, Manage Jenkins, Tools) or the Node.js home on the agent.</li>
-<li>npm cannot reach its registry: set the npm registry, or an .npmrc credentials ID whose file names the registry. The npm registry is ignored while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository, so leave it empty when that .npmrc names a registry the packages need.</li>
+<li>npm cannot reach its registry: set the npm registry, or an .npmrc credentials ID whose file names the registry and its login. A registry line of an .npmrc in the repository wins over that file, so change that line or remove it. The npm registry is ignored while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository, so leave it empty when that .npmrc names a registry the packages need.</li>
 <li>The stage times out: raise the Node.js timeout (30 minutes by default).</li>
 <li>A failing command fails the stage, and the later stages are shown as blocked.</li>
 </ul>

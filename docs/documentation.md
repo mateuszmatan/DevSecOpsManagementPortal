@@ -266,16 +266,16 @@ The fields are in the Build section, under the heading "Node.js build (stage 0)"
 | Node.js home on the agent (Advanced) | none | An absolute folder of Node.js on the agent, such as `/opt/node-20` or `C:\Program Files\nodejs`. It wins over the Node.js installation, the Library default included. Type the installation or the home, not both; the Library default installation left as prefilled does not count and is sent empty. |
 | Node.js timeout (minutes) (Advanced) | 30 | How long the commands may take together. |
 | npm registry (Advanced) | the Library default | The registry npm installs from, exported as `npm_config_registry`. It is not used while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository. |
-| .npmrc credentials ID (Advanced) | the Library default | A Jenkins Secret file credential with an .npmrc. npm reads it, its registry included. |
+| .npmrc credentials ID (Advanced) | the Library default | A Jenkins Secret file credential with an .npmrc, which npm reads as its user configuration, with its registry and login. A registry line of an .npmrc in the repository still wins over it. |
 | Node.js environment variables (Advanced) | none | `NAME=value` lines for the Node.js commands and for the GoldenFix verification of npm fixes, for example `NODE_OPTIONS=--max-old-space-size=4096`. |
 
 The portal writes `build.node` to `config.yaml` only while the checkbox is ticked. The library then reads the keys under `projects.<service>.build.node`. The Library defaults page can give every service a Node.js installation, an npm registry and an .npmrc credentials ID under `defaults.build.node`. The portal never writes `defaults.build.node.enabled`: every service switches the stage on for itself.
 
 ### What the pipelines do
 
-- The stage is named "Node.js build". It runs right after "Monitor source changes" in the Full, Security, SAST scanning and Nexus IQ GoldenFix pipelines. The report numbers it 0, or 0.1, 0.2 and so on for several services, and Grafana shows it as Node.js.
-- A service without the Node.js build logs `[NODE] <service>: build.node.enabled is not set - no Node.js build`.
-- In SAST scanning the stage runs only while "Compile before preparing the IRX" is on and the agent is not Windows. Otherwise the log says `[NODE] <service>: the SAST scan does not compile this service - no Node.js build`.
+- The stage is named "Node.js build". It runs right after "Monitor source changes" in the Full, Security, SAST scanning and Nexus IQ GoldenFix pipelines when at least one service of the run needs it. When no service needs it, the stage is left out and nothing is logged. The report numbers it 0, or 0.1, 0.2 and so on for several services, and Grafana shows it as Node.js.
+- In SAST scanning a service needs the stage only while "Compile before preparing the IRX" is on and the agent is not Windows.
+- In a run in which some service builds, each other service logs why it does not: `[NODE] <service>: build.node.enabled is not set - no Node.js build`, or in SAST scanning, for a service whose "Compile before preparing the IRX" is off, `[NODE] <service>: the SAST scan does not compile this service - no Node.js build`.
 - The Extended pipeline builds the frontend again right before the release delivery, which rebuilds the artifact.
 - The log names where Node.js comes from, for example `[NODE] gateway: Node.js from installation NodeJS-20 in console: npm ci && npm run build`.
 - After a Node.js build, the AppScan static scan leaves out `node_modules`. This applies on Linux agents while no included folder is set. The minified bundles of the built frontend are still scanned.
@@ -331,26 +331,26 @@ Spring Boot serves the files under `static` at the root of the application. Both
 ### Nexus IQ and GoldenFix for npm
 
 - With "Scan the npm dependencies with Nexus IQ" on, the library adds `<folder>/package-lock.json` to the scan patterns of the Nexus IQ application of the service. It never creates a scan for a service without scan patterns.
-- GoldenFix verifies an npm fix inside the Node.js environment of the service: the same Node.js, registry and .npmrc. It first refreshes `package-lock.json` with `npm install --package-lock-only --ignore-scripts` and commits the refreshed file in the pull request.
+- GoldenFix verifies an npm fix inside the Node.js environment of the service: the same Node.js, registry and .npmrc. With the default npm command, it first refreshes a `package-lock.json` next to the `package.json` with `npm install --package-lock-only --ignore-scripts` and commits the refreshed file in the pull request. An npm command set in the GoldenFix section of the service runs as it is, without that refresh.
 - GoldenFix also raises npm `overrides` and yarn `resolutions` entries that pin a vulnerable version.
 
 ## 7. Shared version catalogs and the combined Jenkinsfile
 
-A multimodule repository often holds several services that share one list of dependency versions. That list is a version catalog. GoldenFix raises a version there once, for every service, and verifies the builds that use it.
+A multimodule repository often holds several services that share one list of dependency versions. That list is a version catalog. GoldenFix raises a version there once, for every service. It verifies a Gradle catalog in the builds that use it, and a Maven pom in the aggregator pom that builds it with the poms that use it.
 
 ### What GoldenFix finds by itself
 
 You do not need to list these files:
 
 - Gradle version catalogs: `gradle/libs.versions.toml` and any other `*.versions.toml` file.
-- The catalogs that `settings.gradle` or `settings.gradle.kts` imports in `versionCatalogs { }`, under any name, and the `version()` and `library()` entries written there.
+- The catalogs that `settings.gradle` or `settings.gradle.kts` imports with `from(files(...))` in `versionCatalogs { }`, under any name, and the `version()` and `library()` entries written there.
 - The files that `apply from:` names, such as `gradle/dependencies.gradle` with `ext.versions = [...]`.
 - Gradle `java-platform` modules with their `constraints`.
-- Maven parent poms (through `relativePath`) and BOM poms imported with `<scope>import</scope>` inside the repository.
+- Maven parent poms (through `relativePath`) and BOM poms imported with `<scope>import</scope>` inside the repository, when they are named `pom.xml`.
 
 ### When to list a catalog
 
-Use the field "Shared version catalogs" in the GoldenFix section of the service. Write one path per line, relative to the repository root. `*` matches within one folder and `**` matches across folders, for example `catalog/*.toml`. A leading `./` is dropped. Name a file, not its folder: a path that ends in `/` is refused, also in an imported config.yaml. List a file only when GoldenFix cannot find it by itself, for example a TOML catalog whose name does not end in `.versions.toml`, such as `catalog/dependencies.toml`, or a parent or BOM pom with another file name such as `bom.xml`. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as `goldenFix.versionCatalogs`.
+Use the field "Shared version catalogs" in the GoldenFix section of the service. Write one path per line, relative to the repository root. `*` matches within one folder and `**` matches across folders, for example `catalog/*.toml`. A leading `./` is dropped. Name a file, not its folder: a path that ends in `/` is refused, also in an imported config.yaml. List a file only when GoldenFix misses it, for example a parent or BOM pom with another file name, such as `platform/bom.xml`. A listed `.toml` file is read as a Gradle catalog, an `.xml` file as a Maven pom, and any other file as a Gradle build file. A listed TOML file that no `settings.gradle` imports is used by no build, so it is raised without verification. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as `goldenFix.versionCatalogs`.
 
 A listed path that matches nothing gives the run note `version catalog <path> not found in the repository`. A path that leaves the repository gives `version catalog <path> is outside the repository`.
 
@@ -359,6 +359,7 @@ A listed path that matches nothing gives the run note `version catalog <path> no
 - The version is raised in the catalog, once. A declaration of the same dependency elsewhere is raised to at least the catalog version. The pull request lists it as `declared outside the catalog <file> (<alias>)`, so that reviewers can move it into the catalog.
 - The report, the pull request description and the commit message name the catalog file and the alias.
 - A changed catalog is verified in each Gradle build that uses it. A catalog that no build uses is logged as `GoldenFix: no Gradle build found for <file> - not verified`.
+- A changed parent or BOM pom is verified in the folder of the multi-module pom whose modules reach it and a pom that uses it. Without such an aggregator, GoldenFix builds the root `pom.xml`, or else the shared pom alone, so the poms that use it are not built.
 - A dependency that a BOM or a platform manages gets the reason `managed by BOM g:a:v imported in <file>: raise the BOM or add an override to the catalog`.
 
 ### One Jenkins job for each repository
@@ -1076,13 +1077,14 @@ A Flutter service cannot use the Node.js build. Switch it off, or choose Gradle 
 
 ### The Node.js build does not run
 
-- The log says `[NODE] <service>: build.node.enabled is not set - no Node.js build`: tick "Build the frontend with Node.js first" for the service.
-- The log says `[NODE] <service>: the SAST scan does not compile this service - no Node.js build`: in SAST scanning the stage runs only while "Compile before preparing the IRX" is on and on Linux agents.
+- The report shows no "Node.js build" stage and the log has no `[NODE]` line: no service of the run needs the build. Tick "Build the frontend with Node.js first" for the service. In SAST scanning, also turn on "Compile before preparing the IRX", and run the pipeline on an agent that is not Windows.
+- The log says `[NODE] <service>: build.node.enabled is not set - no Node.js build`: another service of the run builds, this one does not. Tick "Build the frontend with Node.js first" for the service.
+- The log says `[NODE] <service>: the SAST scan does not compile this service - no Node.js build`: in SAST scanning a service builds only while "Compile before preparing the IRX" is on.
 
 ### The Node.js build fails
 
 - `npm: not found` or `node: not found`: the agent has no Node.js on its path. Set the Node.js installation (NodeJS plugin, Manage Jenkins, Tools) or the Node.js home on the agent.
-- npm cannot reach its registry: set the npm registry, or an .npmrc credentials ID whose file names the registry. The npm registry is ignored while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository, so leave it empty when that .npmrc names a registry the packages need.
+- npm cannot reach its registry: set the npm registry, or an .npmrc credentials ID whose file names the registry and its login. A registry line of an .npmrc in the repository wins over that file, so change that line or remove it. The npm registry is ignored while an .npmrc credentials ID is set; otherwise it wins over the registry line of an .npmrc in the repository, so leave it empty when that .npmrc names a registry the packages need.
 - The stage times out: raise the Node.js timeout (30 minutes by default).
 - A failing command fails the stage, and the later stages are shown as blocked.
 
