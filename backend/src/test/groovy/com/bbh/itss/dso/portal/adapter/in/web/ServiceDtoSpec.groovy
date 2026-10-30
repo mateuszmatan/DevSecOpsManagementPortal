@@ -29,6 +29,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.COMMAND_MESSAG
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.RELATIVE_FOLDER_MESSAGE
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE
@@ -171,6 +172,9 @@ class ServiceDtoSpec extends Specification {
         'a catalog above the root'    | [versionCatalogs: ['gradle/../../libs.versions.toml']]        || 'versionCatalogs[0].<list element>'              | REPOSITORY_PATH_MESSAGE
         'a catalog with a backslash'  | [versionCatalogs: ['gradle\\libs.versions.toml']]             || 'versionCatalogs[0].<list element>'              | REPOSITORY_PATH_MESSAGE
         'a catalog with a space'      | [versionCatalogs: ['my catalog.toml']]                        || 'versionCatalogs[0].<list element>'              | REPOSITORY_PATH_MESSAGE
+        'a catalog folder'            | [versionCatalogs: ['platform/bom/']]                          || 'versionCatalogs[0].<list element>'              | REPOSITORY_FILE_MESSAGE
+        'the root folder as a catalog'| [versionCatalogs: ['./']]                                     || 'versionCatalogs[0].<list element>'              | REPOSITORY_FILE_MESSAGE
+        'a glob of catalog folders'   | [versionCatalogs: ['**/']]                                    || 'versionCatalogs[0].<list element>'              | REPOSITORY_FILE_MESSAGE
         'an empty version catalog'    | [versionCatalogs: ['']]                                       || 'versionCatalogs[0].<list element>'              | 'size must be between 1 and 300'
         'more than 20 catalogs'       | [versionCatalogs: names(21)]                                  || 'versionCatalogs'                                | 'size must be between 0 and 20'
     }
@@ -181,7 +185,7 @@ class ServiceDtoSpec extends Specification {
                 commands: ['npm ci --prefer-offline', 'npm run build -- --configuration=production && echo "done"'],
                 nodePath: nodePath, environment: ['NODE_OPTIONS=--max-old-space-size=4096'],
                 registry: 'https://nexus.bbh.com/repository/npm-group/', timeoutMinutes: 240],
-                versionCatalogs: ['gradle/libs.versions.toml', '**/*.versions.toml', 'platform/pom.xml'])))).isEmpty()
+                versionCatalogs: ['gradle/libs.versions.toml', '**/*.versions.toml', './platform/pom.xml', 'catalog/*'])))).isEmpty()
 
         where:
         nodePath << ['/opt/node-20', 'C:\\Program Files\\nodejs', 'D:/tools/node', '\\\\agent-share\\node 20']

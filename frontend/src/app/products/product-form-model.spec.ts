@@ -743,7 +743,9 @@ describe('shared version catalogs', () => {
   it('take repository paths and globs only, and mark the GoldenFix section otherwise', () => {
     const form = createServiceForm(service());
     const { versionCatalogs } = form.controls;
-    versionCatalogs.setValue('**/libs.versions.toml\nbuild-logic/deps.gradle\nparent/pom.xml');
+    versionCatalogs.setValue(
+      '**/libs.versions.toml\nbuild-logic/deps.gradle\n./parent/pom.xml\ncatalog/*\n platform/pom.xml ',
+    );
 
     expect(versionCatalogs.valid).toBe(true);
 
@@ -754,6 +756,12 @@ describe('shared version catalogs', () => {
     ]) {
       versionCatalogs.setValue(path);
       expect(versionCatalogs.hasError('item'), path).toBe(true);
+    }
+    for (const folder of ['platform/bom/', './', '**/', 'platform/pom.xml\nbom/ ']) {
+      versionCatalogs.setValue(folder);
+      expect(versionCatalogs.getError('item')?.message, folder).toBe(
+        'Name the file, such as platform/pom.xml, not its folder',
+      );
     }
     expect(firstInvalidSection(form)).toBe('goldenFix');
     expect(firstInvalidSection(form, 'SAST')).toBeNull();

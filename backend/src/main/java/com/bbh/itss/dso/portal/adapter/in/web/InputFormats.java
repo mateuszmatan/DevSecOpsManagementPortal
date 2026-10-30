@@ -41,6 +41,8 @@ final class InputFormats {
     static final String REPOSITORY_PATH = "^(?!/)(?!(.*/)?\\.\\.(/|$))[A-Za-z0-9._/*+@:=,~-]*$";
     static final String REPOSITORY_PATH_MESSAGE = "must be a path relative to the repository root such as"
             + " gradle/libs.versions.toml, with letters, digits and . _ / * + @ : = , ~ - only and no '..' folder";
+    static final String REPOSITORY_FILE = "^(?!.*/$).*$";
+    static final String REPOSITORY_FILE_MESSAGE = "must name the file, such as platform/pom.xml, not its folder";
     static final String COMMAND = "^[^\\p{Cntrl}]*$";
     static final String COMMAND_MESSAGE = "one command per entry, without line breaks or other control characters";
     static final String ENVIRONMENT = "^[A-Za-z_][A-Za-z0-9_+]*=.*$";

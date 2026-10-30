@@ -350,7 +350,7 @@ You do not need to list these files:
 
 ### When to list a catalog
 
-Use the field "Shared version catalogs" in the GoldenFix section of the service. Write one path per line, relative to the repository root. `*` matches within one folder and `**` matches across folders, for example `catalog/*.toml`. A leading `./` and a trailing `/` are dropped. List a file only when GoldenFix cannot find it by itself, for example a TOML catalog whose name does not end in `.versions.toml`, such as `catalog/dependencies.toml`, or a parent or BOM pom with another file name such as `bom.xml`. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as `goldenFix.versionCatalogs`.
+Use the field "Shared version catalogs" in the GoldenFix section of the service. Write one path per line, relative to the repository root. `*` matches within one folder and `**` matches across folders, for example `catalog/*.toml`. A leading `./` is dropped. Name a file, not its folder: a path that ends in `/` is refused, also in an imported config.yaml. List a file only when GoldenFix cannot find it by itself, for example a TOML catalog whose name does not end in `.versions.toml`, such as `catalog/dependencies.toml`, or a parent or BOM pom with another file name such as `bom.xml`. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as `goldenFix.versionCatalogs`.
 
 A listed path that matches nothing gives the run note `version catalog <path> not found in the repository`. A path that leaves the repository gives `version catalog <path> is outside the repository`.
 

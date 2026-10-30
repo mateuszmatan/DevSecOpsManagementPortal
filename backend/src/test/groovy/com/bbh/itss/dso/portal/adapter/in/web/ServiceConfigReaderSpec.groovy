@@ -175,6 +175,26 @@ class ServiceConfigReaderSpec extends Specification {
         service.service().goldenFix().enabled() == null
     }
 
+    def "listed catalogs are imported without ./ and a folder is left out with a note that asks for its file: #catalogs"() {
+        when:
+        def service = imported("""
+            appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+            goldenFix:
+              versionCatalogs: ${catalogs}
+            """.stripIndent()).services()[0]
+
+        then:
+        service.notes() == (folder ? [problem('goldenFix.versionCatalogs',
+                "not imported: ${folder} is a folder; name the file in it, such as platform/pom.xml".toString())] : [])
+        service.service().versionCatalogs() == kept
+
+        where:
+        catalogs                                       || kept                                     | folder
+        '[./platform/pom.xml, gradle//deps.toml]'      || ['platform/pom.xml', 'gradle/deps.toml'] | null
+        '[gradle/libs.versions.toml, platform/bom/]'   || []                                       | 'platform/bom/'
+        './'                                           || []                                       | './'
+    }
+
     def "a Flutter config that enables the Node.js build imports it switched off with a note"() {
         when:
         def service = imported('''

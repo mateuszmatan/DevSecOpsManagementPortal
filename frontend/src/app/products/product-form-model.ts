@@ -101,6 +101,7 @@ export const GOLDEN_FIX_ECOSYSTEMS = ['maven', 'npm', 'pypi', 'pub'];
 export const RELATIVE_FOLDER = /^(?![/\\])(?!.*\.\.)[^'"\p{Cc}]*$/u;
 export const ABSOLUTE_FOLDER = /^((\/|[A-Za-z]:[/\\]|\\\\)[^'"\p{Cc}]*)?$/u;
 export const REPOSITORY_PATH = /^(?!\/)(?!(.*\/)?\.\.(\/|$))[A-Za-z0-9._/*+@:=,~-]*$/;
+export const REPOSITORY_FILE = /^(?!.*\/$).*$/;
 
 const FOLDER = /^[^,']{1,300}$/;
 const COMMAND = /^\P{Cc}*$/u;
@@ -728,6 +729,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     versionCatalogs: text(
       joinLines(s?.versionCatalogs),
       maxLines(20),
+      eachItem(lines, REPOSITORY_FILE, 'Name the file, such as platform/pom.xml, not its folder'),
       eachItem(
         lines,
         REPOSITORY_PATH,

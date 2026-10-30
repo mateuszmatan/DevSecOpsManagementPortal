@@ -65,6 +65,8 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PAT
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.RELATIVE_FOLDER;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.RELATIVE_FOLDER_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
@@ -98,8 +100,8 @@ public record ServiceDto(
         @Valid ScmSettingsDto scm,
         @Valid GoldenFixPolicyDto goldenFix,
         @Size(max = 20)
-        List<@Size(min = 1, max = 300) @Pattern(regexp = REPOSITORY_PATH, message = REPOSITORY_PATH_MESSAGE) String>
-                versionCatalogs,
+        List<@Size(min = 1, max = 300) @Pattern(regexp = REPOSITORY_PATH, message = REPOSITORY_PATH_MESSAGE)
+                @Pattern(regexp = REPOSITORY_FILE, message = REPOSITORY_FILE_MESSAGE) String> versionCatalogs,
         @Valid MetricsSettingsDto metrics,
         @Valid FlutterSettingsDto flutter) {
 

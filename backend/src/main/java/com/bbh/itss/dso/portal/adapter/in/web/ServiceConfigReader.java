@@ -33,6 +33,7 @@ import java.util.stream.Stream;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.invalid;
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
@@ -78,6 +79,14 @@ final class ServiceConfigReader {
         }
     };
     private static final Conversion LIST = value -> items(value, null);
+    private static final Conversion FILES = value -> {
+        List<String> files = items(value, null);
+        files.stream().filter(file -> !file.trim().matches(REPOSITORY_FILE)).findFirst().ifPresent(folder -> {
+            throw new NotImported("not imported: " + folder + " is a folder; name the file in it, such as"
+                    + " platform/pom.xml");
+        });
+        return files;
+    };
     private static final Conversion COMMAS = value -> items(value, ",");
     private static final Conversion WORDS = value -> items(value, "\\s+");
     private static final Conversion ENV = value -> {
@@ -408,7 +417,7 @@ final class ServiceConfigReader {
         rules.addAll(prefixed("goldenFix.", "goldenFix.", concat(same(FLAG, "enabled", "onlyDirectDependencies"),
                 same(LIST, "ecosystems", "goldenVersionTypes", "excludeDirs"),
                 same(TEXT, "commitAuthorName", "commitAuthorEmail", "timeZone"))));
-        rules.add(rule("goldenFix.versionCatalogs", "versionCatalogs", LIST));
+        rules.add(rule("goldenFix.versionCatalogs", "versionCatalogs", FILES));
         for (String tool : List.of("maven", "gradle", "npm", "pip", "pub")) {
             rules.add(rule("goldenFix.verify.commands." + tool, "goldenFix.verify" + capitalize(tool) + "Command",
                     TEXT));
