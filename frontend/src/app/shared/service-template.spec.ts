@@ -6,6 +6,7 @@ import {
   buildDefaults,
   fillTemplate,
   knownPlaceholders,
+  namedDefaults,
 } from './service-template';
 
 describe('the service template', () => {
@@ -50,5 +51,21 @@ describe('the service template', () => {
       scanPattern: '**/pubspec.lock',
     });
     expect(buildDefaults(null, 'MAVEN')).toEqual({ tasks: '', artifact: '', scanPattern: '' });
+  });
+
+  it('names the OpenShift project, Nexus IQ application and repository of a service by the template', () => {
+    const defaults = { template: serviceTemplate(), productCode: 'PAY' };
+
+    expect(namedDefaults(defaults, 'Gateway')).toEqual({
+      openShiftProject: 'pay-gateway',
+      nexusIqApplication: 'pay-Gateway',
+      repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/pay-Gateway',
+    });
+    expect(namedDefaults({ ...defaults, productCode: '' }, 'gateway')).toEqual({
+      openShiftProject: '',
+      nexusIqApplication: '',
+      repositoryUrl: '',
+    });
+    expect(namedDefaults({ ...defaults, template: null }, 'gateway').repositoryUrl).toBe('');
   });
 });

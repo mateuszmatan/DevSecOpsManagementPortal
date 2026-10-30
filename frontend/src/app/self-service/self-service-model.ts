@@ -18,15 +18,18 @@ import {
   pipelineTypeSlug,
 } from '../core/models';
 import { RETRY, UNREACHABLE } from '@common/core/errors';
-import { labelOf } from '@common/shared/formatting';
+import { labelOf, listed } from '@common/shared/formatting';
 import {
   ServiceForm,
   createServiceForm,
   nexusIqApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
+import { byRepository } from '../products/jenkinsfile';
+import { bitbucketRepositoryUrl } from '../shared/bitbucket';
+import { TOOL_LABELS } from '../shared/build-options';
 import { Choice } from '../shared/choice-tiles';
-import { buildDefaults, fillTemplate } from '../shared/service-template';
+import { buildDefaults, imageRepository } from '../shared/service-template';
 import { FieldProblem } from '@common/core/models';
 
 export type WizardPipeline = Extract<PipelineType, 'SAST' | 'NEXUS_IQ' | 'SECURITY' | 'FULL'>;
@@ -61,18 +64,8 @@ export const PIPELINES: readonly PipelineChoice[] = [
   },
 ];
 
-export const TOOLS: readonly Choice<BuildTool>[] = [
-  { value: 'GRADLE', label: 'Gradle', description: 'The code has a build.gradle file' },
-  { value: 'MAVEN', label: 'Maven', description: 'The code has a pom.xml file' },
-];
-
-const TOOL_NAMES: readonly Choice<BuildTool>[] = [
-  ...TOOLS,
-  { value: 'FLUTTER', label: 'Flutter', description: 'The code has a pubspec.yaml file' },
-];
-
 export function toolName(tool: BuildTool): string {
-  return labelOf(TOOL_NAMES, tool);
+  return TOOL_LABELS[tool];
 }
 
 export const TARGETS: readonly Choice<DeployTarget>[] = [
@@ -146,7 +139,7 @@ export function aPipeline(pipeline: WizardPipeline): string {
 export function preparation(pipeline: WizardPipeline): string[] {
   const needs = [
     'The name of each service, its AppScan application ID and the AppScan API key ID, from the DevSecOps team',
-    'Whether each service is built with Gradle or Maven; a developer of the service knows',
+    'Whether each service is built with Gradle or Maven, and the folder of its package.json when Node.js builds its frontend first; a developer of the service knows',
   ];
   if (pipeline === 'NEXUS_IQ') {
     return [...needs, 'The Nexus IQ application and the Bitbucket repository of each service'];
@@ -175,23 +168,6 @@ export interface WizardDefaults {
   template: ServiceTemplateValues | null;
   productCode: string;
   settings: GlobalSettings | null;
-}
-
-export interface NamedDefaults {
-  openShiftProject: string;
-  nexusIqApplication: string;
-  repositoryUrl: string;
-}
-
-export function namedDefaults(defaults: WizardDefaults, serviceName: string): NamedDefaults {
-  const { template, productCode } = defaults;
-  const filled = (pattern: string | null | undefined) =>
-    productCode && serviceName ? fillTemplate(pattern, productCode, serviceName) : '';
-  return {
-    openShiftProject: filled(template?.openShiftProject).toLowerCase(),
-    nexusIqApplication: filled(template?.nexusIqApplication),
-    repositoryUrl: filled(template?.repositoryUrl),
-  };
 }
 
 const nexusIqApplicationOf = (service?: Service) =>
@@ -336,16 +312,6 @@ export function reviewEntries(
 type TargetText = Partial<Omit<Record<keyof OpenShiftTarget, string>, 'skipConfigDeploy'>>;
 
 const dockerContext = (tool: BuildTool) => (tool === 'MAVEN' ? 'target/docker' : 'build/docker');
-
-/** The image repository of a service: the template's registry, the OpenShift project and the service name. */
-export function imageRepository(
-  project: string,
-  service: string,
-  template: ServiceTemplateValues | null,
-): string {
-  const registry = template?.imageRegistry;
-  return `${registry ? `${registry}/` : ''}${project}/${service.toLowerCase()}`;
-}
 
 export function openShiftTargets(
   project: string,
@@ -580,9 +546,26 @@ export function servicesToStart(
 ): ServiceStart[] {
   return services.map((service) => ({
     serviceName: service.serviceName,
-    repository: repositoryOf(product.services.find((stored) => stored.id === service.serviceId)),
+    repository:
+      bitbucketRepositoryUrl(
+        product.services.find((stored) => stored.id === service.serviceId)?.scm,
+      ) ?? '',
     pipeline: service.pipelines.find((candidate) => candidate.type === pipeline) ?? null,
   }));
+}
+
+/** One Jenkinsfile and one Jenkins job, shared by the services whose pipelines share a repository. */
+export interface JenkinsJob {
+  names: string;
+  starts: ServiceStart[];
+}
+
+export function jenkinsJobs(starts: readonly ServiceStart[]): JenkinsJob[] {
+  return byRepository(
+    starts,
+    (start) => start.repository,
+    (start) => start.pipeline,
+  ).map((group) => ({ names: listed(group.map((start) => start.serviceName)), starts: group }));
 }
 
 export function jobName(pipeline: Pipeline): string {

@@ -138,6 +138,32 @@ describe('GlobalSettingsPage', () => {
     );
   });
 
+  it('offers the Node.js build defaults with the service defaults and sends a blank one as null', async () => {
+    await load();
+    const section = page().querySelector('#settings-serviceDefaults')!;
+    const hint = (label: string) => text(fieldOf(section, label)?.querySelector('dso-hint'));
+
+    expect(text(section.querySelector('.form-block h3'))).toBe('Node.js build');
+    expect(hint('Node.js installation')).toBe('build.node.installationName');
+    expect(hint('npm registry')).toBe('build.node.registry');
+    expect(hint('.npmrc credentials ID')).toBe('build.node.npmrcCredentialsId');
+
+    form().controls.serviceDefaults.patchValue({
+      nodeInstallationName: ' ',
+      npmRegistry: 'https://tools.bbh.com/nexus/repository/npm-group/',
+    });
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/settings' });
+    expect(request.request.body.serviceDefaults).toMatchObject({
+      nodeInstallationName: null,
+      npmRegistry: 'https://tools.bbh.com/nexus/repository/npm-group/',
+      npmrcCredentialsId: null,
+    });
+    request.flush(globalSettings());
+    await fixture.whenStable();
+  });
+
   it('sends nothing while values are invalid and marks their section', async () => {
     await load();
     form().controls.deployment.controls.rdHost.setValue('');

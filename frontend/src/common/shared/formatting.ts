@@ -54,6 +54,10 @@ export function counted(count: number, noun: string, plural = `${noun}s`): strin
   return `${count} ${count === 1 ? noun : plural}`;
 }
 
+export function listed(items: readonly string[]): string {
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : items.join('');
+}
+
 const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
 export function formatRelative(iso: string | null | undefined, now: number = Date.now()): string {

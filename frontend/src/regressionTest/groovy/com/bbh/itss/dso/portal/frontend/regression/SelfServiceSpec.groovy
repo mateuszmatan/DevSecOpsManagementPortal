@@ -70,12 +70,14 @@ class SelfServiceSpec extends EditorSpecification {
         fillIn(dialog(), ['Service name': 'archive-api', 'Description': 'REST API of the archive'])
         showDialogSection('Build')
         choose(dialog(), 'Build tool', 'Maven')
+        checkbox(dialog(), 'Build the frontend with Node.js first').check()
+        input(dialog(), 'Folder with package.json').fill('frontend')
         showDialogSection('AppScan SAST and DAST')
         input(dialog(), 'AppScan application ID').fill(API_APPLICATION)
 
         then:
         assertThat(dialogButton('Add service')).isDisabled()
-        assertThat(dialog().locator('.missing')).hasText('Complete these sections first: AppScan SAST and DAST.')
+        assertThat(dialog().locator('.missing')).hasText('Complete these fields first: AppScan API key ID.')
 
         when:
         input(dialog(), 'AppScan API key ID').fill(APP_SCAN_KEY)
@@ -114,6 +116,11 @@ class SelfServiceSpec extends EditorSpecification {
             services*.appScan*.applicationId == [SelfServiceSpec.API_APPLICATION, SelfServiceSpec.GUI_APPLICATION]
             services*.appScan*.keyId == [SelfServiceSpec.APP_SCAN_KEY, SelfServiceSpec.APP_SCAN_KEY]
             services*.build*.tool == ['MAVEN', 'GRADLE']
+            services*.nodeBuild*.enabled == [true, false]
+            services[0].nodeBuild.directory == 'frontend'
+            services[0].nodeBuild.commands == []
+            services[0].nodeBuild.nexusIqScan == null
+            services*.versionCatalogs == [[], []]
         }
         store.services*.pipelines*.type == [['SECURITY'], ['SECURITY']]
         assertThat(page.locator('.jenkinsfile .code-block')).hasText(store.services.collect { service ->
@@ -127,6 +134,64 @@ class SelfServiceSpec extends EditorSpecification {
         then:
         assertThat(snackBar()).containsText('Jenkinsfile copied to the clipboard')
         copiedTexts() == ["@Library('DevSecOpsJenkinsLibrary') _\n\ndevSecOpsSecurityPipeline(pipelineKey: '${store.generatedKeys['archive-api']}')\n".toString()]
+        ownErrors().isEmpty()
+    }
+
+    def "a novice adds a Gradle service with a Node.js frontend by filling only what the portal cannot know"() {
+        given:
+        def store = ProductStore.created(api, 3)
+
+        when:
+        open('/self-service')
+        choose(step(), 'Business Service', 'Custody')
+        input(step(), 'Product name').fill('Trade Archive')
+
+        then:
+        assertThat(hintOf(step(), 'Product name')).hasText('Its product code will be TRADEARCHIVE, the short name used in job names')
+
+        when:
+        button('Next: Pipeline', true).click()
+        radio(step(), OSA).click()
+        button('Next: Services', true).click()
+        button('Add a service', true).click()
+        input(dialog(), 'Service name').fill('archive-web')
+        showDialogSection('Build')
+        checkbox(dialog(), 'Build the frontend with Node.js first').check()
+        input(dialog(), 'Folder with package.json').fill('frontend')
+        showDialogSection('AppScan SAST and DAST')
+        input(dialog(), 'AppScan application ID').fill(GUI_APPLICATION)
+        input(dialog(), 'AppScan API key ID').fill(APP_SCAN_KEY)
+
+        then:
+        assertThat(dialog().locator("dso-advanced-settings .panel-toggle:text-is('Hide')")).hasCount(0)
+        assertThat(dialog().locator('.missing')).hasCount(0)
+        assertThat(dialogButton('Add service')).isEnabled()
+
+        when:
+        dialogButton('Add service').click()
+        button('Next: Review', true).click()
+        button('Create the pipelines', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('Trade Archive is saved. Now do these steps in order')
+        def request = awaitRequest('POST', '/api/products', 1)
+        request.params() == [pipelineType: 'NEXUS_IQ']
+        with((request.json() as Map).services[0] as Map) {
+            name == 'archive-web'
+            build.tool == 'GRADLE'
+            build.autoSetup == true
+            nodeBuild.enabled == true
+            nodeBuild.directory == 'frontend'
+            nodeBuild.commands == []
+            appScan.applicationId == SelfServiceSpec.GUI_APPLICATION
+            appScan.keyId == SelfServiceSpec.APP_SCAN_KEY
+            scm.repositoryUrl == 'https://bitbucket.bbh.com/projects/TRADEARCHIVE/repos/tradearchive-archive-web'
+            nexusIqApplications*.application == ['tradearchive-archive-web']
+            nexusIqApplications*.scanPatterns == [['**/build/libs/*.jar']]
+            versionCatalogs == []
+        }
+        assertThat(page.locator('.jenkinsfile .code-block')).hasText(
+                "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsNexusIqGoldenFixPipeline(pipelineKey: '${store.generatedKeys['archive-web']}')".toString())
         ownErrors().isEmpty()
     }
 
@@ -176,8 +241,13 @@ class SelfServiceSpec extends EditorSpecification {
         }
         store.services*.pipelines*.type == [['FULL', 'SAST'], ['FULL', 'SAST'], ['SAST']]
         store.generatedKeys.keySet() == ['backend-api', 'scanner'] as Set
-        assertThat(page.locator('.jenkinsfile .code-block')).containsText([SAST_KEY_OF_GUI, store.generatedKeys['backend-api'],
-                                                                    store.generatedKeys['scanner']] as String[])
+        assertThat(page.locator('.jenkinsfile-head strong')).hasText(['gui and backend-api', 'scanner'] as String[])
+        assertThat(page.locator('.jenkinsfile .code-block')).containsText([
+                "pipelineKeys: [ '${SAST_KEY_OF_GUI}', '${store.generatedKeys['backend-api']}', ]".toString(),
+                "pipelineKey: '${store.generatedKeys['scanner']}'".toString()] as String[])
+        assertThat(page.locator('.next-steps > li h3').nth(1)).hasText('Ask your Jenkins administrator for a job for each repository')
+        assertThat(page.locator('.job-names li')).hasText(['gui and backend-api: DevSecOps/CERTSCANNER/gui-sast',
+                                                           'scanner: DevSecOps/CERTSCANNER/scanner-sast'] as String[])
 
         when:
         button('Set up another product', true).click()

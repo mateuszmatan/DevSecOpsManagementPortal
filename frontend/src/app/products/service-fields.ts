@@ -1,5 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
-import { AbstractControl, ReactiveFormsModule } from '@angular/forms';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import { AbstractControl, FormArray, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { SvgIconComponent } from 'angular-svg-icon';
 import { FLUTTER_PLATFORMS, GlobalSettings, PipelineType, REGIONS, Region } from '../core/models';
 import {
@@ -9,6 +19,7 @@ import {
   check,
   chips,
   choice,
+  count,
   defaulted,
   formRevision,
   line,
@@ -24,10 +35,11 @@ import {
 } from '@common/shared/form-controls';
 import { DsoHelp } from '@common/ui/help';
 import { TOGGLES } from '@common/ui/toggle-group';
-import { GRADLE_MAVEN_FLUTTER } from '../shared/build-options';
+import { GRADLE_MAVEN_FLUTTER, TOOL_HINTS } from '../shared/build-options';
 import { AdvancedSettings } from './advanced-settings';
 import { GoldenFixFields } from './golden-fix-fields';
-import { OpenShiftTargetFields } from './openshift-target-fields';
+import { MissingField } from './missing-fields';
+import { OpenShiftTargetFields, openShiftFields } from './openshift-target-fields';
 import {
   ServiceForm,
   ServiceSectionId,
@@ -39,8 +51,8 @@ import {
   visibleSectionsForPipeline,
 } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
-import { ToolCommandFields } from './tool-command-fields';
-import { UrbanCodeFields } from './urban-code-fields';
+import { ToolCommandFields, commandFields } from './tool-command-fields';
+import { URBAN_CODE_APPLICATION, URBAN_CODE_COMPONENT, UrbanCodeFields } from './urban-code-fields';
 
 const REGION_NAMES: Record<Region, string> = {
   RD: 'RD, the lower test region',
@@ -49,7 +61,8 @@ const REGION_NAMES: Record<Region, string> = {
 
 const NOTES: Record<ServiceSectionId, string> = {
   general: 'The name of the service, used in its Jenkins job names and reports, and what it does.',
-  build: 'How Jenkins builds the service, and where the build leaves its result (the artifact).',
+  build:
+    'How Jenkins builds the service, with an optional Node.js build first, and where the build leaves its result (the artifact). A service in a subfolder of its repository names that folder under Advanced settings.',
   unitTests:
     'The unit tests that run after the build, and where their results and coverage report are. Without a test command the step is skipped.',
   testJobs:
@@ -120,18 +133,6 @@ const APP_SCAN: Field[] = [
     hint: 'left empty: the key ID',
     help: `${SECRET_TEXT} that holds the secret of the API key.`,
   }),
-  area('includedDirs', 'Included folders', 'includedDirs', 6, {
-    mono: true,
-    placeholder: 'src',
-    hint: 'one per line, left empty: all',
-    help: 'The folders the static scan includes. On Linux agents a folder name matches at any depth below the source folder.',
-  }),
-  area('excludedDirs', 'Excluded folders', 'excludedDirs', 6, {
-    mono: true,
-    placeholder: 'src/test',
-    hint: 'one per line',
-    help: 'The folders the static scan leaves out. They apply on Linux agents, and only while no folder is included.',
-  }),
 ];
 
 const APP_SCAN_OPTIONS: Field[] = [
@@ -144,6 +145,18 @@ const APP_SCAN_OPTIONS: Field[] = [
     hint: 'needed on Windows agents',
     help: 'The path of appscan.bat relative to the workspace, starting with a slash; Windows agents run the AppScan client from there. Linux agents use the client the pipeline downloads.',
     error: POWERSHELL_PATH_ERROR,
+  }),
+  area('includedDirs', 'Included folders', 'includedDirs', 6, {
+    mono: true,
+    placeholder: 'src',
+    hint: 'one per line, left empty: all',
+    help: 'The folders the static scan includes. On Linux agents a folder name matches at any depth below the source folder.',
+  }),
+  area('excludedDirs', 'Excluded folders', 'excludedDirs', 6, {
+    mono: true,
+    placeholder: 'src/test',
+    hint: 'one per line',
+    help: 'The folders the static scan leaves out. They apply on Linux agents, and only while no folder is included.',
   }),
   check('compile', 'Compile before preparing the IRX', 'asoc.doCompile', 6, {
     help: 'Linux agents only: runs the compile command first, so the scan includes the compiled classes.',
@@ -193,7 +206,24 @@ const NEXUS_IQ_APPLICATION: Field[] = [
     mono: true,
     placeholder: '**/build/libs/*.jar',
     hint: 'one Ant pattern per line',
-    help: 'The files Nexus IQ scans, relative to the workspace, usually the built archives.',
+    help: 'The files Nexus IQ scans, relative to the workspace, usually the built archives. A Node.js build that scans its npm dependencies adds its package-lock.json.',
+  }),
+];
+
+const NODE_BUILD =
+  'Runs your npm commands in an extra stage 0, before the Gradle or Maven build, for example to build an Angular frontend that the Gradle or Maven build then packages into the jar. Write its output outside the build and target folders. Leave it off when the Gradle or Maven build already runs npm.';
+
+const NODE_BUILD_IN: Partial<Record<PipelineType, string>> = {
+  SAST: 'In SAST scanning it runs only while Compile is on.',
+  EXTENDED: 'In the Extended pipeline it runs before the release delivery rebuild.',
+};
+
+const VERSION_CATALOGS: Field[] = [
+  area('versionCatalogs', 'Shared version catalogs', 'goldenFix.versionCatalogs', 8, {
+    mono: true,
+    placeholder: 'gradle/libs.versions.toml',
+    hint: 'optional; one path per line, relative to the repository root',
+    help: "Files that hold the dependency versions several services of this repository share. GoldenFix raises a version there once for every service and verifies the builds that use it. Found without listing: *.versions.toml files, the catalogs settings.gradle imports and the files 'apply from' names. List a file here when it has another name or format, such as a parent or BOM pom.xml.",
   }),
 ];
 
@@ -356,6 +386,18 @@ const FLUTTER_PLATFORM: Field[] = [
   ),
 ];
 
+/** The invalid controls of a form that hold an error themselves, in the order of the form. */
+function invalidControls(control: AbstractControl): AbstractControl[] {
+  if (!control.invalid) {
+    return [];
+  }
+  const children =
+    control instanceof FormGroup || control instanceof FormArray
+      ? Object.values<AbstractControl>(control.controls)
+      : [];
+  return [...(control.errors ? [control] : []), ...children.flatMap(invalidControls)];
+}
+
 @Component({
   selector: 'dso-service-fields',
   imports: [
@@ -384,6 +426,8 @@ export class ServiceFields {
 
   private readonly selected = signal<ServiceSectionId>('general');
   private readonly changes = formRevision(this.form);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   protected readonly regions = REGIONS;
   protected readonly regionNames = REGION_NAMES;
@@ -401,6 +445,7 @@ export class ServiceFields {
   protected readonly flutterCredentials = FLUTTER_CREDENTIALS;
   protected readonly flutterSonar = FLUTTER_SONAR;
   protected readonly flutterPlatform = FLUTTER_PLATFORM;
+  protected readonly versionCatalogs = VERSION_CATALOGS;
 
   protected readonly sections = computed(() => {
     this.changes();
@@ -423,13 +468,29 @@ export class ServiceFields {
     const scan = c.appScan;
     const sonar = c.sonar;
     return {
-      build: [c.build.controls.sourceDir, ...options(c.build.controls.command)],
+      build: [
+        c.build.controls.sourceDir,
+        ...options(c.build.controls.command),
+        ...of(
+          c.nodeBuild,
+          'nodePath',
+          'timeoutMinutes',
+          'registry',
+          'npmrcCredentialsId',
+          'environment',
+        ),
+      ],
       unitTests: [
         ...of(c.unitTests, 'rootDir', 'reportOutDir', 'allowEmptyResults'),
         ...options(c.unitTests.controls.command),
       ],
-      appScan: of(scan, 'scanName', 'clientPath', 'compileCommand'),
-      sonar: [...of(sonar, 'credentialsId', 'serverUrl'), ...options(sonar.controls.command)],
+      deployment: of(c.deployment, 'baseArtifactName'),
+      appScan: of(scan, 'scanName', 'clientPath', 'includedDirs', 'excludedDirs', 'compileCommand'),
+      sonar: [
+        ...of(sonar, 'authTokenCredentialsId', 'credentialsId', 'serverUrl'),
+        ...of(sonar, 'badgeToken', 'badgeCredentialsId'),
+        ...options(sonar.controls.command),
+      ],
       nexusIq: [c.nexusIq],
       scm: of(c.scm, 'cloneUrl', 'apiUrl', 'workspace', 'projectKey', 'repoSlug'),
       metrics: of(c.metrics, 'influxUrl', 'influxCredentialsId'),
@@ -454,8 +515,50 @@ export class ServiceFields {
     return { label: section?.label ?? '', note: chips(NOTES[id] + (extra[id] ?? '')) };
   });
 
+  /** The fields that need input, in the order of the sections. */
+  readonly missing = computed<MissingField[]>(() => {
+    this.changes();
+    const form = this.form();
+    const labels = this.labels();
+    const missing = visibleSectionsForPipeline(form, this.pipeline()).flatMap((section) =>
+      section.keys
+        .flatMap((key) => invalidControls(form.controls[key]))
+        .map((control) => ({
+          section: section.id,
+          label: labels.get(control) ?? section.label,
+          control,
+        })),
+    );
+    return missing.filter(
+      (field, index) =>
+        missing.findIndex(
+          (other) => other.section === field.section && other.label === field.label,
+        ) === index,
+    );
+  });
+
   select(id: ServiceSectionId): void {
     this.selected.set(id);
+  }
+
+  /** Opens the section of a field that needs input, shows its error and puts the cursor in it. */
+  reveal(field: MissingField): void {
+    field.control.markAsTouched();
+    this.selected.set(field.section);
+    afterNextRender(
+      () => {
+        const shown = [
+          ...this.host.nativeElement.querySelectorAll<HTMLElement>('.pane .has-error'),
+        ];
+        const target =
+          shown.find(
+            (candidate) =>
+              candidate.querySelector('dso-label')?.textContent?.trim() === field.label,
+          ) ?? shown[0];
+        target?.querySelector<HTMLElement>('input, select, textarea')?.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   revealFirstProblem(): boolean {
@@ -464,6 +567,52 @@ export class ServiceFields {
       this.selected.set(id);
     }
     return id !== null;
+  }
+
+  /** The label of each field of the form that has one. */
+  private labels(): Map<AbstractControl, string> {
+    const form = this.form();
+    const c = form.controls;
+    const commands = [
+      c.build.controls.command,
+      c.unitTests.controls.command,
+      c.sonar.controls.command,
+      c.appScan.controls.compileCommand,
+      c.delivery,
+    ];
+    const groups: (readonly [AbstractControl, readonly Field[]])[] = [
+      [form, [...GENERAL, ...VERSION_CATALOGS]],
+      [c.build, [...this.buildTool(), ...this.buildFields(), ...this.buildOptions()]],
+      [c.nodeBuild, [...this.nodeSwitch(), ...this.nodeFields(), ...this.nodeOptions()]],
+      [c.unitTests, [...this.unitTestFields(), ...UNIT_TEST_OPTIONS]],
+      [c.deployment, [...this.deploymentFields(), ...this.deploymentOptions()]],
+      [c.appScan, [...APP_SCAN, ...APP_SCAN_OPTIONS, ...DAST_ENABLED, ...DAST]],
+      [c.sonar, [...this.sonarFields(), ...this.sonarOptions()]],
+      [c.nexusIq, this.nexusIqFields()],
+      [c.scm, [...SCM, ...SCM_OPTIONS, ...BITBUCKET_REPOSITORY]],
+      [c.goldenFix, this.goldenFixField()],
+      [c.metrics, [...this.metricsFields(), ...this.metricsOptions()]],
+      [c.flutter, [...FLUTTER_PLATFORM, ...FLUTTER_MODULES, ...FLUTTER_CREDENTIALS]],
+      [c.flutter, [...FLUTTER_SONAR, ...this.flutterDelivery()]],
+      ...commands.map((command) => [command, commandFields(this.tool(), '')] as const),
+      ...REGIONS.flatMap((region) => [
+        [c.sshTargets.controls[region], this.sshFields(region)] as const,
+        [c.openShiftTargets.controls[region], openShiftFields(region)] as const,
+      ]),
+      ...c.nexusIqApplications.controls.map((app) => [app, NEXUS_IQ_APPLICATION] as const),
+      ...c.urbanCodeApplications.controls.flatMap((app) => [
+        [app, URBAN_CODE_APPLICATION] as const,
+        ...app.controls.components.controls.map((part) => [part, URBAN_CODE_COMPONENT] as const),
+      ]),
+    ];
+    return new Map(
+      groups.flatMap(([group, fields]) =>
+        fields.flatMap((field) => {
+          const control = group.get(field.key);
+          return control ? [[control, field.label] as const] : [];
+        }),
+      ),
+    );
   }
 
   protected tool() {
@@ -482,24 +631,32 @@ export class ServiceFields {
     return !this.form().controls.deployment.controls.nexusDeliveryDisabled.value;
   }
 
-  protected buildFields(): Field[] {
-    const maven = this.tool() === 'MAVEN';
+  protected buildsNode(): boolean {
+    return this.form().controls.nodeBuild.controls.enabled.value;
+  }
+
+  protected buildOptionsSummary(): string {
+    if (this.flutter()) {
+      return 'Source folder';
+    }
+    return this.buildsNode()
+      ? 'Source folder, build command and Node.js options'
+      : 'Source folder and build command options';
+  }
+
+  protected buildTool(): Field[] {
     return [
-      choice('tool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 3, {
+      choice('tool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 6, {
+        hint: TOOL_HINTS[this.tool()],
         help: 'The tool that builds the service. It decides which commands, test reports and artifacts the pipeline expects.',
       }),
-      mono('javaPath', 'JDK path', 'javaPath', 9, {
-        placeholder: '/usr/lib/jvm/java-17-openjdk',
-        hint: this.flutter()
-          ? 'must be set for Flutter builds'
-          : 'JAVA_HOME of the build and the later stages, unless the build tool is set up automatically',
-        help: this.flutter()
-          ? 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.'
-          : 'The absolute path of a JDK installed on the Jenkins agent.',
-      }),
-      check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 12, {
-        help: 'Gradle and Maven builds: reads the Java version from pom.xml or the Gradle build file and selects a JDK of that version installed on the agent, instead of the JDK path.',
-      }),
+    ];
+  }
+
+  protected buildFields(): Field[] {
+    const maven = this.tool() === 'MAVEN';
+    const c = this.form().controls.build.controls;
+    return [
       mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
         placeholder: maven ? 'target/*.jar' : 'build/libs/*.jar',
         hint:
@@ -509,6 +666,22 @@ export class ServiceFields {
         help: 'A path or wildcard pattern relative to the workspace; the first matching file is used. On OpenShift only its folder counts: the image build takes the artifact from there.',
         error: SHELL_SAFE_ERROR,
       }),
+      check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 6, {
+        help: 'Gradle and Maven builds: reads the Java version from pom.xml or the Gradle build file and selects a JDK of that version installed on the agent, instead of the JDK path.',
+      }),
+      ...(c.autoSetup.value
+        ? []
+        : [
+            mono('javaPath', 'JDK path', 'javaPath', 12, {
+              placeholder: '/usr/lib/jvm/java-17-openjdk',
+              hint: this.flutter()
+                ? 'must be set for Flutter builds'
+                : 'JAVA_HOME of the Gradle or Maven build and the later stages',
+              help: this.flutter()
+                ? 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.'
+                : 'The absolute path of a JDK installed on the Jenkins agent.',
+            }),
+          ]),
     ];
   }
 
@@ -516,8 +689,82 @@ export class ServiceFields {
     return [
       mono('sourceDir', 'Source folder', 'sourceDir', 6, {
         placeholder: '.',
-        hint: 'relative to the repository root',
-        help: 'The folder the AppScan static scan prepares. Change it when the code of the service is in a subfolder.',
+        hint: 'relative to the repository root; for a service in a subfolder: that folder',
+        help: 'The folder the AppScan static scan prepares; the Gradle, Maven and Node.js builds have their own folder fields. Change it when the code of the service is in a subfolder.',
+      }),
+    ];
+  }
+
+  protected nodeSwitch(): Field[] {
+    const pipeline = this.pipeline();
+    const notes = pipeline ? [NODE_BUILD_IN[pipeline] ?? ''] : Object.values(NODE_BUILD_IN);
+    return [
+      check('enabled', 'Build the frontend with Node.js first', 'build.node.enabled', 12, {
+        help: [NODE_BUILD, ...notes].join(' ').trim(),
+      }),
+    ];
+  }
+
+  protected nodeFields(): Field[] {
+    const defaults = this.defaults()?.serviceDefaults;
+    const c = this.form().controls.nodeBuild.controls;
+    return [
+      mono('directory', 'Folder with package.json', 'build.node.dir', 6, {
+        placeholder: 'frontend',
+        hint: 'left empty: the repository root',
+        help: 'The folder of the frontend in the repository. The commands run in it.',
+        error: "A folder relative to the repository root, without '..' or quotes",
+      }),
+      area('commands', 'Commands', 'build.node.commands', 6, {
+        mono: true,
+        placeholder: 'npm ci\nnpm run build',
+        hint: 'one per line, run in order; left empty: npm ci, then npm run build',
+        help: 'Each line runs as one shell command, with sh on Linux agents and bat on Windows agents. A failing command fails the stage, and the later stages do not run.',
+      }),
+      check('nexusIqScan', 'Scan the npm dependencies with Nexus IQ', 'build.node.nexusIqScan', 6, {
+        help: 'Adds package-lock.json of this folder to the Nexus IQ scan, so Nexus IQ reports the npm dependencies and GoldenFix can raise them. New findings can turn the Nexus IQ stage orange.',
+      }),
+      line('installationName', 'Node.js installation', 'build.node.installationName', 6, {
+        ...defaulted(
+          defaults?.nodeInstallationName,
+          c.installationName.value,
+          'left empty: node and npm from the agent',
+        ),
+        help: 'A NodeJS installation under Manage Jenkins, Tools, which needs the NodeJS plugin. Its node and npm run the commands.',
+      }),
+    ];
+  }
+
+  protected nodeOptions(): Field[] {
+    const defaults = this.defaults()?.serviceDefaults;
+    const c = this.form().controls.nodeBuild.controls;
+    return [
+      mono('nodePath', 'Node.js home on the agent', 'build.node.nodePath', 8, {
+        placeholder: '/opt/node-20',
+        help: 'An absolute folder of Node.js on the agent, such as /opt/node-20 or C:\\Program Files\\nodejs. It wins over the Node.js installation, the Library default included.',
+        error:
+          'An absolute folder such as /opt/node-20 or C:\\Program Files\\nodejs, without quotes',
+      }),
+      count('timeoutMinutes', 'Node.js timeout (minutes)', 'build.node.timeoutMin', 4, {
+        min: 1,
+        max: 240,
+        hint: 'left empty: 30',
+        help: 'How long the commands of the Node.js build may take together before the stage fails.',
+      }),
+      line('registry', 'npm registry', 'build.node.registry', 6, {
+        ...defaulted(defaults?.npmRegistry, c.registry.value),
+        help: 'The registry npm installs from, exported as npm_config_registry. It is used only without an .npmrc.',
+        error: HTTP_URL_ERROR,
+      }),
+      mono('npmrcCredentialsId', '.npmrc credentials ID', 'build.node.npmrcCredentialsId', 6, {
+        ...defaulted(defaults?.npmrcCredentialsId, c.npmrcCredentialsId.value),
+        help: 'The ID of a Jenkins Secret file credential with an .npmrc, which npm then reads, its registry included.',
+      }),
+      area('environment', 'Node.js environment variables', 'build.node.env', 6, {
+        mono: true,
+        placeholder: 'NODE_OPTIONS=--max-old-space-size=4096',
+        hint: 'one NAME=value per line',
+        help: 'Environment variables set for the Node.js commands only.',
       }),
     ];
   }
@@ -565,14 +812,19 @@ export class ServiceFields {
               help: 'The file, in the folder of the artifact path, that is copied into the image build context under this name.',
               error: SHELL_SAFE_ERROR,
             }),
-            mono('baseArtifactName', 'Built file name', 'baseArtifactName', 4, {
-              placeholder: 'app-1.0.0.jar',
-              hint: 'renamed to the artifact name',
-              help: 'The name of the file the build produces, when it differs from the artifact name.',
-              error: SHELL_SAFE_ERROR,
-            }),
           ]
         : []),
+    ];
+  }
+
+  protected deploymentOptions(): Field[] {
+    return [
+      mono('baseArtifactName', 'Built file name', 'baseArtifactName', 6, {
+        placeholder: 'app-1.0.0.jar',
+        hint: 'renamed to the artifact name',
+        help: 'The name of the file the build produces, when it differs from the artifact name.',
+        error: SHELL_SAFE_ERROR,
+      }),
     ];
   }
 
@@ -626,8 +878,22 @@ export class ServiceFields {
         ...defaulted(platform?.sonarInstallationName, c.installationName.value),
         help: 'The name of the SonarQube server configured in Jenkins, which the analysis and the quality gate use.',
       }),
+    ];
+  }
+
+  protected sonarOptions(): Field[] {
+    const platform = this.defaults()?.platform;
+    return [
       mono('authTokenCredentialsId', 'Token credentials ID', 'tools.sonar.authToken', 6, {
         help: `${SECRET_TEXT} with a SonarQube token. The pipeline reads the open vulnerability counts with it; the report shows them and the SCA security limits are checked against them.`,
+      }),
+      mono('credentialsId', 'Scanner credentials ID', 'tools.sonar.credentialsId', 6, {
+        help: `${SECRET_TEXT} that replaces the server token of the Jenkins installation for Gradle and Maven analyses.`,
+      }),
+      line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 12, {
+        ...defaulted(platform?.sonarServerUrl, this.form().controls.sonar.controls.serverUrl.value),
+        help: 'The SonarQube address of the dashboard link, the issue counts and the badges. Flutter analyses are also sent to it.',
+        error: HTTP_URL_ERROR,
       }),
       mono('badgeToken', 'Badge token', 'tools.sonar.badgeToken', 6, {
         placeholder: 'sqb_1a2b3c',
@@ -644,20 +910,6 @@ export class ServiceFields {
           help: `${SECRET_TEXT} that holds the badge token, so the token is not stored in the portal.`,
         },
       ),
-    ];
-  }
-
-  protected sonarOptions(): Field[] {
-    const platform = this.defaults()?.platform;
-    return [
-      mono('credentialsId', 'Scanner credentials ID', 'tools.sonar.credentialsId', 4, {
-        help: `${SECRET_TEXT} that replaces the server token of the Jenkins installation for Gradle and Maven analyses.`,
-      }),
-      line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 8, {
-        ...defaulted(platform?.sonarServerUrl, this.form().controls.sonar.controls.serverUrl.value),
-        help: 'The SonarQube address of the dashboard link, the issue counts and the badges. Flutter analyses are also sent to it.',
-        error: HTTP_URL_ERROR,
-      }),
       check('addBadges', 'Badges in the Jenkins build description', 'tools.sonar.addBadges', 6, {
         help: 'Adds the SonarQube badges of the project to the description of the Jenkins build. Gradle and Maven builds only.',
       }),

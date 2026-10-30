@@ -25,12 +25,13 @@ import {
 } from '../core/sections';
 import { PipelineActions, typeName } from '../pipelines/pipeline-actions';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
-import { RelativeTimePipe, counted } from '@common/shared/formatting';
+import { RelativeTimePipe, counted, listed } from '@common/shared/formatting';
 import { LoadError } from '@common/ui/load-error';
 import { DsoLoading } from '@common/ui/loading';
 import { MENU_AT_END } from '@common/ui/menu';
 import { TARGET_LABELS, TOOL_LABELS } from '../shared/build-options';
 import { GeneratedKeys } from './generated-keys';
+import { byRepository, sharedJobReason } from './jenkinsfile';
 import { pipelineTally } from './pipeline-tally';
 import { DepartmentsApi } from '@common/core/api';
 
@@ -107,6 +108,27 @@ export class ProductDetail {
           bitbucketRepositoryUrl(service.scm),
         ]),
       ),
+  );
+
+  /** The pipelines of one type that services sharing a repository run in one Jenkins job. */
+  protected readonly sharedRepositories = computed(() =>
+    byRepository(
+      this.services.hasValue() ? this.services.value().flatMap((service) => service.pipelines) : [],
+      (pipeline) => this.repositories().get(pipeline.serviceId),
+      (pipeline) => pipeline,
+    )
+      .filter((pipelines) => pipelines.length > 1)
+      .map((pipelines) => {
+        const { serviceId, type } = pipelines[0];
+        const names = listed(pipelines.map((pipeline) => pipeline.serviceName));
+        return {
+          pipelines,
+          text:
+            `${names} share the repository ${this.repositories().get(serviceId)}. Put one Jenkinsfile ` +
+            `with the keys of their ${typeName(type)} pipelines there and ask for one Jenkins job for ` +
+            `the repository, not one per service${sharedJobReason(type)}.`,
+        };
+      }),
   );
 
   protected readonly revealed = signal<ReadonlySet<number>>(new Set());
@@ -187,10 +209,12 @@ export class ProductDetail {
       );
   }
 
-  protected showJenkinsfile(pipeline: Pipeline, together = false): void {
-    this.actions.showJenkinsfile(
-      together ? [pipeline, ...this.sameTypeElsewhere(pipeline)] : [pipeline],
-    );
+  protected together(pipeline: Pipeline): Pipeline[] {
+    return [pipeline, ...this.sameTypeElsewhere(pipeline)];
+  }
+
+  protected showJenkinsfile(pipelines: readonly Pipeline[]): void {
+    this.actions.showJenkinsfile(pipelines);
   }
 
   protected addPipeline(product: Product, service: ServicePipelines): void {

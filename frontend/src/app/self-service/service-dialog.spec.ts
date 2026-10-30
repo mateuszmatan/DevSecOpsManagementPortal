@@ -3,14 +3,21 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormControl } from '@angular/forms';
-import { buttonOf, choose, optionsOf, selectOf, text } from '@common/testing/dom';
-import { anotherService, globalSettings, service, serviceTemplate } from '../testing/fixtures';
+import { buttonOf, choose, inputOf, optionsOf, selectOf, text } from '@common/testing/dom';
+import {
+  anotherService,
+  globalSettings,
+  nodeBuild,
+  service,
+  serviceTemplate,
+} from '../testing/fixtures';
 import {
   createServiceForm,
   createUrbanCodeApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
-import { WizardDefaults, WizardService, imageRepository } from './self-service-model';
+import { imageRepository } from '../shared/service-template';
+import { WizardDefaults, WizardService } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';
@@ -76,14 +83,20 @@ describe('ServiceDialog', () => {
     });
   });
 
-  it('keeps Add service disabled and names the sections that need input until the form is complete', async () => {
+  it('keeps Add service disabled and names the fields that need input until the form is complete', async () => {
     await open({ pipeline: 'SECURITY' });
 
     expect(submit().disabled).toBe(true);
     expect(text(page().querySelector('.missing'))).toBe(
-      'Complete these sections first: General, AppScan SAST and DAST.',
+      'Complete these fields first: Service name, AppScan application ID, AppScan API key ID.',
     );
     expect(marked()).toEqual(['General', 'AppScan SAST and DAST']);
+
+    buttonOf(page().querySelector('.missing')!, 'AppScan API key ID').click();
+    await fixture.whenStable();
+
+    expect(text(page().querySelector('.rail-item.active span'))).toBe('AppScan SAST and DAST');
+    expect(document.activeElement).toBe(inputOf(page(), 'AppScan API key ID'));
 
     fillIn();
     await fixture.whenStable();
@@ -101,6 +114,34 @@ describe('ServiceDialog', () => {
         repositoryUrl: REPOSITORY,
       }),
     );
+  });
+
+  it('keeps Add service disabled while a Node.js build field is invalid and opens Build on save', async () => {
+    await open({ pipeline: 'SECURITY' });
+    fillIn();
+    form().controls.nodeBuild.patchValue({
+      enabled: true,
+      installationName: 'NodeJS-20',
+      nodePath: '/opt/node-20',
+    });
+    await fixture.whenStable();
+
+    expect(submit().disabled).toBe(true);
+    expect(text(page().querySelector('.missing'))).toBe(
+      'Complete these fields first: Node.js installation, Node.js home on the agent.',
+    );
+    expect(marked()).toEqual(['Build']);
+
+    component['save']();
+    await fixture.whenStable();
+
+    expect(close).not.toHaveBeenCalled();
+    expect(text(page().querySelector('.rail-item.active span'))).toBe('Build');
+
+    form().controls.nodeBuild.controls.nodePath.setValue('');
+    await fixture.whenStable();
+
+    expect(submit().disabled).toBe(false);
   });
 
   it('asks for an UrbanCode Deploy application for DV before adding a service with a Full pipeline', async () => {
@@ -161,7 +202,13 @@ describe('ServiceDialog', () => {
   it('copies the values of another service except those that identify it, keeping the typed name', async () => {
     await open({
       sources: [
-        { name: 'gui', request: service() },
+        {
+          name: 'gui',
+          request: service({
+            nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+            versionCatalogs: ['gradle/libs.versions.toml'],
+          }),
+        },
         { name: 'backend-api', request: anotherService({ name: 'backend-api' }) },
       ],
     });
@@ -180,6 +227,8 @@ describe('ServiceDialog', () => {
     expect(value.sonar.projectName).toBe('');
     expect(value.metrics.influxProject).toBe('');
     expect(value.nexusIqApplications.map((app) => app.application)).toEqual(['pay-portal']);
+    expect(value.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
+    expect(value.versionCatalogs).toBe('gradle/libs.versions.toml');
   });
 
   it('sets the OpenShift names of a copy from the typed name, as for a new service', async () => {

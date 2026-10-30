@@ -1,6 +1,8 @@
+import { Pipeline } from '../core/models';
 import { RETRY, UNREACHABLE } from '@common/core/errors';
 import {
   globalSettings,
+  nodeBuild,
   pipeline,
   product,
   service,
@@ -12,8 +14,8 @@ import {
   changesOf,
   deploys,
   fromService,
+  jenkinsJobs,
   jobName,
-  namedDefaults,
   notLoaded,
   pipelineChoices,
   pipelineNames,
@@ -53,7 +55,7 @@ describe('self-service model', () => {
     );
     expect(preparation('NEXUS_IQ')).toEqual([
       'The name of each service, its AppScan application ID and the AppScan API key ID, from the DevSecOps team',
-      'Whether each service is built with Gradle or Maven; a developer of the service knows',
+      'Whether each service is built with Gradle or Maven, and the folder of its package.json when Node.js builds its frontend first; a developer of the service knows',
       'The Nexus IQ application and the Bitbucket repository of each service',
     ]);
   });
@@ -253,28 +255,6 @@ describe('self-service model', () => {
     expect(request.delivery.tasks).toEqual([]);
   });
 
-  it('names the OpenShift project, Nexus IQ application and repository of a service by the template', () => {
-    const defaults = {
-      tool: null,
-      target: null,
-      template: TEMPLATE,
-      productCode: 'PAY',
-      settings: null,
-    };
-
-    expect(namedDefaults(defaults, 'Gateway')).toEqual({
-      openShiftProject: 'pay-gateway',
-      nexusIqApplication: 'pay-Gateway',
-      repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/pay-Gateway',
-    });
-    expect(namedDefaults({ ...defaults, productCode: '' }, 'gateway')).toEqual({
-      openShiftProject: '',
-      nexusIqApplication: '',
-      repositoryUrl: '',
-    });
-    expect(namedDefaults({ ...defaults, template: null }, 'gateway').repositoryUrl).toBe('');
-  });
-
   it('publishes a Maven service on a virtual machine from target with deploy-file', () => {
     const request = serviceRequest(added({ tool: 'MAVEN' }), 'FULL', TEMPLATE);
 
@@ -351,7 +331,10 @@ describe('self-service model', () => {
   });
 
   it('puts a service of the portal on another build tool with the build settings of a new one', () => {
-    const stored = service();
+    const stored = service({
+      nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+      versionCatalogs: ['gradle/libs.versions.toml'],
+    });
     const request = serviceRequest(
       { ...fromService(stored), tool: 'MAVEN' },
       'FULL',
@@ -375,6 +358,8 @@ describe('self-service model', () => {
     expect(request.urbanCodeApplications).toEqual(stored.urbanCodeApplications);
     expect(request.unitTests).toEqual(stored.unitTests);
     expect(request.testJobs).toEqual(stored.testJobs);
+    expect(request.nodeBuild).toEqual(stored.nodeBuild);
+    expect(request.versionCatalogs).toEqual(stored.versionCatalogs);
   });
 
   it('moves a service of the portal to OpenShift with the deployment settings of a new one', () => {
@@ -765,6 +750,53 @@ describe('self-service model', () => {
     expect(notLoaded('The service template', 'Database unavailable', true)).toBe(
       'The service template could not be loaded. Database unavailable.',
     );
+  });
+
+  it('shares one Jenkins job among the services whose pipelines share a repository', () => {
+    const start = (serviceName: string, repository: string, run: Pipeline | null = pipeline()) => ({
+      serviceName,
+      repository,
+      pipeline: run,
+    });
+    const shared = 'https://bitbucket.bbh.com/projects/CERT/repos/cert';
+    const jobs = jenkinsJobs([
+      start('gui', shared),
+      start('batch', 'https://bitbucket.bbh.com/projects/CERT/repos/batch'),
+      start('api', `${shared}/`),
+      start('tool', shared, null),
+      start('worker', ''),
+    ]);
+
+    expect(jobs.map((job) => [job.names, job.starts.length])).toEqual([
+      ['gui and api', 2],
+      ['batch', 1],
+      ['tool', 1],
+      ['worker', 1],
+    ]);
+  });
+
+  it('takes the repository from the Bitbucket fields of a service without a URL', () => {
+    const stored = service();
+    const [start] = servicesToStart(
+      [servicePipelines()],
+      'FULL',
+      product({
+        services: [
+          {
+            ...stored,
+            scm: {
+              ...stored.scm,
+              repositoryUrl: null,
+              apiUrl: 'https://bitbucket.bbh.com',
+              projectKey: 'CERT',
+              repoSlug: 'cert',
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(start.repository).toBe('https://bitbucket.bbh.com/projects/CERT/repos/cert');
   });
 
   it('finds the pipeline of the chosen type for every service', () => {

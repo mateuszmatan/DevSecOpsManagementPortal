@@ -18,8 +18,8 @@
       "build": {
         "tool": "GRADLE",
         "sourceDir": ".",
-        "javaPath": "/usr/lib/jvm/java-21-openjdk",
-        "autoSetup": false,
+        "javaPath": null,
+        "autoSetup": true,
         "buildPath": "build/libs/*.jar",
         "command": {
           "tasks": [
@@ -33,6 +33,18 @@
           "label": null,
           "returnStdout": false
         }
+      },
+      "nodeBuild": {
+        "enabled": false,
+        "directory": null,
+        "commands": [],
+        "installationName": null,
+        "nodePath": null,
+        "environment": [],
+        "registry": null,
+        "npmrcCredentialsId": null,
+        "timeoutMinutes": null,
+        "nexusIqScan": null
       },
       "unitTests": {
         "command": {
@@ -176,10 +188,19 @@
         "serverUrl": null,
         "credentialsId": null
       },
-      "nexusIqApplications": [],
+      "nexusIqApplications": [
+        {
+          "application": "certnext-gui",
+          "scanPatterns": [
+            "**/build/libs/*.jar"
+          ],
+          "stage": "build",
+          "failOnNetworkError": false
+        }
+      ],
       "scm": {
-        "repositoryUrl": null,
-        "credentialsId": null,
+        "repositoryUrl": "https://bitbucket.bbh.com/projects/CERTNEXT/repos/certnext-gui",
+        "credentialsId": "bitbucket-http-credentials",
         "authType": "BASIC",
         "type": null,
         "targetBranch": null,
@@ -209,6 +230,7 @@
         "commitAuthorEmail": null,
         "timeZone": null
       },
+      "versionCatalogs": [],
       "metrics": {
         "enabled": true,
         "influxProject": null,
@@ -225,8 +247,8 @@
       "build": {
         "tool": "MAVEN",
         "sourceDir": ".",
-        "javaPath": "/usr/lib/jvm/java-21-openjdk",
-        "autoSetup": false,
+        "javaPath": null,
+        "autoSetup": true,
         "buildPath": "target/*.jar",
         "command": {
           "tasks": [
@@ -240,6 +262,18 @@
           "label": null,
           "returnStdout": false
         }
+      },
+      "nodeBuild": {
+        "enabled": false,
+        "directory": null,
+        "commands": [],
+        "installationName": null,
+        "nodePath": null,
+        "environment": [],
+        "registry": null,
+        "npmrcCredentialsId": null,
+        "timeoutMinutes": null,
+        "nexusIqScan": null
       },
       "unitTests": {
         "command": {
@@ -385,10 +419,19 @@
         "serverUrl": null,
         "credentialsId": null
       },
-      "nexusIqApplications": [],
+      "nexusIqApplications": [
+        {
+          "application": "certnext-backend-api",
+          "scanPatterns": [
+            "**/target/*.jar"
+          ],
+          "stage": "build",
+          "failOnNetworkError": false
+        }
+      ],
       "scm": {
-        "repositoryUrl": null,
-        "credentialsId": null,
+        "repositoryUrl": "https://bitbucket.bbh.com/projects/CERTNEXT/repos/certnext-backend-api",
+        "credentialsId": "bitbucket-http-credentials",
         "authType": "BASIC",
         "type": null,
         "targetBranch": null,
@@ -418,6 +461,7 @@
         "commitAuthorEmail": null,
         "timeZone": null
       },
+      "versionCatalogs": [],
       "metrics": {
         "enabled": true,
         "influxProject": null,

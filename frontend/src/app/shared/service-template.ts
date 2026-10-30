@@ -40,6 +40,36 @@ export function knownPlaceholders(known: readonly string[]): ValidatorFn {
   };
 }
 
+export interface NamedDefaults {
+  openShiftProject: string;
+  nexusIqApplication: string;
+  repositoryUrl: string;
+}
+
+export function namedDefaults(
+  defaults: { template: ServiceTemplateValues | null; productCode: string },
+  serviceName: string,
+): NamedDefaults {
+  const { template, productCode } = defaults;
+  const filled = (pattern: string | null | undefined) =>
+    productCode && serviceName ? fillTemplate(pattern, productCode, serviceName) : '';
+  return {
+    openShiftProject: filled(template?.openShiftProject).toLowerCase(),
+    nexusIqApplication: filled(template?.nexusIqApplication),
+    repositoryUrl: filled(template?.repositoryUrl),
+  };
+}
+
+/** The image repository of a service: the template's registry, the OpenShift project and the service name. */
+export function imageRepository(
+  project: string,
+  service: string,
+  template: ServiceTemplateValues | null,
+): string {
+  const registry = template?.imageRegistry;
+  return `${registry ? `${registry}/` : ''}${project}/${service.toLowerCase()}`;
+}
+
 export interface BuildDefaults {
   tasks: string;
   artifact: string;

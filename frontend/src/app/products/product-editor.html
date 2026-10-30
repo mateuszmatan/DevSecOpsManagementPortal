@@ -119,7 +119,19 @@
           </div>
           @if (blocked()) {
             <p class="blocked muted" role="status">
-              Complete these services before adding another: {{ blockers().join('; ') }}.
+              Complete these services before adding another:
+              @for (blocker of blockers(); track blocker.fields; let last = $last) {
+                <span>{{ blocker.name }}</span>
+                @if (blocker.missing.length) {
+                  <span> (</span>
+                  <dso-missing-fields
+                    [missing]="blocker.missing"
+                    (open)="reveal(blocker.fields, $event)"
+                  />
+                  <span>)</span>
+                }
+                <span>{{ last ? '.' : '; ' }}</span>
+              }
             </p>
           }
         </header>

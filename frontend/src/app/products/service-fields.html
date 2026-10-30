@@ -32,8 +32,9 @@
       }
 
       @case ('build') {
+        @let node = f.controls.nodeBuild;
         <div class="form-fields">
-          <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
+          <dso-fields [group]="f.controls.build" [fields]="buildTool()" />
           @if (flutter()) {
             <p class="note span-12">
               A Flutter build runs no Gradle or Maven command and needs the JDK path, since
@@ -50,8 +51,16 @@
               mavenExample="clean verify"
             />
           }
+          <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
+          @if (!flutter()) {
+            <h4 class="sub-heading span-12">Node.js build (stage 0)</h4>
+            <dso-fields [group]="node" [fields]="nodeSwitch()" />
+            @if (buildsNode()) {
+              <dso-fields [group]="node" [fields]="nodeFields()" />
+            }
+          }
           <dso-advanced-settings
-            [summary]="flutter() ? 'Source folder' : 'Source folder and build command options'"
+            [summary]="buildOptionsSummary()"
             [controls]="advanced().build"
             [submitted]="submitted()"
           >
@@ -63,6 +72,10 @@
                 path="build"
                 part="options"
               />
+              @if (buildsNode()) {
+                <h4 class="sub-heading span-12">Node.js build</h4>
+                <dso-fields [group]="node" [fields]="nodeOptions()" />
+              }
             }
           </dso-advanced-settings>
         </div>
@@ -119,6 +132,15 @@
             />
           </div>
           <dso-fields [group]="f.controls.deployment" [fields]="deploymentFields()" />
+          @if (delivers()) {
+            <dso-advanced-settings
+              summary="Name of the built file"
+              [controls]="advanced().deployment"
+              [submitted]="submitted()"
+            >
+              <dso-fields [group]="f.controls.deployment" [fields]="deploymentOptions()" />
+            </dso-advanced-settings>
+          }
         </div>
         @if (isVm() && tool() === 'MAVEN' && delivers()) {
           <div class="form-fields block">
@@ -171,7 +193,7 @@
             }
           }
           <dso-advanced-settings
-            summary="Scan name, AppScan client and the options of the static scan"
+            summary="Scan name, scanned folders, AppScan client and the options of the static scan"
             [controls]="advanced().appScan"
             [submitted]="submitted()"
           >
@@ -204,7 +226,7 @@
             />
           }
           <dso-advanced-settings
-            summary="Scanner credentials, server, badges and analysis command options"
+            summary="Tokens, scanner credentials, server, badges and analysis command options"
             [controls]="advanced().sonar"
             [submitted]="submitted()"
           >
@@ -303,6 +325,7 @@
       @case ('goldenFix') {
         <div class="form-fields">
           <dso-fields [group]="f.controls.goldenFix" [fields]="goldenFixField()" />
+          <dso-fields [group]="f" [fields]="versionCatalogs" />
           <div class="span-8 choice">
             <dso-toggle-group
               [formControl]="f.controls.goldenFix.controls.inherit"

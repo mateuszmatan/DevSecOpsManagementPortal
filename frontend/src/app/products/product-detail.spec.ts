@@ -389,41 +389,96 @@ describe('ProductDetail', () => {
       );
     });
 
-    it.each([
-      ['EXTENDED', 'securityPipelineJob', 'extended'],
-      ['SECURITY', 'extendedPipelineJob', 'security'],
-    ] as const)(
-      'joins only the %s pipelines that link the same %s',
-      async (type, link, label) => {
-        const linked = (id: number, serviceId: number, serviceName: string, job: string) =>
-          pipeline({
-            id,
-            serviceId,
-            serviceName,
-            type,
-            [link]: job,
-            activeKey: { ...pipeline().activeKey!, value: `${id}-0000-4abc-9def-123456789abc` },
-          });
-        await load(product(), [
-          servicePipelines({ pipelines: [linked(100, 10, 'gui', 'CERT/linked')] }),
+    it('asks for one Jenkinsfile and one job for the services that share a repository', async () => {
+      const api = (overrides: Partial<Pipeline> = {}) =>
+        pipeline({
+          id: 200,
+          serviceId: 11,
+          serviceName: 'api',
+          activeKey: { ...pipeline().activeKey!, value: 'a1b2c3d4-0000-4abc-9def-123456789abc' },
+          ...overrides,
+        });
+      await load(product({ services: [service(), anotherService()] }), [
+        servicePipelines({ pipelines: [pipeline(), pipeline({ id: 101, type: 'SAST' })] }),
+        servicePipelines({
+          serviceId: 11,
+          serviceName: 'api',
+          pipelines: [api(), api({ id: 201, type: 'SAST' })],
+        }),
+      ]);
+
+      expect([...page().querySelectorAll('.shared-repository .notice-text')].map(text)).toEqual([
+        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their full pipelines there and ask for one Jenkins job for the repository, not one per service: one GoldenFix pull request then raises the shared catalog once.',
+        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their SAST scanning pipelines there and ask for one Jenkins job for the repository, not one per service.',
+      ]);
+
+      buttonOf(page().querySelector('.shared-repository')!, 'Show the Jenkinsfile').click();
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened().data['title']).toBe('Jenkinsfile for several services');
+      expect(opened().data['code']).toContain(
+        "devSecOpsPipeline(pipelineKeys: [\n    '6f1c2d3e-0000-4abc-9def-123456789abc',\n    'a1b2c3d4",
+      );
+    });
+
+    it('asks for no shared job when the services have their own repositories', async () => {
+      await load(
+        product({
+          services: [
+            service(),
+            anotherService({
+              scm: {
+                ...service().scm,
+                repositoryUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/api',
+              },
+            }),
+          ],
+        }),
+        [
+          servicePipelines(),
           servicePipelines({
             serviceId: 11,
             serviceName: 'api',
-            pipelines: [linked(200, 11, 'api', 'CERT/linked')],
+            pipelines: [pipeline({ id: 200, serviceId: 11, serviceName: 'api' })],
           }),
-          servicePipelines({
-            serviceId: 12,
-            serviceName: 'batch',
-            pipelines: [linked(300, 12, 'batch', 'CERT/batch-linked')],
-          }),
-        ]);
+        ],
+      );
 
-        await menu('Jenkinsfile for several services', `More actions of the ${label} pipeline`);
-        http.expectOne('/api/settings').flush(globalSettings());
+      expect(page().querySelector('.shared-repository')).toBeNull();
+    });
 
-        expect(opened().data['subtitle']).toContain('One run builds gui, api;');
-      },
-    );
+    it.each([
+      ['EXTENDED', 'securityPipelineJob', 'extended'],
+      ['SECURITY', 'extendedPipelineJob', 'security'],
+    ] as const)('joins only the %s pipelines that link the same %s', async (type, link, label) => {
+      const linked = (id: number, serviceId: number, serviceName: string, job: string) =>
+        pipeline({
+          id,
+          serviceId,
+          serviceName,
+          type,
+          [link]: job,
+          activeKey: { ...pipeline().activeKey!, value: `${id}-0000-4abc-9def-123456789abc` },
+        });
+      await load(product(), [
+        servicePipelines({ pipelines: [linked(100, 10, 'gui', 'CERT/linked')] }),
+        servicePipelines({
+          serviceId: 11,
+          serviceName: 'api',
+          pipelines: [linked(200, 11, 'api', 'CERT/linked')],
+        }),
+        servicePipelines({
+          serviceId: 12,
+          serviceName: 'batch',
+          pipelines: [linked(300, 12, 'batch', 'CERT/batch-linked')],
+        }),
+      ]);
+
+      await menu('Jenkinsfile for several services', `More actions of the ${label} pipeline`);
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened().data['subtitle']).toContain('One run builds gui, api;');
+    });
 
     it('replaces the key once confirmed and reveals the new one', async () => {
       await load();
