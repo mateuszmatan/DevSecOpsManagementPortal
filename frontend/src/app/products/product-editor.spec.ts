@@ -641,6 +641,22 @@ describe('ProductEditor', () => {
     );
   });
 
+  it('names Build for a stored service whose Node.js build gives the installation and its home', async () => {
+    const both = service({
+      nodeBuild: nodeBuild({
+        enabled: true,
+        installationName: 'NodeJS-20',
+        nodePath: '/opt/node-20',
+      }),
+    });
+    await edit([both, anotherService()]);
+
+    expect(text(panels()[0].querySelector('.tag.error'))).toBe('Needs attention');
+    expect(text(page().querySelector('.blocked'))).toBe(
+      'Complete these services before adding another: gui (Build).',
+    );
+  });
+
   it('copies the values of the service chosen in the menu, except those that identify it', async () => {
     await edit([
       service(),
