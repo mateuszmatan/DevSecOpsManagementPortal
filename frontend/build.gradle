@@ -77,6 +77,8 @@ tasks.register('testAngular', Exec) {
     group = 'verification'
     description = 'Run the Angular unit tests (Vitest on jsdom) with coverage'
     inputs.files(sources).withPathSensitivity(PathSensitivity.RELATIVE)
+    // documentation.spec.ts checks that the user guide names every config.yaml key chip of the forms
+    inputs.file(rootProject.file('docs/documentation.md')).withPathSensitivity(PathSensitivity.RELATIVE)
     commandLine = npxCmd + ['ng', 'test', '--watch=false', '--coverage']
     outputs.dir('coverage')
 }
