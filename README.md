@@ -5,12 +5,16 @@ doing, and serves the configuration the Jenkins shared library [DSOEnhanced](htt
 reads for every build. It is one Spring Boot service (Java 21, Spring Boot 4) with the Angular GUI inside, packaged as
 one jar and one container image.
 
+This README is for developers. The people who use the portal read the
+[user and administrator guide](docs/documentation.md), also published as the page `docs/documentation.html`.
+
 | Folder | Holds |
 |--------|-------|
 | `backend/` | the service: REST API, domain, use cases, persistence (Liquibase), InfluxDB and Grafana adapters, Dockerfile |
 | `frontend/` | the Angular GUI with the BBH Design System v6 (`@v6/v6-themes`, `@v6/v6-table`, `@v6/v6-icons`) |
 | `deploy/openshift/` | Kustomize manifests with `rd`, `qc` and `prod` overlays, and [how to run the image](deploy/openshift/README.md) |
 | `examples/` | Jenkinsfiles, REST calls and a rendered configuration, see [examples/README.md](examples/README.md) |
+| `docs/` | the user and administrator guide in Markdown and the HTML page the build renders from it |
 
 ## Build and tests
 
@@ -27,7 +31,8 @@ It needs Java 21, and Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.
 | `./gradlew :frontend:test` | Angular unit tests (Vitest), fails below 60% of lines | 45 s |
 | `./gradlew regressionTest` | the API end to end on H2, and the GUI journeys in Chromium against a stub API | 1 min 20 s |
 | `./gradlew smokeTest performanceTest` | start-up, health and every page; p95 latencies of the key calls | 55 s |
-| `./gradlew build` | the jar and every suite above | 3 min 40 s from clean |
+| `./gradlew documentation` | renders `docs/documentation.md` to `docs/documentation.html` | seconds |
+| `./gradlew build` | the jar and every suite above, and `checkDocumentation` | 3 min 40 s from clean |
 
 Tests are Groovy and Spock; the Angular unit tests stay in Vitest. Smoke and performance tests cover the key functions
 only, regression the most important journeys. The GUI suites run in Chromium, which Playwright downloads once through
@@ -36,6 +41,12 @@ download. `-Dfrontend.screenshots=true` saves a screenshot of every GUI test und
 `-PskipGui` builds the service without its GUI for API work, and `-Dperformance.factor=3` relaxes the performance limits
 further on a slow machine (the default is 2). `./gradlew smokeTest -Dsmoke.baseUrl=https://...` runs the backend and GUI
 smoke tests against a deployed portal.
+
+The guide is rendered by plain Groovy in `gradle/documentation.gradle`, with no plugin and no download, so it works
+offline on Windows too. `checkDocumentation`, part of `check`, fails when `docs/documentation.html` is not the page
+the Markdown renders to, or when a link names a heading or a file that does not exist: run `./gradlew documentation`
+and commit both files. The Vitest spec `frontend/src/app/documentation.spec.ts` fails when a field shows a
+`config.yaml` key chip that the guide does not name, so a new field needs a line in chapter 16 of the guide.
 
 ## Running locally
 

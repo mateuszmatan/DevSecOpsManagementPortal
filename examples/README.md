@@ -18,7 +18,7 @@ product page, or from `api/pipeline-key.sh`.
 | [jenkins/multi-service/payhub-full.Jenkinsfile](jenkins/multi-service/payhub-full.Jenkinsfile) | one full run that builds every Payments Hub service, `gateway` first |
 | [api/list-departments.sh](api/list-departments.sh) | the departments (Business Services in the GUI) with their product, service and pipeline counts |
 | [api/list-products.sh](api/list-products.sh) | the products, optionally filtered by a search text |
-| [api/create-product.sh](api/create-product.sh) with [api/new-product.json](api/new-product.json) | a new product with two services, as the Self-service wizard creates it |
+| [api/create-product.sh](api/create-product.sh) with [api/new-product.json](api/new-product.json) | a new product with two services, as the Self-service wizard creates it, one of them with a Node.js frontend build |
 | [api/product-pipelines.sh](api/product-pipelines.sh) | the services of a product with their pipelines and active keys |
 | [api/pipeline-key.sh](api/pipeline-key.sh) | the active key of one pipeline, found by product code, service and type |
 | [api/rotate-key.sh](api/rotate-key.sh) | a new key for a pipeline |
@@ -91,11 +91,15 @@ examples/api/dso-config.sh "$KEY"
   `new-product.json` and posts that to `POST /api/products?pipelineType=FULL`, as the Self-service wizard does after the
   choice of a full pipeline. The body is the product Trade Archive with `archive-api`, a Maven build on OpenShift with
   the RD and QC targets the wizard derives from the OpenShift project `cus-archive`, and `archive-gui`, a Gradle build
-  that the UrbanCode Deploy application `TRADEARCHIVE-GUI` deploys to virtual machines. It carries the values the
-  wizard fills in; the fields the wizard sends empty (`null`, `[]` or their defaults) are left out, which the API reads
-  the same way. Each service signs in to AppScan with its own key ID (`appScan.keyId`), and each gets a full pipeline
-  with an active key that runs on the Jenkins agents named in `agentLabels`. A second run answers 409, because the
-  product code is taken.
+  that the UrbanCode Deploy application `TRADEARCHIVE-GUI` deploys to virtual machines. `archive-gui` builds its
+  frontend in the folder `frontend` with Node.js before Gradle (`nodeBuild`, stage 0, with the default commands
+  `npm ci` and `npm run build`) and lists its version catalog `gradle/libs.versions.toml` in `versionCatalogs`.
+  GoldenFix finds that file by itself; listing it adds a run note when the file moves. The body carries the values the
+  wizard fills in, including the Bitbucket repository, its credentials ID and the Nexus IQ application that the
+  service template derives from the service name. The fields the wizard sends empty (`null`, `[]` or their defaults)
+  are left out, which the API reads the same way. Each service signs in to AppScan with its own key ID
+  (`appScan.keyId`), and each gets a full pipeline with an active key that runs on the Jenkins agents named in
+  `agentLabels`. A second run answers 409, because the product code is taken.
 - `product-pipelines.sh PRODUCT_ID` calls `GET /api/products/{id}/pipelines` and shows each pipeline's ID, type,
   entry point, Jenkins job and active key.
 - `pipeline-key.sh CODE SERVICE [TYPE]` finds the product by its code and prints the active key of the service's
@@ -127,8 +131,14 @@ from a portal that held that product. The JSON is the same document as the YAML,
 The document has four parts: `pipeline` (type, entry point, product, the service in `projectNames` and the agent
 labels), `platform` and `defaults` (from the library defaults) and `projects.gateway` (the service's build, scans, tests,
 OpenShift targets, Bitbucket repository and InfluxDB tags). It names Jenkins credentials IDs, never their secrets.
+`defaults.build.node` holds the Node.js installation and npm registry of the library defaults. `gateway` builds its
+`console` frontend with Node.js first (`build.node`, rendered only while it is switched on), names its AppScan scan
+(`sast.scanName`) and the credential of its SonarQube badges (`tools.sonar.badgeCredentialsId`), and lists the shared
+BOM `bom/pom.xml` in `goldenFix.versionCatalogs`. Its build is delivered to Nexus, so the document has no
+`deploy.openshift.rd.nexusDeliveryEnabled`; a service that is not delivered renders it as `false`.
 `platform.jenkinsUrl` is the Jenkins URL of the library defaults. Run `api/dso-config.sh` to see the configuration
-of the portal you run.
+of the portal you run. The [user and administrator guide](../docs/documentation.md#16-field-reference-from-the-portal-to-configyaml)
+lists every key with the field that sets it.
 
 ## Screenshots
 
