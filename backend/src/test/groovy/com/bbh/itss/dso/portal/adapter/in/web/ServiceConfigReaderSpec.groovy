@@ -21,6 +21,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.SELF_REFER
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.SECRET
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.GLOBAL
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.LONG_PATHS
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.MAX_PROJECTS
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NODE_WITH_FLUTTER
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NO_PROJECT
@@ -193,6 +194,26 @@ class ServiceConfigReaderSpec extends Specification {
         '[./platform/pom.xml, gradle//deps.toml]'      || ['platform/pom.xml', 'gradle/deps.toml'] | null
         '[gradle/libs.versions.toml, platform/bom/]'   || []                                       | 'platform/bom/'
         './'                                           || []                                       | './'
+    }
+
+    def "coverage reports are imported one per line and a list longer than the portal keeps is left out with a note: #reports"() {
+        when:
+        def service = imported("""
+            appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+            coverage:
+              reportPath: ${reports}
+            """.stripIndent()).services()[0]
+
+        then:
+        service.notes() == (kept ? [] : [problem('coverage.reportPath', LONG_PATHS)])
+        service.service().unitTests()?.coverageReportPath() == kept
+
+        where:
+        reports                                                || kept
+        'build/jacoco.xml'                                     || 'build/jacoco.xml'
+        'a/jacoco.xml, web/coverage/lcov.info'                 || 'a/jacoco.xml, web/coverage/lcov.info'
+        "['**/build/reports/jacoco/test/*.xml', web/lcov.info]" || '**/build/reports/jacoco/test/*.xml\nweb/lcov.info'
+        "[${(1..20).collect { "module-${it}/build/reports/jacoco/test/jacocoTestReport.xml" }.join(', ')}]" || null
     }
 
     def "a Flutter config that enables the Node.js build imports it switched off with a note"() {
