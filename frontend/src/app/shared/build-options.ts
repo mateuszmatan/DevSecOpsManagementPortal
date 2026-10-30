@@ -15,6 +15,13 @@ export const TOOL_LABELS: Record<BuildTool, string> = {
   FLUTTER: 'Flutter',
 };
 
+/** How to tell the build tool of a service from its code. */
+export const TOOL_HINTS: Record<BuildTool, string> = {
+  GRADLE: 'The code has a build.gradle file',
+  MAVEN: 'The code has a pom.xml file',
+  FLUTTER: 'The code has a pubspec.yaml file',
+};
+
 export const TARGET_LABELS: Record<DeployTarget, string> = {
   VM: 'Virtual machine',
   OPENSHIFT: 'OpenShift',

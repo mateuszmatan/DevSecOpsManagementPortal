@@ -213,11 +213,39 @@ describe('ServiceFields', () => {
   describe('Build', () => {
     const field = (label: string) => fieldOf(pane(), label)!;
 
-    it('asks for the JDK of a Flutter build and turns automatic setup off', async () => {
+    it('starts with the build tool and how to tell it from the code, and ends with Node.js', async () => {
       await render(service({ build: { ...service().build, autoSetup: true, javaPath: null } }));
       await open('Build');
+      const shown = () =>
+        [...pane().querySelectorAll('dso-form-field dso-label, dso-checkbox label, h4')]
+          .filter((label) => !label.closest('dso-advanced-settings'))
+          .map((label) => text(label).replace(/ \(\S+\)$/, ''));
+
+      expect(shown()).toEqual([
+        'Build tool',
+        'Gradle tasks',
+        'Artifact path',
+        'Set up the build tool automatically',
+        'Node.js build (stage 0)',
+        'Build the frontend with Node.js first',
+      ]);
+      expect(hints()[0]).toBe('The code has a build.gradle file · buildTool');
+
+      form.controls.build.controls.tool.setValue('MAVEN');
+      await fixture.whenStable();
+
+      expect(hints()[0]).toBe('The code has a pom.xml file · buildTool');
+    });
+
+    it('asks for the JDK path without automatic setup and always for a Flutter build', async () => {
+      await render(service({ build: { ...service().build, autoSetup: true, javaPath: null } }));
+      await open('Build');
+      expect(fieldOf(pane(), 'JDK path')).toBeNull();
+
+      checkboxOf(pane(), 'Set up the build tool automatically').click();
+      await fixture.whenStable();
       expect(field('JDK path').textContent).toContain(
-        'unless the build tool is set up automatically',
+        'JAVA_HOME of the Gradle or Maven build and the later stages',
       );
 
       form.controls.build.controls.tool.setValue('FLUTTER');

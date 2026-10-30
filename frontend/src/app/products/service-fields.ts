@@ -35,7 +35,7 @@ import {
 } from '@common/shared/form-controls';
 import { DsoHelp } from '@common/ui/help';
 import { TOGGLES } from '@common/ui/toggle-group';
-import { GRADLE_MAVEN_FLUTTER } from '../shared/build-options';
+import { GRADLE_MAVEN_FLUTTER, TOOL_HINTS } from '../shared/build-options';
 import { AdvancedSettings } from './advanced-settings';
 import { GoldenFixFields } from './golden-fix-fields';
 import { MissingField } from './missing-fields';
@@ -577,7 +577,7 @@ export class ServiceFields {
     ];
     const groups: (readonly [AbstractControl, readonly Field[]])[] = [
       [form, [...GENERAL, ...VERSION_CATALOGS]],
-      [c.build, [...this.buildFields(), ...this.buildOptions()]],
+      [c.build, [...this.buildTool(), ...this.buildFields(), ...this.buildOptions()]],
       [c.nodeBuild, [...this.nodeSwitch(), ...this.nodeFields(), ...this.nodeOptions()]],
       [c.unitTests, [...this.unitTestFields(), ...UNIT_TEST_OPTIONS]],
       [c.deployment, this.deploymentFields()],
@@ -639,24 +639,19 @@ export class ServiceFields {
       : 'Source folder and build command options';
   }
 
-  protected buildFields(): Field[] {
-    const maven = this.tool() === 'MAVEN';
+  protected buildTool(): Field[] {
     return [
-      choice('tool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 3, {
+      choice('tool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 6, {
+        hint: TOOL_HINTS[this.tool()],
         help: 'The tool that builds the service. It decides which commands, test reports and artifacts the pipeline expects.',
       }),
-      mono('javaPath', 'JDK path', 'javaPath', 9, {
-        placeholder: '/usr/lib/jvm/java-17-openjdk',
-        hint: this.flutter()
-          ? 'must be set for Flutter builds'
-          : 'JAVA_HOME of the Gradle or Maven build and the later stages, unless the build tool is set up automatically',
-        help: this.flutter()
-          ? 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.'
-          : 'The absolute path of a JDK installed on the Jenkins agent.',
-      }),
-      check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 12, {
-        help: 'Gradle and Maven builds: reads the Java version from pom.xml or the Gradle build file and selects a JDK of that version installed on the agent, instead of the JDK path.',
-      }),
+    ];
+  }
+
+  protected buildFields(): Field[] {
+    const maven = this.tool() === 'MAVEN';
+    const c = this.form().controls.build.controls;
+    return [
       mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
         placeholder: maven ? 'target/*.jar' : 'build/libs/*.jar',
         hint:
@@ -666,6 +661,22 @@ export class ServiceFields {
         help: 'A path or wildcard pattern relative to the workspace; the first matching file is used. On OpenShift only its folder counts: the image build takes the artifact from there.',
         error: SHELL_SAFE_ERROR,
       }),
+      check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 6, {
+        help: 'Gradle and Maven builds: reads the Java version from pom.xml or the Gradle build file and selects a JDK of that version installed on the agent, instead of the JDK path.',
+      }),
+      ...(c.autoSetup.value
+        ? []
+        : [
+            mono('javaPath', 'JDK path', 'javaPath', 12, {
+              placeholder: '/usr/lib/jvm/java-17-openjdk',
+              hint: this.flutter()
+                ? 'must be set for Flutter builds'
+                : 'JAVA_HOME of the Gradle or Maven build and the later stages',
+              help: this.flutter()
+                ? 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.'
+                : 'The absolute path of a JDK installed on the Jenkins agent.',
+            }),
+          ]),
     ];
   }
 

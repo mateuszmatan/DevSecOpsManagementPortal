@@ -25,6 +25,7 @@ import {
   nexusIqApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
+import { TOOL_LABELS } from '../shared/build-options';
 import { Choice } from '../shared/choice-tiles';
 import { buildDefaults, imageRepository } from '../shared/service-template';
 import { FieldProblem } from '@common/core/models';
@@ -61,18 +62,8 @@ export const PIPELINES: readonly PipelineChoice[] = [
   },
 ];
 
-export const TOOLS: readonly Choice<BuildTool>[] = [
-  { value: 'GRADLE', label: 'Gradle', description: 'The code has a build.gradle file' },
-  { value: 'MAVEN', label: 'Maven', description: 'The code has a pom.xml file' },
-];
-
-const TOOL_NAMES: readonly Choice<BuildTool>[] = [
-  ...TOOLS,
-  { value: 'FLUTTER', label: 'Flutter', description: 'The code has a pubspec.yaml file' },
-];
-
 export function toolName(tool: BuildTool): string {
-  return labelOf(TOOL_NAMES, tool);
+  return TOOL_LABELS[tool];
 }
 
 export const TARGETS: readonly Choice<DeployTarget>[] = [

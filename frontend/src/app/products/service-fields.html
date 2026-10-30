@@ -34,7 +34,7 @@
       @case ('build') {
         @let node = f.controls.nodeBuild;
         <div class="form-fields">
-          <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
+          <dso-fields [group]="f.controls.build" [fields]="buildTool()" />
           @if (flutter()) {
             <p class="note span-12">
               A Flutter build runs no Gradle or Maven command and needs the JDK path, since
@@ -50,6 +50,9 @@
               gradleExample="clean build"
               mavenExample="clean verify"
             />
+          }
+          <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
+          @if (!flutter()) {
             <h4 class="sub-heading span-12">Node.js build (stage 0)</h4>
             <dso-fields [group]="node" [fields]="nodeSwitch()" />
             @if (buildsNode()) {
