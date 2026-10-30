@@ -97,8 +97,12 @@ Every service signs in to AppScan with its own API key ID (`asoc.keyId`) and, op
 holds its secret (`asoc.token`); without that credential the library takes the key ID as the credential's ID. A
 service scans one Nexus IQ application. A service whose build is not delivered to Nexus renders
 `deploy.<vm|openshift>.rd.nexusDeliveryEnabled: false`, and the forms then ask for none of the delivery settings. A
-product saved with `agentLabels` runs the pipelines that save creates on those Jenkins agents instead of the service
-template's.
+service may run a Node.js build as stage 0, before its Gradle or Maven build: `build.node` is rendered only while it is
+enabled, which Flutter refuses, and the Global Settings may give every service a Node.js installation, npm registry and
+`.npmrc` credentials ID under `defaults.build.node`. `goldenFix.versionCatalogs` lists the shared version catalogs
+GoldenFix raises once for every service of a repository; it is the service's own list, outside the inherited GoldenFix
+policy. A product saved with `agentLabels` runs the pipelines that save creates on those Jenkins agents instead of the
+service template's.
 
 ## Importing a service from a config file
 
@@ -106,11 +110,13 @@ template's.
 returns one service form per project with notes on what it did not take over: settings the portal has no field for,
 global and pipeline settings, and secrets such as `asoc.keySecret`, `influx.token` or a test job's `token`, which are
 never echoed. A value equal to the global settings or to a Library default the service inherits (`tests.maxParallel`,
-the GoldenFix policy) comes back empty, so the service keeps inheriting it. `nexusDeliveryEnabled` is read only from
-the section of the service's own deploy target. The file may hold at most 262,144 characters and 50 projects. A
-malformed file is refused with the line and column of the problem, never with its text; so is a file that names no
-project setting (a `docker-compose.yml`, for example) or holds an alias inside the value it refers to. The call stores
-nothing, so the action history does not record it.
+the GoldenFix policy, the Node.js installation and npm settings) comes back empty, so the service keeps inheriting it;
+so do the library's own Node.js defaults (`npm ci` then `npm run build`, 30 minutes, the Nexus IQ scan of
+`package-lock.json`). `build.node` without `enabled: true`, or in a Flutter project, comes back switched off with its
+values. `nexusDeliveryEnabled` is read only from the section of the service's own deploy target. The file may hold at
+most 262,144 characters and 50 projects. A malformed file is refused with the line and column of the problem, never
+with its text; so is a file that names no project setting (a `docker-compose.yml`, for example) or holds an alias
+inside the value it refers to. The call stores nothing, so the action history does not record it.
 
 ## Architecture
 
@@ -135,6 +141,9 @@ with who, what, when and the result, and shown under Action history.
 - Changeset 031 moves the AppScan key ID and secret credentials ID of each product to its services. A product without
   services loses both, and a rollback cannot restore them: record them before the upgrade and enter them on the
   product's first service afterwards.
+- Changeset 032 adds the Node.js build and the shared version catalogs to `DSO_SERVICE` and the Node.js Library
+  defaults to `DSO_GLOBAL_SETTINGS`. Every service starts with the Node.js build off and no catalogs, so the
+  configurations stay as they were; a rollback drops the columns with whatever they hold.
 
 ## Known gaps
 

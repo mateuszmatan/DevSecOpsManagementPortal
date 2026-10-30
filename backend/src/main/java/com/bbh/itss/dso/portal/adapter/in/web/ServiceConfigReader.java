@@ -33,6 +33,7 @@ import java.util.stream.Stream;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.invalid;
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
@@ -47,15 +48,17 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 /**
  * Reads a config.yaml, a rendered product or pipeline config, or their JSON form into new service forms: the inverse of
  * the services' writeTo, as a table from config keys to request fields. A value the portal writes into every project
- * from the global settings, or one equal to the Library default the project inherits (tests.maxParallel, GoldenFix),
- * comes back unset, so the service keeps inheriting it. A value the portal cannot hold becomes a note, not an error,
- * so a partial import still fills the form.
+ * from the global settings, or one equal to the Library default the project inherits (tests.maxParallel, GoldenFix,
+ * the Node.js installation and npm settings) or to the library's own default of a Node.js build setting, comes back
+ * unset, so the service keeps inheriting it. A value the portal cannot hold becomes a note, not an error, so a partial
+ * import still fills the form.
  */
 final class ServiceConfigReader {
 
     static final String GLOBAL = "not imported: a global setting, the same for every service";
     static final String PIPELINE = "not imported: a pipeline setting, chosen when the pipeline is created";
     static final String RUN_TIME = "check: a run that builds the image replaces it";
+    static final String NODE_WITH_FLUTTER = "check: the Node.js build is not used with Flutter";
     static final String NO_PROJECT = "found no project: expected a projects map or the settings of one project";
     static final int MAX_PROJECTS = 50;
 
@@ -152,6 +155,9 @@ final class ServiceConfigReader {
         global.deployment().fillIn(inherited, VM);
         global.goldenFix().writeTo(inherited);
         inherited.set("tests.maxParallel", global.serviceDefaults().testsMaxParallel());
+        global.serviceDefaults().writeNodeTo(inherited);
+        inherited.set("build.node.commands", List.of("npm ci", "npm run build")).set("build.node.timeoutMin", 30)
+                .set("build.node.nexusIqScan", true);
         this.inherited = inherited.toMap();
     }
 
@@ -210,6 +216,10 @@ final class ServiceConfigReader {
         BuildTool tool = BuildTool.valueOf(String.valueOf(request.get("build.tool")));
         DeployTarget target = DeployTarget.valueOf(String.valueOf(request.get("deployment.target")));
         read(project, PROJECT, request);
+        if (tool == FLUTTER && Boolean.TRUE.equals(request.get("nodeBuild.enabled"))) {
+            request.set("nodeBuild.enabled", false);
+            project.note("build.node.enabled", NODE_WITH_FLUTTER);
+        }
         readCommands(project, tool, request);
         readDelivery(project, target, request);
         request.set("testJobs", testJobs(project))
@@ -382,6 +392,10 @@ final class ServiceConfigReader {
                 rule("tools.sonar.sonarScannerVersion", "flutter.sonarScannerVersion", TEXT),
                 rule("tools.sonar.flutterPlugin", "flutter.sonarFlutterPlugin", FLAG)));
         rules.addAll(prefixed("", "deployment.", same(TEXT, "appName", "artifactName", "baseArtifactName")));
+        rules.addAll(prefixed("build.node.", "nodeBuild.", concat(same(FLAG, "enabled", "nexusIqScan"),
+                same(TEXT, "installationName", "nodePath", "registry", "npmrcCredentialsId"),
+                List.of(rule("dir", "directory", TEXT), rule("commands", "commands", LIST),
+                        rule("env", "environment", ENV), rule("timeoutMin", "timeoutMinutes", NUMBER)))));
         rules.addAll(prefixed("asoc.", "appScan.", same(FLAG, "sourceCodeOnly", "insecureTls")));
         rules.addAll(prefixed("tests.unitTests.", "unitTests.", concat(same(TEXT, "rootDir", "reportOutDir"),
                 same(FLAG, "allowEmptyResults"))));
@@ -394,6 +408,7 @@ final class ServiceConfigReader {
         rules.addAll(prefixed("goldenFix.", "goldenFix.", concat(same(FLAG, "enabled", "onlyDirectDependencies"),
                 same(LIST, "ecosystems", "goldenVersionTypes", "excludeDirs"),
                 same(TEXT, "commitAuthorName", "commitAuthorEmail", "timeZone"))));
+        rules.add(rule("goldenFix.versionCatalogs", "versionCatalogs", LIST));
         for (String tool : List.of("maven", "gradle", "npm", "pip", "pub")) {
             rules.add(rule("goldenFix.verify.commands." + tool, "goldenFix.verify" + capitalize(tool) + "Command",
                     TEXT));

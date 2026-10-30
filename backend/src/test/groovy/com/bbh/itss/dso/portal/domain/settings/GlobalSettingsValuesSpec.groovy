@@ -30,7 +30,7 @@ class GlobalSettingsValuesSpec extends Specification {
                 'scripts/deployment/version.properties')
         BBH.scans() == new ScanSettings(60, 120, 50, 30, 60, 60, 30, 30, true, 5)
         BBH.releaseGate() == new ReleaseGateSettings([SAST, SCA, NEXUS_IQ, DAST], true, 'release-gate.json')
-        BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20)
+        BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20, null, null, null)
         BBH.goldenFix() == GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true).minThreatLevel(2)
                 .ecosystems(['maven', 'npm', 'pypi'])
                 .goldenVersionTypes(['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'])
@@ -141,6 +141,17 @@ class GlobalSettingsValuesSpec extends Specification {
                                goldenVersionTypes: ['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'],
                                verify: [enabled: true, maxAttempts: 3, timeoutMinutes: 20],
                                commitAuthorName: 'DevSecOps GoldenFix', commitAuthorEmail: 'devsecops-goldenfix@noreply.local']
+    }
+
+    def "the Node.js Library defaults follow the source root and are left out while none is set"() {
+        when:
+        def defaults = copy(BBH, serviceDefaults: copy(BBH.serviceDefaults(), nodeInstallationName: 'NodeJS-20',
+                npmRegistry: 'https://nexus.bbh.com/repository/npm-group/')).defaultsConfig()
+
+        then:
+        (defaults.keySet() as List).take(4) == ['buildTool', 'deployTarget', 'sourceDir', 'build']
+        defaults.build == [node: [installationName: 'NodeJS-20', registry: 'https://nexus.bbh.com/repository/npm-group/']]
+        !BBH.defaultsConfig().containsKey('build')
     }
 
     def "the global GoldenFix policy runs GoldenFix unless it says otherwise and each scanner's limits get their section"() {

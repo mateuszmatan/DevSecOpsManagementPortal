@@ -28,6 +28,11 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
     @Autowired
     GlobalSettingsPersistenceAdapter settings
 
+    @Override
+    protected String changelogFile() {
+        'db/changelog/global-settings-history.yaml'
+    }
+
     def "023 resets a renamed release gate state file and 024 drops the SCA settings in the run that upgrades the database"() {
         given:
         jdbc.execute('DROP ALL OBJECTS')

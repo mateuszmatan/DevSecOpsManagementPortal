@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.domain.dsoconfig
 
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
+import com.bbh.itss.dso.portal.domain.catalog.NodeBuildSettings
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
 import com.bbh.itss.dso.portal.domain.catalog.Service
@@ -87,6 +88,26 @@ class DsoConfigBuilderSpec extends Specification {
         entry.tools.nexusIq.subMap(['serverUrl', 'credentialsId', 'application']) ==
                 [serverUrl: 'https://iq.cert.bbh.com', credentialsId: 'cert-iq', application: 'cert-gui']
         entry.deploy.vm.rd.nexusDeliveryEnabled == false
+    }
+
+    def "a service writes its Node.js build only when it is enabled and its shared version catalogs only when it lists them"() {
+        when:
+        Map full = builder.productConfig(product(services: [[id: 10L, name: 'gui', settings: fullSettings('gui')]]))
+                .projects.gui
+        Map off = builder.productConfig(product(services: [GUI + [nodeBuild: NodeBuildSettings.builder()
+                .directory('frontend').commands(['npm ci']).build()]])).projects.gui
+
+        then:
+        full.build.node == [enabled           : true, dir: 'app/frontend', commands: ['npm ci', 'npm run build:prod', 'npm ci'],
+                            nodePath          : '/opt/node-20',
+                            env               : [NODE_OPTIONS: '--max-old-space-size=4096', CI: 'true'],
+                            registry          : 'https://nexus.bbh.com/repository/npm-group/',
+                            npmrcCredentialsId: 'cert-gui-npmrc', timeoutMin: 45, nexusIqScan: false]
+        full.build.keySet() as List == ['buildPath', 'maven', 'node']
+        full.goldenFix.versionCatalogs == ['gradle/libs.versions.toml', 'platform/**/pom.xml']
+        off == builder.productConfig(certScanner).projects.gui
+        !off.build.containsKey('node')
+        !off.containsKey('goldenFix')
     }
 
     def "the global deployment defaults fill in what a VM deployment leaves out"() {

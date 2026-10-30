@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.adapter.in.web.ConfigImportResponse.ImportedPipel
 import com.bbh.itss.dso.portal.adapter.in.web.ConfigImportResponse.ImportedService
 import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.MetricsSettingsDto
 import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.NexusIqApplicationDto
+import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.NodeBuildSettingsDto
 import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.SshTargetDto
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings
 import com.bbh.itss.dso.portal.domain.dsoconfig.DsoConfigBuilder
@@ -21,6 +22,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.SECRET
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.GLOBAL
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.MAX_PROJECTS
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NODE_WITH_FLUTTER
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NO_PROJECT
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.PIPELINE
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.RUN_TIME
@@ -43,6 +45,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.fullCommand
@@ -120,6 +123,73 @@ class ServiceConfigReaderSpec extends Specification {
             [enabled(), onlyDirectDependencies(), verifyMaxAttempts()] == [null, null, null]
             [minThreatLevel(), verifyTimeoutMinutes()] == [7, 45]
         }
+    }
+
+    def "Node.js build values equal to the Library defaults or to the library's own defaults come back empty"() {
+        given:
+        global = globalSettings { copy(it, serviceDefaults: copy(it.serviceDefaults(), nodeInstallationName: 'NodeJS-20',
+                npmRegistry: 'https://nexus.bbh.com/repository/npm-group/')) }
+        reader = new ServiceConfigReader(global, json)
+
+        when:
+        def service = imported('''
+            appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+            build:
+              node:
+                enabled: true
+                commands: [npm ci, npm run build]
+                installationName: NodeJS-20
+                registry: https://nexus.bbh.com/repository/npm-group/
+                npmrcCredentialsId: cert-npmrc
+                timeoutMin: 30
+                nexusIqScan: true
+            '''.stripIndent()).services()[0]
+
+        then:
+        service.notes() == []
+        service.service().nodeBuild() ==
+                new NodeBuildSettingsDto(true, null, [], null, null, [], null, 'cert-npmrc', null, null)
+    }
+
+    def "Node.js build keys without enabled: true come back as a build that is switched off and keeps its values"() {
+        when:
+        def service = imported('''
+            appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+            build:
+              node:
+                dir: frontend
+                commands: npm run build:prod
+                env:
+                  CI: true
+                timeoutMin: 45
+                nexusIqScan: false
+            goldenFix:
+              versionCatalogs: [gradle/libs.versions.toml, platform/pom.xml]
+            '''.stripIndent()).services()[0]
+
+        then:
+        service.notes() == []
+        service.service().nodeBuild() ==
+                new NodeBuildSettingsDto(false, 'frontend', ['npm run build:prod'], null, null, ['CI=true'], null, null, 45, false)
+        service.service().versionCatalogs() == ['gradle/libs.versions.toml', 'platform/pom.xml']
+        service.service().goldenFix().enabled() == null
+    }
+
+    def "a Flutter config that enables the Node.js build imports it switched off with a note"() {
+        when:
+        def service = imported('''
+            appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+            buildTool: flutter
+            build:
+              node:
+                enabled: true
+                dir: web
+            '''.stripIndent()).services()[0]
+
+        then:
+        service.notes() == [problem('build.node.enabled', NODE_WITH_FLUTTER)]
+        service.service().nodeBuild().enabled() == false
+        service.service().nodeBuild().directory() == 'web'
     }
 
     def "the delivery switch is read from the service's own deploy target and the other target's is left out"() {
@@ -405,7 +475,8 @@ class ServiceConfigReaderSpec extends Specification {
                         nexusDeliveryDisabled: nexusDeliveryDisabled),
                 openShiftTargets: MAVEN_VM.openShiftTargets(), appScan: MAVEN_VM.appScan(), sonar: MAVEN_VM.sonar(),
                 nexusIq: MAVEN_VM.nexusIq(), nexusIqApplications: MAVEN_VM.nexusIqApplications(), scm: MAVEN_VM.scm(),
-                goldenFix: MAVEN_VM.goldenFix(), metrics: MAVEN_VM.metrics())
+                goldenFix: MAVEN_VM.goldenFix(), metrics: MAVEN_VM.metrics(), nodeBuild: MAVEN_VM.nodeBuild(),
+                versionCatalogs: MAVEN_VM.versionCatalogs())
     }
 
     private Map rendered(ImportedService imported) {

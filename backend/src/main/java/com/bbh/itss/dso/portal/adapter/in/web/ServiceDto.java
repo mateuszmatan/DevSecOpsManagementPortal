@@ -15,6 +15,7 @@ import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy;
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings;
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication;
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings;
+import com.bbh.itss.dso.portal.domain.catalog.NodeBuildSettings;
 import com.bbh.itss.dso.portal.domain.catalog.OpenShiftTarget;
 import com.bbh.itss.dso.portal.domain.catalog.Region;
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings;
@@ -45,6 +46,12 @@ import lombok.Builder;
 import java.util.List;
 import java.util.Map;
 
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.ABSOLUTE_FOLDER;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.ABSOLUTE_FOLDER_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.COMMAND;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.COMMAND_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.ENVIRONMENT;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.ENVIRONMENT_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.FOLDER;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.FOLDER_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.GIT_URL;
@@ -56,6 +63,10 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.RELATIVE_FOLDER;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.RELATIVE_FOLDER_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
@@ -70,6 +81,7 @@ public record ServiceDto(
         String name,
         @Size(max = ServiceDraft.DESCRIPTION_MAX) String description,
         @NotNull @Valid BuildSettingsDto build,
+        @Valid NodeBuildSettingsDto nodeBuild,
         @Valid UnitTestSettingsDto unitTests,
         @Valid TestSettingsDto tests,
         @Size(max = 1000) List<@NotNull @Valid TestJobDto> testJobs,
@@ -85,6 +97,9 @@ public record ServiceDto(
         @Size(max = 1, message = ONE_APPLICATION) List<@NotNull @Valid NexusIqApplicationDto> nexusIqApplications,
         @Valid ScmSettingsDto scm,
         @Valid GoldenFixPolicyDto goldenFix,
+        @Size(max = 20)
+        List<@Size(min = 1, max = 300) @Pattern(regexp = REPOSITORY_PATH, message = REPOSITORY_PATH_MESSAGE) String>
+                versionCatalogs,
         @Valid MetricsSettingsDto metrics,
         @Valid FlutterSettingsDto flutter) {
 
@@ -163,10 +178,24 @@ public record ServiceDto(
             @Size(max = 500) String directory,
             @Size(max = 500) @Pattern(regexp = SHELL_SAFE, message = SHELL_SAFE_MESSAGE) String mavenHome,
             @Size(max = 30)
-            List<@Pattern(regexp = "^[A-Za-z_][A-Za-z0-9_+]*=.*$", message = "write each variable as NAME=value")
-                    @Size(max = 500) String> environment,
+            List<@Pattern(regexp = ENVIRONMENT, message = ENVIRONMENT_MESSAGE) @Size(max = 500) String> environment,
             @Size(max = 200) String label,
             Boolean returnStdout) implements Mirrors<ToolCommand> {
+    }
+
+    public record NodeBuildSettingsDto(
+            Boolean enabled,
+            @Size(max = 500) @Pattern(regexp = RELATIVE_FOLDER, message = RELATIVE_FOLDER_MESSAGE) String directory,
+            @Size(max = 20)
+            List<@Size(max = 500) @Pattern(regexp = COMMAND, message = COMMAND_MESSAGE) String> commands,
+            @Size(max = 200) String installationName,
+            @Size(max = 500) @Pattern(regexp = ABSOLUTE_FOLDER, message = ABSOLUTE_FOLDER_MESSAGE) String nodePath,
+            @Size(max = 30)
+            List<@Pattern(regexp = ENVIRONMENT, message = ENVIRONMENT_MESSAGE) @Size(max = 500) String> environment,
+            @Size(max = 500) @Pattern(regexp = URL, message = URL_MESSAGE) String registry,
+            @Size(max = 200) String npmrcCredentialsId,
+            @Min(1) @Max(240) Integer timeoutMinutes,
+            Boolean nexusIqScan) implements Mirrors<NodeBuildSettings> {
     }
 
     public record UrbanCodeSettingsDto(

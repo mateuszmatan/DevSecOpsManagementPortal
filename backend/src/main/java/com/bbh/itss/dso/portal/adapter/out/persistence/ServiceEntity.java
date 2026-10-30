@@ -139,6 +139,7 @@ public class ServiceEntity extends AuditedEntity {
     @Embeddable
     public record SettingsEmbeddable(
             BuildSettingsEmbeddable build,
+            @EmbeddedColumnNaming("NODE_%s") NodeBuildSettingsEmbeddable nodeBuild,
             UnitTestSettingsEmbeddable unitTests,
             TestSettingsEmbeddable tests,
             DeploymentSettingsEmbeddable deployment,
@@ -149,6 +150,7 @@ public class ServiceEntity extends AuditedEntity {
             NexusIqSettingsEmbeddable nexusIq,
             ScmSettingsEmbeddable scm,
             @EmbeddedColumnNaming("GOLDEN_FIX_%s") GoldenFixPolicyEmbeddable goldenFix,
+            @Column(name = "GOLDEN_FIX_VERSION_CATALOGS") List<String> versionCatalogs,
             MetricsSettingsEmbeddable metrics,
             @EmbeddedColumnNaming("FLUTTER_%s") FlutterSettingsEmbeddable flutter) {
     }
@@ -160,6 +162,13 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "BUILD_TOOL_AUTO_SETUP") Boolean autoSetup,
             String buildPath,
             @EmbeddedColumnNaming("BUILD_%s") ToolCommandEmbeddable command) {
+    }
+
+    @Embeddable
+    public record NodeBuildSettingsEmbeddable(Boolean enabled, String directory,
+            @Convert(converter = DelimitedListConverter.Tokens.class) List<String> commands, String installationName,
+            @Column(name = "PATH") String nodePath, List<String> environment, String registry,
+            String npmrcCredentialsId, Integer timeoutMinutes, Boolean nexusIqScan) {
     }
 
     @Embeddable
