@@ -758,6 +758,16 @@ describe('shared version catalogs', () => {
     expect(firstInvalidSection(form)).toBe('goldenFix');
     expect(firstInvalidSection(form, 'SAST')).toBeNull();
   });
+
+  it('are sent only while valid, so a hidden imported value cannot fail the save', () => {
+    const form = createServiceForm(service({ versionCatalogs: ['/shared/libs.versions.toml'] }));
+
+    expect(toServiceRequest(form).versionCatalogs).toEqual([]);
+
+    form.controls.versionCatalogs.setValue('shared/libs.versions.toml');
+
+    expect(toServiceRequest(form).versionCatalogs).toEqual(['shared/libs.versions.toml']);
+  });
 });
 
 describe('tool commands', () => {

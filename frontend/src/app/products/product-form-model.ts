@@ -1266,7 +1266,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       reviewers: words(v.scm.reviewers),
     },
     goldenFix: toServiceGoldenFixPolicy(v.goldenFix),
-    versionCatalogs: lines(v.versionCatalogs),
+    versionCatalogs: passesValidators(c.versionCatalogs) ? lines(v.versionCatalogs) : [],
     metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
   };
