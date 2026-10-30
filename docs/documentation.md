@@ -471,7 +471,7 @@ The library name comes from the Library defaults (`platform.jenkinsLibrary`). Co
 - `build.node` without `enabled: true` comes back switched off, with its values kept.
 - A Flutter file with `build.node.enabled: true` comes back switched off with the note "Check: the Node.js build is not used with Flutter".
 - `goldenFix.versionCatalogs` fills "Shared version catalogs".
-- In the admin editor, the imported service keeps what the file gives: an empty repository URL, Bitbucket credentials ID or Nexus IQ application stays empty. Once you change its name, the service template fills in an empty repository URL. It does not add a Nexus IQ application: that stays as the file gives it. In the Self-service dialog, the imported service follows its name like a new service: the service template fills in an empty repository URL and Nexus IQ application. In both, the Bitbucket credentials ID stays as the file gives it, even when it is empty. The notes do not list the values filled in, so check them in the Bitbucket and Nexus IQ sections.
+- In the admin editor, the imported service keeps what the file gives: an empty repository URL, Bitbucket credentials ID or Nexus IQ application stays empty, also when you change its name. So a service without a repository does not come to need a Bitbucket credentials ID. A new name only replaces the values that still hold what the service template gives for the old name, such as the repository URL, the Nexus IQ application and the OpenShift names, and on OpenShift it fills in an empty application name. In the Self-service dialog, the imported service follows its name like a new service: the service template fills in an empty repository URL and Nexus IQ application, and a repository URL filled in that way makes the Bitbucket credentials ID required. In both, the Bitbucket credentials ID stays as the file gives it, even when it is empty. The notes do not list the values filled in, so check them in the Bitbucket and Nexus IQ sections.
 - The Jenkins agents of the imported pipeline fill the Jenkins agents of the product while you have not changed them.
 - The file may hold at most 262,144 characters and 50 projects.
 
@@ -483,7 +483,7 @@ The library name comes from the Library defaults (`platform.jenkinsLibrary`). Co
 - The SonarQube project name and key, the monitoring project tag and the SAST scan name stay empty.
 - The OpenShift application name, the image repositories and the Nexus IQ application follow the name you type.
 
-A copy keeps the Bitbucket credentials ID of its source, even an empty one.
+A copy keeps the Bitbucket credentials ID of its source, even an empty one. In the admin editor, a copy also keeps an empty repository URL, so a copy of a service without a repository needs no credentials ID. In the Self-service dialog, the service template fills in an empty repository URL from the name, and a copy without a Bitbucket credentials ID then needs one.
 
 A new service in the Self-service wizard also takes the AppScan API key ID of another service of the product.
 

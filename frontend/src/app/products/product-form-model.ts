@@ -910,8 +910,9 @@ export function followToolDefaults(
 }
 
 const NEXUS_IQ_APPLICATION = 'nexusIqApplications.0.application';
+const REPOSITORY_URL = 'scm.repositoryUrl';
 const FILLED_FROM_NAME = [
-  'scm.repositoryUrl',
+  REPOSITORY_URL,
   'scm.credentialsId',
   'deployment.appName',
   NEXUS_IQ_APPLICATION,
@@ -927,7 +928,9 @@ interface Naming {
  * URL, Bitbucket credentials ID, application name or Nexus IQ application with its scan pattern, and replaces every value
  * that still holds what the previous name gave, such as the image repositories of a copy of the service named copiedFrom.
  * An imported service counts as named already and offered its Nexus IQ application, so it keeps what its file gives
- * until its name is changed. Without credentials, the name never fills or replaces the Bitbucket credentials ID.
+ * until its name is changed. Without credentials, the name never fills or replaces the Bitbucket credentials ID. Without
+ * fillsRepository, it leaves an empty repository URL empty and only replaces one that still holds what the previous name
+ * gave, so a service without a repository does not come to need a Bitbucket credentials ID.
  */
 export function followName(
   service: ServiceForm,
@@ -937,10 +940,12 @@ export function followName(
   copiedFrom = '',
   imported = false,
   credentials = true,
+  fillsRepository = true,
 ): void {
   const name = service.controls.name;
   const apps = service.controls.nexusIqApplications;
   const typed = name.valueChanges.pipe(startWith(name.value));
+  const filled = FILLED_FROM_NAME.filter((path) => fillsRepository || path !== REPOSITORY_URL);
   let named: Naming | null = null;
   let offered = imported || apps.length > 0;
   combineLatest([
@@ -953,13 +958,24 @@ export function followName(
       takeUntilDestroyed(destroyRef),
     )
     .subscribe((next) => {
-      rename(service, template, named ?? { ...next, name: copiedFrom }, next, offered, credentials);
+      rename(
+        service,
+        template,
+        named ?? { ...next, name: copiedFrom },
+        next,
+        offered,
+        credentials,
+        filled,
+      );
       named = next;
       offered ||= apps.length > 0;
     });
 }
 
-/** Renames the values the name gives; a Nexus IQ application is offered once, so one the user removed stays away. */
+/**
+ * Renames the values the name gives and fills those of the filled paths that are empty; a Nexus IQ application is offered
+ * once, so one the user removed stays away.
+ */
 function rename(
   service: ServiceForm,
   template: ServiceTemplateValues | null,
@@ -967,6 +983,7 @@ function rename(
   next: Naming,
   offered: boolean,
   credentials: boolean,
+  filled: readonly string[],
 ): void {
   const before = namedValues(service, template, previous, credentials);
   const after = namedValues(service, template, next, credentials);
@@ -984,11 +1001,7 @@ function rename(
   for (const [path, value] of Object.entries(after)) {
     const control = service.get(path);
     const current = String(control?.value ?? '').trim();
-    if (
-      control &&
-      value &&
-      (current === before[path] || (!current && FILLED_FROM_NAME.includes(path)))
-    ) {
+    if (control && value && (current === before[path] || (!current && filled.includes(path)))) {
       control.setValue(value);
     }
   }
@@ -1005,7 +1018,7 @@ function namedValues(
   }
   const named = namedDefaults({ template, productCode: code }, name);
   const values = {
-    'scm.repositoryUrl': named.repositoryUrl,
+    [REPOSITORY_URL]: named.repositoryUrl,
     ...(credentials && {
       'scm.credentialsId': named.repositoryUrl && (template?.bitbucketCredentialsId ?? ''),
     }),

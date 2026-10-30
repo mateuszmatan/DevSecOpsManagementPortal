@@ -472,8 +472,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   /**
    * Prefills a new service with the Library defaults and the AppScan key, its build with the tool's defaults and what
-   * the service template takes from its name; an imported one keeps what its file gives until it is renamed, and its
-   * Bitbucket credentials ID even then.
+   * the service template takes from its name; an imported one keeps what its file gives until it is renamed, and an
+   * empty repository URL and its Bitbucket credentials ID even then.
    */
   private prepared(service: ServiceForm, imported = false): ServiceForm {
     prefillNewService(
@@ -488,21 +488,31 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   }
 
   /**
-   * Lets a service follow its name. Without credentials, as for a copy or an import, the name never fills the Bitbucket
-   * credentials ID.
+   * Lets a service follow its name. Only a blank new service takes an empty repository URL and the Bitbucket credentials
+   * ID from it. A copy or an import keeps both as it brings them, even empty, and the name replaces its repository URL
+   * only while that holds what the previous name gave.
    */
   private followServiceName(
     service: ServiceForm,
     copiedFrom: string,
     imported: boolean,
-    credentials: boolean,
+    blank: boolean,
   ): void {
     const code = this.form.controls.code;
     const codes = code.valueChanges.pipe(
       startWith(null),
       map(() => code.value),
     );
-    followName(service, this.template(), codes, this.destroyRef, copiedFrom, imported, credentials);
+    followName(
+      service,
+      this.template(),
+      codes,
+      this.destroyRef,
+      copiedFrom,
+      imported,
+      blank,
+      blank,
+    );
   }
 
   private add(service: ServiceForm, index = this.form.controls.services.length): void {

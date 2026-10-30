@@ -717,7 +717,7 @@ describe('ProductEditor', () => {
     expect(editor()['expanded']()).toBe(0);
   });
 
-  it('imports a config.yaml as it is, and follows the service template only once the service is renamed', async () => {
+  it('imports a config.yaml as it is and keeps its empty repository, also once the service is renamed', async () => {
     await start();
     const legacy = {
       ...anotherService(),
@@ -743,12 +743,45 @@ describe('ProductEditor', () => {
     expect(imported.controls.scm.controls.credentialsId.value).toBe('');
 
     imported.controls.name.setValue('ledger');
+    await fixture.whenStable();
 
     expect(imported.controls.nexusIqApplications.length).toBe(0);
+    expect(imported.controls.scm.controls.repositoryUrl.value).toBe('');
+    expect(imported.controls.scm.controls.credentialsId.value).toBe('');
+    expect(imported.valid).toBe(true);
+    expect(page().querySelector('.blocked')).toBeNull();
+  });
+
+  it('gives a renamed import the repository of its new name only in place of the one its old name gave', async () => {
+    await start();
+    const legacy = {
+      ...anotherService(),
+      id: null,
+      name: 'legacy',
+      scm: {
+        ...anotherService().scm,
+        repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/pay-legacy',
+        credentialsId: 'legacy-credentials',
+      },
+    };
+
+    editor()['importService']({
+      file: 'config.yaml',
+      name: 'legacy',
+      service: legacy,
+      notes: [],
+      agentLabels: [],
+    });
+    editor()['form'].controls.code.setValue('PAY');
+    await fixture.whenStable();
+    const imported = editor()['form'].controls.services.at(0);
+
+    imported.controls.name.setValue('ledger');
+
     expect(imported.controls.scm.controls.repositoryUrl.value).toBe(
       'https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger',
     );
-    expect(imported.controls.scm.controls.credentialsId.value).toBe('');
+    expect(imported.controls.scm.controls.credentialsId.value).toBe('legacy-credentials');
   });
 
   it('offers the import in the empty list of services', async () => {
@@ -837,6 +870,25 @@ describe('ProductEditor', () => {
 
     expect(copy.controls.nexusIqApplications.at(0).controls.application.value).toBe('cert-ledger');
     expect(copy.controls.scm.controls.credentialsId.value).toBe('');
+  });
+
+  it('keeps the empty repository of a copied service, so the copy needs no Bitbucket credentials ID', async () => {
+    const gui = service({ scm: { ...service().scm, repositoryUrl: '', credentialsId: '' } });
+    await edit([gui, anotherService()]);
+
+    editor()['duplicate'](0);
+    await fixture.whenStable();
+    const copy = editor()['form'].controls.services.at(1);
+
+    expect(copy.controls.scm.controls.repositoryUrl.value).toBe('');
+
+    copy.controls.name.setValue('ledger');
+    await fixture.whenStable();
+
+    expect(copy.controls.scm.controls.repositoryUrl.value).toBe('');
+    expect(copy.controls.scm.controls.credentialsId.errors).toBeNull();
+    expect(copy.valid).toBe(true);
+    expect(page().querySelector('.blocked')).toBeNull();
   });
 
   it('puts a copy in place of the blank new service and lists only the other services to copy', async () => {
