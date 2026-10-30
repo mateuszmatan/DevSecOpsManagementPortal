@@ -1,6 +1,12 @@
 import { Pipeline } from '../core/models';
 import { pipeline } from '../testing/fixtures';
-import { byRepository, jenkinsfile, repositoryGroup, sharedJobReason } from './jenkinsfile';
+import {
+  byRepository,
+  jenkinsfile,
+  repositoryGroup,
+  sharedJobReason,
+  sharingWith,
+} from './jenkinsfile';
 
 describe('jenkinsfile', () => {
   it('loads the library the global settings name and passes the active key', () => {
@@ -104,6 +110,21 @@ describe('repositoryGroup', () => {
     expect(repositoryGroup(gui, [gui, api], repository)).toEqual([gui]);
     expect(repositoryGroup(renewed, [gui, api], repository)).toEqual([renewed, api]);
     expect(repositoryGroup(renewed, [], repository)).toEqual([renewed]);
+  });
+});
+
+describe('sharingWith', () => {
+  const repository = () => 'https://bitbucket.bbh.com/projects/CERT/repos/cert';
+  const api = pipeline({ id: 200, serviceId: 11, serviceName: 'api' });
+
+  it('gives the other pipelines of the Jenkinsfile of a pipeline, also while its key is invalidated', () => {
+    const gui = pipeline({ activeKey: null });
+    const separate = pipeline({ ...api, jenkinsJob: 'DevSecOps/CERT/api-full' });
+
+    expect(sharingWith(gui, [gui, api], repository)).toEqual([api]);
+    expect(sharingWith(pipeline(), [gui, { ...api, activeKey: null }], repository)).toEqual([]);
+    expect(sharingWith(gui, [gui, separate], repository)).toEqual([]);
+    expect(sharingWith(gui, [gui, api], () => null)).toEqual([]);
   });
 });
 

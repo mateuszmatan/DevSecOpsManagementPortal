@@ -75,6 +75,22 @@ export function repositoryGroup(
   )!;
 }
 
+/** The other active pipelines that share one Jenkinsfile with the given one, its key active or not. */
+export function sharingWith(
+  pipeline: Pipeline,
+  all: readonly Pipeline[],
+  repository: (pipeline: Pipeline) => string | null | undefined,
+): Pipeline[] {
+  const key = jobKey(repository(pipeline), pipeline);
+  return all.filter(
+    (other) =>
+      key &&
+      other.id !== pipeline.id &&
+      other.activeKey &&
+      jobKey(repository(other), other) === key,
+  );
+}
+
 /** Where Pipeline Monitoring shows the runs of a Jenkins job that several services share. */
 export function sharedRunsNote(firstService: string): string {
   return (

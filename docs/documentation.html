@@ -253,7 +253,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 </ol>
 <p>Add every service of the product in the same way. Under each service the list shows its build tool, the folder of its Node.js build and its repository. Use Change to correct a service and Remove to take it out. Click Next.</p>
 <h3 id="step-4-review">Step 4: Review</h3>
-<p>Check the product, the pipeline, the Jenkins agents and what happens to each service. A service that shares its repository with others says so: they get one Jenkinsfile and one Jenkins job. Check the repository URLs here, because a typo in one of them gives two Jenkinsfiles and two jobs. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.</p>
+<p>Check the product, the pipeline, the Jenkins agents and what happens to each service. Services of one repository that get the pipeline in this save say so: they get one Jenkinsfile and one Jenkins job. A service that has the pipeline already keeps its Jenkinsfile and Jenkins job. Check the repository URLs here, because a typo in one of them gives two Jenkinsfiles and two jobs. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.</p>
 <h3 id="step-5-next-steps">Step 5: Next steps</h3>
 <ol>
 <li>Copy the Jenkinsfile of each service into a file named <code>Jenkinsfile</code> in the top folder of the repository of the service. Merge it, or send it to a developer of the service.</li>
@@ -263,7 +263,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>For an OSA pipeline, ask a developer to review and merge the golden pull requests.</li>
 <li>Follow the results in Pipeline Monitoring.</li>
 </ol>
-<p>When two or more services share one Bitbucket repository and their pipelines run on the same Jenkins agents, the step shows one Jenkinsfile with all their keys, asks for one Jenkins job for each repository and says where Pipeline Monitoring shows the runs of that job. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</p>
+<p>When the pipelines of two or more services share one Bitbucket repository, their Jenkins agents and one Jenkins job, as the pipelines that one save starts for a repository do, the step shows one Jenkinsfile with all their keys, asks for one Jenkins job for each repository and says where Pipeline Monitoring shows the runs of that job. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</p>
 </div>
 
 <div class="section" id="5-add-a-service-in-the-admin-editor">
@@ -277,7 +277,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>Fill in the product fields: Owner team, Description and Contact e-mail are optional.</li>
 <li>Open the service panel (&quot;Edit settings&quot;) and fill in the service as in <a href="#step-3-services">step 3 of chapter 4</a>. A new service starts with &quot;Set up the build tool automatically&quot; on; a Flutter service starts with it off, because Flutter needs the JDK path. Typing its name fills in the repository URL, the Bitbucket credentials ID, the Nexus IQ application and its scan pattern from the service template.</li>
 <li>Every new service gets a Full pipeline. A service on virtual machines therefore needs an UrbanCode Deploy application for DV.</li>
-<li>Click &quot;Add product&quot;. Each service gets a Full pipeline with its own key. The product page opens with the notice &quot;Pipeline keys generated for ...&quot; and asks you to copy each key into the Jenkinsfile of its service; services that share a repository share one Jenkinsfile, shown below the notice. &quot;Show key&quot; and &quot;Copy key&quot; give a key at any time.</li>
+<li>Click &quot;Add product&quot;. Each service gets a Full pipeline with its own key. The product page opens with the notice &quot;Pipeline keys generated for ...&quot; and asks you to copy each key into the Jenkinsfile of its service; services whose pipelines share the Jenkins job of their repository share one Jenkinsfile, shown below the notice. &quot;Show key&quot; and &quot;Copy key&quot; give a key at any time.</li>
 </ol>
 <h3 id="a-service-of-an-existing-product">A service of an existing product</h3>
 <ol>
@@ -398,13 +398,13 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>A dependency that a BOM or a platform manages gets the reason <code>managed by BOM g:a:v imported in &lt;file&gt;: raise the BOM or add an override to the catalog</code>.</li>
 </ul>
 <h3 id="one-jenkins-job-for-each-repository">One Jenkins job for each repository</h3>
-<p>Services that share a repository and a catalog must run in one Jenkins job. One GoldenFix pull request then raises the shared catalog once. Two jobs of one repository that run in the same minute compute the same branch name, and the second job fails with <code>[GOLDENFIX] The branch &lt;branch&gt; already exists in &lt;repository&gt; - another GoldenFix job of this repository ran in the same minute; run one GoldenFix job for all services of a repository (pipelineKeys)</code>.</p>
-<p>The library takes the Jenkins agents of a run from the first key, so only pipelines that run on the same agents share a job. The portal helps you with this:</p>
+<p>Services that share a repository and a catalog should run in one Jenkins job. One GoldenFix pull request then covers the whole repository. Two jobs of one repository that run in the same minute compute the same branch name, and the second job fails with <code>[GOLDENFIX] The branch &lt;branch&gt; already exists in &lt;repository&gt; - another GoldenFix job of this repository ran in the same minute; run one GoldenFix job for all services of a repository (pipelineKeys)</code>.</p>
+<p>The library takes the Jenkins agents of a run from the first key, so only pipelines that run on the same agents share a job. The portal treats pipelines as one job when they have the same repository, pipeline type, Jenkins agents and Jenkins job:</p>
 <ul>
-<li>The product page shows a notice for each repository and pipeline type that several services share on the same agents. It names the services and offers &quot;Show the Jenkinsfile&quot;. The Jenkinsfile item of each of these pipelines and the pipeline page show the same combined Jenkinsfile.</li>
-<li>The Next steps of the Self-service wizard show one Jenkinsfile for the services of a repository and ask for one Jenkins job for each repository.</li>
-<li>A pipeline the portal starts for a service of such a repository gets the Jenkins job of the first pipeline of its type there, so every pipeline of the group links to the one job.</li>
-<li>The More menu of a pipeline offers &quot;Jenkinsfile for several services&quot; when other services have a pipeline of the same type on the same agents.</li>
+<li>The pipelines that one save starts for the services of a repository get one Jenkins job, the job of the first of them. A new pipeline joins a job that two or more pipelines of its type, repository and agents run in already. Otherwise it gets the job of the service template, so the services of a product that run in jobs of their own keep doing so.</li>
+<li>The product page shows a notice for each repository and pipeline type whose pipelines share one job. It names the services and offers &quot;Show the Jenkinsfile&quot;. The Jenkinsfile item of each of these pipelines and the pipeline page show the same combined Jenkinsfile. A pipeline with a job of its own keeps its own Jenkinsfile.</li>
+<li>The Next steps of the Self-service wizard show one Jenkinsfile for the services whose pipelines share a job and ask for one Jenkins job for each repository.</li>
+<li>To combine services that run in jobs of their own, give their pipelines the same Jenkins job with &quot;Edit pipeline settings&quot; and put the combined Jenkinsfile into the repository. The More menu of a pipeline offers it as &quot;Jenkinsfile for several services&quot; when other services have a pipeline of the same type. When their Jenkins agents differ, the dialog warns that the job runs every service on the agents of the first key.</li>
 </ul>
 <p>Pipeline Monitoring shows the runs of a shared job under the service of the first key: the library reports every run with the monitoring project tag of that service. To see the runs on the other services too, give them the same Project tag (Monitoring section) and the shared job as the Jenkins job of their pipelines. With a shared tag, the portal matches the runs to a pipeline by its Jenkins job, so each pipeline of the group then shows the runs of the shared job.</p>
 <p>The combined Jenkinsfile passes every key in <code>pipelineKeys</code>. The first key belongs to the primary service:</p>
@@ -476,12 +476,12 @@ devSecOpsNexusIqGoldenFixPipeline(<span class="k">pipelineKeys</span>: [
 <pre><code><span class="kw">@Library</span>(<span class="s">'DevSecOpsJenkinsLibrary'</span>) _
 
 devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipeline key&gt;'</span>)</code></pre>
-<p>The library name comes from the Library defaults (<code>platform.jenkinsLibrary</code>). Copy the Jenkinsfile from the pipeline page, from the product page or from the Next steps of the Self-service wizard. For a service that shares its repository, each of these shows the combined Jenkinsfile with the keys of all its services.</p>
+<p>The library name comes from the Library defaults (<code>platform.jenkinsLibrary</code>). Copy the Jenkinsfile from the pipeline page, from the product page or from the Next steps of the Self-service wizard. For a pipeline that shares the Jenkins job of its repository with other services, each of these shows the combined Jenkinsfile with the keys of all of them. When such a key is invalidated, the pipeline page asks you to replace the shared Jenkinsfile once the key is regenerated.</p>
 <h3 id="jenkins-jobs">Jenkins jobs</h3>
 <ul>
 <li>Each pipeline needs a Jenkins Pipeline job that reads the Jenkinsfile from the repository (Pipeline script from SCM).</li>
 <li>The service template names the job, for example <code>DevSecOps/{CODE}/{service}-{type}</code> gives <code>DevSecOps/PAYHUB/gateway-full</code>.</li>
-<li>Services that share a repository share one job and one Jenkinsfile with <code>pipelineKeys</code>. A pipeline the portal starts for such a service gets the job of the first one. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</li>
+<li>The pipelines that one save starts for the services of a repository share one job and one Jenkinsfile with <code>pipelineKeys</code>. A new pipeline joins a job only when two or more pipelines of its repository run in it already. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</li>
 <li>Jenkins needs the global environment variable <code>DSO_PORTAL_URL</code>, for example <code>https://dso-portal.apps.bbh.com</code>.</li>
 </ul>
 </div>

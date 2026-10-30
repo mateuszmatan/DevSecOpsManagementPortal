@@ -448,7 +448,7 @@ The Jenkinsfile holds only the library name and the key:
 devSecOpsPipeline(pipelineKey: '<pipeline key>')
 ```
 
-The library name comes from the Library defaults (`platform.jenkinsLibrary`). Copy the Jenkinsfile from the pipeline page, from the product page or from the Next steps of the Self-service wizard. For a pipeline that shares the Jenkins job of its repository with other services, each of these shows the combined Jenkinsfile with the keys of all of them.
+The library name comes from the Library defaults (`platform.jenkinsLibrary`). Copy the Jenkinsfile from the pipeline page, from the product page or from the Next steps of the Self-service wizard. For a pipeline that shares the Jenkins job of its repository with other services, each of these shows the combined Jenkinsfile with the keys of all of them. When such a key is invalidated, the pipeline page asks you to replace the shared Jenkinsfile once the key is regenerated.
 
 ### Jenkins jobs
 

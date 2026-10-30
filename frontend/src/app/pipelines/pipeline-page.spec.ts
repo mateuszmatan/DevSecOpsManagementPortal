@@ -226,6 +226,24 @@ describe('PipelinePage', () => {
     );
   });
 
+  it('asks to replace the shared Jenkinsfile when the invalidated key of a shared job is regenerated', async () => {
+    await loadWithApi(pipeline({ activeKey: null }));
+
+    expect(text(page().querySelector('.banner.danger .banner-text'))).toBe(
+      'The pipeline key is invalidated. The pipeline is refused its settings and stops at its next start. Regenerate the key, then replace the Jenkinsfile that this service shares with api in its repository with the new one.',
+    );
+    expect(text(page().querySelector('pre.code-block'))).toContain('<issue a new key first>');
+
+    buttonOf(page(), 'Regenerate key').click();
+    await fixture.whenStable();
+    http.expectOne({ method: 'POST', url: '/api/pipelines/100/keys' }).flush(pipeline());
+    await reloadedMonitoring();
+
+    expect(text(page().querySelector('pre.code-block'))).toContain(
+      "pipelineKeys: [ '6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4",
+    );
+  });
+
   it('reveals and hides the key', async () => {
     await load();
 

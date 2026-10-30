@@ -10,7 +10,12 @@ import { PIPELINE_TYPES, Pipeline, PipelineType, pipelineTypeLabel } from '../co
 import { PIPELINES, adminProduct, monitoringPipeline } from '../core/sections';
 import { MetricsBanner } from '../monitoring/metrics-banner';
 import { RunGrid } from '../monitoring/run-grid';
-import { jenkinsfile, repositoryGroup, sharedJobReason } from '../products/jenkinsfile';
+import {
+  jenkinsfile,
+  repositoryGroup,
+  sharedJobReason,
+  sharingWith,
+} from '../products/jenkinsfile';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { CountedPipe, TIME_ZONE_NOTE, capitalized, listed } from '@common/shared/formatting';
 import { StatusChip } from '../shared/status-chip';
@@ -145,8 +150,7 @@ const RECENT_RUNS = 5;
           <div class="banner danger" role="status">
             <span class="banner-text">
               <strong>The pipeline key is invalidated.</strong> The pipeline is refused its settings
-              and stops at its next start. Regenerate the key, then put the new Jenkinsfile in the
-              service's repository.
+              and stops at its next start. Regenerate the key, then {{ renewalHelp() }}.
             </span>
             <button
               type="button"
@@ -458,12 +462,11 @@ export class PipelinePage {
     const repositories = new Map(
       product?.services.map((service) => [service.id, bitbucketRepositoryUrl(service.scm)]),
     );
+    const all = services.flatMap((service) => service.pipelines);
+    const repository = (other: Pipeline) => repositories.get(other.serviceId);
     return {
-      pipelines: repositoryGroup(
-        pipeline,
-        services.flatMap((service) => service.pipelines),
-        (other) => repositories.get(other.serviceId),
-      ),
+      pipelines: repositoryGroup(pipeline, all, repository),
+      others: sharingWith(pipeline, all, repository),
       repository: repositories.get(pipeline.serviceId),
     };
   });
@@ -481,6 +484,13 @@ export class PipelinePage {
       `One Jenkinsfile with the keys of ${names} goes into ${together.repository}. Ask for one ` +
       `Jenkins job for the repository, not one per service${sharedJobReason(together.pipelines[0].type)}.`
     );
+  });
+  /** Which Jenkinsfile the new key of an invalidated pipeline goes into. */
+  protected readonly renewalHelp = computed(() => {
+    const others = listed(this.together()?.others.map((other) => other.serviceName) ?? []);
+    return others
+      ? `replace the Jenkinsfile that this service shares with ${others} in its repository with the new one`
+      : "put the new Jenkinsfile in the service's repository";
   });
   protected readonly revealed = signal(false);
   protected readonly regenerating = signal(false);
