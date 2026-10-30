@@ -748,6 +748,7 @@ describe('ProductEditor', () => {
     expect(imported.controls.scm.controls.repositoryUrl.value).toBe(
       'https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger',
     );
+    expect(imported.controls.scm.controls.credentialsId.value).toBe('bitbucket-http-credentials');
   });
 
   it('offers the import in the empty list of services', async () => {
