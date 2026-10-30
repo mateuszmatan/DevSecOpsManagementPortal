@@ -100,11 +100,12 @@ describe('byRepository', () => {
     worker: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
     tool: null,
   };
-  const names = (pipelines: readonly Pipeline[]) =>
+  const names = (pipelines: readonly Pipeline[], keyed = true) =>
     byRepository(
       pipelines,
       (p) => repositories[p.serviceName],
       (p) => p,
+      keyed,
     ).map((group) => group.map((p) => p.serviceName));
 
   it('puts the active pipelines of one type that share a repository together, in their order', () => {
@@ -122,6 +123,18 @@ describe('byRepository', () => {
         run(4, 'api', { securityPipelineJob: 'CERT/api-security' }),
       ]),
     ).toEqual([['gui'], ['api'], ['worker'], ['api']]);
+  });
+
+  it('joins the pipelines whose key is invalidated for a Jenkinsfile without a key', () => {
+    const pipelines = [
+      run(1, 'gui', { activeKey: null }),
+      run(2, 'api'),
+      run(3, 'worker', { activeKey: null, type: 'NEXUS_IQ' }),
+      run(4, 'tool', { activeKey: null }),
+    ];
+
+    expect(names(pipelines, false)).toEqual([['gui', 'api'], ['worker'], ['tool']]);
+    expect(names(pipelines)).toEqual([['gui'], ['api'], ['worker'], ['tool']]);
   });
 
   it('keeps apart pipelines that run on other Jenkins agents, whatever their order', () => {

@@ -41,16 +41,18 @@ function keylessArguments(pipelines: readonly Pipeline[]): string {
  * Groups the items, in their order, whose active pipelines of one type share a Bitbucket
  * repository, their Jenkins agents and their Jenkins job: one Jenkinsfile with all their keys
  * runs them in that job, on the agents of the first key. Every other item is a group of its own.
+ * Not keyed, for a Jenkinsfile without a key, the pipelines join whatever the state of their key.
  */
 export function byRepository<T>(
   items: readonly T[],
   repository: (item: T) => string | null | undefined,
   pipeline: (item: T) => Pipeline | null,
+  keyed = true,
 ): T[][] {
   const groups = new Map<unknown, T[]>();
   for (const item of items) {
     const run = pipeline(item);
-    const key = (run?.activeKey && jobKey(repository(item), run)) || item;
+    const key = (run && (run.activeKey || !keyed) && jobKey(repository(item), run)) || item;
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   return [...groups.values()];

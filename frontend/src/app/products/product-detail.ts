@@ -225,6 +225,20 @@ export class ProductDetail {
     );
   }
 
+  /** The pipelines that share one Jenkinsfile without a key with this one, their keys active or not. */
+  protected keylessGroup(pipeline: Pipeline): readonly Pipeline[] {
+    return (
+      byRepository(
+        this.services.hasValue()
+          ? this.services.value().flatMap((service) => service.pipelines)
+          : [],
+        (other) => this.repositories().get(other.serviceId),
+        (other) => other,
+        false,
+      ).find((group) => group.some((other) => other.id === pipeline.id)) ?? [pipeline]
+    );
+  }
+
   protected together(pipeline: Pipeline): Pipeline[] {
     return [pipeline, ...this.sameTypeElsewhere(pipeline)];
   }

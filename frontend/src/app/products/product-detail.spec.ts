@@ -477,6 +477,31 @@ describe('ProductDetail', () => {
       });
     });
 
+    it('names every service of the repository without a key, also when a key is invalidated', async () => {
+      await load(product({ services: [service(), anotherService()] }), [
+        servicePipelines({ pipelines: [pipeline({ activeKey: null })] }),
+        servicePipelines({
+          serviceId: 11,
+          serviceName: 'api',
+          pipelines: [pipeline({ id: 200, serviceId: 11, serviceName: 'api' })],
+        }),
+      ]);
+
+      await menu('Jenkinsfile without a key');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened().data['title']).toBe('Jenkinsfile without a key for several services');
+      expect(opened().data['code']).toContain(
+        "devSecOpsPipeline(projectNames: 'gui,api', agentNames: ['linux-agent'])",
+      );
+
+      await menu('Jenkinsfile');
+      http.expectOne('/api/settings').flush(globalSettings());
+
+      expect(opened(1).data['title']).toBe('Jenkinsfile of gui · Full');
+      expect(opened(1).data['code']).toContain("pipelineKey: '<issue a new key first>'");
+    });
+
     it('names the pipeline in the Jenkinsfile without a key of a service of its own', async () => {
       await load();
 
