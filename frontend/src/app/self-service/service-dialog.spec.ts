@@ -342,7 +342,7 @@ describe('ServiceDialog', () => {
     expect(form().controls.sonar.controls.installationName.value).toBe('');
   });
 
-  it('fills the form from an imported config.yaml, keeping the typed name and the agents typed before', async () => {
+  it('fills the form from an imported devsecops_config.yaml, keeping the typed name and the agents typed before', async () => {
     const agents = new FormControl('linux-agent', { nonNullable: true });
     await open({ agents });
     form().controls.name.setValue('portal');
@@ -379,7 +379,7 @@ describe('ServiceDialog', () => {
     expect(agents.value).toBe('docker-agent');
   });
 
-  it('keeps the empty Bitbucket credentials ID of an imported config.yaml, also when it is renamed', async () => {
+  it('keeps the empty Bitbucket credentials ID of an imported devsecops_config.yaml, also when it is renamed', async () => {
     await open();
     component['importConfig']({
       file: 'config.yaml',
