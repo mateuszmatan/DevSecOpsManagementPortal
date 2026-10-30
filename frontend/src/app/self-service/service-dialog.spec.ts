@@ -117,16 +117,22 @@ describe('ServiceDialog', () => {
     );
   });
 
-  it('tells the wizard the folder of the Node.js build, so the Services and Review steps can show it', async () => {
-    await open({ pipeline: 'SECURITY' });
-    fillIn();
-    form().controls.nodeBuild.patchValue({ enabled: true, directory: './web/' });
-    await fixture.whenStable();
+  it.each([
+    ['./web/', 'web'],
+    ['.', ''],
+  ])(
+    'tells the wizard the folder %j of the Node.js build as the portal keeps it, so the Services and Review steps can show it',
+    async (typed, kept) => {
+      await open({ pipeline: 'SECURITY' });
+      fillIn();
+      form().controls.nodeBuild.patchValue({ enabled: true, directory: typed });
+      await fixture.whenStable();
 
-    submit().click();
+      submit().click();
 
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ nodeDirectory: './web/' }));
-  });
+      expect(close).toHaveBeenCalledWith(expect.objectContaining({ nodeDirectory: kept }));
+    },
+  );
 
   it('keeps Add service disabled while a Node.js build field is invalid and opens Build on save', async () => {
     await open({ pipeline: 'SECURITY' });

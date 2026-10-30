@@ -103,6 +103,28 @@ export const ABSOLUTE_FOLDER = /^((\/|[A-Za-z]:[/\\]|\\\\)[^'"\p{Cc}]*)?$/u;
 export const REPOSITORY_PATH = /^(?!\/)(?!(.*\/)?\.\.(\/|$))[A-Za-z0-9._/*+@:=,~-]*$/;
 export const REPOSITORY_FILE = /^(?!.*\/$).*$/;
 
+/**
+ * A path relative to the repository root as the portal keeps it, without its '.' and empty
+ * folders, so './web/' is 'web' and '.' is null, the root itself. A path that starts at '/' is
+ * kept as it is for validation to refuse.
+ */
+export function relativePath(path: string | null | undefined): string | null {
+  const trimmed = optional(path);
+  if (trimmed === null || trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  return optional(
+    trimmed
+      .split('/')
+      .filter((folder) => folder && folder !== '.')
+      .join('/'),
+  );
+}
+
+const relativePaths = (value: string) => [
+  ...new Set(lines(value).flatMap((path) => relativePath(path) ?? [])),
+];
+
 const FOLDER = /^[^,']{1,300}$/;
 const COMMAND = /^\P{Cc}*$/u;
 const tokenLines = (value: string) => lines(value, false);
@@ -1274,7 +1296,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       reviewers: words(v.scm.reviewers),
     },
     goldenFix: toServiceGoldenFixPolicy(v.goldenFix),
-    versionCatalogs: passesValidators(c.versionCatalogs) ? lines(v.versionCatalogs) : [],
+    versionCatalogs: passesValidators(c.versionCatalogs) ? relativePaths(v.versionCatalogs) : [],
     metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
   };
@@ -1290,7 +1312,7 @@ function toNodeBuild(
     passesValidators(control) ? lines(value, false) : [];
   return {
     enabled: v.enabled,
-    directory: kept(c.directory, v.directory),
+    directory: relativePath(kept(c.directory, v.directory)),
     commands: listed(c.commands, v.commands),
     installationName: kept(c.installationName, v.installationName),
     nodePath: kept(c.nodePath, v.nodePath),

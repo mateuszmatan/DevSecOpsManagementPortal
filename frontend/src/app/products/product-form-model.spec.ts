@@ -45,6 +45,7 @@ import {
   isRemoteJob,
   patchProduct,
   prefillNewService,
+  relativePath,
   sectionInvalid,
   sectionTouched,
   toProductRequest,
@@ -678,6 +679,24 @@ describe('Node.js build', () => {
     expect(request.commands).toEqual(['npm ci', 'npm run lint', 'npm ci']);
   });
 
+  it('sends the folder and the shared catalogs as the server keeps them, so the root is null', () => {
+    const form = createServiceForm(service());
+    const node = nodeOf(form);
+    node.enabled.setValue(true);
+    form.controls.versionCatalogs.setValue('./bom/pom.xml\nbom/pom.xml\ngradle//deps.toml\n.');
+
+    for (const [folder, sent] of [
+      ['.', null],
+      ['./', null],
+      [' ./apps//web/ ', 'apps/web'],
+      ['frontend/', 'frontend'],
+    ]) {
+      node.directory.setValue(folder!);
+      expect(toServiceRequest(form).nodeBuild.directory, folder!).toBe(sent);
+    }
+    expect(toServiceRequest(form).versionCatalogs).toEqual(['bom/pom.xml', 'gradle/deps.toml']);
+  });
+
   it('switches off and locks the Node.js build of a Flutter service, keeping its values', () => {
     const form = createServiceForm(
       service({ nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }) }),
@@ -716,6 +735,22 @@ describe('Node.js build', () => {
     });
 
     expect(toServiceRequest(createServiceForm(stored))).toEqual({ ...stored, flutter: null });
+  });
+});
+
+describe('relativePath', () => {
+  it.each([
+    [' ./frontend/ ', 'frontend'],
+    ['././web//app/./ui/', 'web/app/ui'],
+    ['.', null],
+    ['./', null],
+    [' ', null],
+    [null, null],
+    ['**/catalog/*.versions.toml', '**/catalog/*.versions.toml'],
+    ['../catalog/deps.toml', '../catalog/deps.toml'],
+    ['/shared/deps.toml', '/shared/deps.toml'],
+  ])('drops the . and empty folders of %j as the server does', (path, expected) => {
+    expect(relativePath(path)).toBe(expected);
   });
 });
 
