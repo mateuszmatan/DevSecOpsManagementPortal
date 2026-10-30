@@ -107,7 +107,7 @@ A service has sections. The left-hand list of the service form shows them. A red
 |---------|---------------|
 | General | The service name and a description. |
 | Build | The build tool, its tasks, the artifact, the JDK and the optional Node.js build (stage 0). |
-| Unit tests and coverage | The unit test command, the test reports and the coverage report. |
+| Unit tests and coverage | The unit test command, the test reports and the coverage reports. |
 | Test jobs | The smoke, regression and performance test jobs after a deployment. |
 | Deployment | Virtual machines or OpenShift, the application and artifact names, and the Nexus delivery. |
 | UrbanCode Deploy | Virtual machines only: the UrbanCode Deploy applications and components. |
@@ -277,6 +277,7 @@ The portal writes `build.node` to `config.yaml` only while the checkbox is ticke
 - In SAST scanning a service needs the stage only while "Compile before preparing the IRX" is on and the agent is not Windows.
 - In a run in which some service builds, each other service logs why it does not: `[NODE] <service>: build.node.enabled is not set - no Node.js build`, or in SAST scanning, for a service whose "Compile before preparing the IRX" is off, `[NODE] <service>: the SAST scan does not compile this service - no Node.js build`.
 - The Extended pipeline builds the frontend again right before the release delivery, which rebuilds the artifact.
+- Do not put the frontend unit tests, such as `ng test --code-coverage`, into the Commands. The commands run in every pipeline above, and a failing test would stop each of them at stage 0, the release included. Run the frontend tests from the unit test command of the Gradle or Maven build instead: they then run only in the Unit tests stage, a failure turns that stage orange, and the stage reads their LCOV report next to the JaCoCo report (see Unit tests and coverage).
 - The log names where Node.js comes from, for example `[NODE] gateway: Node.js from installation NodeJS-20 in console: npm ci && npm run build`.
 - After a Node.js build, the AppScan static scan leaves out `node_modules`. This applies on Linux agents while no included folder is set. The minified bundles of the built frontend are still scanned.
 
@@ -689,10 +690,14 @@ Five steps share the same command fields: the build, the unit tests, the SonarQu
 | Field | Key | Notes |
 |-------|-----|-------|
 | Test results | `tests.unitTests.unitTestResult` | Gradle builds |
-| Coverage report | `coverage.reportPath` | |
+| Coverage reports | `coverage.reportPath` | Usually left empty; one path or pattern per line |
 | Root folder (Advanced) | `tests.unitTests.rootDir` | Maven builds |
 | Report folder (Advanced) | `tests.unitTests.reportOutDir` | Maven builds |
 | Accept a run without test results (Advanced) | `tests.unitTests.allowEmptyResults` | Maven builds |
+
+Leave Coverage reports empty unless the pipeline reads the wrong reports. Empty, the Unit tests stage finds every JaCoCo XML and LCOV report of the service by itself: in the Directory of its unit test command, otherwise of its build command, otherwise in the Source folder; also in the Folder with package.json of its Node.js build; and, when it finds none there, in the whole repository. In a folder that several services share, each service takes the reports of its own build tool, and the report of the run says when a report also counts for another service. The line coverage of the service is the average of its reports. The report of the run lists every report it found, and says why a report is not counted, for example because it is a copy of another one or combines other reports.
+
+Filled in, only the reports named in the field count. Name the report of the frontend too, and for a Flutter service the `lcov.info` of each package: the library now reads the field for Flutter as well, where it ignored it before. Paths are relative to the repository root; `*`, `?` and `**` are allowed. When none of them exists, the stage searches as if the field were empty. An imported `coverage.reportPath` longer than the 500 characters the portal keeps is left out with a note.
 
 ### Test jobs
 
