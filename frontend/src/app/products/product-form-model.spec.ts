@@ -699,7 +699,7 @@ describe('Node.js build', () => {
     expect(node.directory.disabled).toBe(true);
   });
 
-  it('round-trips a stored Node.js build', () => {
+  it('round-trips a stored Node.js build and the shared version catalogs', () => {
     const stored = service({
       nodeBuild: nodeBuild({
         enabled: true,
@@ -712,9 +712,51 @@ describe('Node.js build', () => {
         timeoutMinutes: 30,
         nexusIqScan: false,
       }),
+      versionCatalogs: ['gradle/libs.versions.toml', 'platform/**/*.versions.toml'],
     });
 
     expect(toServiceRequest(createServiceForm(stored))).toEqual({ ...stored, flutter: null });
+  });
+});
+
+describe('shared version catalogs', () => {
+  it('keep a service on the inherited GoldenFix policy and are sent with either policy', () => {
+    const form = createServiceForm(service({ versionCatalogs: ['gradle/libs.versions.toml'] }));
+    const { versionCatalogs, goldenFix } = form.controls;
+
+    expect(goldenFix.controls.inherit.value).toBe(true);
+    expect(versionCatalogs.enabled).toBe(true);
+    versionCatalogs.setValue('gradle/libs.versions.toml\ncatalog/deps.toml\ncatalog/deps.toml');
+    expect(toServiceRequest(form)).toMatchObject({
+      goldenFix: { enabled: null, ...NO_GOLDEN_FIX_OVERRIDES },
+      versionCatalogs: ['gradle/libs.versions.toml', 'catalog/deps.toml'],
+    });
+
+    goldenFix.controls.inherit.setValue(false);
+    expect(versionCatalogs.enabled).toBe(true);
+    expect(toServiceRequest(form).versionCatalogs).toEqual([
+      'gradle/libs.versions.toml',
+      'catalog/deps.toml',
+    ]);
+  });
+
+  it('take repository paths and globs only, and mark the GoldenFix section otherwise', () => {
+    const form = createServiceForm(service());
+    const { versionCatalogs } = form.controls;
+    versionCatalogs.setValue('**/libs.versions.toml\nbuild-logic/deps.gradle\nparent/pom.xml');
+
+    expect(versionCatalogs.valid).toBe(true);
+
+    for (const path of [
+      '/gradle/libs.versions.toml',
+      '../shared/libs.versions.toml',
+      'a\\b.toml',
+    ]) {
+      versionCatalogs.setValue(path);
+      expect(versionCatalogs.hasError('item'), path).toBe(true);
+    }
+    expect(firstInvalidSection(form)).toBe('goldenFix');
+    expect(firstInvalidSection(form, 'SAST')).toBeNull();
   });
 });
 
@@ -1269,6 +1311,7 @@ describe('product form', () => {
         artifactName: 'gui.jar',
       },
       nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+      versionCatalogs: ['gradle/libs.versions.toml'],
     });
     const form = createServiceForm(source);
     form.controls.openShiftTargets.controls.RD.patchValue({
@@ -1294,6 +1337,7 @@ describe('product form', () => {
     expect(value.build.javaPath).toBe('/usr/lib/jvm/java-17-openjdk');
     expect(value.testJobs.map((job) => job.job)).toEqual(['CERT/gui-smoke']);
     expect(value.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
+    expect(value.versionCatalogs).toBe('gradle/libs.versions.toml');
     expect(value.openShiftTargets.RD).toEqual(
       expect.objectContaining({ projectBuild: 'cert-build', dockerRepoPush: 'nexus/cert/gui' }),
     );

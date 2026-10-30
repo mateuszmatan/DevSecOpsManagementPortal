@@ -239,6 +239,7 @@ export function service(overrides: Partial<Service> = {}): Service {
       commitAuthorEmail: null,
       timeZone: null,
     },
+    versionCatalogs: [],
     metrics: {
       enabled: true,
       influxProject: 'CERT-gui',

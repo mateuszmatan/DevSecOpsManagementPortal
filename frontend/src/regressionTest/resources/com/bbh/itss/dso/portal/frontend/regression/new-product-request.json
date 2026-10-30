@@ -221,6 +221,7 @@
         "commitAuthorEmail": null,
         "timeZone": null
       },
+      "versionCatalogs": [],
       "metrics": {
         "enabled": true,
         "influxProject": null,
@@ -442,6 +443,7 @@
         "commitAuthorEmail": null,
         "timeZone": null
       },
+      "versionCatalogs": [],
       "metrics": {
         "enabled": true,
         "influxProject": null,

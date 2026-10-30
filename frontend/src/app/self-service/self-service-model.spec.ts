@@ -354,6 +354,7 @@ describe('self-service model', () => {
   it('puts a service of the portal on another build tool with the build settings of a new one', () => {
     const stored = service({
       nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+      versionCatalogs: ['gradle/libs.versions.toml'],
     });
     const request = serviceRequest(
       { ...fromService(stored), tool: 'MAVEN' },
@@ -379,6 +380,7 @@ describe('self-service model', () => {
     expect(request.unitTests).toEqual(stored.unitTests);
     expect(request.testJobs).toEqual(stored.testJobs);
     expect(request.nodeBuild).toEqual(stored.nodeBuild);
+    expect(request.versionCatalogs).toEqual(stored.versionCatalogs);
   });
 
   it('moves a service of the portal to OpenShift with the deployment settings of a new one', () => {

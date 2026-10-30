@@ -197,6 +197,7 @@ describe('ServiceDialog', () => {
           name: 'gui',
           request: service({
             nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+            versionCatalogs: ['gradle/libs.versions.toml'],
           }),
         },
         { name: 'backend-api', request: anotherService({ name: 'backend-api' }) },
@@ -218,6 +219,7 @@ describe('ServiceDialog', () => {
     expect(value.metrics.influxProject).toBe('');
     expect(value.nexusIqApplications.map((app) => app.application)).toEqual(['pay-portal']);
     expect(value.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
+    expect(value.versionCatalogs).toBe('gradle/libs.versions.toml');
   });
 
   it('sets the OpenShift names of a copy from the typed name, as for a new service', async () => {

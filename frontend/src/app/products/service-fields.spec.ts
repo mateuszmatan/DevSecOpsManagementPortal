@@ -580,6 +580,22 @@ describe('ServiceFields', () => {
       expect(hintOf('Dependencies')).toContain('· Library default: yes · ');
     });
 
+    it('lists the shared version catalogs of the service under Inherit and Override', async () => {
+      await render(service({ versionCatalogs: ['gradle/libs.versions.toml'] }));
+      await open('GoldenFix');
+
+      expect(inputOf(pane(), 'Shared version catalogs').value).toBe('gradle/libs.versions.toml');
+      expect(hints()).toContain(
+        'Optional; one path per line, relative to the repository root · goldenFix.versionCatalogs',
+      );
+
+      buttonOf(pane(), 'Override for this service').click();
+      await fixture.whenStable();
+
+      expect(inputOf(pane(), 'Shared version catalogs').value).toBe('gradle/libs.versions.toml');
+      expect(form.controls.goldenFix.controls.inherit.value).toBe(false);
+    });
+
     it('works without the global settings', async () => {
       await render(service(), null);
       await open('GoldenFix');

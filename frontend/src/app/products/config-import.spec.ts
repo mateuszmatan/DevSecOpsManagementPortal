@@ -234,7 +234,7 @@ describe('the import into a service form', () => {
     expect(importedServiceForm(file, null, ' portal ').controls.name.value).toBe('portal');
   });
 
-  it('fills the Node.js build of the file', () => {
+  it('fills the Node.js build and the shared version catalogs of the file', () => {
     const node = nodeBuild({ enabled: true, directory: 'frontend', commands: ['npm ci'] });
     const form = importedServiceForm(
       {
@@ -242,6 +242,7 @@ describe('the import into a service form', () => {
         service: {
           ...file.service,
           nodeBuild: node,
+          versionCatalogs: ['gradle/libs.versions.toml'],
         },
       },
       null,
@@ -249,6 +250,7 @@ describe('the import into a service form', () => {
 
     expect(toServiceRequest(form)).toMatchObject({
       nodeBuild: node,
+      versionCatalogs: ['gradle/libs.versions.toml'],
     });
   });
 

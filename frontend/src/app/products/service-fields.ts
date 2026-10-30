@@ -206,6 +206,15 @@ const NODE_BUILD_IN: Partial<Record<PipelineType, string>> = {
   EXTENDED: 'In the Extended pipeline it runs before the release delivery rebuild.',
 };
 
+const VERSION_CATALOGS: Field[] = [
+  area('versionCatalogs', 'Shared version catalogs', 'goldenFix.versionCatalogs', 8, {
+    mono: true,
+    placeholder: 'gradle/libs.versions.toml',
+    hint: 'optional; one path per line, relative to the repository root',
+    help: "Files that hold the dependency versions several services of this repository share. GoldenFix raises a version there once for every service and verifies the builds that use it. Found without listing: *.versions.toml files, the catalogs settings.gradle imports and the files 'apply from' names. List a file here when it has another name or format, such as a parent or BOM pom.xml.",
+  }),
+];
+
 const SCM: Field[] = [
   line('repositoryUrl', 'Repository URL', 'scm.bitbucket.url', 8, {
     placeholder: 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
@@ -410,6 +419,7 @@ export class ServiceFields {
   protected readonly flutterCredentials = FLUTTER_CREDENTIALS;
   protected readonly flutterSonar = FLUTTER_SONAR;
   protected readonly flutterPlatform = FLUTTER_PLATFORM;
+  protected readonly versionCatalogs = VERSION_CATALOGS;
 
   protected readonly sections = computed(() => {
     this.changes();

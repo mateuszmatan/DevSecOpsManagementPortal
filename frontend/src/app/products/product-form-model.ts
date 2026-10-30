@@ -96,6 +96,7 @@ export const REMEDIATION_TYPE = /^[a-z-]{1,100}$/;
 export const GOLDEN_FIX_ECOSYSTEMS = ['maven', 'npm', 'pypi', 'pub'];
 export const RELATIVE_FOLDER = /^(?![/\\])(?!.*\.\.)[^'"\p{Cc}]*$/u;
 export const ABSOLUTE_FOLDER = /^((\/|[A-Za-z]:[/\\]|\\\\)[^'"\p{Cc}]*)?$/u;
+export const REPOSITORY_PATH = /^(?!\/)(?!(.*\/)?\.\.(\/|$))[A-Za-z0-9._/*+@:=,~-]*$/;
 
 const FOLDER = /^[^,']{1,300}$/;
 const COMMAND = /^\P{Cc}*$/u;
@@ -720,6 +721,17 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       repoSlug: text(s?.scm?.repoSlug, Validators.pattern(BITBUCKET_NAME), max(200)),
     }),
     goldenFix: createServiceGoldenFixForm(s?.goldenFix),
+    versionCatalogs: text(
+      joinLines(s?.versionCatalogs),
+      maxLines(20),
+      eachItem(
+        lines,
+        REPOSITORY_PATH,
+        "A path relative to the repository root, without a '..' folder, with letters, digits and . _ / * + @ : = , ~ - only",
+      ),
+      eachItem(lines, upTo(300), 'At most 300 characters per path'),
+      fitsColumn(lines, '\n', 2000),
+    ),
     metrics: new FormGroup({
       enabled: flag(s?.metrics?.enabled, true),
       influxProject: text(s?.metrics?.influxProject, max(200)),
@@ -1140,6 +1152,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       reviewers: words(v.scm.reviewers),
     },
     goldenFix: toServiceGoldenFixPolicy(v.goldenFix),
+    versionCatalogs: lines(v.versionCatalogs),
     metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
   };
@@ -1252,7 +1265,7 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   section('sonar', 'SonarQube', 'analytics', ['sonar']),
   section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq', 'nexusIqApplications']),
   section('scm', 'Bitbucket', 'merge', ['scm']),
-  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix']),
+  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix', 'versionCatalogs']),
   section('metrics', 'Monitoring', 'insights', ['metrics']),
   section('flutter', 'Flutter', 'phone_iphone', ['flutter'], onFlutter),
 ];

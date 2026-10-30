@@ -336,6 +336,7 @@ export interface ServiceSettings {
   nexusIqApplications: NexusIqApplication[];
   scm: ScmSettings;
   goldenFix: GoldenFixPolicy;
+  versionCatalogs: string[];
   metrics: MetricsSettings;
   flutter: FlutterSettings | null;
 }

@@ -646,6 +646,7 @@ describe('ProductEditor', () => {
       service(),
       anotherService({
         nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+        versionCatalogs: ['gradle/libs.versions.toml'],
       }),
     ]);
 
@@ -666,6 +667,7 @@ describe('ProductEditor', () => {
       anotherService().nexusIqApplications.map(() => ''),
     );
     expect(copy.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
+    expect(copy.versionCatalogs).toBe('gradle/libs.versions.toml');
     expect(editor()['expanded']()).toBe(2);
   });
 
