@@ -199,7 +199,8 @@ export class GlobalSettingsPage implements OnInit, HasUnsavedChanges {
             subtitle:
               'The part of the settings every pipeline with a key receives along with the settings ' +
               'of its own service, built from the saved library defaults. A Jenkinsfile without a key ' +
-              'uses the copy of these defaults kept in the DevSecOps library.' +
+              'receives only the defaults part, from the copy kept in the DevSecOps library; it never ' +
+              'receives the platform part.' +
               (this.form.dirty ? ' Your unsaved changes are not included.' : ''),
             code,
             fileName: 'devsecops-global.yaml',

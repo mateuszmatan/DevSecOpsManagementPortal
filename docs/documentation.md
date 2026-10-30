@@ -467,7 +467,7 @@ devSecOpsPipeline(projectNames: 'gateway', agentNames: ['linux-agent'])
 
 - `projectNames` names the services of the repository. The downloaded file holds every service of the product; without `projectNames` the library would build all of them from this repository.
 - `agentNames` lists the Jenkins agents the pipeline may run on. It is required without a key.
-- Such a pipeline does not ask the portal for its settings. A change in the portal reaches it only when you download and commit the file again. The Library defaults, such as the security limits, the GoldenFix policy and the Node.js build defaults, reach it through the copy kept in the library, with the next library version.
+- Such a pipeline does not ask the portal for its settings. A change in the portal reaches it only when you download and commit the file again. The Library defaults written under `defaults`, such as the security limits, the GoldenFix policy and the Node.js build defaults, reach it through the copy kept in the library, with the next library version. The values written to `platform`, such as the AppScan, proxy, Nexus snapshot repository and iOS build agent values, never reach it; see [chapter 12](#12-library-defaults-global-settings).
 - A security pipeline that should start its extended pipeline needs `jenkins.pipeline.extendedPipeline` under its service in the file. The product download leaves it out, because the portal keeps it with the security pipeline.
 - The pipeline report says "No pipeline key: settings from devsecops_config.yaml in the repository".
 - The Jenkins administrators can require a key for every pipeline; such a Jenkinsfile then stops at its start.
@@ -591,7 +591,7 @@ Admin, Library defaults holds the values every pipeline shares. A service that l
 | Service defaults | The build tool, deployment target and source folder a new service starts with; the test jobs at the same time; the Node.js build defaults |
 | GoldenFix defaults | Whether GoldenFix runs by default and the GoldenFix policy |
 
-A Jenkinsfile without a key does not read this page. The DevSecOps library keeps its own copy of these defaults, which the DevSecOps team updates from "Shared settings sent to Jenkins (devsecops_config.yaml format)" before each library release.
+A Jenkinsfile without a key does not read this page. The values written under `defaults` reach it through the copy the DevSecOps library keeps of them, which the DevSecOps team updates from "Shared settings sent to Jenkins (devsecops_config.yaml format)" before each library release. The per-service servers and the Deployment defaults reach it in devsecops_config.yaml, once the file is downloaded and committed again. The values written to `platform`, such as the AppScan on Cloud URL of the scans, the scan client downloads, the proxy, the OIS host, the Nexus snapshot repository and the iOS build agent, never reach it: the library takes them from the environment of the Jenkins agent or uses its own.
 
 ### Node.js build defaults
 
