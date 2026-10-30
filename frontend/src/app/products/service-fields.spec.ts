@@ -328,6 +328,9 @@ describe('ServiceFields', () => {
         'Not used: the Node.js home on the agent is set · build.node.installationName',
       );
       expect(form.controls.nodeBuild.valid).toBe(true);
+      expect(helpOf(field('.npmrc credentials ID'))).toContain(
+        'A registry line of an .npmrc in the repository still wins over it.',
+      );
       expect(helpOf(field('Source folder'))).toContain(
         'the Gradle, Maven and Node.js builds have their own folder fields',
       );
@@ -372,7 +375,9 @@ describe('ServiceFields', () => {
         helpOf(
           checkboxOf(pane(), 'Build the frontend with Node.js first').closest('dso-checkbox')!,
         ),
-      ).toContain('In SAST scanning it runs only on Linux agents, while Compile');
+      ).toContain(
+        'In SAST scanning it runs only while Compile before preparing the IRX is on, and not on Windows agents.',
+      );
 
       fixture.componentRef.setInput('pipeline', 'NEXUS_IQ');
       await fixture.whenStable();
@@ -703,9 +708,14 @@ describe('ServiceFields', () => {
       expect(help('Gradle command')).toContain(
         'for a version catalog, settings file or platform, in the folder of each build that uses it',
       );
-      expect(help('Maven command')).toContain('for a parent or BOM pom that other poms use');
+      expect(help('Maven command')).toContain(
+        'in the folder of the multi-module pom that builds them together, otherwise in the folder of the root pom.xml or of that pom',
+      );
+      expect(help('Maven command')).toContain(
+        'with -f and the file name for a pom with another name that is built in its own folder',
+      );
       expect(help('npm command')).toContain(
-        'A package-lock.json next to it is refreshed first and added to the pull request.',
+        'A command set here runs as it is, without the refresh of package-lock.json',
       );
       expect(help('Timeout (minutes)')).toContain(
         'one for each folder a changed manifest or catalog is built in',
@@ -719,6 +729,10 @@ describe('ServiceFields', () => {
       expect(inputOf(pane(), 'Shared version catalogs').value).toBe('gradle/libs.versions.toml');
       expect(hints()).toContain(
         'Optional; one path per line, relative to the repository root · goldenFix.versionCatalogs',
+      );
+      expect(inputOf(pane(), 'Shared version catalogs').placeholder).toBe('platform/bom.xml');
+      expect(helpOf(fieldOf(pane(), 'Shared version catalogs')!)).toContain(
+        'without such an aggregator, the poms that use it are not built',
       );
 
       buttonOf(pane(), 'Override for this service').click();

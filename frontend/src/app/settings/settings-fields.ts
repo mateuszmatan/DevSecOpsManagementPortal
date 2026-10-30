@@ -445,7 +445,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
             error: HTTP_URL_ERROR,
           }),
           mono('npmrcCredentialsId', '.npmrc credentials ID', 'build.node.npmrcCredentialsId', 3, {
-            help: 'The ID of a Jenkins Secret file credential with an .npmrc, which npm then reads, its registry included.',
+            help: 'The ID of a Jenkins Secret file credential with an .npmrc, which npm reads as its user configuration, with its registry and login. A registry line of an .npmrc in the repository still wins over it.',
           }),
         ],
       },

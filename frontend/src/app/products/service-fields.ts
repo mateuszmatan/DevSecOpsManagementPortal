@@ -214,7 +214,7 @@ const NODE_BUILD =
   'Runs your npm commands in an extra stage 0, before the Gradle or Maven build, for example to build an Angular frontend that the Gradle or Maven build then packages into the jar. Write its output outside the build and target folders. Leave it off when the Gradle or Maven build already runs npm.';
 
 const NODE_BUILD_IN: Partial<Record<PipelineType, string>> = {
-  SAST: 'In SAST scanning it runs only on Linux agents, while Compile before preparing the IRX is on.',
+  SAST: 'In SAST scanning it runs only while Compile before preparing the IRX is on, and not on Windows agents.',
   EXTENDED: 'In the Extended pipeline it runs before the release delivery rebuild.',
 };
 
@@ -232,9 +232,9 @@ const NPM_SCAN = check(
 const VERSION_CATALOGS: Field[] = [
   area('versionCatalogs', 'Shared version catalogs', 'goldenFix.versionCatalogs', 8, {
     mono: true,
-    placeholder: 'catalog/dependencies.toml',
+    placeholder: 'platform/bom.xml',
     hint: 'optional; one path per line, relative to the repository root',
-    help: "Files that hold the dependency versions several services of this repository share. GoldenFix raises a version there once for every service and verifies the builds that use it. Found without listing: *.versions.toml files, the catalogs settings.gradle imports, the files 'apply from' names, and the parent and imported BOM pom.xml files of the repository. List a file here only when GoldenFix cannot find it by itself, for example a TOML catalog whose name does not end in .versions.toml, or a parent or BOM pom with another file name such as bom.xml.",
+    help: "Files that hold the dependency versions several services of this repository share. GoldenFix raises a version there once for every service. It verifies a Gradle file in the builds that use it, and a Maven pom in the aggregator pom that builds it with the poms that use it; without such an aggregator, the poms that use it are not built. Found without listing: *.versions.toml files, the catalogs settings.gradle imports with from(files(...)), the files 'apply from' names, and the parent and imported BOM pom.xml files of the repository. List a file here only when GoldenFix misses it, for example a parent or BOM pom with another file name, such as platform/bom.xml.",
   }),
 ];
 
@@ -768,7 +768,7 @@ export class ServiceFields {
       }),
       mono('npmrcCredentialsId', '.npmrc credentials ID', 'build.node.npmrcCredentialsId', 6, {
         ...defaulted(defaults?.npmrcCredentialsId, c.npmrcCredentialsId.value),
-        help: 'The ID of a Jenkins Secret file credential with an .npmrc, which npm then reads, its registry included.',
+        help: 'The ID of a Jenkins Secret file credential with an .npmrc, which npm reads as its user configuration, with its registry and login. A registry line of an .npmrc in the repository still wins over it.',
       }),
       area('environment', 'Node.js environment variables', 'build.node.env', 6, {
         mono: true,

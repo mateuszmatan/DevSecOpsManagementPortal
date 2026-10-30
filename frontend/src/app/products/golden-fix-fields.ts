@@ -30,8 +30,8 @@ const COMMANDS: Field[] = [
   command(
     'Maven',
     'Maven',
-    'in the folder of each changed pom.xml; for a parent or BOM pom that other poms use, in the folder of the multi-module pom that builds them together',
-    'mvn -B -q -DskipTests compile',
+    'in the folder of each changed pom.xml; for a parent or BOM pom that other poms use, in the folder of the multi-module pom that builds them together, otherwise in the folder of the root pom.xml or of that pom',
+    'mvn -B -q -DskipTests compile, with -f and the file name for a pom with another name that is built in its own folder',
   ),
   command(
     'Gradle',
@@ -42,8 +42,8 @@ const COMMANDS: Field[] = [
   command(
     'Npm',
     'npm',
-    'in the folder of each changed package.json, using the Node.js, registry and .npmrc of the Node.js build while it is on. A package-lock.json next to it is refreshed first and added to the pull request',
-    'npm ci --ignore-scripts, or npm install --ignore-scripts without a lock file',
+    'in the folder of each changed package.json, using the Node.js, registry and .npmrc of the Node.js build while it is on. A command set here runs as it is, without the refresh of package-lock.json that comes before the default command',
+    'npm ci --ignore-scripts, or npm install --ignore-scripts without a lock file, after refreshing a package-lock.json next to the package.json and adding it to the pull request',
     4,
   ),
   command(

@@ -147,6 +147,9 @@ describe('GlobalSettingsPage', () => {
     expect(hint('Node.js installation')).toBe('build.node.installationName');
     expect(hint('npm registry')).toBe('build.node.registry');
     expect(hint('.npmrc credentials ID')).toBe('build.node.npmrcCredentialsId');
+    expect(helpOf(fieldOf(section, '.npmrc credentials ID')!)).toContain(
+      'which npm reads as its user configuration',
+    );
 
     form().controls.serviceDefaults.patchValue({
       nodeInstallationName: ' ',
