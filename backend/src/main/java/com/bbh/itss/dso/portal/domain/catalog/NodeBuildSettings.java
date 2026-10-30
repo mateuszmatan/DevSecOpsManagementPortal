@@ -68,5 +68,9 @@ public record NodeBuildSettings(Boolean enabled, String directory, List<String> 
         if (installationName != null && nodePath != null) {
             problems.add("nodePath", "give the Node.js installation or its home on the agent, not both");
         }
+        if (directory != null
+                && (directory.matches("[/\\\\].*") || List.of(directory.split("[/\\\\]")).contains(".."))) {
+            problems.add("directory", "must be a folder relative to the repository root, without '..'");
+        }
     }
 }

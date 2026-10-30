@@ -125,6 +125,10 @@ const relativePaths = (value: string) => [
   ...new Set(lines(value).flatMap((path) => relativePath(path) ?? [])),
 ];
 
+/** A folder of the repository, judged as the portal keeps it, so the form refuses what the server refuses. */
+const relativeFolder: ValidatorFn = (control) =>
+  RELATIVE_FOLDER.test(relativePath(control.value) ?? '') ? null : { pattern: true };
+
 const FOLDER = /^[^,']{1,300}$/;
 const COMMAND = /^\P{Cc}*$/u;
 const tokenLines = (value: string) => lines(value, false);
@@ -597,7 +601,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     }),
     nodeBuild: new FormGroup({
       enabled: flag(node?.enabled),
-      directory: text(node?.directory, Validators.pattern(RELATIVE_FOLDER), max(500)),
+      directory: text(node?.directory, relativeFolder, max(500)),
       commands: text(
         joinLines(node?.commands),
         maxLines(20, false),

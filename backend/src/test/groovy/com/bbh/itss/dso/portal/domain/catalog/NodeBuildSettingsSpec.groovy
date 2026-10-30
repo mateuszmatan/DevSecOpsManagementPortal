@@ -65,6 +65,27 @@ class NodeBuildSettingsSpec extends Specification {
                 [['nodePath', 'give the Node.js installation or its home on the agent, not both']]
     }
 
+    def "the folder of an enabled Node.js build is refused when it leaves the repository: '#directory'"() {
+        expect:
+        reported { new NodeBuildSettings(true, directory, [], null, null, [], null, null, null, null)
+                .validate(it, GRADLE) }.collect { [it.field, it.message] } ==
+                [['directory', "must be a folder relative to the repository root, without '..'"]]
+        reported { new NodeBuildSettings(false, directory, [], null, null, [], null, null, null, null)
+                .validate(it, GRADLE) } == []
+
+        where:
+        directory << [' /opt/web', '\\opt\\web', 'web/../..', '..', 'web\\..\\..']
+    }
+
+    def "the folder of a Node.js build may hold dots in its names: '#directory'"() {
+        expect:
+        reported { new NodeBuildSettings(true, directory, [], null, null, [], null, null, null, null)
+                .validate(it, GRADLE) } == []
+
+        where:
+        directory << ['web..app', '.config/web', 'apps/web.ui', null]
+    }
+
     def "a Node.js build that is not enabled keeps its values without those rules"() {
         expect:
         reported { both(false).validate(it, FLUTTER) } == []

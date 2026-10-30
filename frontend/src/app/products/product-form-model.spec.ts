@@ -679,6 +679,20 @@ describe('Node.js build', () => {
     expect(request.commands).toEqual(['npm ci', 'npm run lint', 'npm ci']);
   });
 
+  it('refuses a folder that leaves the repository, judged as the server keeps it', () => {
+    const node = nodeOf(createServiceForm(service()));
+    node.enabled.setValue(true);
+
+    for (const folder of [' /opt/web', '\\opt\\web', 'web/../..', './.."', '/']) {
+      node.directory.setValue(folder);
+      expect(node.directory.hasError('pattern'), folder).toBe(true);
+    }
+    for (const folder of ['', '.', './', ' ./apps//web/ ', './/opt/web', 'apps/web.ui']) {
+      node.directory.setValue(folder);
+      expect(node.directory.valid, folder).toBe(true);
+    }
+  });
+
   it('sends the folder and the shared catalogs as the server keeps them, so the root is null', () => {
     const form = createServiceForm(service());
     const node = nodeOf(form);
