@@ -927,7 +927,7 @@ interface Naming {
  * URL, Bitbucket credentials ID, application name or Nexus IQ application with its scan pattern, and replaces every value
  * that still holds what the previous name gave, such as the image repositories of a copy of the service named copiedFrom.
  * An imported service counts as named already and offered its Nexus IQ application, so it keeps what its file gives
- * until its name is changed.
+ * until its name is changed. Without credentials, the name never fills or replaces the Bitbucket credentials ID.
  */
 export function followName(
   service: ServiceForm,
@@ -936,6 +936,7 @@ export function followName(
   destroyRef: DestroyRef,
   copiedFrom = '',
   imported = false,
+  credentials = true,
 ): void {
   const name = service.controls.name;
   const apps = service.controls.nexusIqApplications;
@@ -952,7 +953,7 @@ export function followName(
       takeUntilDestroyed(destroyRef),
     )
     .subscribe((next) => {
-      rename(service, template, named ?? { ...next, name: copiedFrom }, next, offered);
+      rename(service, template, named ?? { ...next, name: copiedFrom }, next, offered, credentials);
       named = next;
       offered ||= apps.length > 0;
     });
@@ -965,9 +966,10 @@ function rename(
   previous: Naming,
   next: Naming,
   offered: boolean,
+  credentials: boolean,
 ): void {
-  const before = namedValues(service, template, previous);
-  const after = namedValues(service, template, next);
+  const before = namedValues(service, template, previous, credentials);
+  const after = namedValues(service, template, next, credentials);
   const application = after[NEXUS_IQ_APPLICATION];
   if (application) {
     const { scanPattern } = buildDefaults(template, service.controls.build.controls.tool.value);
@@ -996,6 +998,7 @@ function namedValues(
   service: ServiceForm,
   template: ServiceTemplateValues | null,
   { code, name }: Naming,
+  credentials: boolean,
 ): Record<string, string> {
   if (!name) {
     return {};
@@ -1003,7 +1006,9 @@ function namedValues(
   const named = namedDefaults({ template, productCode: code }, name);
   const values = {
     'scm.repositoryUrl': named.repositoryUrl,
-    'scm.credentialsId': named.repositoryUrl && (template?.bitbucketCredentialsId ?? ''),
+    ...(credentials && {
+      'scm.credentialsId': named.repositoryUrl && (template?.bitbucketCredentialsId ?? ''),
+    }),
     [NEXUS_IQ_APPLICATION]: named.nexusIqApplication,
   };
   if (service.controls.deployment.controls.target.value !== 'OPENSHIFT') {

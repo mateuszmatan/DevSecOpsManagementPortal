@@ -379,6 +379,47 @@ describe('ServiceDialog', () => {
     expect(agents.value).toBe('docker-agent');
   });
 
+  it('keeps the empty Bitbucket credentials ID of an imported config.yaml, also when it is renamed', async () => {
+    await open();
+    component['importConfig']({
+      file: 'config.yaml',
+      name: 'legacy',
+      service: {
+        ...anotherService(),
+        id: null,
+        name: 'legacy',
+        nexusIqApplications: [],
+        scm: { ...anotherService().scm, repositoryUrl: null, credentialsId: null },
+      },
+      notes: [],
+      agentLabels: [],
+    });
+    await fixture.whenStable();
+    const scm = form().controls.scm.controls;
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-legacy');
+    expect(scm.credentialsId.value).toBe('');
+    expect(form().controls.nexusIqApplications.at(0).controls.application.value).toBe('pay-legacy');
+
+    form().controls.name.setValue('ledger');
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger');
+    expect(scm.credentialsId.value).toBe('');
+  });
+
+  it('gives a new service the Bitbucket credentials ID of the service template', async () => {
+    await open();
+    const scm = form().controls.scm.controls;
+
+    expect(scm.credentialsId.value).toBe('bitbucket-http-credentials');
+
+    scm.credentialsId.setValue('');
+    form().controls.name.setValue('ledger');
+
+    expect(scm.repositoryUrl.value).toBe('https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger');
+    expect(scm.credentialsId.value).toBe('bitbucket-http-credentials');
+  });
+
   it('loads existing service settings into form', async () => {
     const existing: WizardService = {
       id: 10,

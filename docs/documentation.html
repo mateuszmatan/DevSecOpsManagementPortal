@@ -499,7 +499,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipel
 <li><code>build.node</code> without <code>enabled: true</code> comes back switched off, with its values kept.</li>
 <li>A Flutter file with <code>build.node.enabled: true</code> comes back switched off with the note &quot;Check: the Node.js build is not used with Flutter&quot;.</li>
 <li><code>goldenFix.versionCatalogs</code> fills &quot;Shared version catalogs&quot;.</li>
-<li>In the admin editor, the imported service keeps what the file gives: an empty repository URL, Bitbucket credentials ID or Nexus IQ application stays empty. Only when you change its name does the service template fill them in, as for a new service. In the Self-service dialog, the imported service follows its name like a new service; the notes do not list the values it fills in, so check them in the Bitbucket and Nexus IQ sections.</li>
+<li>In the admin editor, the imported service keeps what the file gives: an empty repository URL, Bitbucket credentials ID or Nexus IQ application stays empty. Only when you change its name does the service template fill them in, as for a new service. In the Self-service dialog, the imported service follows its name like a new service: the service template fills in an empty repository URL and Nexus IQ application. The Bitbucket credentials ID stays as the file gives it, even when it is empty. The notes do not list the values filled in, so check them in the Bitbucket and Nexus IQ sections.</li>
 <li>The Jenkins agents of the imported pipeline fill the Jenkins agents of the product while you have not changed them.</li>
 <li>The file may hold at most 262,144 characters and 50 projects.</li>
 </ul>
