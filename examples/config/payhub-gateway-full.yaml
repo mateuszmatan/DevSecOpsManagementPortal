@@ -58,6 +58,8 @@ defaults:
     maxCritical: 0
     maxHigh: 0
     maxMedium: 0
+  staticAnalysis:
+    parallel: true
   tests:
     maxParallel: 20
   releaseGate:
