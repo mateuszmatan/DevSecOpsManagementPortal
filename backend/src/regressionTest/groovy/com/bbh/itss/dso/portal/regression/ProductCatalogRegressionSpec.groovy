@@ -69,7 +69,14 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                                          sonar: fullMavenService().sonar + [projectKey: "$code-ledger".toString()],
                                          scm: fullMavenService().scm + [apiUrl    : 'https://bitbucket.bbh.com/rest/api/1.0',
                                                                         workspace : 'bbh', projectKey: 'LED',
-                                                                        repoSlug  : 'ledger']),
+                                                                        repoSlug  : 'ledger'],
+                                         nodeBuild: [enabled           : true, directory: 'ledger/web',
+                                                     commands          : ['npm ci', 'npm run build -- --configuration=production', 'npm ci'],
+                                                     installationName  : null, nodePath: '/opt/node-20',
+                                                     environment       : ['NODE_OPTIONS=--max-old-space-size=4096'],
+                                                     registry          : 'https://nexus.bbh.com/repository/npm-group/',
+                                                     npmrcCredentialsId: 'ledger-npmrc', timeoutMinutes: 40, nexusIqScan: false],
+                                         versionCatalogs: ['pom.xml', 'platform/bom/pom.xml']),
                         fullOpenShiftService(), fullFlutterService()]
 
         when:
@@ -340,6 +347,9 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         'UrbanCode needs components' | service(urbanCodeApplications: [[applicationName: 'LEDGER', components: []], [applicationName: 'BATCH', components: [[componentName: 'batch']]]]) || ['services[0].urbanCodeApplications[0].components', 'services[0].urbanCodeApplications[1].components[0].baseDir', 'services[0].urbanCodeApplications[1].components[0].fileIncludePatterns']
         'test job parameters'        | service(testJobs: [[stage: 'SMOKE', job: 'smoke', parameters: 'ENV=rd\nSUITE critical']])  || ['services[0].testJobs[0].parameters']
         'lists fit their columns'    | service(build: build(command: [tasks: ['build'], flags: (1..12).collect { "-Dp$it=${'v' * 200}".toString() }]), appScan: appScan(includedDirs: (1..20).collect { "${'d' * 150}/$it".toString() })) || ['services[0].build.command.flags', 'services[0].appScan.includedDirs']
+        'Node.js lists fit too'      | service(nodeBuild: [commands: (1..9).collect { "npm run step-$it ${'x' * 480}".toString() }], versionCatalogs: (1..10).collect { "${'d' * 250}/$it".toString() }) || ['services[0].nodeBuild.commands', 'services[0].versionCatalogs']
+        'Flutter builds no Node.js'  | fullFlutterService(nodeBuild: [enabled: true, directory: 'web'])                         || ['services[0].nodeBuild.enabled']
+        'one Node.js home'           | service(nodeBuild: [enabled: true, installationName: 'NodeJS-20', nodePath: '/opt/node-20']) || ['services[0].nodeBuild.nodePath']
     }
 
     def "test job parameters are stored one NAME=value per line as they were entered"() {
