@@ -91,8 +91,7 @@ class AddProductSpec extends EditorSpecification {
 
         when:
         showSection('Build')
-        fillIn(openService(), ['JDK path'     : '/usr/lib/jvm/java-21-openjdk', 'Artifact path': 'build/libs/*.jar',
-                               'Gradle tasks': 'clean build'])
+        fillIn(openService(), ['Artifact path': 'build/libs/*.jar', 'Gradle tasks': 'clean build'])
         showSection('AppScan SAST and DAST')
         fillIn(openService(), ['AppScan application ID'       : GUI_APPLICATION, 'AppScan API key ID': APP_SCAN_KEY,
                                'API key secret credentials ID': 'hcl-app-scan-account'])
@@ -115,8 +114,7 @@ class AddProductSpec extends EditorSpecification {
         input(openService(), 'Service name').fill('backend-api')
         showSection('Build')
         choose(openService(), 'Build tool', 'Maven')
-        fillIn(openService(), ['JDK path'    : '/usr/lib/jvm/java-21-openjdk', 'Artifact path': 'target/*.jar',
-                               'Maven goals': 'clean verify'])
+        fillIn(openService(), ['Artifact path': 'target/*.jar', 'Maven goals': 'clean verify'])
         showSection('Deployment')
         input(openService(), 'Maven goals').fill('deploy')
         addUrbanCodeApplication('CERT-API', 'target')

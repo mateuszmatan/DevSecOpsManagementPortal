@@ -175,6 +175,60 @@ describe('ProductEditor', () => {
     expect(values()).toEqual(['clean assemble', 'build/libs/*.jar']);
   });
 
+  it('starts a new service with the build tool set up automatically, so it needs no JDK path', async () => {
+    await start();
+    const build = editor()['form'].controls.services.at(0).controls.build.controls;
+
+    expect(build.autoSetup.value).toBe(true);
+    expect(build.javaPath.valid).toBe(true);
+  });
+
+  it('fills what a new service takes from its name and the product code from the service template', async () => {
+    await start();
+    const gui = editor()['form'].controls.services.at(0);
+    const named = () => {
+      const v = gui.getRawValue();
+      return [
+        v.scm.repositoryUrl,
+        v.scm.credentialsId,
+        v.deployment.appName,
+        v.nexusIqApplications,
+      ];
+    };
+    const application = (name: string, scanPatterns: string) => [
+      { application: name, scanPatterns, stage: 'build', failOnNetworkError: false },
+    ];
+
+    gui.controls.name.setValue('gui');
+
+    expect(named()).toEqual([
+      'https://bitbucket.bbh.com/projects/CERTSCANNER/repos/certscanner-gui',
+      'bitbucket-http-credentials',
+      'gui',
+      application('certscanner-gui', '**/target/*.jar'),
+    ]);
+
+    editor()['form'].controls.code.setValue('cert');
+    gui.controls.build.controls.tool.setValue('GRADLE');
+
+    expect(named()).toEqual([
+      'https://bitbucket.bbh.com/projects/CERT/repos/cert-gui',
+      'bitbucket-http-credentials',
+      'gui',
+      application('cert-gui', '**/build/libs/*.jar'),
+    ]);
+  });
+
+  it('keeps the repository and the Nexus IQ application of a stored service that is renamed', async () => {
+    await edit();
+    const gui = editor()['form'].controls.services.at(0);
+    const { scm, nexusIqApplications } = gui.getRawValue();
+
+    gui.controls.name.setValue('portal');
+
+    expect(gui.getRawValue()).toMatchObject({ scm, nexusIqApplications });
+  });
+
   it('keeps the build of a stored service when its build tool changes', async () => {
     await edit();
     const build = editor()['form'].controls.services.at(0).controls.build.controls;
@@ -568,7 +622,7 @@ describe('ProductEditor', () => {
       'Add service (disabled)',
     ]);
     expect(text(page().querySelector('.blocked'))).toBe(
-      'Complete these services before adding another: gui (Build, Deployment, OpenShift targets, AppScan SAST and DAST).',
+      'Complete these services before adding another: gui (Deployment, OpenShift targets, AppScan SAST and DAST).',
     );
 
     fillValidProduct();
@@ -657,7 +711,7 @@ describe('ProductEditor', () => {
     );
   });
 
-  it('copies the values of the service chosen in the menu, except those that identify it', async () => {
+  it('copies the values of the service chosen in the menu, taking those that identify it from its name', async () => {
     await edit([
       service(),
       anotherService({
@@ -675,13 +729,12 @@ describe('ProductEditor', () => {
     const copy = editor()['form'].controls.services.at(2).getRawValue();
 
     expect(names()).toEqual(['gui', 'api', 'api-copy']);
-    expect(text(panels()[2].querySelector('.tag.error'))).toBe('Needs attention');
+    expect(panels()[2].querySelector('.tag.error')).toBeNull();
     expect(copy.id).toBeNull();
     expect(copy.build.tool).toBe(anotherService().build.tool);
     expect(copy.sonar.projectKey).toBe('');
-    expect(copy.nexusIqApplications.map((app) => app.application)).toEqual(
-      anotherService().nexusIqApplications.map(() => ''),
-    );
+    expect(copy.nexusIqApplications.map((app) => app.application)).toEqual(['cert-api-copy']);
+    expect(copy.scm.repositoryUrl).toBe(anotherService().scm.repositoryUrl);
     expect(copy.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
     expect(copy.versionCatalogs).toBe('gradle/libs.versions.toml');
     expect(editor()['expanded']()).toBe(2);

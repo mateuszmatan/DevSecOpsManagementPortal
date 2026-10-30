@@ -71,9 +71,9 @@ import {
   url,
   words,
 } from '@common/shared/form-controls';
-import { pairwise, startWith } from 'rxjs';
+import { Observable, combineLatest, filter, map, pairwise, startWith } from 'rxjs';
 import { agentLabels } from '../shared/build-options';
-import { buildDefaults } from '../shared/service-template';
+import { buildDefaults, imageRepository, namedDefaults } from '../shared/service-template';
 import { applyLibraryDefaults, withoutUntouchedDefaults } from './library-defaults';
 
 export const SERVICE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
@@ -864,7 +864,112 @@ export function followToolDefaults(
       if (!command.controls.tasks.value || command.controls.tasks.value === before.tasks) {
         command.controls.tasks.setValue(after.tasks);
       }
+      const patterns = service.controls.nexusIqApplications.controls[0]?.controls.scanPatterns;
+      if (patterns?.value === before.scanPattern && after.scanPattern) {
+        patterns.setValue(after.scanPattern);
+      }
     });
+}
+
+const NEXUS_IQ_APPLICATION = 'nexusIqApplications.0.application';
+const FILLED_FROM_NAME = [
+  'scm.repositoryUrl',
+  'scm.credentialsId',
+  'deployment.appName',
+  NEXUS_IQ_APPLICATION,
+];
+
+interface Naming {
+  code: string;
+  name: string;
+}
+
+/**
+ * Lets a new service follow its name and its product code through the service template: it fills an empty repository
+ * URL, Bitbucket credentials ID, application name or Nexus IQ application with its scan pattern, and replaces every value
+ * that still holds what the previous name gave, such as the image repositories of a copy of the service named copiedFrom.
+ */
+export function followName(
+  service: ServiceForm,
+  template: ServiceTemplateValues | null,
+  productCode: Observable<string>,
+  destroyRef: DestroyRef,
+  copiedFrom = '',
+): void {
+  const name = service.controls.name;
+  let named: Naming | null = null;
+  combineLatest([productCode, name.valueChanges.pipe(startWith(name.value))])
+    .pipe(
+      map(([code, typed]) => ({ code: code.trim(), name: typed.trim() })),
+      filter((next) => next.name !== ''),
+      takeUntilDestroyed(destroyRef),
+    )
+    .subscribe((next) => {
+      rename(service, template, named ?? { ...next, name: copiedFrom }, next);
+      named = next;
+    });
+}
+
+function rename(
+  service: ServiceForm,
+  template: ServiceTemplateValues | null,
+  previous: Naming,
+  next: Naming,
+): void {
+  const before = namedValues(service, template, previous);
+  const after = namedValues(service, template, next);
+  const application = after[NEXUS_IQ_APPLICATION];
+  if (application) {
+    const { scanPattern } = buildDefaults(template, service.controls.build.controls.tool.value);
+    const apps = service.controls.nexusIqApplications;
+    if (!apps.length) {
+      apps.push(nexusIqApplicationForm(application, scanPattern));
+    } else if (!apps.at(0).controls.scanPatterns.value && scanPattern) {
+      apps.at(0).controls.scanPatterns.setValue(scanPattern);
+    }
+  }
+  for (const [path, value] of Object.entries(after)) {
+    const control = service.get(path);
+    const current = String(control?.value ?? '').trim();
+    if (
+      control &&
+      value &&
+      (current === before[path] || (!current && FILLED_FROM_NAME.includes(path)))
+    ) {
+      control.setValue(value);
+    }
+  }
+}
+
+function namedValues(
+  service: ServiceForm,
+  template: ServiceTemplateValues | null,
+  { code, name }: Naming,
+): Record<string, string> {
+  if (!name) {
+    return {};
+  }
+  const named = namedDefaults({ template, productCode: code }, name);
+  const values = {
+    'scm.repositoryUrl': named.repositoryUrl,
+    'scm.credentialsId': named.repositoryUrl && (template?.bitbucketCredentialsId ?? ''),
+    [NEXUS_IQ_APPLICATION]: named.nexusIqApplication,
+  };
+  if (service.controls.deployment.controls.target.value !== 'OPENSHIFT') {
+    return values;
+  }
+  const rd = service.controls.openShiftTargets.controls.RD.controls;
+  const project = rd.projectBuild.value.trim().replace(/-build$/, '');
+  const image = imageRepository(project, name, template);
+  return {
+    ...values,
+    'deployment.appName': name,
+    ...(project && {
+      'openShiftTargets.RD.dockerRepoPush': image,
+      'openShiftTargets.RD.dockerRepoPull': image,
+      'openShiftTargets.QC.dockerRepoPull': image,
+    }),
+  };
 }
 
 export function unitTestsConfigured(form: ServiceForm): boolean {

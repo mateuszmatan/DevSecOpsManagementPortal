@@ -16,7 +16,8 @@ import {
   createUrbanCodeApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
-import { WizardDefaults, WizardService, imageRepository } from './self-service-model';
+import { imageRepository } from '../shared/service-template';
+import { WizardDefaults, WizardService } from './self-service-model';
 import { ServiceDialog, ServiceDialogData } from './service-dialog';
 
 const APP_ID = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31';

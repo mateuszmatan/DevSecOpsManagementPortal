@@ -14,7 +14,6 @@ import {
   deploys,
   fromService,
   jobName,
-  namedDefaults,
   notLoaded,
   pipelineChoices,
   pipelineNames,
@@ -252,28 +251,6 @@ describe('self-service model', () => {
     expect(request.build.command.tasks).toEqual([]);
     expect(request.build.buildPath).toBeNull();
     expect(request.delivery.tasks).toEqual([]);
-  });
-
-  it('names the OpenShift project, Nexus IQ application and repository of a service by the template', () => {
-    const defaults = {
-      tool: null,
-      target: null,
-      template: TEMPLATE,
-      productCode: 'PAY',
-      settings: null,
-    };
-
-    expect(namedDefaults(defaults, 'Gateway')).toEqual({
-      openShiftProject: 'pay-gateway',
-      nexusIqApplication: 'pay-Gateway',
-      repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/pay-Gateway',
-    });
-    expect(namedDefaults({ ...defaults, productCode: '' }, 'gateway')).toEqual({
-      openShiftProject: '',
-      nexusIqApplication: '',
-      repositoryUrl: '',
-    });
-    expect(namedDefaults({ ...defaults, template: null }, 'gateway').repositoryUrl).toBe('');
   });
 
   it('publishes a Maven service on a virtual machine from target with deploy-file', () => {

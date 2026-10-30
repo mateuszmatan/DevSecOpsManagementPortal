@@ -26,7 +26,7 @@ import {
   toServiceRequest,
 } from '../products/product-form-model';
 import { Choice } from '../shared/choice-tiles';
-import { buildDefaults, fillTemplate } from '../shared/service-template';
+import { buildDefaults, imageRepository } from '../shared/service-template';
 import { FieldProblem } from '@common/core/models';
 
 export type WizardPipeline = Extract<PipelineType, 'SAST' | 'NEXUS_IQ' | 'SECURITY' | 'FULL'>;
@@ -177,23 +177,6 @@ export interface WizardDefaults {
   settings: GlobalSettings | null;
 }
 
-export interface NamedDefaults {
-  openShiftProject: string;
-  nexusIqApplication: string;
-  repositoryUrl: string;
-}
-
-export function namedDefaults(defaults: WizardDefaults, serviceName: string): NamedDefaults {
-  const { template, productCode } = defaults;
-  const filled = (pattern: string | null | undefined) =>
-    productCode && serviceName ? fillTemplate(pattern, productCode, serviceName) : '';
-  return {
-    openShiftProject: filled(template?.openShiftProject).toLowerCase(),
-    nexusIqApplication: filled(template?.nexusIqApplication),
-    repositoryUrl: filled(template?.repositoryUrl),
-  };
-}
-
 const nexusIqApplicationOf = (service?: Service) =>
   service?.nexusIqApplications[0]?.application ?? '';
 
@@ -336,16 +319,6 @@ export function reviewEntries(
 type TargetText = Partial<Omit<Record<keyof OpenShiftTarget, string>, 'skipConfigDeploy'>>;
 
 const dockerContext = (tool: BuildTool) => (tool === 'MAVEN' ? 'target/docker' : 'build/docker');
-
-/** The image repository of a service: the template's registry, the OpenShift project and the service name. */
-export function imageRepository(
-  project: string,
-  service: string,
-  template: ServiceTemplateValues | null,
-): string {
-  const registry = template?.imageRegistry;
-  return `${registry ? `${registry}/` : ''}${project}/${service.toLowerCase()}`;
-}
 
 export function openShiftTargets(
   project: string,

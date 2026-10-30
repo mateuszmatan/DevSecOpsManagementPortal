@@ -26,6 +26,7 @@ import {
   forkJoin,
   map,
   of,
+  startWith,
   switchMap,
 } from 'rxjs';
 import { PipelinesApi, ProductsApi, ServiceTemplateApi, SettingsApi } from '../core/api';
@@ -59,6 +60,7 @@ import {
   duplicateService,
   dvApplication,
   firstServiceWithProblem,
+  followName,
   followToolDefaults,
   patchProduct,
   prefillNewService,
@@ -329,7 +331,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     const template = this.template();
     const build = buildDefaults(template, service.controls.build.controls.tool.value);
     service.patchValue({
-      build: { buildPath: build.artifact, command: { tasks: build.tasks } },
+      build: { autoSetup: true, buildPath: build.artifact, command: { tasks: build.tasks } },
       delivery: { tasks: template?.deliveryTasks ?? '' },
     });
     this.add(this.prepared(service));
@@ -344,6 +346,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected duplicate(index: number): void {
     const source = this.form.controls.services.at(index);
     const copy = duplicateService(source, this.settings());
+    this.followServiceName(copy, source.controls.name.value);
     this.fill(this.withFullPipeline(copy), index + 1, source);
   }
 
@@ -458,7 +461,10 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     );
   }
 
-  /** Prefills a new service with the Library defaults and the AppScan key, and its build with the tool's defaults. */
+  /**
+   * Prefills a new service with the Library defaults and the AppScan key, its build with the tool's defaults and what
+   * the service template takes from its name.
+   */
   private prepared(service: ServiceForm): ServiceForm {
     prefillNewService(
       service,
@@ -466,7 +472,17 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       this.form.controls.services.controls.map((other) => other.controls.appScan.getRawValue()),
     );
     followToolDefaults(service, this.template(), this.destroyRef);
+    this.followServiceName(service);
     return this.withFullPipeline(service);
+  }
+
+  private followServiceName(service: ServiceForm, copiedFrom?: string): void {
+    const code = this.form.controls.code;
+    const codes = code.valueChanges.pipe(
+      startWith(null),
+      map(() => code.value),
+    );
+    followName(service, this.template(), codes, this.destroyRef, copiedFrom);
   }
 
   private add(service: ServiceForm, index = this.form.controls.services.length): void {
