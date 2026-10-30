@@ -239,6 +239,9 @@ describe('ServiceFields', () => {
         'Source folder, build command and Node.js options',
       );
       expect(field('Node.js home on the agent').closest('dso-advanced-settings')).not.toBeNull();
+      expect(helpOf(field('Source folder'))).toContain(
+        'the Gradle, Maven and Node.js builds have their own folder fields',
+      );
 
       form.controls.build.controls.tool.setValue('FLUTTER');
       await fixture.whenStable();
@@ -578,6 +581,25 @@ describe('ServiceFields', () => {
 
       expect(hintOf('Minimum threat level')).toContain('· Library default: 2 · ');
       expect(hintOf('Dependencies')).toContain('· Library default: yes · ');
+    });
+
+    it('tells in which folders the verification commands run', async () => {
+      await render();
+      await open('GoldenFix');
+      buttonOf(pane(), 'Override for this service').click();
+      await fixture.whenStable();
+      const help = (label: string) => helpOf(fieldOf(pane(), label)!);
+
+      expect(help('Gradle command')).toContain(
+        'for a version catalog, settings file or platform, in the folder of each build that uses it',
+      );
+      expect(help('Maven command')).toContain('for a parent or BOM pom that other poms use');
+      expect(help('npm command')).toContain(
+        'A package-lock.json next to it is refreshed first and added to the pull request.',
+      );
+      expect(help('Timeout (minutes)')).toContain(
+        'one for each folder a changed manifest or catalog is built in',
+      );
     });
 
     it('lists the shared version catalogs of the service under Inherit and Override', async () => {

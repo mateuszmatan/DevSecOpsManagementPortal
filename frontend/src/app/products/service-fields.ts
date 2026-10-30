@@ -50,7 +50,8 @@ const REGION_NAMES: Record<Region, string> = {
 
 const NOTES: Record<ServiceSectionId, string> = {
   general: 'The name of the service, used in its Jenkins job names and reports, and what it does.',
-  build: 'How Jenkins builds the service, and where the build leaves its result (the artifact).',
+  build:
+    'How Jenkins builds the service, with an optional Node.js build first, and where the build leaves its result (the artifact).',
   unitTests:
     'The unit tests that run after the build, and where their results and coverage report are. Without a test command the step is skipped.',
   testJobs:
@@ -194,7 +195,7 @@ const NEXUS_IQ_APPLICATION: Field[] = [
     mono: true,
     placeholder: '**/build/libs/*.jar',
     hint: 'one Ant pattern per line',
-    help: 'The files Nexus IQ scans, relative to the workspace, usually the built archives.',
+    help: 'The files Nexus IQ scans, relative to the workspace, usually the built archives. A Node.js build that scans its npm dependencies adds its package-lock.json.',
   }),
 ];
 
@@ -535,7 +536,7 @@ export class ServiceFields {
         placeholder: '/usr/lib/jvm/java-17-openjdk',
         hint: this.flutter()
           ? 'must be set for Flutter builds'
-          : 'JAVA_HOME of the build and the later stages, unless the build tool is set up automatically',
+          : 'JAVA_HOME of the Gradle or Maven build and the later stages, unless the build tool is set up automatically',
         help: this.flutter()
           ? 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.'
           : 'The absolute path of a JDK installed on the Jenkins agent.',
@@ -560,7 +561,7 @@ export class ServiceFields {
       mono('sourceDir', 'Source folder', 'sourceDir', 6, {
         placeholder: '.',
         hint: 'relative to the repository root',
-        help: 'The folder the AppScan static scan prepares. Change it when the code of the service is in a subfolder.',
+        help: 'The folder the AppScan static scan prepares; the Gradle, Maven and Node.js builds have their own folder fields. Change it when the code of the service is in a subfolder.',
       }),
     ];
   }
