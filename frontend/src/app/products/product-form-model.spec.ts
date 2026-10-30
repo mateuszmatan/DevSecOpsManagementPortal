@@ -683,7 +683,16 @@ describe('Node.js build', () => {
     const node = nodeOf(createServiceForm(service()));
     node.enabled.setValue(true);
 
-    for (const folder of [' /opt/web', '\\opt\\web', 'web/../..', './.."', '/']) {
+    for (const folder of [
+      ' /opt/web',
+      '\\opt\\web',
+      'web/../..',
+      './.."',
+      '/',
+      'C:\\work\\app\\frontend',
+      './C:/work/web',
+      'd:web',
+    ]) {
       node.directory.setValue(folder);
       expect(node.directory.hasError('pattern'), folder).toBe(true);
     }

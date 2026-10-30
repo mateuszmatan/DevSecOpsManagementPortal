@@ -155,6 +155,8 @@ class ServiceDtoSpec extends Specification {
         'two Nexus IQ applications'   | [nexusIqApplications: [[application: 'a', scanPatterns: ['*.jar']], [application: 'b', scanPatterns: ['*.war']]]] || 'nexusIqApplications' | 'a service scans one Nexus IQ application'
         'a Node.js folder above'      | [nodeBuild: [directory: 'web/../..']]                         || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
         'an absolute Node.js folder'  | [nodeBuild: [directory: '/opt/web']]                          || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
+        'a Node.js folder on a drive' | [nodeBuild: [directory: 'C:\\work\\app\\frontend']]          || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
+        'a Node.js folder of drive D' | [nodeBuild: [directory: 'D:web']]                             || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
         'a Node.js folder with quotes'| [nodeBuild: [directory: '"web"']]                             || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
         'a relative Node.js home'     | [nodeBuild: [nodePath: 'tools/node-20']]                      || 'nodeBuild.nodePath'                             | ABSOLUTE_FOLDER_MESSAGE
         'a Node.js home with a quote' | [nodeBuild: [nodePath: "/opt/node'20"]]                       || 'nodeBuild.nodePath'                             | ABSOLUTE_FOLDER_MESSAGE

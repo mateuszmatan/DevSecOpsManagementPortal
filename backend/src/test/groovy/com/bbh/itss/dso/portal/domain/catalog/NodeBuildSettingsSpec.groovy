@@ -74,7 +74,8 @@ class NodeBuildSettingsSpec extends Specification {
                 .validate(it, GRADLE) } == []
 
         where:
-        directory << [' /opt/web', '\\opt\\web', 'web/../..', '..', 'web\\..\\..']
+        directory << [' /opt/web', '\\opt\\web', 'web/../..', '..', 'web\\..\\..', 'C:\\work\\app\\frontend', 'C:/work/web',
+                      'd:web']
     }
 
     def "the folder of a Node.js build may hold dots in its names: '#directory'"() {
