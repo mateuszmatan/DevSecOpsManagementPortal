@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -38,6 +39,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.ObjectUtils.allNull;
 
 @UseCase
@@ -108,17 +110,23 @@ public class PipelineService implements PipelinesUseCase {
     }
 
     /**
-     * The Jenkins job of the first active pipeline of the type that runs for a repository with the same agents: the
-     * services of one repository share one Jenkinsfile, and so one job.
+     * The Jenkins job that two or more active pipelines of the type already share for a repository and its agents.
+     * The new pipelines of such a repository join that job; those of any other repository share the job of the first
+     * of them, and a single pipeline that runs already keeps its job to itself.
      */
     private Map<String, String> sharedJobs(Product product, PipelineType type) {
         Map<String, String> jobs = new HashMap<>();
         pipelines.findByProductId(product.id()).stream()
                 .filter(pipeline -> pipeline.type() == type && pipeline.activeKey().isPresent()
                         && allNull(pipeline.settings().securityPipelineJob(), pipeline.settings().extendedPipelineJob()))
-                .forEach(pipeline -> product.service(pipeline.service().serviceId())
+                .flatMap(pipeline -> product.service(pipeline.service().serviceId())
                         .flatMap(service -> jobKey(service, pipeline.settings()))
-                        .ifPresent(key -> jobs.putIfAbsent(key, pipeline.settings().jenkinsJob())));
+                        .map(key -> Map.entry(key, pipeline.settings().jenkinsJob())).stream())
+                .collect(groupingBy(job -> job.getKey() + " " + job.getValue().toLowerCase(ROOT), LinkedHashMap::new,
+                        toList()))
+                .values().stream()
+                .filter(sharing -> sharing.size() > 1)
+                .forEach(sharing -> jobs.putIfAbsent(sharing.getFirst().getKey(), sharing.getFirst().getValue()));
         return jobs;
     }
 

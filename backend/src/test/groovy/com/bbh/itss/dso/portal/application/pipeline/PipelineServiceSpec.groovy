@@ -158,7 +158,7 @@ class PipelineServiceSpec extends Specification {
         NEXUS_IQ | 'nexusiq'
     }
 
-    def "the services of one repository get the Jenkins job of its first Nexus IQ pipeline, #existing"() {
+    def "the new Nexus IQ pipelines of one repository share one Jenkins job, #existing"() {
         given:
         def repository = 'https://bitbucket.bbh.com/projects/PAY/repos/payhub'
         products.load(1L) >> Optional.of(product(id: 1, services: [
@@ -166,7 +166,8 @@ class PipelineServiceSpec extends Specification {
                 [name: 'web-ui', id: 11, scm: ScmSettings.of(" ${repository.toUpperCase()}.git/", 'bb'),
                  nexusIqApplications: [scanned('b')]],
                 [name: 'batch', id: 12, scm: ScmSettings.of("${repository}-batch", 'bb'), nexusIqApplications: [scanned('c')]],
-                [name: 'docs', id: 13, nexusIqApplications: [scanned('d')]]]))
+                [name: 'docs', id: 13, nexusIqApplications: [scanned('d')]],
+                [name: 'reports', id: 14, scm: ScmSettings.of(repository, 'bb'), nexusIqApplications: [scanned('e')]]]))
         pipelines.findByProductId(1L) >> before
         pipelines.existsForService(10L, NEXUS_IQ) >> !before.isEmpty()
 
@@ -183,11 +184,13 @@ class PipelineServiceSpec extends Specification {
                 { Pipeline p -> stored(103L, p) }
 
         where:
-        existing                                       | before                                                       || shared
-        'both new'                                     | []                                                           || 'DevSecOps/CERT/backend-api-nexusiq'
-        'one that runs already'                        | [running(jenkinsJob: 'Teams/payhub')]                        || 'Teams/payhub'
-        'but not that of other agents'                 | [running(jenkinsJob: 'Teams/payhub', agentLabels: ['win'])]  || 'DevSecOps/CERT/web-ui-nexusiq'
-        'but not that of a pipeline without its key'   | [running(jenkinsJob: 'Teams/payhub', keys: [])]              || 'DevSecOps/CERT/web-ui-nexusiq'
+        existing                                        | before                                || shared
+        'both new'                                      | []                                    || 'DevSecOps/CERT/backend-api-nexusiq'
+        'not the job of one that runs already'          | [running(jenkinsJob: 'Teams/payhub')] || 'DevSecOps/CERT/web-ui-nexusiq'
+        'the job two that run already share'            | twice(jenkinsJob: ' teams/PAYHUB')    || 'Teams/payhub'
+        'not the separate jobs of two that run already' | twice(jenkinsJob: 'Teams/reports')    || 'DevSecOps/CERT/web-ui-nexusiq'
+        'not the job two on other agents share'         | twice(agentLabels: ['win'])           || 'DevSecOps/CERT/web-ui-nexusiq'
+        'not the job of two when one has no key'        | twice(keys: [])                       || 'DevSecOps/CERT/web-ui-nexusiq'
     }
 
     def "a saved service template decides the agents and the job of the pipelines the portal starts, unless the save names the agents"() {
@@ -443,6 +446,12 @@ class PipelineServiceSpec extends Specification {
 
     private static Pipeline running(Map args) {
         pipeline([id: 90L, serviceId: 10L, type: NEXUS_IQ] + args)
+    }
+
+    /** Two pipelines that run already in the job Teams/payhub, the second one changed by the arguments. */
+    private static List<Pipeline> twice(Map args) {
+        [running(jenkinsJob: 'Teams/payhub', agentLabels: args.agentLabels),
+         running([id: 91L, serviceId: 14L, jenkinsJob: 'Teams/payhub'] + args)]
     }
 
     private static NexusIqApplication scanned(String application) {
