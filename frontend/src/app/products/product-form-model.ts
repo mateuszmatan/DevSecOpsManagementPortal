@@ -71,7 +71,7 @@ import {
   url,
   words,
 } from '@common/shared/form-controls';
-import { Observable, combineLatest, filter, map, pairwise, startWith } from 'rxjs';
+import { Observable, combineLatest, filter, map, pairwise, skipWhile, startWith } from 'rxjs';
 import { agentLabels } from '../shared/build-options';
 import { buildDefaults, imageRepository, namedDefaults } from '../shared/service-template';
 import {
@@ -926,6 +926,8 @@ interface Naming {
  * Lets a new service follow its name and its product code through the service template: it fills an empty repository
  * URL, Bitbucket credentials ID, application name or Nexus IQ application with its scan pattern, and replaces every value
  * that still holds what the previous name gave, such as the image repositories of a copy of the service named copiedFrom.
+ * An imported service counts as named already and offered its Nexus IQ application, so it keeps what its file gives
+ * until its name is changed.
  */
 export function followName(
   service: ServiceForm,
@@ -933,12 +935,17 @@ export function followName(
   productCode: Observable<string>,
   destroyRef: DestroyRef,
   copiedFrom = '',
+  imported = false,
 ): void {
   const name = service.controls.name;
   const apps = service.controls.nexusIqApplications;
+  const typed = name.valueChanges.pipe(startWith(name.value));
   let named: Naming | null = null;
-  let offered = apps.length > 0;
-  combineLatest([productCode, name.valueChanges.pipe(startWith(name.value))])
+  let offered = imported || apps.length > 0;
+  combineLatest([
+    productCode,
+    imported ? typed.pipe(skipWhile((value) => value.trim() === copiedFrom)) : typed,
+  ])
     .pipe(
       map(([code, typed]) => ({ code: code.trim(), name: typed.trim() })),
       filter((next) => next.name !== ''),

@@ -717,6 +717,39 @@ describe('ProductEditor', () => {
     expect(editor()['expanded']()).toBe(0);
   });
 
+  it('imports a config.yaml as it is, and follows the service template only once the service is renamed', async () => {
+    await start();
+    const legacy = {
+      ...anotherService(),
+      id: null,
+      name: 'legacy',
+      nexusIqApplications: [],
+      scm: { ...anotherService().scm, repositoryUrl: null, credentialsId: null },
+    };
+
+    editor()['importService']({
+      file: 'config.yaml',
+      name: 'legacy',
+      service: legacy,
+      notes: [],
+      agentLabels: [],
+    });
+    editor()['form'].controls.code.setValue('PAY');
+    await fixture.whenStable();
+    const imported = editor()['form'].controls.services.at(0);
+
+    expect(imported.controls.nexusIqApplications.length).toBe(0);
+    expect(imported.controls.scm.controls.repositoryUrl.value).toBe('');
+    expect(imported.controls.scm.controls.credentialsId.value).toBe('');
+
+    imported.controls.name.setValue('ledger');
+
+    expect(imported.controls.nexusIqApplications.length).toBe(0);
+    expect(imported.controls.scm.controls.repositoryUrl.value).toBe(
+      'https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger',
+    );
+  });
+
   it('offers the import in the empty list of services', async () => {
     await start();
     editor()['remove'](0);

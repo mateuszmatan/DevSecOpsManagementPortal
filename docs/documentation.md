@@ -470,7 +470,7 @@ The library name comes from the Library defaults (`platform.jenkinsLibrary`). Co
 - `build.node` without `enabled: true` comes back switched off, with its values kept.
 - A Flutter file with `build.node.enabled: true` comes back switched off with the note "Check: the Node.js build is not used with Flutter".
 - `goldenFix.versionCatalogs` fills "Shared version catalogs".
-- Like a new service, the imported service follows its name: an empty repository URL, Bitbucket credentials ID and Nexus IQ application are filled from the service template. The notes do not list these values; check them in the Bitbucket and Nexus IQ sections.
+- In the admin editor, the imported service keeps what the file gives: an empty repository URL, Bitbucket credentials ID or Nexus IQ application stays empty. Only when you change its name does the service template fill them in, as for a new service. In the Self-service dialog, the imported service follows its name like a new service; the notes do not list the values it fills in, so check them in the Bitbucket and Nexus IQ sections.
 - The Jenkins agents of the imported pipeline fill the Jenkins agents of the product while you have not changed them.
 - The file may hold at most 262,144 characters and 50 projects.
 

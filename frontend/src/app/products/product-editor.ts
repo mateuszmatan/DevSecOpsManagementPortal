@@ -342,7 +342,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   }
 
   protected importService(imported: ImportedConfig): void {
-    this.fill(this.prepared(importedServiceForm(imported, this.settings()?.serviceDefaults)));
+    this.fill(this.prepared(importedServiceForm(imported, this.settings()?.serviceDefaults), true));
     prefillAgents(this.form.controls.agentLabels, imported.agentLabels);
     this.imported.set(imported);
   }
@@ -472,26 +472,26 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   /**
    * Prefills a new service with the Library defaults and the AppScan key, its build with the tool's defaults and what
-   * the service template takes from its name.
+   * the service template takes from its name; an imported one keeps what its file gives until it is renamed.
    */
-  private prepared(service: ServiceForm): ServiceForm {
+  private prepared(service: ServiceForm, imported = false): ServiceForm {
     prefillNewService(
       service,
       this.settings(),
       this.form.controls.services.controls.map((other) => other.controls.appScan.getRawValue()),
     );
     followToolDefaults(service, this.template(), this.destroyRef);
-    this.followServiceName(service);
+    this.followServiceName(service, imported ? service.controls.name.value.trim() : '', imported);
     return this.withFullPipeline(service);
   }
 
-  private followServiceName(service: ServiceForm, copiedFrom?: string): void {
+  private followServiceName(service: ServiceForm, copiedFrom = '', imported = false): void {
     const code = this.form.controls.code;
     const codes = code.valueChanges.pipe(
       startWith(null),
       map(() => code.value),
     );
-    followName(service, this.template(), codes, this.destroyRef, copiedFrom);
+    followName(service, this.template(), codes, this.destroyRef, copiedFrom, imported);
   }
 
   private add(service: ServiceForm, index = this.form.controls.services.length): void {
