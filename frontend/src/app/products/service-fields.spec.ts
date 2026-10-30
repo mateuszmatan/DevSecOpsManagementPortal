@@ -7,15 +7,17 @@ import {
   checkboxOf,
   choose,
   fieldOf,
+  helpOf,
   inputOf,
   optionsOf,
   selectOf,
   text,
   unexplained,
 } from '@common/testing/dom';
-import { globalSettings, service } from '../testing/fixtures';
+import { globalSettings, nodeBuild, service } from '../testing/fixtures';
 import {
   BADGE_TWICE,
+  NODE_TWICE,
   ONE_APPLICATION,
   ServiceForm,
   createNexusIqApplicationForm,
@@ -76,6 +78,7 @@ describe('ServiceFields', () => {
     const stored = service();
     return service({
       build: { ...stored.build, tool },
+      nodeBuild: nodeBuild({ enabled: true }),
       deployment: { ...stored.deployment, target },
       appScan: { ...stored.appScan, compile: true, dastEnabled: true },
       goldenFix: { ...stored.goldenFix, minThreatLevel: 7 },
@@ -207,6 +210,86 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
 
       expect(field('Artifact path').textContent).toContain('What the build produces');
+    });
+
+    it('offers the Node.js build of stage 0 for Gradle and Maven and shows its fields once it is on', async () => {
+      await render();
+      await open('Build');
+      const box = () => checkboxOf(pane(), 'Build the frontend with Node.js first');
+
+      expect([...pane().querySelectorAll('h4')].map(text)).toEqual(['Node.js build (stage 0)']);
+      expect(text(box().closest('dso-checkbox'))).toContain('build.node.enabled');
+      expect(fieldOf(pane(), 'Folder with package.json')).toBeNull();
+
+      box().click();
+      await fixture.whenStable();
+
+      expect(form.controls.nodeBuild.controls.enabled.value).toBe(true);
+      expect(hints()).toEqual(
+        expect.arrayContaining([
+          'Left empty: the repository root · build.node.dir',
+          'One per line, run in order; left empty: npm ci, then npm run build · build.node.commands',
+          'Library default: NodeJS-20 · build.node.installationName',
+          'Left empty: 30 · build.node.timeoutMin',
+        ]),
+      );
+      expect(inputOf(pane(), 'Commands').placeholder).toBe('npm ci\nnpm run build');
+      expect(checkboxOf(pane(), 'Scan the npm dependencies with Nexus IQ').checked).toBe(true);
+      expect(text(pane().querySelector('dso-advanced-settings .panel-description'))).toBe(
+        'Source folder, build command and Node.js options',
+      );
+      expect(field('Node.js home on the agent').closest('dso-advanced-settings')).not.toBeNull();
+
+      form.controls.build.controls.tool.setValue('FLUTTER');
+      await fixture.whenStable();
+
+      expect(box()).toBeUndefined();
+      expect(form.controls.nodeBuild.controls.enabled.value).toBe(false);
+    });
+
+    it.each([
+      [null, ['In SAST scanning', 'In the Extended pipeline'], []],
+      ['SAST', ['In SAST scanning'], ['In the Extended pipeline']],
+      ['EXTENDED', ['In the Extended pipeline'], ['In SAST scanning']],
+      ['FULL', [], ['In SAST scanning', 'In the Extended pipeline']],
+    ] as const)(
+      'tells where the %s pipeline runs the Node.js build',
+      async (pipeline, told, untold) => {
+        await render();
+        fixture.componentRef.setInput('pipeline', pipeline);
+        await open('Build');
+        const help = helpOf(
+          checkboxOf(pane(), 'Build the frontend with Node.js first').closest('dso-checkbox')!,
+        );
+
+        expect(help).toContain('extra stage 0, before the Gradle or Maven build');
+        told.forEach((sentence) => expect(help).toContain(sentence));
+        untold.forEach((sentence) => expect(help).not.toContain(sentence));
+      },
+    );
+
+    it('marks Build for an invalid Node.js field and opens it first', async () => {
+      await render(
+        service({
+          nodeBuild: nodeBuild({
+            enabled: true,
+            installationName: 'NodeJS-20',
+            nodePath: '/opt/node-20',
+          }),
+        }),
+      );
+      fixture.componentRef.setInput('submitted', true);
+      await fixture.whenStable();
+
+      expect(
+        [...page().querySelectorAll('.rail-item.problem span:first-of-type')].map(text),
+      ).toEqual(['Build']);
+      expect(fixture.componentInstance.revealFirstProblem()).toBe(true);
+      await fixture.whenStable();
+
+      expect(text(page().querySelector('.rail-item.active span'))).toBe('Build');
+      expect(form.controls.nodeBuild.controls.nodePath.errors).toEqual({ rule: NODE_TWICE });
+      expect(pane().querySelector('dso-advanced-settings .has-errors')).not.toBeNull();
     });
   });
 

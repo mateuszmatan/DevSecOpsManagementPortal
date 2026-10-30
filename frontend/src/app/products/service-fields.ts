@@ -9,6 +9,7 @@ import {
   check,
   chips,
   choice,
+  count,
   defaulted,
   formRevision,
   line,
@@ -196,6 +197,14 @@ const NEXUS_IQ_APPLICATION: Field[] = [
     help: 'The files Nexus IQ scans, relative to the workspace, usually the built archives.',
   }),
 ];
+
+const NODE_BUILD =
+  'Runs your npm commands in an extra stage 0, before the Gradle or Maven build, for example to build an Angular frontend that the Gradle or Maven build then packages into the jar. Write its output outside the build and target folders. Leave it off when the Gradle or Maven build already runs npm.';
+
+const NODE_BUILD_IN: Partial<Record<PipelineType, string>> = {
+  SAST: 'In SAST scanning it runs only while Compile is on.',
+  EXTENDED: 'In the Extended pipeline it runs before the release delivery rebuild.',
+};
 
 const SCM: Field[] = [
   line('repositoryUrl', 'Repository URL', 'scm.bitbucket.url', 8, {
@@ -423,7 +432,18 @@ export class ServiceFields {
     const scan = c.appScan;
     const sonar = c.sonar;
     return {
-      build: [c.build.controls.sourceDir, ...options(c.build.controls.command)],
+      build: [
+        c.build.controls.sourceDir,
+        ...options(c.build.controls.command),
+        ...of(
+          c.nodeBuild,
+          'nodePath',
+          'timeoutMinutes',
+          'registry',
+          'npmrcCredentialsId',
+          'environment',
+        ),
+      ],
       unitTests: [
         ...of(c.unitTests, 'rootDir', 'reportOutDir', 'allowEmptyResults'),
         ...options(c.unitTests.controls.command),
@@ -482,6 +502,19 @@ export class ServiceFields {
     return !this.form().controls.deployment.controls.nexusDeliveryDisabled.value;
   }
 
+  protected buildsNode(): boolean {
+    return this.form().controls.nodeBuild.controls.enabled.value;
+  }
+
+  protected buildOptionsSummary(): string {
+    if (this.flutter()) {
+      return 'Source folder';
+    }
+    return this.buildsNode()
+      ? 'Source folder, build command and Node.js options'
+      : 'Source folder and build command options';
+  }
+
   protected buildFields(): Field[] {
     const maven = this.tool() === 'MAVEN';
     return [
@@ -518,6 +551,80 @@ export class ServiceFields {
         placeholder: '.',
         hint: 'relative to the repository root',
         help: 'The folder the AppScan static scan prepares. Change it when the code of the service is in a subfolder.',
+      }),
+    ];
+  }
+
+  protected nodeSwitch(): Field[] {
+    const pipeline = this.pipeline();
+    const notes = pipeline ? [NODE_BUILD_IN[pipeline] ?? ''] : Object.values(NODE_BUILD_IN);
+    return [
+      check('enabled', 'Build the frontend with Node.js first', 'build.node.enabled', 12, {
+        help: [NODE_BUILD, ...notes].join(' ').trim(),
+      }),
+    ];
+  }
+
+  protected nodeFields(): Field[] {
+    const defaults = this.defaults()?.serviceDefaults;
+    const c = this.form().controls.nodeBuild.controls;
+    return [
+      mono('directory', 'Folder with package.json', 'build.node.dir', 6, {
+        placeholder: 'frontend',
+        hint: 'left empty: the repository root',
+        help: 'The folder of the frontend in the repository. The commands run in it.',
+        error: "A folder relative to the repository root, without '..' or quotes",
+      }),
+      area('commands', 'Commands', 'build.node.commands', 6, {
+        mono: true,
+        placeholder: 'npm ci\nnpm run build',
+        hint: 'one per line, run in order; left empty: npm ci, then npm run build',
+        help: 'Each line runs as one shell command, with sh on Linux agents and bat on Windows agents. A failing command fails the stage, and the later stages do not run.',
+      }),
+      check('nexusIqScan', 'Scan the npm dependencies with Nexus IQ', 'build.node.nexusIqScan', 6, {
+        help: 'Adds package-lock.json of this folder to the Nexus IQ scan, so Nexus IQ reports the npm dependencies and GoldenFix can raise them. New findings can turn the Nexus IQ stage orange.',
+      }),
+      line('installationName', 'Node.js installation', 'build.node.installationName', 6, {
+        ...defaulted(
+          defaults?.nodeInstallationName,
+          c.installationName.value,
+          'left empty: node and npm from the agent',
+        ),
+        help: 'A NodeJS installation under Manage Jenkins, Tools, which needs the NodeJS plugin. Its node and npm run the commands.',
+      }),
+    ];
+  }
+
+  protected nodeOptions(): Field[] {
+    const defaults = this.defaults()?.serviceDefaults;
+    const c = this.form().controls.nodeBuild.controls;
+    return [
+      mono('nodePath', 'Node.js home on the agent', 'build.node.nodePath', 8, {
+        placeholder: '/opt/node-20',
+        help: 'An absolute folder of Node.js on the agent, such as /opt/node-20 or C:\\Program Files\\nodejs. It wins over the Node.js installation, the Library default included.',
+        error:
+          'An absolute folder such as /opt/node-20 or C:\\Program Files\\nodejs, without quotes',
+      }),
+      count('timeoutMinutes', 'Node.js timeout (minutes)', 'build.node.timeoutMin', 4, {
+        min: 1,
+        max: 240,
+        hint: 'left empty: 30',
+        help: 'How long the commands of the Node.js build may take together before the stage fails.',
+      }),
+      line('registry', 'npm registry', 'build.node.registry', 6, {
+        ...defaulted(defaults?.npmRegistry, c.registry.value),
+        help: 'The registry npm installs from, exported as npm_config_registry. It is used only without an .npmrc.',
+        error: HTTP_URL_ERROR,
+      }),
+      mono('npmrcCredentialsId', '.npmrc credentials ID', 'build.node.npmrcCredentialsId', 6, {
+        ...defaulted(defaults?.npmrcCredentialsId, c.npmrcCredentialsId.value),
+        help: 'The ID of a Jenkins Secret file credential with an .npmrc, which npm then reads, its registry included.',
+      }),
+      area('environment', 'Node.js environment variables', 'build.node.env', 6, {
+        mono: true,
+        placeholder: 'NODE_OPTIONS=--max-old-space-size=4096',
+        hint: 'one NAME=value per line',
+        help: 'Environment variables set for the Node.js commands only.',
       }),
     ];
   }

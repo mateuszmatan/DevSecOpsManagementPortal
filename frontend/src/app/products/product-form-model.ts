@@ -20,6 +20,7 @@ import {
   GlobalSettings,
   GoldenFixPolicy,
   NexusIqApplication,
+  NodeBuildSettings,
   OpenShiftTarget,
   PipelineType,
   Product,
@@ -93,12 +94,23 @@ export const SCANNER_VERSION = /^[0-9A-Za-z._-]*$/;
 export const TIME_ZONE = /^[A-Za-z0-9_+/-]*$/;
 export const REMEDIATION_TYPE = /^[a-z-]{1,100}$/;
 export const GOLDEN_FIX_ECOSYSTEMS = ['maven', 'npm', 'pypi', 'pub'];
+export const RELATIVE_FOLDER = /^(?![/\\])(?!.*\.\.)[^'"\p{Cc}]*$/u;
+export const ABSOLUTE_FOLDER = /^((\/|[A-Za-z]:[/\\]|\\\\)[^'"\p{Cc}]*)?$/u;
 
 const FOLDER = /^[^,']{1,300}$/;
+const COMMAND = /^\P{Cc}*$/u;
 const tokenLines = (value: string) => lines(value, false);
 const parameterLines = (value: string) => value.split('\n').filter((line) => line.trim());
 const tokenWords = (value: string) => words(value, false);
 const upTo = (length: number) => new RegExp(`^.{1,${length}}$`);
+const environment = (values: string[] | null | undefined, column: number) =>
+  text(
+    joinLines(values),
+    maxLines(30, false),
+    eachItem(tokenLines, ENV_VARIABLE, 'Write each variable as NAME=value'),
+    eachItem(tokenLines, upTo(500), 'At most 500 characters per variable'),
+    fitsColumn(tokenLines, '\n', column),
+  );
 
 export const NO_COMMAND: ToolCommand = {
   tasks: [],
@@ -126,13 +138,7 @@ export function createToolCommandForm(command?: Partial<ToolCommand> | null) {
     ),
     directory: text(command?.directory, max(500)),
     mavenHome: shellSafe(command?.mavenHome, 500),
-    environment: text(
-      joinLines(command?.environment),
-      maxLines(30, false),
-      eachItem(tokenLines, ENV_VARIABLE, 'Write each variable as NAME=value'),
-      eachItem(tokenLines, upTo(500), 'At most 500 characters per variable'),
-      fitsColumn(tokenLines, '\n', 4000),
-    ),
+    environment: environment(command?.environment, 4000),
     label: text(command?.label, max(200)),
     returnStdout: flag(command?.returnStdout),
   });
@@ -545,6 +551,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       fitsColumn(lines, '\n', 1000),
     );
   const parallel = (value: number | null | undefined) => integer(value, 1, INT_MAX);
+  const node = s?.nodeBuild;
 
   const form = new FormGroup({
     id: new FormControl<number | null>(s?.id ?? null),
@@ -559,6 +566,37 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       autoSetup: flag(s?.build?.autoSetup),
       buildPath: shellSafe(s?.build?.buildPath, 500),
       command: createToolCommandForm(s?.build?.command),
+    }),
+    nodeBuild: new FormGroup({
+      enabled: flag(node?.enabled),
+      directory: text(node?.directory, Validators.pattern(RELATIVE_FOLDER), max(500)),
+      commands: text(
+        joinLines(node?.commands),
+        maxLines(20, false),
+        eachItem(
+          tokenLines,
+          COMMAND,
+          'One command per line, without tabs or other control characters',
+        ),
+        eachItem(tokenLines, upTo(500), 'At most 500 characters per command'),
+        fitsColumn(tokenLines, '\n', 4000),
+      ),
+      installationName: text(
+        node?.installationName,
+        max(200),
+        notWith('nodePath', NODE_TWICE, 'enabled'),
+      ),
+      nodePath: text(
+        node?.nodePath,
+        Validators.pattern(ABSOLUTE_FOLDER),
+        max(500),
+        notWith('installationName', NODE_TWICE, 'enabled'),
+      ),
+      environment: environment(node?.environment, 2000),
+      registry: url(node?.registry, 500),
+      npmrcCredentialsId: text(node?.npmrcCredentialsId, max(200)),
+      timeoutMinutes: integer(node?.timeoutMinutes, 1, 240),
+      nexusIqScan: flag(node?.nexusIqScan !== false),
     }),
     unitTests: new FormGroup({
       command: createToolCommandForm(s?.unitTests?.command),
@@ -717,7 +755,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     }),
   });
 
-  const { build, deployment, appScan, unitTests, sonar, scm, flutter } = form.controls;
+  const { build, nodeBuild, deployment, appScan, unitTests, sonar, scm, flutter } = form.controls;
   const tool = build.controls.tool;
   const target = deployment.controls.target;
   const deliveryDisabled = deployment.controls.nexusDeliveryDisabled;
@@ -728,6 +766,8 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   requireOnceUsed(form.controls.openShiftTargets.controls.QC);
   revalidateOnChange(sonar.controls.badgeToken, sonar.controls.badgeCredentialsId);
   revalidateOnChange(sonar.controls.badgeCredentialsId, sonar.controls.badgeToken);
+  revalidateOnChange(nodeBuild.controls.installationName, nodeBuild.controls.nodePath);
+  revalidateOnChange(nodeBuild.controls.nodePath, nodeBuild.controls.installationName);
   requireWhile(
     build.controls.javaPath,
     () => tool.value === 'FLUTTER' || !build.controls.autoSetup.value,
@@ -774,15 +814,19 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     () => !!optional(scm.controls.repositoryUrl.value),
     scm.controls.repositoryUrl,
   );
-  [build.controls.command.controls.tasks, form.controls.delivery.controls.tasks].forEach(
-    (control) => control.updateValueAndValidity(),
-  );
+  [
+    build.controls.command.controls.tasks,
+    form.controls.delivery.controls.tasks,
+    nodeBuild.controls.installationName,
+    nodeBuild.controls.nodePath,
+  ].forEach((control) => control.updateValueAndValidity());
   const sources: AbstractControl[] = [
     tool,
     target,
     deliveryDisabled,
     appScan.controls.compile,
     appScan.controls.dastEnabled,
+    nodeBuild.controls.enabled,
   ];
   sources.forEach((control) => control.valueChanges.subscribe(() => syncApplicability(form)));
   syncApplicability(form);
@@ -837,6 +881,14 @@ function syncApplicability(form: ServiceForm): void {
     form.controls.build.controls.autoSetup.setValue(false);
   }
   setEnabled(form.controls.build.controls.autoSetup, !flutter);
+  const node = form.controls.nodeBuild;
+  if (flutter && node.controls.enabled.value) {
+    node.controls.enabled.setValue(false);
+  }
+  setEnabled(node, !flutter);
+  Object.entries(node.controls).forEach(
+    ([key, control]) => key === 'enabled' || setEnabled(control, node.controls.enabled.value),
+  );
   setEnabled(form.controls.unitTests.controls.command, !flutter);
   setEnabled(form.controls.sonar.controls.command, !flutter);
   const appScan = form.controls.appScan.controls;
@@ -876,13 +928,14 @@ function toolCommands(form: ServiceForm): ToolCommandForm[] {
   ];
 }
 
-function kept(control: FormControl<string>): string | null {
-  return passesValidators(control) ? optional(control.value) : null;
+function kept(control: FormControl<string>, value = control.value): string | null {
+  return passesValidators(control) ? optional(value) : null;
 }
 
 export const SAME_NAME = 'another service of this product already uses this name';
 export const ONE_APPLICATION = 'A service scans one Nexus IQ application: remove the others';
 export const BADGE_TWICE = 'Give the badge token or its credentials ID, not both';
+export const NODE_TWICE = 'Give the Node.js installation or its home on the agent, not both';
 export const PRODUCT_WIDE_FIELD = /^services\[\d+]\.name$/;
 
 const valueAt = (item: AbstractControl, key: string) =>
@@ -905,8 +958,10 @@ function unique(key: string, message: string): ValidatorFn {
   };
 }
 
-function notWith(other: string, message: string): ValidatorFn {
+/** Refuses a value next to one in the other control; with a switch, only while that switch is on. */
+function notWith(other: string, message: string, whileOn?: string): ValidatorFn {
   return (control) =>
+    (!whileOn || control.parent?.get(whileOn)?.value) &&
     optional(String(control.value ?? '')) &&
     optional(String(control.parent?.get(other)?.value ?? ''))
       ? { rule: message }
@@ -1046,6 +1101,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       sourceDir: optional(v.build.sourceDir) ?? '.',
       command: command(c.build.controls.command, !flutter),
     },
+    nodeBuild: toNodeBuild(c.nodeBuild, v.nodeBuild),
     unitTests: {
       ...sent(v.unitTests),
       command: command(c.unitTests.controls.command, !flutter),
@@ -1086,6 +1142,28 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
     goldenFix: toServiceGoldenFixPolicy(v.goldenFix),
     metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
+  };
+}
+
+/** The Node.js build as the form value holds it, without what fails its rules while hidden. */
+function toNodeBuild(
+  group: ServiceForm['controls']['nodeBuild'],
+  v: ReturnType<ServiceForm['controls']['nodeBuild']['getRawValue']>,
+): NodeBuildSettings {
+  const c = group.controls;
+  const listed = (control: FormControl<string>, value: string) =>
+    passesValidators(control) ? lines(value, false) : [];
+  return {
+    enabled: v.enabled,
+    directory: kept(c.directory, v.directory),
+    commands: listed(c.commands, v.commands),
+    installationName: kept(c.installationName, v.installationName),
+    nodePath: kept(c.nodePath, v.nodePath),
+    environment: listed(c.environment, v.environment),
+    registry: kept(c.registry, v.registry),
+    npmrcCredentialsId: kept(c.npmrcCredentialsId, v.npmrcCredentialsId),
+    timeoutMinutes: passesValidators(c.timeoutMinutes) ? v.timeoutMinutes : null,
+    nexusIqScan: v.nexusIqScan ? null : false,
   };
 }
 
@@ -1163,7 +1241,7 @@ const section = (
 
 export const SERVICE_SECTIONS: ServiceSection[] = [
   section('general', 'General', 'badge', ['name', 'description']),
-  section('build', 'Build', 'build', ['build']),
+  section('build', 'Build', 'build', ['build', 'nodeBuild']),
   section('unitTests', 'Unit tests and coverage', 'fact_check', ['unitTests']),
   section('testJobs', 'Test jobs', 'science', ['tests', 'testJobs']),
   section('deployment', 'Deployment', 'rocket_launch', ['deployment', 'delivery']),

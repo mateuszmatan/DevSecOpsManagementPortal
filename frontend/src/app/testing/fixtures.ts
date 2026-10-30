@@ -7,6 +7,7 @@ import {
   Pipeline,
   PipelineHealth,
   PipelineKey,
+  NodeBuildSettings,
   PipelineMonitoring,
   PipelineRun,
   PortfolioActivity,
@@ -33,6 +34,22 @@ export function command(overrides: Partial<ToolCommand> = {}): ToolCommand {
   };
 }
 
+export function nodeBuild(overrides: Partial<NodeBuildSettings> = {}): NodeBuildSettings {
+  return {
+    enabled: false,
+    directory: null,
+    commands: [],
+    installationName: null,
+    nodePath: null,
+    environment: [],
+    registry: null,
+    npmrcCredentialsId: null,
+    timeoutMinutes: null,
+    nexusIqScan: null,
+    ...overrides,
+  };
+}
+
 export function service(overrides: Partial<Service> = {}): Service {
   return {
     id: 10,
@@ -46,6 +63,7 @@ export function service(overrides: Partial<Service> = {}): Service {
       buildPath: 'build/libs/*.jar',
       command: command({ tasks: ['clean', 'build'], flags: ['--refresh-dependencies'] }),
     },
+    nodeBuild: nodeBuild(),
     unitTests: {
       command: command({ tasks: ['test', 'jacocoTestReport'] }),
       resultPattern: 'build/test-results/test/*.xml',

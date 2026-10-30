@@ -34,6 +34,18 @@
           "returnStdout": false
         }
       },
+      "nodeBuild": {
+        "enabled": false,
+        "directory": null,
+        "commands": [],
+        "installationName": null,
+        "nodePath": null,
+        "environment": [],
+        "registry": null,
+        "npmrcCredentialsId": null,
+        "timeoutMinutes": null,
+        "nexusIqScan": null
+      },
       "unitTests": {
         "command": {
           "tasks": [],
@@ -240,6 +252,18 @@
           "label": null,
           "returnStdout": false
         }
+      },
+      "nodeBuild": {
+        "enabled": false,
+        "directory": null,
+        "commands": [],
+        "installationName": null,
+        "nodePath": null,
+        "environment": [],
+        "registry": null,
+        "npmrcCredentialsId": null,
+        "timeoutMinutes": null,
+        "nexusIqScan": null
       },
       "unitTests": {
         "command": {

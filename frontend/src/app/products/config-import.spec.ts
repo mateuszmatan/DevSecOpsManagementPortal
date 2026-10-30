@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { ImportedService, ServiceConfigImport } from '../core/models';
 import { Notifier } from '@common/core/notifier';
 import { buttonOf, text } from '@common/testing/dom';
-import { service } from '../testing/fixtures';
+import { nodeBuild, service } from '../testing/fixtures';
 import {
   ConfigImport,
   ConfigServicePicker,
@@ -18,6 +18,7 @@ import {
   noteGroups,
   prefillAgents,
 } from './config-import';
+import { toServiceRequest } from './product-form-model';
 
 const CONFIG = 'tools:\n  build:\n    tool: gradle\n';
 const URL = '/api/service-configs/import';
@@ -231,6 +232,24 @@ describe('the import into a service form', () => {
     expect(form.controls.name.value).toBe('gateway');
     expect(form.controls.build.controls.javaPath.value).toBe(service().build.javaPath);
     expect(importedServiceForm(file, null, ' portal ').controls.name.value).toBe('portal');
+  });
+
+  it('fills the Node.js build of the file', () => {
+    const node = nodeBuild({ enabled: true, directory: 'frontend', commands: ['npm ci'] });
+    const form = importedServiceForm(
+      {
+        ...file,
+        service: {
+          ...file.service,
+          nodeBuild: node,
+        },
+      },
+      null,
+    );
+
+    expect(toServiceRequest(form)).toMatchObject({
+      nodeBuild: node,
+    });
   });
 
   it('fills the Jenkins agents with those of the file until they are changed by hand', () => {

@@ -36,6 +36,30 @@ describe('Library defaults of a new service', () => {
     expect(toServiceRequest(form).sonar.serverUrl).toBe('https://tools.bbh.com/sonar');
   });
 
+  it('fills the Node.js installation of the Library defaults and sends it as null while the build is on', () => {
+    const settings = globalSettings();
+    const form = createServiceForm();
+    applyLibraryDefaults(form, {
+      ...settings,
+      serviceDefaults: { ...settings.serviceDefaults, npmRegistry: 'https://npm.bbh.com/' },
+    });
+    const node = form.controls.nodeBuild.controls;
+    node.enabled.setValue(true);
+
+    expect(node.installationName.value).toBe('NodeJS-20');
+    expect(node.registry.value).toBe('https://npm.bbh.com/');
+    expect(toServiceRequest(form).nodeBuild).toMatchObject({
+      enabled: true,
+      installationName: null,
+      registry: null,
+      npmrcCredentialsId: null,
+    });
+
+    node.installationName.setValue('NodeJS-22');
+
+    expect(toServiceRequest(form).nodeBuild.installationName).toBe('NodeJS-22');
+  });
+
   it('fills nothing without the global settings', () => {
     const form = createServiceForm();
     applyLibraryDefaults(form, null);

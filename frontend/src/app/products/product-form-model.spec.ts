@@ -6,12 +6,14 @@ import {
   anotherService,
   command,
   globalSettings,
+  nodeBuild,
   product,
   service,
   serviceTemplate,
 } from '../testing/fixtures';
 import {
   BADGE_TWICE,
+  NODE_TWICE,
   NO_COMMAND,
   ONE_APPLICATION,
   OPENSHIFT_RD_REQUIRED,
@@ -552,6 +554,167 @@ describe('switches between dependent settings', () => {
     qc.controls.skipConfigDeploy.setValue(false);
 
     expect(qc.valid).toBe(true);
+  });
+});
+
+describe('Node.js build', () => {
+  const nodeOf = (form: ReturnType<typeof createServiceForm>) => form.controls.nodeBuild.controls;
+
+  it('starts off with its fields disabled and needs nothing but the switch', () => {
+    const form = createServiceForm(service());
+    const node = nodeOf(form);
+
+    expect(form.getRawValue().nodeBuild).toEqual({
+      enabled: false,
+      directory: '',
+      commands: '',
+      installationName: '',
+      nodePath: '',
+      environment: '',
+      registry: '',
+      npmrcCredentialsId: '',
+      timeoutMinutes: null,
+      nexusIqScan: true,
+    });
+    expect(node.enabled.enabled).toBe(true);
+    expect(node.directory.disabled && node.commands.disabled && node.nexusIqScan.disabled).toBe(
+      true,
+    );
+
+    node.enabled.setValue(true);
+
+    expect(Object.values(node).every((control) => control.enabled)).toBe(true);
+    expect(form.valid).toBe(true);
+    expect(firstInvalidSection(form)).toBeNull();
+  });
+
+  it('takes the folders, commands, variables, registry and timeout the API takes', () => {
+    const form = createServiceForm(service({ nodeBuild: nodeBuild({ enabled: true }) }));
+    const node = nodeOf(form);
+    form.controls.nodeBuild.patchValue({
+      directory: 'apps/frontend',
+      commands: 'npm ci\nnpm run build -- --configuration production',
+      nodePath: 'C:\\Program Files\\nodejs',
+      environment: 'NODE_OPTIONS=--max-old-space-size=4096',
+      registry: 'https://tools.bbh.com/nexus/repository/npm-group/',
+      timeoutMinutes: 240,
+    });
+
+    expect(form.controls.nodeBuild.valid).toBe(true);
+
+    for (const folder of ['/opt/app', '../frontend', 'web/../app', "it's"]) {
+      node.directory.setValue(folder);
+      expect(node.directory.hasError('pattern'), folder).toBe(true);
+    }
+    for (const home of ['opt/node-20', '/opt/"node"']) {
+      node.nodePath.setValue(home);
+      expect(node.nodePath.hasError('pattern'), home).toBe(true);
+    }
+    node.commands.setValue('npm ci\tnpm run build');
+    expect(node.commands.hasError('item')).toBe(true);
+    node.commands.setValue(Array.from({ length: 21 }, () => 'npm ci').join('\n'));
+    expect(node.commands.hasError('maxLines')).toBe(true);
+    node.environment.setValue('not a variable');
+    expect(node.environment.hasError('item')).toBe(true);
+    node.registry.setValue('npm.bbh.com');
+    expect(node.registry.hasError('pattern')).toBe(true);
+    node.timeoutMinutes.setValue(241);
+    expect(node.timeoutMinutes.hasError('max')).toBe(true);
+    expect(firstInvalidSection(form)).toBe('build');
+  });
+
+  it('takes the Node.js installation or its home on the agent, not both, while it is on', () => {
+    const both = { installationName: 'NodeJS-20', nodePath: '/opt/node-20' };
+    const form = createServiceForm(service({ nodeBuild: nodeBuild({ enabled: true, ...both }) }));
+    const node = nodeOf(form);
+
+    expect(node.installationName.errors).toEqual({ rule: NODE_TWICE });
+    expect(node.nodePath.errors).toEqual({ rule: NODE_TWICE });
+    expect(sectionInvalid(form, SERVICE_SECTIONS[1])).toBe(true);
+
+    node.enabled.setValue(false);
+
+    expect(form.valid).toBe(true);
+    expect(toServiceRequest(form).nodeBuild).toMatchObject({
+      enabled: false,
+      installationName: 'NodeJS-20',
+      nodePath: '/opt/node-20',
+    });
+
+    node.enabled.setValue(true);
+    node.installationName.setValue('');
+
+    expect(node.nodePath.valid).toBe(true);
+  });
+
+  it('sends the commands in order with repeats, the npm scan only when it is off, and hidden values only when valid', () => {
+    const form = createServiceForm(service());
+    const node = nodeOf(form);
+    node.enabled.setValue(true);
+    form.controls.nodeBuild.patchValue({
+      directory: ' frontend ',
+      commands: ' npm ci \n\nnpm run lint\nnpm ci',
+      environment: 'CI=true\nCI=true',
+      timeoutMinutes: 45,
+    });
+
+    expect(toServiceRequest(form).nodeBuild).toEqual(
+      nodeBuild({
+        enabled: true,
+        directory: 'frontend',
+        commands: ['npm ci', 'npm run lint', 'npm ci'],
+        environment: ['CI=true', 'CI=true'],
+        timeoutMinutes: 45,
+      }),
+    );
+
+    node.nexusIqScan.setValue(false);
+    node.directory.setValue('../frontend');
+    node.enabled.setValue(false);
+    const request = toServiceRequest(form).nodeBuild;
+
+    expect(request.nexusIqScan).toBe(false);
+    expect(request.directory).toBeNull();
+    expect(request.commands).toEqual(['npm ci', 'npm run lint', 'npm ci']);
+  });
+
+  it('switches off and locks the Node.js build of a Flutter service, keeping its values', () => {
+    const form = createServiceForm(
+      service({ nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }) }),
+    );
+    const node = nodeOf(form);
+    form.controls.build.controls.tool.setValue('FLUTTER');
+
+    expect(node.enabled.value).toBe(false);
+    expect(form.controls.nodeBuild.disabled).toBe(true);
+    expect(toServiceRequest(form).nodeBuild).toMatchObject({
+      enabled: false,
+      directory: 'frontend',
+    });
+
+    form.controls.build.controls.tool.setValue('GRADLE');
+
+    expect(node.enabled.enabled).toBe(true);
+    expect(node.enabled.value).toBe(false);
+    expect(node.directory.disabled).toBe(true);
+  });
+
+  it('round-trips a stored Node.js build', () => {
+    const stored = service({
+      nodeBuild: nodeBuild({
+        enabled: true,
+        directory: 'frontend',
+        commands: ['npm ci', 'npm run build'],
+        nodePath: '/opt/node-20',
+        environment: ['NODE_OPTIONS=--max-old-space-size=4096'],
+        registry: 'https://tools.bbh.com/nexus/repository/npm-group/',
+        npmrcCredentialsId: 'npmrc-file',
+        timeoutMinutes: 30,
+        nexusIqScan: false,
+      }),
+    });
+
+    expect(toServiceRequest(createServiceForm(stored))).toEqual({ ...stored, flutter: null });
   });
 });
 
@@ -1105,6 +1268,7 @@ describe('product form', () => {
         appName: 'gui',
         artifactName: 'gui.jar',
       },
+      nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
     });
     const form = createServiceForm(source);
     form.controls.openShiftTargets.controls.RD.patchValue({
@@ -1129,6 +1293,7 @@ describe('product form', () => {
     expect(value.appScan.keyId).toBe('bbh_key');
     expect(value.build.javaPath).toBe('/usr/lib/jvm/java-17-openjdk');
     expect(value.testJobs.map((job) => job.job)).toEqual(['CERT/gui-smoke']);
+    expect(value.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
     expect(value.openShiftTargets.RD).toEqual(
       expect.objectContaining({ projectBuild: 'cert-build', dockerRepoPush: 'nexus/cert/gui' }),
     );

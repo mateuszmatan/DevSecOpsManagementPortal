@@ -9,6 +9,7 @@ import {
   anotherService,
   department,
   globalSettings,
+  nodeBuild,
   product,
   service,
   servicePipelines,
@@ -641,7 +642,12 @@ describe('ProductEditor', () => {
   });
 
   it('copies the values of the service chosen in the menu, except those that identify it', async () => {
-    await edit();
+    await edit([
+      service(),
+      anotherService({
+        nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+      }),
+    ]);
 
     buttonOf(page(), 'Copy values from existing service').click();
     await fixture.whenStable();
@@ -659,6 +665,7 @@ describe('ProductEditor', () => {
     expect(copy.nexusIqApplications.map((app) => app.application)).toEqual(
       anotherService().nexusIqApplications.map(() => ''),
     );
+    expect(copy.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
     expect(editor()['expanded']()).toBe(2);
   });
 

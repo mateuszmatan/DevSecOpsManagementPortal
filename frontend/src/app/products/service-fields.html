@@ -32,6 +32,7 @@
       }
 
       @case ('build') {
+        @let node = f.controls.nodeBuild;
         <div class="form-fields">
           <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
           @if (flutter()) {
@@ -49,9 +50,14 @@
               gradleExample="clean build"
               mavenExample="clean verify"
             />
+            <h4 class="sub-heading span-12">Node.js build (stage 0)</h4>
+            <dso-fields [group]="node" [fields]="nodeSwitch()" />
+            @if (buildsNode()) {
+              <dso-fields [group]="node" [fields]="nodeFields()" />
+            }
           }
           <dso-advanced-settings
-            [summary]="flutter() ? 'Source folder' : 'Source folder and build command options'"
+            [summary]="buildOptionsSummary()"
             [controls]="advanced().build"
             [submitted]="submitted()"
           >
@@ -63,6 +69,10 @@
                 path="build"
                 part="options"
               />
+              @if (buildsNode()) {
+                <h4 class="sub-heading span-12">Node.js build</h4>
+                <dso-fields [group]="node" [fields]="nodeOptions()" />
+              }
             }
           </dso-advanced-settings>
         </div>

@@ -4,7 +4,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormControl } from '@angular/forms';
 import { buttonOf, choose, optionsOf, selectOf, text } from '@common/testing/dom';
-import { anotherService, globalSettings, service, serviceTemplate } from '../testing/fixtures';
+import {
+  anotherService,
+  globalSettings,
+  nodeBuild,
+  service,
+  serviceTemplate,
+} from '../testing/fixtures';
 import {
   createServiceForm,
   createUrbanCodeApplicationForm,
@@ -103,6 +109,32 @@ describe('ServiceDialog', () => {
     );
   });
 
+  it('keeps Add service disabled while a Node.js build field is invalid and opens Build on save', async () => {
+    await open({ pipeline: 'SECURITY' });
+    fillIn();
+    form().controls.nodeBuild.patchValue({
+      enabled: true,
+      installationName: 'NodeJS-20',
+      nodePath: '/opt/node-20',
+    });
+    await fixture.whenStable();
+
+    expect(submit().disabled).toBe(true);
+    expect(text(page().querySelector('.missing'))).toBe('Complete these sections first: Build.');
+    expect(marked()).toEqual(['Build']);
+
+    component['save']();
+    await fixture.whenStable();
+
+    expect(close).not.toHaveBeenCalled();
+    expect(text(page().querySelector('.rail-item.active span'))).toBe('Build');
+
+    form().controls.nodeBuild.controls.nodePath.setValue('');
+    await fixture.whenStable();
+
+    expect(submit().disabled).toBe(false);
+  });
+
   it('asks for an UrbanCode Deploy application for DV before adding a service with a Full pipeline', async () => {
     await open({ pipeline: 'FULL' });
     fillIn('archive-api');
@@ -161,7 +193,12 @@ describe('ServiceDialog', () => {
   it('copies the values of another service except those that identify it, keeping the typed name', async () => {
     await open({
       sources: [
-        { name: 'gui', request: service() },
+        {
+          name: 'gui',
+          request: service({
+            nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+          }),
+        },
         { name: 'backend-api', request: anotherService({ name: 'backend-api' }) },
       ],
     });
@@ -180,6 +217,7 @@ describe('ServiceDialog', () => {
     expect(value.sonar.projectName).toBe('');
     expect(value.metrics.influxProject).toBe('');
     expect(value.nexusIqApplications.map((app) => app.application)).toEqual(['pay-portal']);
+    expect(value.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
   });
 
   it('sets the OpenShift names of a copy from the typed name, as for a new service', async () => {

@@ -24,6 +24,9 @@ function serviceDefaults({ platform, deployment, serviceDefaults }: GlobalSettin
     'urbanCode.deployProcess': deployment.urbanCodeDeployProcess,
     ...Object.fromEntries(ssh),
     'tests.maxParallel': serviceDefaults.testsMaxParallel,
+    'nodeBuild.installationName': serviceDefaults.nodeInstallationName,
+    'nodeBuild.registry': serviceDefaults.npmRegistry,
+    'nodeBuild.npmrcCredentialsId': serviceDefaults.npmrcCredentialsId,
   };
 }
 
