@@ -62,7 +62,7 @@ const REGION_NAMES: Record<Region, string> = {
 const NOTES: Record<ServiceSectionId, string> = {
   general: 'The name of the service, used in its Jenkins job names and reports, and what it does.',
   build:
-    'How Jenkins builds the service, with an optional Node.js build first, and where the build leaves its result (the artifact).',
+    'How Jenkins builds the service, with an optional Node.js build first, and where the build leaves its result (the artifact). A service in a subfolder of its repository names that folder under Advanced settings.',
   unitTests:
     'The unit tests that run after the build, and where their results and coverage report are. Without a test command the step is skipped.',
   testJobs:
@@ -689,7 +689,7 @@ export class ServiceFields {
     return [
       mono('sourceDir', 'Source folder', 'sourceDir', 6, {
         placeholder: '.',
-        hint: 'relative to the repository root',
+        hint: 'relative to the repository root; for a service in a subfolder: that folder',
         help: 'The folder the AppScan static scan prepares; the Gradle, Maven and Node.js builds have their own folder fields. Change it when the code of the service is in a subfolder.',
       }),
     ];

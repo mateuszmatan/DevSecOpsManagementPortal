@@ -237,6 +237,20 @@ describe('ServiceFields', () => {
       expect(hints()[0]).toBe('The code has a pom.xml file · buildTool');
     });
 
+    it('tells a service in a subfolder of its repository where to give that folder', async () => {
+      await render();
+      await open('Build');
+
+      expect(text(pane().querySelector('.pane-header p'))).toContain(
+        'A service in a subfolder of its repository names that folder under Advanced settings.',
+      );
+      ['Source folder', 'Directory'].forEach((label) =>
+        expect(text(field(label).querySelector('dso-hint')).toLowerCase(), label).toContain(
+          'for a service in a subfolder: that folder',
+        ),
+      );
+    });
+
     it('asks for the JDK path without automatic setup and always for a Flutter build', async () => {
       await render(service({ build: { ...service().build, autoSetup: true, javaPath: null } }));
       await open('Build');

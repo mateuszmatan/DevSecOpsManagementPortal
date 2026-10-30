@@ -29,6 +29,7 @@ export function commandFields(
     ),
     mono('directory', 'Directory', `${key}.dir`, maven ? 3 : 6, {
       placeholder: '.',
+      hint: 'for a service in a subfolder: that folder',
       help: 'The folder of the workspace in which the command runs. Left empty: the workspace root.',
     }),
     ...(maven
