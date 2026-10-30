@@ -1,0 +1,578 @@
+// Renders the user and administrator guide docs/documentation.md to docs/documentation.html, in the style of the
+// documentation of the DevSecOps Jenkins shared library. Plain Groovy: no plugin, no dependency and no network, so it
+// runs the same offline on Windows and Linux. The page is written in UTF-8 with LF line endings on every system.
+//
+//   gradle documentation        writes docs/documentation.html
+//   gradle checkDocumentation   fails when docs/documentation.html is not the page the Markdown renders to;
+//                               check, and so build, runs it
+
+import java.nio.charset.StandardCharsets
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
+/**
+ * The subset of GitHub Markdown the guide uses: one title, numbered chapters, headings, paragraphs, nested lists,
+ * tables, fenced code, GitHub alerts ({@code > [!NOTE]}), inline code, bold, italic, links and images. Headings get
+ * the anchors GitHub gives them, so a link such as {@code #6-build-the-frontend} works on both. A link to a heading
+ * or a file that does not exist, and Markdown the page cannot show, fail the render with the line that holds it.
+ */
+class DocumentationPage {
+
+    static final String CSS = '''\
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #1f2937; line-height: 1.6; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+.header { background: linear-gradient(135deg,#1d4ed8,#3b82f6); color: #fff; border-radius: 6px; padding: 26px; margin-bottom: 20px; }
+.header h1 { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.5px; }
+.header p { margin-top: 8px; opacity: 0.92; font-size: 0.9rem; }
+.section { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.section h2 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.5px; color: #0f172a; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+.section h3 { font-size: 0.95rem; color: #1e293b; margin: 20px 0 8px; padding-bottom: 5px; border-bottom: 1px solid #f1f5f9; }
+.section h4 { font-size: 0.86rem; color: #334155; margin: 14px 0 6px; }
+.num { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; background: #1e293b; color: #f8fafc; border-radius: 4px; font-size: 0.78rem; font-weight: 700; }
+p, li, td, th { font-size: 0.87rem; }
+p { margin: 8px 0; }
+ul, ol { margin: 8px 0 8px 22px; }
+li { margin-bottom: 5px; }
+li > ul, li > ol { margin-top: 5px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 10px 0; }
+th { background: #f8fafc; text-align: left; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; color: #374151; font-weight: 600; }
+td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+code { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 3px; padding: 0 4px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; overflow-wrap: anywhere; }
+pre { background: #0f172a; border-radius: 5px; padding: 14px 16px; overflow-x: auto; margin: 10px 0; }
+pre code { background: none; border: none; padding: 0; color: #e2e8f0; font-size: 0.78rem; line-height: 1.55; white-space: pre; overflow-wrap: normal; }
+.k { color: #7dd3fc; } .v { color: #fbbf24; } .s { color: #86efac; } .c { color: #64748b; font-style: italic; } .kw { color: #c4b5fd; }
+.callout { border-radius: 4px; padding: 11px 14px; margin: 12px 0; font-size: 0.85rem; background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+.callout.ok { background: #f0fdf4; border-color: #86efac; color: #166534; }
+.callout.info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.callout.stop { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+.callout p { font-size: 0.85rem; margin: 6px 0 0; }
+.callout p:first-child { margin-top: 0; }
+.toc ul { columns: 2; column-gap: 32px; list-style: none; margin-left: 0; }
+.toc li { break-inside: avoid; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
+.footer { text-align: center; color: #64748b; font-size: 0.78rem; padding: 18px 0; }
+@media (max-width: 720px) { .toc ul { columns: 1; } .section { padding: 16px; } }
+'''
+
+    static final String FOOTER = 'DevSecOps Management Portal'
+
+    /** GitHub alert, its callout class and its label. The callout without a class is the amber warning. */
+    static final Map<String, List<String>> ALERTS = [
+        NOTE     : ['callout info', 'Note.'],
+        TIP      : ['callout ok', 'Tip.'],
+        IMPORTANT: ['callout stop', 'Important.'],
+        WARNING  : ['callout', 'Warning.'],
+        CAUTION  : ['callout stop', 'Caution.'],
+    ]
+
+    static final Pattern HEADING = ~/^(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/
+    static final Pattern FENCE = ~/^```[ \t]*([\w+.-]*)[ \t]*$/
+    static final Pattern FENCE_END = ~/^```[ \t]*$/
+    static final Pattern ITEM = ~/^([ \t]*)([-*+]|(\d{1,9})[.)])[ \t]+(.*)$/
+    static final Pattern DELIMITER_ROW = ~/^[ \t]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/
+    static final Pattern RULE = ~/^[ \t]{0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/
+    static final Pattern ALERT = ~/^\[!([A-Z]+)\]$/
+    static final Pattern CHAPTER = ~/^(\d+)\.[ \t]+(.+)$/
+    static final Pattern HELD = ~/\u0000(\d+)\u0000/
+    static final Pattern CODE_SPAN = ~/(`+)(.+?)(?<!`)\1(?!`)/
+    static final Pattern ESCAPED = ~/\\([!-\/:-@\[-`{-~])/
+    static final Pattern IMAGE = ~/!\[([^\]]*)\]\(([^)\s]+)\)/
+    static final Pattern LINK = ~/\[([^\]]+)\]\(([^)\s]+)\)/
+    static final Pattern PLAIN = ~/(`+)(.+?)(?<!`)\1(?!`)|!?\[([^\]]*)\]\([^)]*\)|\\([!-\/:-@\[-`{-~])|\*\*|__|\*|(?<!\w)_|_(?!\w)/
+    static final Pattern SETEXT = ~/^[ \t]{0,3}(?:=+|-+)[ \t]*$/
+
+    /** The colours of a code block, by language: the class of a token and the expression that finds it. */
+    static final Map<String, List<List<String>>> CODE = codeRules()
+
+    private final List<String> lines
+    private final File folder
+    private final List<String> problems = []
+    private final Map<Integer, String> slugs = [:]
+    private final Set<String> anchors = new HashSet<>()
+
+    private DocumentationPage(String markdown, File folder) {
+        this.lines = markdown.replace('\r\n', '\n').replace('\r', '\n').split('\n', -1) as List<String>
+        this.folder = folder
+    }
+
+    /** The page of the Markdown file, or a GradleException that names every problem of the file. */
+    static String render(File markdown) {
+        DocumentationPage page = new DocumentationPage(new String(markdown.bytes, StandardCharsets.UTF_8), markdown.parentFile)
+        String html = page.page()
+        if (page.problems) {
+            throw new GradleException("${markdown.name} cannot be rendered:\n  " + page.problems.join('\n  '))
+        }
+        html
+    }
+
+    private String page() {
+        collectAnchors()
+        int first = (0..<lines.size()).find { !lines[it].trim().isEmpty() } ?: 0
+        Matcher title = HEADING.matcher(lines[first])
+        if (!title.matches() || title.group(1).length() != 1) {
+            problem(first, 'the file must start with its title, a heading of level 1 (# Title)')
+            return ''
+        }
+        List<Integer> chapters = []
+        boolean fenced = false
+        for (int i = first + 1; i < lines.size(); i++) {
+            if (fenced ? FENCE_END.matcher(lines[i]).matches() : FENCE.matcher(lines[i]).matches()) {
+                fenced = !fenced
+                continue
+            }
+            Matcher heading = fenced ? null : HEADING.matcher(lines[i])
+            if (heading?.matches()) {
+                if (heading.group(1).length() == 1) {
+                    problem(i, 'the file has one title only; use ## for a chapter')
+                } else if (heading.group(1).length() == 2) {
+                    chapters << i
+                }
+            }
+        }
+        String name = title.group(2)
+        StringBuilder out = new StringBuilder()
+        out << '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n'
+        out << '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        out << "<title>${escape(plain(name))}</title>\n<style>\n${CSS}</style>\n</head>\n<body>\n<div class=\"container\">\n"
+        out << '<div class="header">\n'
+        out << "<h1 id=\"${slugs[first]}\">${inline(name, first)}</h1>\n"
+        out << '<p>Generated from <code>docs/documentation.md</code> by <code>gradle documentation</code>. '
+        out << 'Edit the Markdown file, not this page.</p>\n</div>\n'
+        int introEnd = chapters ? chapters[0] : lines.size()
+        String intro = blocks(first + 1, introEnd)
+        if (intro) {
+            out << '<div class="section toc">\n' << intro << '</div>\n'
+        }
+        chapters.eachWithIndex { int at, int index ->
+            int end = index + 1 < chapters.size() ? chapters[index + 1] : lines.size()
+            Matcher heading = HEADING.matcher(lines[at])
+            heading.matches()
+            Matcher numbered = CHAPTER.matcher(heading.group(2))
+            String badge = numbered.matches()
+                ? "<span class=\"num\">${numbered.group(1)}</span> ${inline(numbered.group(2), at)}"
+                : inline(heading.group(2), at)
+            out << "\n<div class=\"section\" id=\"${slugs[at]}\">\n<h2>${badge}</h2>\n"
+            out << blocks(at + 1, end) << '</div>\n'
+        }
+        out << "\n<div class=\"footer\">${FOOTER}</div>\n</div>\n</body>\n</html>\n"
+        out.toString()
+    }
+
+    /** The anchor of every heading, made the way GitHub makes them, so that links can be checked before use. */
+    private void collectAnchors() {
+        Map<String, Integer> seen = [:]
+        boolean fenced = false
+        lines.eachWithIndex { String line, int i ->
+            if (fenced ? FENCE_END.matcher(line).matches() : FENCE.matcher(line).matches()) {
+                fenced = !fenced
+                return
+            }
+            Matcher heading = fenced ? null : HEADING.matcher(line)
+            if (heading?.matches()) {
+                String base = plain(heading.group(2)).toLowerCase(Locale.ROOT)
+                    .replaceAll(/[^\p{L}\p{M}\p{N}\p{Pc}\- ]/, '').replace(' ', '-')
+                String slug = base
+                while (slug in anchors) {
+                    seen[base] = (seen[base] ?: 0) + 1
+                    slug = "${base}-${seen[base]}"
+                }
+                anchors << slug
+                slugs[i] = slug
+            }
+        }
+    }
+
+    /** The HTML of the lines from {@code from} to {@code to}, the end excluded. */
+    private String blocks(int from, int to) {
+        blocks(lines.subList(from, to), (from..<to).toList())
+    }
+
+    /** The HTML of {@code src}, whose lines are the lines {@code at} of the file. */
+    private String blocks(List<String> src, List<Integer> at) {
+        StringBuilder out = new StringBuilder()
+        int i = 0
+        while (i < src.size()) {
+            String line = src[i]
+            Matcher m
+            if (line.trim().isEmpty()) {
+                i++
+            } else if ((m = FENCE.matcher(line)).matches()) {
+                int end = i + 1
+                while (end < src.size() && !FENCE_END.matcher(src[end]).matches()) {
+                    end++
+                }
+                if (end == src.size()) {
+                    problem(at[i], 'the code block is not closed with ```')
+                }
+                out << '<pre><code>' << colour(src.subList(i + 1, end).join('\n'), m.group(1).toLowerCase(Locale.ROOT))
+                out << '</code></pre>\n'
+                i = end + 1
+            } else if ((m = HEADING.matcher(line)).matches()) {
+                int level = m.group(1).length()
+                if (slugs[at[i]] == null) {
+                    problem(at[i], 'a heading inside a quote cannot be shown')
+                }
+                out << "<h${level} id=\"${slugs[at[i]]}\">${inline(m.group(2), at[i])}</h${level}>\n"
+                i++
+            } else if (RULE.matcher(line).matches()) {
+                out << '<hr>\n'
+                i++
+            } else if (line.startsWith('>')) {
+                int end = i
+                while (end < src.size() && src[end].startsWith('>')) {
+                    end++
+                }
+                out << callout(src.subList(i, end).collect { it.replaceFirst(/^> ?/, '') }, at.subList(i, end))
+                i = end
+            } else if (line.trim().startsWith('|') && i + 1 < src.size() && DELIMITER_ROW.matcher(src[i + 1]).matches()) {
+                i = table(src, at, i, out)
+            } else if (ITEM.matcher(line).matches()) {
+                i = list(src, at, i, out)
+            } else {
+                int end = i + 1
+                while (end < src.size() && !startsBlock(src[end])) {
+                    if (SETEXT.matcher(src[end]).matches()) {
+                        problem(at[end], 'a line of = or - under text makes a heading in Markdown; leave a blank line before it')
+                    }
+                    end++
+                }
+                if (end < src.size() && SETEXT.matcher(src[end]).matches()) {
+                    problem(at[end], 'a line of = or - under text makes a heading in Markdown; leave a blank line before it')
+                }
+                out << '<p>' << inline(src.subList(i, end)*.trim().join(' '), at[i]) << '</p>\n'
+                i = end
+            }
+        }
+        out.toString()
+    }
+
+    private static boolean startsBlock(String line) {
+        line.trim().isEmpty() || FENCE.matcher(line).matches() || HEADING.matcher(line).matches() ||
+            RULE.matcher(line).matches() || line.startsWith('>') || ITEM.matcher(line).matches()
+    }
+
+    /** A quote as a callout: a GitHub alert such as {@code > [!WARNING]} chooses its colour and label. */
+    private String callout(List<String> src, List<Integer> at) {
+        String type = 'callout info'
+        String label = null
+        Matcher alert = ALERT.matcher(src[0].trim())
+        if (alert.matches()) {
+            List<String> known = ALERTS[alert.group(1)]
+            if (known == null) {
+                problem(at[0], "unknown alert [!${alert.group(1)}]; use one of ${ALERTS.keySet().join(', ')}")
+            } else {
+                (type, label) = known
+            }
+            src = src.drop(1)
+            at = at.drop(1)
+        }
+        String body = blocks(src, at).trim()
+        boolean single = body.startsWith('<p>') && body.endsWith('</p>') && body.indexOf('<p>', 1) < 0 && !body.contains('\n')
+        String text = single ? body.substring(3, body.length() - 4) : body
+        if (label) {
+            text = single ? "<strong>${label}</strong> ${text}" : "<p><strong>${label}</strong></p>\n${text}"
+        }
+        "<div class=\"${type}\">${text}</div>\n"
+    }
+
+    /** A GitHub table; returns the index of the line after it. */
+    private int table(List<String> src, List<Integer> at, int start, StringBuilder out) {
+        List<String> header = cells(src[start])
+        List<String> aligns = cells(src[start + 1]).collect { String cell ->
+            cell.startsWith(':') && cell.endsWith(':') ? 'center' : cell.endsWith(':') ? 'right' : null
+        }
+        if (aligns.size() != header.size()) {
+            problem(at[start], "the table has ${header.size()} headings but ${aligns.size()} columns in its second line")
+        }
+        def row = { List<String> values, String tag, int line ->
+            StringBuilder html = new StringBuilder('<tr>')
+            header.indices.each { int column ->
+                String align = column < aligns.size() && aligns[column] ? " style=\"text-align: ${aligns[column]}\"" : ''
+                html << "<${tag}${align}>${column < values.size() ? inline(values[column], line) : ''}</${tag}>"
+            }
+            html << '</tr>\n'
+        }
+        out << '<table>\n<thead>\n' << row(header, 'th', at[start]) << '</thead>\n<tbody>\n'
+        int i = start + 2
+        while (i < src.size() && src[i].trim().startsWith('|')) {
+            List<String> values = cells(src[i])
+            if (values.size() > header.size()) {
+                problem(at[i], "the row has ${values.size()} cells but the table ${header.size()} columns; write \\| for a | in a cell")
+            }
+            out << row(values, 'td', at[i])
+            i++
+        }
+        out << '</tbody>\n</table>\n'
+        i
+    }
+
+    private static List<String> cells(String line) {
+        String row = line.trim()
+        row = row.startsWith('|') ? row.substring(1) : row
+        row = row.endsWith('|') && !row.endsWith('\\|') ? row.substring(0, row.length() - 1) : row
+        row.split(/(?<!\\)\|/, -1).collect { it.replace('\\|', '|').trim() }
+    }
+
+    /** A list and the lists inside it; returns the index of the line after it. */
+    private int list(List<String> src, List<Integer> at, int start, StringBuilder out) {
+        List<Map> items = []
+        int i = start
+        while (i < src.size()) {
+            String line = src[i]
+            if (line.trim().isEmpty()) {
+                int next = i + 1
+                while (next < src.size() && src[next].trim().isEmpty()) {
+                    next++
+                }
+                if (next < src.size() && ITEM.matcher(src[next]).matches()) {
+                    i = next
+                    continue
+                }
+                break
+            }
+            Matcher item = ITEM.matcher(line)
+            if (item.matches()) {
+                items << [indent: item.group(1).replace('\t', '    ').length(), ordered: item.group(3) != null,
+                          number: item.group(3), text: new StringBuilder(item.group(4).trim()), line: at[i]]
+            } else if (!startsBlock(line)) {
+                items.last().text << ' ' << line.trim()
+            } else {
+                break
+            }
+            i++
+        }
+        List<Map> open = []
+        items.each { Map item ->
+            String tag = item.ordered ? 'ol' : 'ul'
+            String opening = item.ordered && (item.number as int) != 1 ? "<ol start=\"${item.number as int}\">\n" : "<${tag}>\n"
+            if (!open || item.indent > open.last().indent) {
+                out << (open ? '\n' : '') << opening
+                open << [indent: item.indent, tag: tag]
+            } else {
+                while (open.size() > 1 && item.indent < open.last().indent) {
+                    out << "</li>\n</${open.last().tag}>\n"
+                    open.remove(open.size() - 1)
+                }
+                out << '</li>\n'
+                if (open.last().tag != tag) {
+                    out << "</${open.last().tag}>\n" << opening
+                    open.last().tag = tag
+                }
+                open.last().indent = item.indent
+            }
+            out << '<li>' << inline(item.text.toString(), item.line as int)
+        }
+        open.reverseEach { Map list -> out << "</li>\n</${list.tag}>\n" }
+        i
+    }
+
+    /** Inline code, links, images, bold and italic, with everything else escaped. */
+    private String inline(String text, int line) {
+        List<String> held = []
+        Closure<String> hold = { String html ->
+            held << html
+            "\u0000${held.size() - 1}\u0000".toString()
+        }
+        String html = replace(text, CODE_SPAN) { Matcher m ->
+            String code = m.group(2)
+            if (code.length() > 2 && code.startsWith(' ') && code.endsWith(' ') && code.trim()) {
+                code = code.substring(1, code.length() - 1)
+            }
+            hold("<code>${escape(code)}</code>")
+        }
+        html = replace(html, ESCAPED) { Matcher m -> hold(escape(m.group(1))) }
+        if (html.contains('`')) {
+            problem(line, 'a ` has no closing `; write \\` for a backtick')
+        }
+        html = escape(html)
+        html = replace(html, IMAGE) { Matcher m -> hold("<img src=\"${link(m.group(2), line)}\" alt=\"${m.group(1)}\">") }
+        html = replace(html, LINK) { Matcher m -> hold("<a href=\"${link(m.group(2), line)}\">${emphasis(m.group(1))}</a>") }
+        html = emphasis(html)
+        while (html.contains('\u0000')) {
+            html = replace(html, HELD) { Matcher m -> held[m.group(1) as int] }
+        }
+        html
+    }
+
+    private static String emphasis(String html) {
+        html.replaceAll(/\*\*(?=\S)(.+?)(?<=\S)\*\*/, '<strong>$1</strong>')
+            .replaceAll(/(?<!\w)__(?=\S)(.+?)(?<=\S)__(?!\w)/, '<strong>$1</strong>')
+            .replaceAll(/(?<![\w*])\*(?=[^\s*])(.+?)(?<=[^\s*])\*(?![\w*])/, '<em>$1</em>')
+            .replaceAll(/(?<!\w)_(?=\S)(.+?)(?<=\S)_(?!\w)/, '<em>$1</em>')
+    }
+
+    /** The text with each match of the pattern replaced, literally, by what the closure makes of it. */
+    private static String replace(String text, Pattern pattern, Closure<String> replacement) {
+        Matcher m = pattern.matcher(text)
+        StringBuilder out = new StringBuilder()
+        int done = 0
+        while (m.find()) {
+            out << text.substring(done, m.start()) << replacement.call(m)
+            done = m.end()
+        }
+        out << text.substring(done)
+        out.toString()
+    }
+
+    /** The target of a link, already escaped; a heading or a file it names must exist. */
+    private String link(String target, int line) {
+        String raw = target.replace('&amp;', '&')
+        if (raw.startsWith('#')) {
+            if (!(raw.substring(1) in anchors)) {
+                problem(line, "the link ${raw} names no heading of this guide")
+            }
+        } else if (!(raw ==~ /^[A-Za-z][A-Za-z0-9+.-]*:.*/)) {
+            String path = URLDecoder.decode(raw.replaceFirst(/[?#].*$/, '').replace('+', '%2B'), 'UTF-8')
+            if (path && !new File(folder, path).exists()) {
+                problem(line, "the link ${raw} names no file; links are relative to ${folder.name}/")
+            }
+        }
+        target
+    }
+
+    /** The text of a heading without its Markdown, as GitHub reads it for the anchor and the page title. */
+    private static String plain(String text) {
+        replace(text, PLAIN) { Matcher m -> m.group(2) ?: m.group(3) ?: m.group(4) ?: '' }
+    }
+
+    private static String escape(String text) {
+        text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+    }
+
+    private void problem(int index, String message) {
+        problems << "line ${index + 1}: ${message}"
+    }
+
+    /** The code with its comments, strings, keys, keywords and values in the colours of the library's page. */
+    static String colour(String code, String language) {
+        List<List<String>> rules = CODE[language]
+        if (!rules) {
+            return escape(code)
+        }
+        Pattern tokens = Pattern.compile(rules.collect { "(${it[1]})" }.join('|'), Pattern.MULTILINE)
+        Matcher m = tokens.matcher(code)
+        StringBuilder out = new StringBuilder()
+        int done = 0
+        while (m.find()) {
+            if (m.start() == m.end()) {
+                continue
+            }
+            int rule = (1..rules.size()).find { m.group(it) != null }
+            out << escape(code.substring(done, m.start()))
+            out << "<span class=\"${rules[rule - 1][0]}\">${escape(m.group())}</span>"
+            done = m.end()
+        }
+        out << escape(code.substring(done))
+        out.toString()
+    }
+
+    private static Map<String, List<List<String>>> codeRules() {
+        String quoted = '"(?:[^"\\\\\\n]|\\\\.)*"'
+        String hash = '(?:^|(?<=\\s))#[^\\n]*'
+        List<List<String>> clike = [
+            ['c', '//[^\\n]*|/\\*[\\s\\S]*?\\*/'],
+            ['s', '\'(?:[^\'\\\\\\n]|\\\\.)*\'|' + quoted],
+            ['kw', '@\\w+|\\b(?:def|val|var|fun|if|else|for|in|return|import|package|class|void|new|true|false|null|' +
+                'this|tasks|named|register|from|into)\\b'],
+            ['k', '\\b\\w+(?=:\\s)'],
+            ['v', '\\b\\d+(?:\\.\\d+)?\\b'],
+        ]
+        List<List<String>> xml = [
+            ['c', '<!--[\\s\\S]*?-->'],
+            ['s', '"[^"\\n]*"|\'[^\'\\n]*\''],
+            ['k', '(?<=<)/?[\\w:.-]+'],
+            ['kw', '[\\w:.-]+(?==)'],
+        ]
+        List<List<String>> yaml = [
+            ['c', hash],
+            ['s', '\'[^\'\\n]*\'|' + quoted],
+            ['k', '[\\w.\\-/]+(?=:(?:[ \\t]|$))'],
+            ['v', '\\b(?:true|false|null)\\b|(?<![\\w.-])\\d+(?:\\.\\d+)?\\b'],
+        ]
+        List<List<String>> json = [
+            ['k', quoted + '(?=\\s*:)'],
+            ['s', quoted],
+            ['v', '\\b(?:true|false|null)\\b|-?\\b\\d+(?:\\.\\d+)?\\b'],
+        ]
+        List<List<String>> shell = [
+            ['c', hash],
+            ['s', '\'[^\'\\n]*\'|' + quoted],
+        ]
+        [groovy: clike, java: clike, kotlin: clike, kts: clike, gradle: clike, jenkinsfile: clike,
+         xml: xml, html: xml, yaml: yaml, yml: yaml, json: json,
+         bash: shell, sh: shell, shell: shell, console: shell, powershell: shell, ps1: shell]
+    }
+}
+
+/** Writes the page of the guide. */
+abstract class RenderDocumentation extends DefaultTask {
+
+    @InputFile
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract RegularFileProperty getMarkdown()
+
+    @OutputFile
+    abstract RegularFileProperty getPage()
+
+    @TaskAction
+    void render() {
+        page.get().asFile.bytes = DocumentationPage.render(markdown.get().asFile).getBytes(StandardCharsets.UTF_8)
+    }
+}
+
+/** Fails when the page of the guide is missing, out of date or not in LF line endings. */
+abstract class CheckDocumentation extends DefaultTask {
+
+    @InputFile
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract RegularFileProperty getMarkdown()
+
+    @Internal
+    abstract RegularFileProperty getPage()
+
+    @TaskAction
+    void check() {
+        String expected = DocumentationPage.render(markdown.get().asFile)
+        File html = page.get().asFile
+        String fix = "Run 'gradle documentation' and commit docs/documentation.md and docs/documentation.html together."
+        if (!html.isFile()) {
+            throw new GradleException("docs/documentation.html is missing. ${fix}")
+        }
+        String actual = new String(html.bytes, StandardCharsets.UTF_8)
+        if (actual != expected) {
+            List<String> want = expected.split('\n', -1) as List<String>
+            List<String> have = actual.split('\n', -1) as List<String>
+            Integer differs = (0..<Math.max(want.size(), have.size())).find { int i ->
+                i >= want.size() || i >= have.size() || want[i] != have[i]
+            }
+            int line = (differs ?: 0) + 1
+            String why = actual.contains('\r') ? 'has Windows line endings' : "is out of date from line ${line}"
+            throw new GradleException("docs/documentation.html ${why}: it is not the page docs/documentation.md " +
+                "renders to. ${fix}")
+        }
+    }
+}
+
+def guide = layout.projectDirectory.file('docs/documentation.md')
+def guidePage = layout.projectDirectory.file('docs/documentation.html')
+
+def documentation = tasks.register('documentation', RenderDocumentation) {
+    group = 'documentation'
+    description = 'Renders the user and administrator guide docs/documentation.md to docs/documentation.html.'
+    markdown = guide
+    page = guidePage
+}
+
+def checkDocumentation = tasks.register('checkDocumentation', CheckDocumentation) {
+    group = 'verification'
+    description = 'Fails when docs/documentation.html is not the page docs/documentation.md renders to.'
+    markdown = guide
+    page = guidePage
+    mustRunAfter documentation
+}
+
+tasks.named('check') {
+    dependsOn checkDocumentation
+}

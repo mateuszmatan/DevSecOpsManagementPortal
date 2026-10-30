@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DevSecOps Management Portal - User and Administrator Guide</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #1f2937; line-height: 1.6; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+.header { background: linear-gradient(135deg,#1d4ed8,#3b82f6); color: #fff; border-radius: 6px; padding: 26px; margin-bottom: 20px; }
+.header h1 { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.5px; }
+.header p { margin-top: 8px; opacity: 0.92; font-size: 0.9rem; }
+.section { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.section h2 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.5px; color: #0f172a; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+.section h3 { font-size: 0.95rem; color: #1e293b; margin: 20px 0 8px; padding-bottom: 5px; border-bottom: 1px solid #f1f5f9; }
+.section h4 { font-size: 0.86rem; color: #334155; margin: 14px 0 6px; }
+.num { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; background: #1e293b; color: #f8fafc; border-radius: 4px; font-size: 0.78rem; font-weight: 700; }
+p, li, td, th { font-size: 0.87rem; }
+p { margin: 8px 0; }
+ul, ol { margin: 8px 0 8px 22px; }
+li { margin-bottom: 5px; }
+li > ul, li > ol { margin-top: 5px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 10px 0; }
+th { background: #f8fafc; text-align: left; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; color: #374151; font-weight: 600; }
+td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+code { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 3px; padding: 0 4px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; overflow-wrap: anywhere; }
+pre { background: #0f172a; border-radius: 5px; padding: 14px 16px; overflow-x: auto; margin: 10px 0; }
+pre code { background: none; border: none; padding: 0; color: #e2e8f0; font-size: 0.78rem; line-height: 1.55; white-space: pre; overflow-wrap: normal; }
+.k { color: #7dd3fc; } .v { color: #fbbf24; } .s { color: #86efac; } .c { color: #64748b; font-style: italic; } .kw { color: #c4b5fd; }
+.callout { border-radius: 4px; padding: 11px 14px; margin: 12px 0; font-size: 0.85rem; background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+.callout.ok { background: #f0fdf4; border-color: #86efac; color: #166534; }
+.callout.info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.callout.stop { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+.callout p { font-size: 0.85rem; margin: 6px 0 0; }
+.callout p:first-child { margin-top: 0; }
+.toc ul { columns: 2; column-gap: 32px; list-style: none; margin-left: 0; }
+.toc li { break-inside: avoid; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
+.footer { text-align: center; color: #64748b; font-size: 0.78rem; padding: 18px 0; }
+@media (max-width: 720px) { .toc ul { columns: 1; } .section { padding: 16px; } }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1 id="devsecops-management-portal---user-and-administrator-guide">DevSecOps Management Portal - User and Administrator Guide</h1>
+<p>Generated from <code>docs/documentation.md</code> by <code>gradle documentation</code>. Edit the Markdown file, not this page.</p>
+</div>
+<div class="section toc">
+<p>This guide explains the BBH DevSecOps Management Portal to the people who use it. Product teams use it to set up the DevSecOps pipelines of their products. The DevSecOps team uses it to look after products, pipelines, keys and the settings every pipeline shares. No DevSecOps knowledge is needed to follow the step-by-step chapters.</p>
+<p>The guide is written in <code>docs/documentation.md</code>. The page <code>docs/documentation.html</code> is generated from it by the build (<code>gradle documentation</code>), and <code>gradle check</code> fails when the page is out of date. Developers find the build, the tests and the architecture in the <a href="../README.md">README</a>.</p>
+<h3 id="contents">Contents</h3>
+<ul>
+<li><a href="#1-what-the-portal-does">1. What the portal does</a></li>
+<li><a href="#2-the-pages-of-the-portal">2. The pages of the portal</a></li>
+<li><a href="#3-products-and-services">3. Products and services</a></li>
+<li><a href="#4-add-a-service-in-the-self-service-wizard">4. Add a service in the Self-service wizard</a></li>
+<li><a href="#5-add-a-service-in-the-admin-editor">5. Add a service in the admin editor</a></li>
+<li><a href="#6-build-the-frontend-with-nodejs-first-stage-0">6. Build the frontend with Node.js first (stage 0)</a></li>
+<li><a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">7. Shared version catalogs and the combined Jenkinsfile</a></li>
+<li><a href="#8-pipeline-types-pipeline-keys-the-jenkinsfile-and-the-jenkins-jobs">8. Pipeline types, pipeline keys, the Jenkinsfile and the Jenkins jobs</a></li>
+<li><a href="#9-import-a-configyaml-and-copy-a-service">9. Import a config.yaml and copy a service</a></li>
+<li><a href="#10-goldenfix">10. GoldenFix</a></li>
+<li><a href="#11-the-service-template">11. The service template</a></li>
+<li><a href="#12-library-defaults-global-settings">12. Library defaults (Global Settings)</a></li>
+<li><a href="#13-pipeline-monitoring-and-dora">13. Pipeline Monitoring and DORA</a></li>
+<li><a href="#14-business-services">14. Business Services</a></li>
+<li><a href="#15-action-history">15. Action history</a></li>
+<li><a href="#16-field-reference-from-the-portal-to-configyaml">16. Field reference: from the portal to config.yaml</a></li>
+<li><a href="#17-database-and-environments">17. Database and environments</a></li>
+<li><a href="#18-troubleshooting">18. Troubleshooting</a></li>
+</ul>
+</div>
+
+<div class="section" id="1-what-the-portal-does">
+<h2><span class="num">1</span> What the portal does</h2>
+<p>The portal holds the DevSecOps settings of every BBH product. Jenkins runs the pipelines of the DevSecOps library DSOEnhanced. Each pipeline asks the portal for its settings when it starts. The settings never live in the repository of the service.</p>
+<p>The portal does five things:</p>
+<ol>
+<li>It records the products, their services and the pipelines of each service.</li>
+<li>It issues a secret pipeline key for each pipeline. The key is the only thing the Jenkinsfile holds.</li>
+<li>It renders the settings of a pipeline as a <code>config.yaml</code> document when Jenkins asks for them with the key.</li>
+<li>It shows how the pipelines are doing: the latest runs and the delivery performance (DORA).</li>
+<li>It records every change in the action history.</li>
+</ol>
+<h3 id="words-used-in-this-guide">Words used in this guide</h3>
+<table>
+<thead>
+<tr><th>Word</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td>Business Service</td><td>A group of products, for example Custody or Fund Services. The API and the database call it a department.</td></tr>
+<tr><td>Product</td><td>An application that BBH builds and runs, for example Payments Hub. It has a short upper-case code, for example <code>PAYHUB</code>.</td></tr>
+<tr><td>Service</td><td>One part of a product that is built and deployed on its own, for example its API or its web front end.</td></tr>
+<tr><td>Pipeline</td><td>The automated build, test and security checks that Jenkins runs on the code of one service. A service has at most one pipeline of each type.</td></tr>
+<tr><td>Pipeline key</td><td>The secret code that the Jenkins job of a pipeline uses to fetch its settings from the portal.</td></tr>
+<tr><td>Jenkinsfile</td><td>The file in the repository of the service that tells Jenkins to run the pipeline. It holds only the pipeline key.</td></tr>
+<tr><td>config.yaml</td><td>The settings document that the library reads. The portal renders it from its database each time a pipeline starts.</td></tr>
+<tr><td>Library defaults</td><td>The values on the Library defaults page (Admin, Library defaults), also called the Global Settings. They apply to every service that leaves a field empty.</td></tr>
+<tr><td>Service template</td><td>The values a new service starts with, such as its build tasks and the name of its Nexus IQ application.</td></tr>
+<tr><td>GoldenFix</td><td>The part of the library that opens pull requests that raise vulnerable dependencies to safe versions.</td></tr>
+</tbody>
+</table>
+<h3 id="how-a-pipeline-gets-its-settings">How a pipeline gets its settings</h3>
+<ol>
+<li>Jenkins starts the job. The Jenkinsfile calls the entry point of the pipeline type with the pipeline key.</li>
+<li>The library sends <code>GET $DSO_PORTAL_URL/api/dso/config/&lt;key&gt;?format=json</code> from the Jenkins agent.</li>
+<li>The portal checks the key. It answers 200 with the settings, 403 <code>Pipeline key invalidated</code> or 404 <code>Unknown DevSecOps pipeline key</code>.</li>
+<li>The library runs the stages with these settings. It writes the results of the run to InfluxDB.</li>
+<li>The portal reads the results back for Pipeline Monitoring.</li>
+</ol>
+<div class="callout info"><strong>Note.</strong> The settings name Jenkins credentials IDs, never passwords or tokens. Secrets stay in the Jenkins credentials store.</div>
+</div>
+
+<div class="section" id="2-the-pages-of-the-portal">
+<h2><span class="num">2</span> The pages of the portal</h2>
+<p>The menu at the top has five entries.</p>
+<table>
+<thead>
+<tr><th>Menu</th><th>What you do there</th></tr>
+</thead>
+<tbody>
+<tr><td>Pipelines</td><td>Choose your Business Service and see every pipeline of its products, with its key state, its Jenkins job and its last run. Open a pipeline to see its key, its settings, its Jenkinsfile and its latest runs.</td></tr>
+<tr><td>Self-service</td><td>Set up the pipelines of a product, or change them, in five guided steps. See <a href="#4-add-a-service-in-the-self-service-wizard">chapter 4</a>.</td></tr>
+<tr><td>Pipeline Monitoring</td><td>See whether the latest runs passed and how often and how safely changes reach production. See <a href="#13-pipeline-monitoring-and-dora">chapter 13</a>.</td></tr>
+<tr><td>Action history</td><td>See who changed what and when, with the result. See <a href="#15-action-history">chapter 15</a>.</td></tr>
+<tr><td>Admin</td><td>The DevSecOps administration with four tabs: Business Services, Products, Service template and Library defaults.</td></tr>
+</tbody>
+</table>
+<h3 id="the-help-icons-and-the-key-chips">The help icons and the key chips</h3>
+<p>Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as <code>build.node.enabled</code>. The chip is the key the field writes in <code>config.yaml</code>. <a href="#16-field-reference-from-the-portal-to-configyaml">Chapter 16</a> lists every chip.</p>
+<p>A hint that says &quot;Library default: X&quot; shows the value the service takes from the Library defaults page. A hint that says &quot;Library default&quot; alone shows that the field still holds that value.</p>
+</div>
+
+<div class="section" id="3-products-and-services">
+<h2><span class="num">3</span> Products and services</h2>
+<h3 id="the-product">The product</h3>
+<p>A product has these fields:</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td>Code</td><td>Two to 50 upper-case letters, digits, '-' or '_', starting with a letter, for example <code>PAYHUB</code>. The portal suggests it from the name. It is used in Jenkins job names and reports. It becomes <code>pipeline.product</code> in <code>config.yaml</code>.</td></tr>
+<tr><td>Name</td><td>The full name of the product. No other product may use it.</td></tr>
+<tr><td>Business Service</td><td>The group the product belongs to.</td></tr>
+<tr><td>Owner team</td><td>The team that looks after the product.</td></tr>
+<tr><td>Description</td><td>What the product does and who uses it.</td></tr>
+<tr><td>Contact e-mail</td><td>Where the DevSecOps team reaches the owners. A team mailbox is better than a personal address.</td></tr>
+<tr><td>Jenkins agents</td><td>Only when you add a product: the agent labels of the pipelines that the save creates, separated by commas. The first one is the default.</td></tr>
+</tbody>
+</table>
+<p>The product page (Admin, Products, then a product) lists the services and their pipelines. Its More menu shows &quot;Settings sent to Jenkins (config.yaml)&quot; for the whole product and &quot;Delete product&quot;. &quot;Edit product&quot; opens the admin editor.</p>
+<h3 id="the-service">The service</h3>
+<p>A service has sections. The left-hand list of the service form shows them. A red mark next to a section means that a field in it needs your attention.</p>
+<table>
+<thead>
+<tr><th>Section</th><th>What it holds</th></tr>
+</thead>
+<tbody>
+<tr><td>General</td><td>The service name and a description.</td></tr>
+<tr><td>Build</td><td>The build tool, its tasks, the artifact, the JDK and the optional Node.js build (stage 0).</td></tr>
+<tr><td>Unit tests and coverage</td><td>The unit test command, the test reports and the coverage report.</td></tr>
+<tr><td>Test jobs</td><td>The smoke, regression and performance test jobs after a deployment.</td></tr>
+<tr><td>Deployment</td><td>Virtual machines or OpenShift, the application and artifact names, and the Nexus delivery.</td></tr>
+<tr><td>UrbanCode Deploy</td><td>Virtual machines only: the UrbanCode Deploy applications and components.</td></tr>
+<tr><td>SSH targets</td><td>Virtual machines only: the hosts of the RD and QC test regions.</td></tr>
+<tr><td>OpenShift targets</td><td>OpenShift only: the build and deployment projects of each region.</td></tr>
+<tr><td>AppScan SAST and DAST</td><td>The AppScan application, the API key and the static and dynamic scans.</td></tr>
+<tr><td>SonarQube</td><td>The SonarQube project and the analysis command.</td></tr>
+<tr><td>Nexus IQ</td><td>The Nexus IQ application and its scan patterns.</td></tr>
+<tr><td>Bitbucket</td><td>The repository where GoldenFix opens its pull requests.</td></tr>
+<tr><td>GoldenFix</td><td>Whether GoldenFix runs, the shared version catalogs and the GoldenFix policy.</td></tr>
+<tr><td>Monitoring</td><td>The InfluxDB tags of the results.</td></tr>
+<tr><td>Flutter</td><td>Flutter only: the modules, the credentials and the Dart analysis.</td></tr>
+</tbody>
+</table>
+<p>The pipeline type decides which sections the Self-service wizard shows:</p>
+<table>
+<thead>
+<tr><th>Pipeline</th><th>Sections</th></tr>
+</thead>
+<tbody>
+<tr><td>SAST</td><td>General, Build, AppScan SAST and DAST, Bitbucket (and Flutter for a Flutter service)</td></tr>
+<tr><td>OSA (Nexus IQ GoldenFix)</td><td>General, Build, AppScan SAST and DAST, Nexus IQ, Bitbucket, GoldenFix (and Flutter)</td></tr>
+<tr><td>Security</td><td>General, Build, Unit tests and coverage, Deployment, OpenShift targets, AppScan SAST and DAST, SonarQube, Nexus IQ, Bitbucket, GoldenFix, Monitoring (and Flutter)</td></tr>
+<tr><td>Full</td><td>Every section that applies to the build tool and the deployment target</td></tr>
+</tbody>
+</table>
+<p>The admin editor always shows every section that applies.</p>
+<h3 id="required-fields">Required fields</h3>
+<p>Fields marked * are required. Some fields are required only in a situation:</p>
+<ul>
+<li>The service name, the AppScan application ID and the AppScan API key ID are always required. Every pipeline, the Nexus IQ GoldenFix pipeline included, signs in to AppScan with the key of the service.</li>
+<li>The Gradle tasks or Maven goals of the build are required, except for Flutter.</li>
+<li>The JDK path is required for Flutter and while &quot;Set up the build tool automatically&quot; is off.</li>
+<li>The artifact path is required for a Maven service on virtual machines that delivers to Nexus.</li>
+<li>On OpenShift, the application name, the artifact name and the RD build fields are required. The QC region is optional; once one of its fields is set, the fields its deployment needs are required.</li>
+<li>A Full pipeline of a service on virtual machines needs an UrbanCode Deploy application for the environment DV.</li>
+<li>A Nexus IQ GoldenFix pipeline needs a Nexus IQ application and a Bitbucket repository.</li>
+<li>The Bitbucket credentials ID is required once a repository URL is set.</li>
+<li>A Flutter service needs its modules, its tested modules and its three credentials.</li>
+</ul>
+<h3 id="advanced-settings">Advanced settings</h3>
+<p>Fields that experts change are under &quot;Advanced settings&quot; at the end of a section. The panel is closed at first. Its summary line names what it holds. When a field inside it needs attention, the panel opens by itself.</p>
+<h3 id="saving">Saving</h3>
+<p>A service is saved with its product. The admin editor saves with &quot;Add product&quot; or &quot;Save changes&quot;. The Self-service wizard saves in its Review step. Pipelines take the new settings the next time they run.</p>
+</div>
+
+<div class="section" id="4-add-a-service-in-the-self-service-wizard">
+<h2><span class="num">4</span> Add a service in the Self-service wizard</h2>
+<p>The Self-service wizard is the easiest way to set up the pipelines of a product. It has five steps: Product, Pipeline, Services, Review and Next steps.</p>
+<h3 id="before-you-start">Before you start</h3>
+<p>Have these at hand:</p>
+<ul>
+<li>The name of each service, its AppScan application ID and the AppScan API key ID. The DevSecOps team gives you the AppScan values.</li>
+<li>Whether each service is built with Gradle or Maven. A developer of the service knows.</li>
+<li>The folder of its <code>package.json</code> when Node.js builds its frontend first.</li>
+<li>For the OSA pipeline: the Nexus IQ application and the Bitbucket repository of each service.</li>
+<li>For the Security and Full pipelines: whether each service runs on virtual machines or on OpenShift.</li>
+</ul>
+<h3 id="step-1-product">Step 1: Product</h3>
+<ol>
+<li>Open Self-service in the menu.</li>
+<li>Choose the Business Service.</li>
+<li>Choose &quot;A new product&quot; and type the product name. The portal shows the product code it will use, for example &quot;Its product code will be PAYHUB&quot;. Optionally type the owner team and the contact e-mail.</li>
+<li>Or choose &quot;A product in the portal&quot; and pick the product.</li>
+<li>Click Next.</li>
+</ol>
+<h3 id="step-2-pipeline">Step 2: Pipeline</h3>
+<ol>
+<li>Choose the pipeline: SAST, OSA (Nexus IQ with GoldenFix), Security or Full. Not sure? Start with Security. You can add another pipeline later.</li>
+<li>Leave &quot;Jenkins agents&quot; empty to use the agents of the service template.</li>
+<li>Read the list &quot;Have these at hand for the next step&quot;.</li>
+<li>Click Next.</li>
+</ol>
+<h3 id="step-3-services">Step 3: Services</h3>
+<ol>
+<li>Click &quot;Add a service&quot;. The dialog &quot;Add a service&quot; opens. Its tag shows the pipeline.</li>
+<li>To start from another service of the product, choose it in &quot;Copy values from&quot;. To start from a file, click &quot;Import config.yaml&quot;. Both are optional. See <a href="#9-import-a-configyaml-and-copy-a-service">chapter 9</a>.</li>
+<li>In General, type the service name, for example <code>backend-api</code>. The portal then fills in, from the service template: the Bitbucket repository URL, the Bitbucket credentials ID, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories.</li>
+<li>In Build, choose the build tool. The hint tells you how to recognise it: &quot;The code has a build.gradle file&quot; means Gradle, &quot;The code has a pom.xml file&quot; means Maven and &quot;The code has a pubspec.yaml file&quot; means Flutter. The tasks and the artifact path come from the service template. Leave &quot;Set up the build tool automatically&quot; on.</li>
+<li>If the repository holds a frontend that npm builds, for example an Angular application, tick &quot;Build the frontend with Node.js first&quot;. Type the &quot;Folder with package.json&quot;, for example <code>frontend</code>. Leave the other Node.js fields as they are. See <a href="#6-build-the-frontend-with-nodejs-first-stage-0">chapter 6</a>.</li>
+<li>In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.</li>
+<li>For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.</li>
+<li>For the Full pipeline on virtual machines, add an UrbanCode Deploy application for DV.</li>
+<li>For the Security and Full pipelines, choose Virtual machine or OpenShift in Deployment. On OpenShift, fill in the RD build fields of OpenShift targets.</li>
+<li>In GoldenFix, list a shared version catalog only when the services of the repository share one with an unusual name. Most services leave the field empty. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</li>
+<li>Look at the bottom of the dialog. While something is missing, it says &quot;Complete these fields first:&quot; followed by the names of the fields. Click a name: the dialog opens its section and puts the cursor in the field.</li>
+<li>When nothing is missing, &quot;Add service&quot; is active. Click it.</li>
+</ol>
+<p>Add every service of the product in the same way. Use Change to correct a service and Remove to take it out. Click Next.</p>
+<h3 id="step-4-review">Step 4: Review</h3>
+<p>Check the product, the pipeline, the Jenkins agents and what happens to each service. Nothing is saved until you click the save button of this step. A red box lists the pipelines and keys that a removal deletes.</p>
+<h3 id="step-5-next-steps">Step 5: Next steps</h3>
+<ol>
+<li>Copy the Jenkinsfile of each service into a file named <code>Jenkinsfile</code> in the top folder of the repository of the service. Merge it, or send it to a developer of the service.</li>
+<li>Ask your Jenkins administrator for a Pipeline job for each service, with the job names shown. The job reads the Jenkinsfile from the repository (Pipeline script from SCM).</li>
+<li>Run each job once: open it, choose Build with Parameters, pick an agent and start it.</li>
+<li>For a Full pipeline, add the test jobs and the deployment details in Admin, or ask the DevSecOps team.</li>
+<li>For an OSA pipeline, ask a developer to review and merge the golden pull requests.</li>
+<li>Follow the results in Pipeline Monitoring.</li>
+</ol>
+<p>When two or more services share one Bitbucket repository, the step shows one Jenkinsfile with all their keys and asks for one Jenkins job for each repository. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</p>
+</div>
+
+<div class="section" id="5-add-a-service-in-the-admin-editor">
+<h2><span class="num">5</span> Add a service in the admin editor</h2>
+<p>The admin editor is for the DevSecOps team. It shows every field of a service.</p>
+<h3 id="a-new-product">A new product</h3>
+<ol>
+<li>Open Admin, Products and click &quot;Add product&quot;.</li>
+<li>The dialog &quot;Add product&quot; asks for the product name and the Business Service. Click Continue.</li>
+<li>The editor opens with the suggested product code, the Jenkins agents of the service template and one new service.</li>
+<li>Fill in the product fields: Owner team, Description and Contact e-mail are optional.</li>
+<li>Open the service panel (&quot;Edit settings&quot;) and fill in the service as in <a href="#step-3-services">step 3 of chapter 4</a>. A new service starts with &quot;Set up the build tool automatically&quot; on. Typing its name fills in the repository URL, the Bitbucket credentials ID, the Nexus IQ application and its scan pattern from the service template.</li>
+<li>Every new service gets a Full pipeline. A service on virtual machines therefore needs an UrbanCode Deploy application for DV.</li>
+<li>Click &quot;Add product&quot;. Each service gets a Full pipeline with its own key. The product page opens with the notice &quot;Pipeline keys generated for ...&quot; and asks you to copy each key into the Jenkinsfile of its service. &quot;Show key&quot; and &quot;Copy key&quot; give a key at any time.</li>
+</ol>
+<h3 id="a-service-of-an-existing-product">A service of an existing product</h3>
+<ol>
+<li>Open the product page and click &quot;Edit product&quot;.</li>
+<li>Under Services, click one of:
+<ul>
+<li>&quot;Add service&quot; for an empty service with the service template values;</li>
+<li>&quot;Copy values from existing service&quot; to copy another service of the product;</li>
+<li>&quot;Import config.yaml&quot; to fill a new service from a file.</li>
+</ul>
+</li>
+<li>While a service still has missing fields, the buttons are disabled. The text &quot;Complete these services before adding another:&quot; names each service and its missing fields. Click a field name to open it.</li>
+<li>Use &quot;Duplicate service&quot;, &quot;Move up&quot;, &quot;Move down&quot; and &quot;Remove service&quot; on a service panel as needed. Removing a stored service deletes its pipelines and keys when you save.</li>
+<li>Click &quot;Save changes&quot;. New services get a Full pipeline with their own key.</li>
+</ol>
+<p>To add a pipeline of another type to a service, use &quot;Add pipeline&quot; on the product page. See <a href="#8-pipeline-types-pipeline-keys-the-jenkinsfile-and-the-jenkins-jobs">chapter 8</a>.</p>
+</div>
+
+<div class="section" id="6-build-the-frontend-with-nodejs-first-stage-0">
+<h2><span class="num">6</span> Build the frontend with Node.js first (stage 0)</h2>
+<p>Many services have a frontend, for example an Angular application, next to the Java code. The optional Node.js build runs the npm commands of that frontend in an extra stage before the Gradle or Maven build. The Gradle or Maven build then packages the frontend into the jar.</p>
+<h3 id="when-to-use-it">When to use it</h3>
+<ul>
+<li>Use it when the Gradle or Maven build needs the built frontend and does not run npm itself.</li>
+<li>Leave it off when the Gradle or Maven build already runs npm, for example through a Gradle Node plugin or the Maven frontend plugin.</li>
+<li>A Flutter service cannot use it: a Flutter build has no Gradle or Maven stage for the Node.js build to run before. Choosing Flutter switches the Node.js build off.</li>
+</ul>
+<h3 id="the-fields">The fields</h3>
+<p>The fields are in the Build section, under the heading &quot;Node.js build (stage 0)&quot;. Only the first checkbox is needed. Every other field has a working default.</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td>Build the frontend with Node.js first</td><td>off</td><td>Switches the stage on for this service.</td></tr>
+<tr><td>Folder with package.json</td><td>the repository root</td><td>The folder of the frontend. The commands run in it.</td></tr>
+<tr><td>Commands</td><td><code>npm ci</code>, then <code>npm run build</code></td><td>One shell command per line, run in order. A failing command fails the stage, and the later stages do not run.</td></tr>
+<tr><td>Scan the npm dependencies with Nexus IQ</td><td>on</td><td>Adds the <code>package-lock.json</code> of the folder to the Nexus IQ scan, so that Nexus IQ reports the npm dependencies and GoldenFix can raise them. New findings can turn the Nexus IQ stage orange.</td></tr>
+<tr><td>Node.js installation</td><td>the Library default, else node and npm from the agent</td><td>A NodeJS installation under Manage Jenkins, Tools. It needs the NodeJS plugin of Jenkins.</td></tr>
+<tr><td>Node.js home on the agent (Advanced)</td><td>none</td><td>An absolute folder of Node.js on the agent, such as <code>/opt/node-20</code> or <code>C:\Program Files\nodejs</code>. It wins over the Node.js installation, the Library default included. Give the installation or the home, not both.</td></tr>
+<tr><td>Node.js timeout (minutes) (Advanced)</td><td>30</td><td>How long the commands may take together.</td></tr>
+<tr><td>npm registry (Advanced)</td><td>the Library default</td><td>The registry npm installs from, exported as <code>npm_config_registry</code>. It is used only without an .npmrc.</td></tr>
+<tr><td>.npmrc credentials ID (Advanced)</td><td>the Library default</td><td>A Jenkins Secret file credential with an .npmrc. npm reads it, its registry included.</td></tr>
+<tr><td>Node.js environment variables (Advanced)</td><td>none</td><td><code>NAME=value</code> lines for the Node.js commands only, for example <code>NODE_OPTIONS=--max-old-space-size=4096</code>.</td></tr>
+</tbody>
+</table>
+<p>The portal writes <code>build.node</code> to <code>config.yaml</code> only while the checkbox is ticked. The library then reads the keys under <code>projects.&lt;service&gt;.build.node</code>. The Library defaults page can give every service a Node.js installation, an npm registry and an .npmrc credentials ID under <code>defaults.build.node</code>. The portal never writes <code>defaults.build.node.enabled</code>: every service switches the stage on for itself.</p>
+<h3 id="what-the-pipelines-do">What the pipelines do</h3>
+<ul>
+<li>The stage is named &quot;Node.js build&quot;. It runs right after &quot;Monitor source changes&quot; in the Full, Security, SAST scanning and Nexus IQ GoldenFix pipelines. The report numbers it 0, or 0.1, 0.2 and so on for several services, and Grafana shows it as Node.js.</li>
+<li>A service without the Node.js build logs <code>[NODE] &lt;service&gt;: build.node.enabled is not set - no Node.js build</code>.</li>
+<li>In SAST scanning the stage runs only while &quot;Compile before preparing the IRX&quot; is on and the agent is not Windows. Otherwise the log says <code>[NODE] &lt;service&gt;: the SAST scan does not compile this service - no Node.js build</code>.</li>
+<li>The Extended pipeline builds the frontend again right before the release delivery, which rebuilds the artifact.</li>
+<li>The log names where Node.js comes from, for example <code>[NODE] gateway: Node.js from installation NodeJS-20 in console: npm ci &amp;&amp; npm run build</code>.</li>
+<li>After a Node.js build, the AppScan static scan leaves out <code>node_modules</code>. This applies on Linux agents while no included folder is set. The minified bundles of the built frontend are still scanned.</li>
+</ul>
+<h3 id="package-the-frontend-into-the-jar">Package the frontend into the jar</h3>
+<p>The library does not copy the frontend into the artifact. The build of the service must do it. Follow three rules:</p>
+<ol>
+<li>Write the frontend output outside the <code>build</code> and <code>target</code> folders, for example to <code>frontend/dist</code>. The Gradle or Maven build usually starts with <code>clean</code>, which deletes those folders after the Node.js build.</li>
+<li>Copy the output into the resources of the jar, as in the snippets below.</li>
+<li>On OpenShift, the image build receives only the artifact, the Dockerfile and one added file. The frontend therefore reaches OpenShift only inside the jar.</li>
+</ol>
+<p>Set the output folder in <code>frontend/angular.json</code>, for example <code>&quot;outputPath&quot;: &quot;dist/app&quot;</code>. Angular then writes the files to <code>frontend/dist/app/browser</code>.</p>
+<p>Gradle, Groovy DSL (<code>build.gradle</code>):</p>
+<pre><code><span class="kw">tasks</span>.<span class="kw">named</span>(<span class="s">'processResources'</span>) {
+    <span class="kw">from</span>(<span class="s">'frontend/dist/app/browser'</span>) {
+        <span class="kw">into</span> <span class="s">'static'</span>
+    }
+}</code></pre>
+<p>Gradle, Kotlin DSL (<code>build.gradle.kts</code>):</p>
+<pre><code><span class="kw">tasks</span>.<span class="kw">named</span>&lt;ProcessResources&gt;(<span class="s">&quot;processResources&quot;</span>) {
+    <span class="kw">from</span>(<span class="s">&quot;frontend/dist/app/browser&quot;</span>) {
+        <span class="kw">into</span>(<span class="s">&quot;static&quot;</span>)
+    }
+}</code></pre>
+<p>Maven (<code>pom.xml</code>): list the normal resources folder too, because the <code>resources</code> element replaces the default list.</p>
+<pre><code>&lt;<span class="k">build</span>&gt;
+  &lt;<span class="k">resources</span>&gt;
+    &lt;<span class="k">resource</span>&gt;
+      &lt;<span class="k">directory</span>&gt;src/main/resources&lt;<span class="k">/directory</span>&gt;
+    &lt;<span class="k">/resource</span>&gt;
+    &lt;<span class="k">resource</span>&gt;
+      &lt;<span class="k">directory</span>&gt;frontend/dist/app/browser&lt;<span class="k">/directory</span>&gt;
+      &lt;<span class="k">targetPath</span>&gt;static&lt;<span class="k">/targetPath</span>&gt;
+    &lt;<span class="k">/resource</span>&gt;
+  &lt;<span class="k">/resources</span>&gt;
+&lt;<span class="k">/build</span>&gt;</code></pre>
+<p>Spring Boot serves the files under <code>static</code> at the root of the application. Both snippets accept a missing folder. This matters for GoldenFix: its verification build runs in a fresh copy of the repository without the Node.js output.</p>
+<h3 id="nexus-iq-and-goldenfix-for-npm">Nexus IQ and GoldenFix for npm</h3>
+<ul>
+<li>With &quot;Scan the npm dependencies with Nexus IQ&quot; on, the library adds <code>&lt;folder&gt;/package-lock.json</code> to the scan patterns of the Nexus IQ application of the service. It never creates a scan for a service without scan patterns.</li>
+<li>GoldenFix verifies an npm fix inside the Node.js environment of the service: the same Node.js, registry and .npmrc. It first refreshes <code>package-lock.json</code> with <code>npm install --package-lock-only --ignore-scripts</code> and commits the refreshed file in the pull request.</li>
+<li>GoldenFix also raises npm <code>overrides</code> and yarn <code>resolutions</code> entries that pin a vulnerable version.</li>
+</ul>
+</div>
+
+<div class="section" id="7-shared-version-catalogs-and-the-combined-jenkinsfile">
+<h2><span class="num">7</span> Shared version catalogs and the combined Jenkinsfile</h2>
+<p>A multimodule repository often holds several services that share one list of dependency versions. That list is a version catalog. GoldenFix raises a version there once, for every service, and verifies the builds that use it.</p>
+<h3 id="what-goldenfix-finds-by-itself">What GoldenFix finds by itself</h3>
+<p>You do not need to list these files:</p>
+<ul>
+<li>Gradle version catalogs: <code>gradle/libs.versions.toml</code> and any other <code>*.versions.toml</code> file.</li>
+<li>The catalogs that <code>settings.gradle</code> or <code>settings.gradle.kts</code> imports in <code>versionCatalogs { }</code>, under any name, and the <code>version()</code> and <code>library()</code> entries written there.</li>
+<li>The files that <code>apply from:</code> names, such as <code>gradle/dependencies.gradle</code> with <code>ext.versions = [...]</code>.</li>
+<li>Gradle <code>java-platform</code> modules with their <code>constraints</code>.</li>
+<li>Maven parent poms (through <code>relativePath</code>) and BOM poms imported with <code>&lt;scope&gt;import&lt;/scope&gt;</code> inside the repository.</li>
+</ul>
+<h3 id="when-to-list-a-catalog">When to list a catalog</h3>
+<p>Use the field &quot;Shared version catalogs&quot; in the GoldenFix section of the service. Write one path per line, relative to the repository root. <code>*</code> matches within one folder and <code>**</code> matches across folders, for example <code>gradle/*.versions.toml</code>. List a file when it has another name or format, such as a parent or BOM <code>pom.xml</code>. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as <code>goldenFix.versionCatalogs</code>.</p>
+<p>A listed path that matches nothing gives the run note <code>version catalog &lt;path&gt; not found in the repository</code>. A path that leaves the repository gives <code>version catalog &lt;path&gt; is outside the repository</code>.</p>
+<h3 id="what-the-pull-request-contains">What the pull request contains</h3>
+<ul>
+<li>The version is raised in the catalog, once. A declaration of the same dependency elsewhere is raised to at least the catalog version. The pull request lists it as <code>declared outside the catalog &lt;file&gt; (&lt;alias&gt;)</code>, so that reviewers can move it into the catalog.</li>
+<li>The report, the pull request description and the commit message name the catalog file and the alias.</li>
+<li>A changed catalog is verified in each Gradle build that uses it. A catalog that no build uses is logged as <code>GoldenFix: no Gradle build found for &lt;file&gt; - not verified</code>.</li>
+<li>A dependency that a BOM or a platform manages gets the reason <code>managed by BOM g:a:v imported in &lt;file&gt;: raise the BOM or add an override to the catalog</code>.</li>
+</ul>
+<h3 id="one-jenkins-job-for-each-repository">One Jenkins job for each repository</h3>
+<p>Services that share a repository and a catalog must run in one Jenkins job. One GoldenFix pull request then raises the shared catalog once. Two jobs of one repository that run in the same minute compute the same branch name, and the second job fails with <code>[GOLDENFIX] The branch &lt;branch&gt; already exists in &lt;repository&gt; - another GoldenFix job of this repository ran in the same minute; run one GoldenFix job for all services of a repository (pipelineKeys)</code>.</p>
+<p>The portal helps you with this:</p>
+<ul>
+<li>The product page shows a notice for each repository and pipeline type that several services share. It names the services and offers &quot;Show the Jenkinsfile&quot;.</li>
+<li>The Next steps of the Self-service wizard show one Jenkinsfile for the services of a repository and ask for one Jenkins job for each repository.</li>
+<li>The More menu of a pipeline offers &quot;Jenkinsfile for several services&quot; when other services have a pipeline of the same type.</li>
+</ul>
+<p>The combined Jenkinsfile passes every key in <code>pipelineKeys</code>. The first key belongs to the primary service:</p>
+<pre><code><span class="kw">@Library</span>(<span class="s">'DevSecOpsJenkinsLibrary'</span>) _
+
+devSecOpsNexusIqGoldenFixPipeline(<span class="k">pipelineKeys</span>: [
+    <span class="s">'&lt;key of the first service&gt;'</span>,
+    <span class="s">'&lt;key of the second service&gt;'</span>,
+])</code></pre>
+<p>In one run, the first service with fixes opens the pull request. Each further service adds its upgrades to the same pull request and a comment under the heading <code>### GoldenFix for &lt;service&gt;</code>. A service whose upgrades the pull request already carries ends with <code>Already raised to &lt;component&gt; &lt;version&gt; in the shared pull request &lt;url&gt;</code>. When the comment cannot be added, the run logs <code>[GOLDENFIX] The pull request comment could not be added: &lt;reason&gt;</code> and goes on.</p>
+<h3 id="limits">Limits</h3>
+<ul>
+<li>Versions in <code>buildSrc</code> (for example <code>const val jackson = &quot;2.15.2&quot;</code> in <code>Versions.kt</code>) are not changed. The fix gets the reason <code>version &lt;name&gt; is defined in buildSrc/&lt;file&gt;: not updated automatically</code>.</li>
+<li>A catalog published as an artifact (<code>from(&quot;g:a:v&quot;)</code> in <code>settings.gradle</code>) is outside the repository. The fix gets the reason <code>managed by the version catalog artifact g:a:v outside this repository</code>.</li>
+<li>The <code>[plugins]</code> and bundle entries of a TOML catalog are not changed. A version range keeps a note and is not edited.</li>
+<li>The pub ecosystem is mapped from the Nexus IQ data by name or package ID. This has not been checked against a real Nexus IQ pub payload.</li>
+</ul>
+</div>
+
+<div class="section" id="8-pipeline-types-pipeline-keys-the-jenkinsfile-and-the-jenkins-jobs">
+<h2><span class="num">8</span> Pipeline types, pipeline keys, the Jenkinsfile and the Jenkins jobs</h2>
+<h3 id="pipeline-types">Pipeline types</h3>
+<table>
+<thead>
+<tr><th>Type</th><th>Name in Self-service</th><th>Entry point</th><th><code>{type}</code> in job names</th><th>What it runs</th></tr>
+</thead>
+<tbody>
+<tr><td>Full</td><td>Full</td><td><code>devSecOpsPipeline</code></td><td><code>full</code></td><td>Build, unit tests, Nexus IQ, SAST, SonarQube, deployment to RD, smoke, regression and performance tests, DAST, deployment to QC and the release</td></tr>
+<tr><td>Security</td><td>Security</td><td><code>devSecOpsSecurityPipeline</code></td><td><code>security</code></td><td>Build and security scans. It can start an Extended pipeline after its scans.</td></tr>
+<tr><td>Extended</td><td>(admin only)</td><td><code>devSecOpsExtendedPipeline</code></td><td><code>extended</code></td><td>The deployment and tests started by a Security pipeline</td></tr>
+<tr><td>SAST scanning</td><td>SAST</td><td><code>devSecOpsSASTScanningPipeline</code></td><td><code>sast</code></td><td>The AppScan static scan of the sources only</td></tr>
+<tr><td>Nexus IQ GoldenFix</td><td>OSA</td><td><code>devSecOpsNexusIqGoldenFixPipeline</code></td><td><code>nexusiq</code></td><td>The Nexus IQ scan; GoldenFix opens a pull request with safe versions in the Bitbucket repository</td></tr>
+</tbody>
+</table>
+<p><code>pipeline.type</code> holds the value in the fourth column (<code>full</code> for the Full pipeline) and <code>pipeline.entryPoint</code> the entry point.</p>
+<h3 id="pipeline-settings">Pipeline settings</h3>
+<p>&quot;Add pipeline&quot; on the product page and &quot;Edit pipeline settings&quot; open the pipeline dialog:</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td>Pipeline type</td><td>Fixed once the pipeline exists. A service has at most one pipeline of each type.</td></tr>
+<tr><td>Jenkins agents</td><td>Agent labels or label expressions, separated by commas. The first is the default. A run uses the one chosen in its AGENT_NAME parameter. Written as <code>pipeline.agentNames</code>.</td></tr>
+<tr><td>Jenkins job</td><td>The path of the job, for example <code>DevSecOps/CERT/backend-api-full</code>, or its full address. The portal links the pipeline and its runs to it. It is not written to <code>config.yaml</code>.</td></tr>
+<tr><td>Extended pipeline job</td><td>Security only, optional: the Extended pipeline started after the scans. Written as <code>jenkins.pipeline.extendedPipeline</code>.</td></tr>
+<tr><td>Security pipeline job</td><td>Extended only: the Security pipeline whose build this pipeline deploys and tests. Written as <code>pipeline.securityPipeline</code>.</td></tr>
+<tr><td>Description</td><td>A note for the people who look after the pipeline. It is not written to <code>config.yaml</code>.</td></tr>
+</tbody>
+</table>
+<h3 id="pipeline-keys">Pipeline keys</h3>
+<p>Each pipeline has one active key. The pipeline page and the product page show the key hidden. Use &quot;Show key&quot; and &quot;Copy key&quot;.</p>
+<table>
+<thead>
+<tr><th>Action</th><th>Effect</th></tr>
+</thead>
+<tbody>
+<tr><td>Replace key</td><td>Issues a new key. The old key stops working at once. Put the new key in the Jenkinsfile.</td></tr>
+<tr><td>Invalidate key</td><td>Stops the key and records your reason. The pipeline is refused its settings until a new key is issued.</td></tr>
+<tr><td>Regenerate key</td><td>Issues a new key for a pipeline whose key was invalidated.</td></tr>
+<tr><td>Key history</td><td>Lists the earlier keys with when they were issued and invalidated.</td></tr>
+<tr><td>Delete pipeline</td><td>Deletes the pipeline and its key history. Its Jenkins job stops at its next start.</td></tr>
+</tbody>
+</table>
+<div class="callout stop"><strong>Important.</strong> Treat a pipeline key like a password. Anyone who has it can read the settings of the pipeline. Replace the key when it may have leaked.</div>
+<p>The portal records when Jenkins last used a key. &quot;Settings sent to Jenkins (config.yaml)&quot; shows the settings without counting as a use.</p>
+<h3 id="the-jenkinsfile">The Jenkinsfile</h3>
+<p>The Jenkinsfile holds only the library name and the key:</p>
+<pre><code><span class="kw">@Library</span>(<span class="s">'DevSecOpsJenkinsLibrary'</span>) _
+
+devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;pipeline key&gt;'</span>)</code></pre>
+<p>The library name comes from the Library defaults (<code>platform.jenkinsLibrary</code>). Copy the Jenkinsfile from the pipeline page, from the product page or from the Next steps of the Self-service wizard.</p>
+<h3 id="jenkins-jobs">Jenkins jobs</h3>
+<ul>
+<li>Each pipeline needs a Jenkins Pipeline job that reads the Jenkinsfile from the repository (Pipeline script from SCM).</li>
+<li>The service template names the job, for example <code>DevSecOps/{CODE}/{service}-{type}</code> gives <code>DevSecOps/PAYHUB/gateway-full</code>.</li>
+<li>Services that share a repository share one job and one Jenkinsfile with <code>pipelineKeys</code>. See <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</li>
+<li>Jenkins needs the global environment variable <code>DSO_PORTAL_URL</code>, for example <code>https://dso-portal.apps.bbh.com</code>.</li>
+</ul>
+</div>
+
+<div class="section" id="9-import-a-configyaml-and-copy-a-service">
+<h2><span class="num">9</span> Import a config.yaml and copy a service</h2>
+<h3 id="import-a-configyaml">Import a config.yaml</h3>
+<p>&quot;Import config.yaml&quot; reads a <code>config.yaml</code> of the library, a configuration the portal rendered or its JSON form. It fills a new service form. Nothing is stored until you save.</p>
+<ul>
+<li>A file with several projects asks which service to import.</li>
+<li>The notes under the form list what the portal did not take over (&quot;Not imported&quot;) and what you should check (&quot;Check&quot;).</li>
+<li>Secrets in the file, such as <code>asoc.keySecret</code>, are never echoed.</li>
+<li>A value equal to a Library default comes back empty, so the service keeps following the Library default. The same holds for the library's own Node.js defaults: <code>npm ci</code> then <code>npm run build</code>, 30 minutes and the Nexus IQ scan of <code>package-lock.json</code>.</li>
+<li><code>build.node</code> without <code>enabled: true</code> comes back switched off, with its values kept.</li>
+<li>A Flutter file with <code>build.node.enabled: true</code> comes back switched off with the note &quot;Check: the Node.js build is not used with Flutter&quot;.</li>
+<li><code>goldenFix.versionCatalogs</code> fills &quot;Shared version catalogs&quot;.</li>
+<li>The Jenkins agents of the imported pipeline fill the Jenkins agents of the product while you have not changed them.</li>
+<li>The file may hold at most 262,144 characters and 50 projects.</li>
+</ul>
+<h3 id="copy-a-service">Copy a service</h3>
+<p>&quot;Copy values from existing service&quot; (admin editor), &quot;Duplicate service&quot; (service panel) and &quot;Copy values from&quot; (Self-service dialog) copy every setting of another service of the product, the Node.js build and the shared version catalogs included. What identifies the source service is not copied:</p>
+<ul>
+<li>The name. A duplicate is named <code>&lt;source&gt;-copy</code>.</li>
+<li>The SonarQube project name and key, the monitoring project tag and the SAST scan name stay empty.</li>
+<li>The OpenShift application name, the image repositories and the Nexus IQ application follow the name you type.</li>
+</ul>
+<p>A new service in the Self-service wizard also takes the AppScan API key ID of another service of the product.</p>
+</div>
+
+<div class="section" id="10-goldenfix">
+<h2><span class="num">10</span> GoldenFix</h2>
+<p>GoldenFix runs in the Nexus IQ stage of the Full, Security and Nexus IQ GoldenFix pipelines. When Nexus IQ reports a policy violation, it looks up a safe version, changes the build files, builds the service and opens a pull request in the Bitbucket repository of the service. A developer of the service reviews and merges it.</p>
+<h3 id="what-goldenfix-changes">What GoldenFix changes</h3>
+<table>
+<thead>
+<tr><th>Ecosystem</th><th>Files</th></tr>
+</thead>
+<tbody>
+<tr><td>maven</td><td><code>pom.xml</code> files, their properties, parent poms and BOMs of the repository</td></tr>
+<tr><td>Gradle (with maven)</td><td><code>build.gradle</code>, <code>build.gradle.kts</code>, <code>gradle.properties</code>, <code>*.versions.toml</code>, <code>settings.gradle(.kts)</code> catalogs and <code>apply from:</code> files</td></tr>
+<tr><td>npm</td><td><code>package.json</code>, with <code>overrides</code> and <code>resolutions</code>, and a refreshed <code>package-lock.json</code></td></tr>
+<tr><td>pypi</td><td>requirements, constraints and <code>pyproject.toml</code> files</td></tr>
+<tr><td>pub</td><td><code>pubspec.yaml</code></td></tr>
+</tbody>
+</table>
+<h3 id="the-goldenfix-section-of-a-service">The GoldenFix section of a service</h3>
+<ul>
+<li>&quot;Run GoldenFix&quot;: Library default, On or Off.</li>
+<li>&quot;Shared version catalogs&quot;: see <a href="#7-shared-version-catalogs-and-the-combined-jenkinsfile">chapter 7</a>.</li>
+<li>&quot;Inherit the Library defaults&quot; follows the GoldenFix policy on the Library defaults page, including later changes. The note under it summarises that policy.</li>
+<li>&quot;Override for this service&quot; shows the policy fields below. A field left empty keeps the Library default; its hint shows that value.</li>
+</ul>
+<h3 id="the-policy-fields">The policy fields</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td>Ecosystems</td><td>The kinds of dependencies GoldenFix upgrades: maven, npm, pypi and pub. Hold Ctrl (Cmd on a Mac) to choose several.</td></tr>
+<tr><td>Minimum threat level</td><td>Only violations that Nexus IQ rates at least this high, from 0 to 10. 2 and above is moderate, 4 and above severe, 8 and above critical.</td></tr>
+<tr><td>Dependencies</td><td>Direct dependencies only, or direct and transitive ones.</td></tr>
+<tr><td>Golden version types</td><td>The Nexus IQ remediation types labelled Nexus IQ Golden Version in the pull request.</td></tr>
+<tr><td>Excluded folders</td><td>Folder names, at any depth, whose manifests GoldenFix leaves alone. A list replaces the library list of <code>.git</code>, <code>node_modules</code>, <code>target</code>, <code>build</code> and similar folders.</td></tr>
+<tr><td>Verification</td><td>Whether GoldenFix builds the fix before it opens the pull request. When the build fails, it lowers the versions and builds again.</td></tr>
+<tr><td>Attempts</td><td>How many verification builds GoldenFix may run.</td></tr>
+<tr><td>Timeout (minutes)</td><td>The limit of each check: one check for each folder in which a changed manifest or catalog is built.</td></tr>
+<tr><td>Maven, Gradle, npm, pip and pub command</td><td>The command that builds the fix. Left empty, the library runs <code>mvn -B -q -DskipTests compile</code>, <code>./gradlew --no-daemon --console=plain classes</code>, <code>npm ci --ignore-scripts</code>, <code>python3 -m pip install --dry-run</code> or <code>flutter pub get</code>.</td></tr>
+<tr><td>Author name, Author e-mail</td><td>The author of the GoldenFix commit.</td></tr>
+<tr><td>Time zone</td><td>The time zone of the branch and pull request name <code>GoldenFix-YYYYMMDDHHMM</code>.</td></tr>
+</tbody>
+</table>
+<h3 id="where-the-verification-runs">Where the verification runs</h3>
+<ul>
+<li>Maven: in the folder of each changed <code>pom.xml</code>. A parent or BOM pom that other poms use is verified in the folder of the multi-module pom that builds them together.</li>
+<li>Gradle: in the folder of each changed build or properties file. A catalog, a settings file or a platform is verified in the folder of each build that uses it.</li>
+<li>npm: in the folder of each changed <code>package.json</code>, in the Node.js environment of the service while its Node.js build is on.</li>
+<li>pip and pub: in the folder of each changed file.</li>
+</ul>
+</div>
+
+<div class="section" id="11-the-service-template">
+<h2><span class="num">11</span> The service template</h2>
+<p>Admin, Service template holds the values a new service starts with. A saved service keeps its own values.</p>
+<table>
+<thead>
+<tr><th>Block</th><th>Fields</th></tr>
+</thead>
+<tbody>
+<tr><td>Pipelines</td><td>Jenkins agents of a new pipeline; Jenkins job, for example <code>DevSecOps/{CODE}/{service}-{type}</code></td></tr>
+<tr><td>Build</td><td>Gradle tasks and Gradle artifact; Maven goals and Maven artifact; Nexus delivery goals (Maven services on virtual machines)</td></tr>
+<tr><td>Nexus IQ and Bitbucket</td><td>Nexus IQ application, for example <code>{code}-{service}</code>; Bitbucket repository; Bitbucket credentials ID; the Gradle, Maven and Flutter scan patterns</td></tr>
+<tr><td>OpenShift</td><td>OpenShift project (the projects end in -build, -rd and -qc); Image registry; Health check path</td></tr>
+</tbody>
+</table>
+<p>The placeholders are:</p>
+<table>
+<thead>
+<tr><th>Placeholder</th><th>Becomes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>{CODE}</code></td><td>the product code, as in CERT</td></tr>
+<tr><td><code>{code}</code></td><td>the product code in lower case, as in cert</td></tr>
+<tr><td><code>{service}</code></td><td>the service name, as in backend-api</td></tr>
+<tr><td><code>{type}</code></td><td>the pipeline type, in the Jenkins job only: full, security, extended, sast or nexusiq</td></tr>
+</tbody>
+</table>
+<p>The page shows examples of the filled-in values. Both the Self-service wizard and the admin editor fill a new service from the template when its name is typed.</p>
+</div>
+
+<div class="section" id="12-library-defaults-global-settings">
+<h2><span class="num">12</span> Library defaults (Global Settings)</h2>
+<p>Admin, Library defaults holds the values every pipeline shares. A service that leaves a field empty takes the value from here. These values change only when a tool moves; the DevSecOps team then enters the new value. The page has seven sections.</p>
+<table>
+<thead>
+<tr><th>Section</th><th>What it holds</th></tr>
+</thead>
+<tbody>
+<tr><td>Tools and servers</td><td>Jenkins (Jenkins URL, shared library), HCL AppScan (service URL, scan client downloads, proxy), SonarQube and Nexus IQ servers, the Nexus snapshot repository, InfluxDB, the iOS build agent and the Portal monitoring block (the InfluxDB the portal reads and the Grafana dashboards)</td></tr>
+<tr><td>Deployment defaults</td><td>The UrbanCode Deploy site and process, and the RD and QC test servers with their SSH user, deploy script and version file</td></tr>
+<tr><td>Security limits</td><td>The most critical, high and medium findings each scan (SAST, SCA, Nexus IQ, DAST) may report</td></tr>
+<tr><td>Scans and coverage</td><td>The minimum line coverage and how long the pipelines wait for each scan</td></tr>
+<tr><td>Release gate</td><td>Which scans the release gate checks, whether it requires the coverage, and its result file</td></tr>
+<tr><td>Service defaults</td><td>The build tool, deployment target and source folder a new service starts with; the test jobs at the same time; the Node.js build defaults</td></tr>
+<tr><td>GoldenFix defaults</td><td>Whether GoldenFix runs by default and the GoldenFix policy</td></tr>
+</tbody>
+</table>
+<h3 id="nodejs-build-defaults">Node.js build defaults</h3>
+<p>The block &quot;Node.js build&quot; in Service defaults has three fields: Node.js installation, npm registry and .npmrc credentials ID. A new service shows them as its &quot;Library default&quot;. A service that leaves them empty takes them later as well, through <code>defaults.build.node</code> in <code>config.yaml</code>. A service that names its own installation or a Node.js home on the agent uses that instead. The BBH seed leaves all three empty.</p>
+<h3 id="which-values-follow-later-changes">Which values follow later changes</h3>
+<ul>
+<li>Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the release gate, the test jobs at the same time, the Node.js build defaults and the GoldenFix policy of services that inherit it.</li>
+<li>The build tool, the deployment target and the source folder only prefill a new service.</li>
+</ul>
+<h3 id="portal-monitoring">Portal monitoring</h3>
+<p>The Portal monitoring block sets the InfluxDB the portal reads (URL, organization, bucket and read token) and up to two Grafana instances. Values saved here win over the variables <code>INFLUX_URL</code>, <code>INFLUX_ORG</code>, <code>INFLUX_BUCKET</code>, <code>INFLUX_TOKEN</code> and <code>GRAFANA_*</code>. The read token is stored and never shown again. These settings are for the portal itself and are not written to <code>config.yaml</code>.</p>
+</div>
+
+<div class="section" id="13-pipeline-monitoring-and-dora">
+<h2><span class="num">13</span> Pipeline Monitoring and DORA</h2>
+<p>Pipeline Monitoring reads the results the pipelines write to InfluxDB.</p>
+<ul>
+<li>The overview shows the latest results of every product, by Business Service, the runs per day and the delivery performance (DORA) of the last 30 days.</li>
+<li>A product page lists its pipelines with their latest runs.</li>
+<li>A pipeline page shows the latest run, its stages, the recent runs, the runs per day and the Grafana dashboards. Choose the period: 7, 30, 90 or 180 days.</li>
+</ul>
+<p>The four DORA figures are:</p>
+<table>
+<thead>
+<tr><th>Figure</th><th>Meaning</th><th>Elite</th><th>High</th><th>Medium</th><th>Low</th></tr>
+</thead>
+<tbody>
+<tr><td>Deployment frequency</td><td>How often a change reaches production</td><td>7 or more a week</td><td>1 or more a week</td><td>1 or more a month</td><td>less</td></tr>
+<tr><td>Lead time for changes</td><td>How long a change takes from commit to production (median)</td><td>under a day</td><td>under a week</td><td>under a month</td><td>longer</td></tr>
+<tr><td>Change failure rate</td><td>The share of deployments that failed</td><td>5% or less</td><td>10% or less</td><td>15% or less</td><td>more</td></tr>
+<tr><td>Time to restore</td><td>How long it takes to recover after a failed deployment (average)</td><td>under an hour</td><td>under a day</td><td>under a week</td><td>longer</td></tr>
+</tbody>
+</table>
+<p>A pipeline that has not deployed successfully since a failed deployment shows &quot;Not recovered yet&quot;.</p>
+<p>The results of a pipeline are stored under the tags of the Monitoring section of its service: the project tag (<code>influx.project</code>, by default <code>&lt;CODE&gt;-&lt;service&gt;</code>) and the environment tag (<code>influx.env</code>, by default <code>test</code>). Pipelines other than Full add their type to the project tag, for example <code>CERT-guisecurity</code>. The pipeline page shows them as Monitoring tags. Without an InfluxDB, the monitoring status says that the metrics store is not configured and the runs stay empty.</p>
+</div>
+
+<div class="section" id="14-business-services">
+<h2><span class="num">14</span> Business Services</h2>
+<p>Admin, Business Services lists the groups of products with their product, service and pipeline counts.</p>
+<ul>
+<li>&quot;Add business service&quot; creates one. A name must be unique.</li>
+<li>A Business Service can be renamed or deleted. A Business Service that still holds products cannot be deleted.</li>
+<li>The portal starts with the five BBH Business Services: AI Lab, Capital Partners, Corporate Technology, Custody and Fund Services.</li>
+</ul>
+<p>The Pipelines page shows the pipelines of one Business Service at a time. Its first table counts the pipelines of each Business Service, active and with an invalidated key.</p>
+</div>
+
+<div class="section" id="15-action-history">
+<h2><span class="num">15</span> Action history</h2>
+<p>The Action history records every change made in the portal: who did it, when, what was done, on which resource and with which result. Search by user, resource or details, and filter by action, resource and status.</p>
+<p>The recorded actions are: create, update and delete a product; create, update and delete a pipeline; issue a new key; invalidate a key; create, rename and delete a business service; update the service template; update the library defaults; initialize the portal. An import of a config.yaml stores nothing and is not recorded.</p>
+<p>The portal has no sign-in yet. Every action is recorded as the default administrator until BBH single sign-on is added.</p>
+</div>
+
+<div class="section" id="16-field-reference-from-the-portal-to-configyaml">
+<h2><span class="num">16</span> Field reference: from the portal to config.yaml</h2>
+<p>This chapter lists every field that writes to <code>config.yaml</code>. The column &quot;Key&quot; shows the key in the code chip of the field. Service keys sit under <code>projects.&lt;service&gt;</code>. A chip that shows only the last part of a key is listed with its full key. A field that is empty writes nothing, and a checkbox that is off writes nothing unless the table says otherwise.</p>
+<h3 id="product-and-pipeline">Product and pipeline</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Product code</td><td><code>pipeline.product</code></td><td></td></tr>
+<tr><td>Service name</td><td><code>pipeline.projectNames</code>, <code>projects.&lt;service&gt;</code></td><td></td></tr>
+<tr><td>Jenkins agents (product and pipeline)</td><td><code>pipeline.agentNames</code></td><td></td></tr>
+<tr><td>Pipeline type</td><td><code>pipeline.type</code>, <code>pipeline.entryPoint</code></td><td></td></tr>
+<tr><td>Extended pipeline job (Security)</td><td><code>jenkins.pipeline.extendedPipeline</code></td><td>under the service</td></tr>
+<tr><td>Security pipeline job (Extended)</td><td><code>pipeline.securityPipeline</code></td><td></td></tr>
+</tbody>
+</table>
+<h3 id="general">General</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Service name</td><td>the name of the project under <code>projects</code></td><td>letters, digits, '.', '-' and '_'</td></tr>
+<tr><td>Description</td><td>none</td><td>shown in the portal only</td></tr>
+</tbody>
+</table>
+<h3 id="build">Build</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Build tool</td><td><code>buildTool</code></td><td><code>gradle</code>, <code>maven</code> or <code>flutter</code></td></tr>
+<tr><td>Artifact path</td><td><code>build.buildPath</code></td><td></td></tr>
+<tr><td>Set up the build tool automatically</td><td><code>buildToolAutoSetup</code></td><td></td></tr>
+<tr><td>JDK path</td><td><code>javaPath</code></td><td></td></tr>
+<tr><td>Source folder (Advanced)</td><td><code>sourceDir</code></td><td>the folder the AppScan static scan prepares</td></tr>
+<tr><td>Build the frontend with Node.js first</td><td><code>build.node.enabled</code></td><td>written as <code>true</code> only; nothing under <code>build.node</code> is written while it is off</td></tr>
+<tr><td>Folder with package.json</td><td><code>build.node.dir</code></td><td></td></tr>
+<tr><td>Commands</td><td><code>build.node.commands</code></td><td></td></tr>
+<tr><td>Scan the npm dependencies with Nexus IQ</td><td><code>build.node.nexusIqScan</code></td><td>written only as <code>false</code></td></tr>
+<tr><td>Node.js installation</td><td><code>build.node.installationName</code></td><td></td></tr>
+<tr><td>Node.js home on the agent (Advanced)</td><td><code>build.node.nodePath</code></td><td></td></tr>
+<tr><td>Node.js timeout (minutes) (Advanced)</td><td><code>build.node.timeoutMin</code></td><td></td></tr>
+<tr><td>npm registry (Advanced)</td><td><code>build.node.registry</code></td><td></td></tr>
+<tr><td>.npmrc credentials ID (Advanced)</td><td><code>build.node.npmrcCredentialsId</code></td><td></td></tr>
+<tr><td>Node.js environment variables (Advanced)</td><td><code>build.node.env</code></td><td>a map of <code>NAME: value</code></td></tr>
+</tbody>
+</table>
+<p>The Gradle or Maven command of the build has the command fields of the next table.</p>
+<h3 id="command-fields">Command fields</h3>
+<p>Five steps share the same command fields: the build, the unit tests, the SonarQube analysis, the compile of the AppScan static scan and the Nexus delivery of a Maven service on virtual machines. The keys depend on the build tool.</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Build</th><th>Unit tests</th><th>SonarQube</th><th>AppScan compile</th><th>Nexus delivery</th></tr>
+</thead>
+<tbody>
+<tr><td>Gradle tasks</td><td><code>build.gradle.tasks</code></td><td><code>tests.unitTests.gradle.tasks</code></td><td><code>tools.sonar.gradle.tasks</code></td><td><code>asoc.gradle.tasks</code></td><td></td></tr>
+<tr><td>Maven goals</td><td><code>build.maven.goals</code></td><td><code>tests.unitTests.maven.goals</code></td><td><code>tools.sonar.maven.goals</code></td><td><code>asoc.maven.goals</code></td><td><code>delivery.maven.goals</code></td></tr>
+<tr><td>Directory (Gradle)</td><td><code>build.gradle.dir</code></td><td><code>tests.unitTests.gradle.dir</code></td><td><code>tools.sonar.gradle.dir</code></td><td><code>asoc.gradle.dir</code></td><td></td></tr>
+<tr><td>Directory (Maven)</td><td><code>build.maven.dir</code></td><td><code>tests.unitTests.maven.dir</code></td><td><code>tools.sonar.maven.dir</code></td><td><code>asoc.maven.dir</code></td><td><code>delivery.maven.dir</code></td></tr>
+<tr><td>Maven home</td><td><code>build.maven.mvnPath</code></td><td><code>tests.unitTests.maven.mvnPath</code></td><td><code>tools.sonar.maven.mvnPath</code></td><td><code>asoc.maven.mvnPath</code></td><td><code>delivery.maven.mvnPath</code></td></tr>
+<tr><td>Flags (Gradle)</td><td><code>build.gradle.flags</code></td><td><code>tests.unitTests.gradle.flags</code></td><td><code>tools.sonar.gradle.flags</code></td><td><code>asoc.gradle.flags</code></td><td></td></tr>
+<tr><td>Flags (Maven)</td><td><code>build.maven.flags</code></td><td><code>tests.unitTests.maven.flags</code></td><td><code>tools.sonar.maven.flags</code></td><td><code>asoc.maven.flags</code></td><td><code>delivery.maven.flags</code></td></tr>
+<tr><td>Environment variables (Gradle)</td><td><code>build.gradle.env</code></td><td><code>tests.unitTests.gradle.env</code></td><td><code>tools.sonar.gradle.env</code></td><td><code>asoc.gradle.env</code></td><td></td></tr>
+<tr><td>Environment variables (Maven)</td><td><code>build.maven.env</code></td><td><code>tests.unitTests.maven.env</code></td><td><code>tools.sonar.maven.env</code></td><td><code>asoc.maven.env</code></td><td><code>delivery.maven.env</code></td></tr>
+<tr><td>Step label (Gradle)</td><td><code>build.gradle.label</code></td><td><code>tests.unitTests.gradle.label</code></td><td><code>tools.sonar.gradle.label</code></td><td><code>asoc.gradle.label</code></td><td></td></tr>
+<tr><td>Step label (Maven)</td><td><code>build.maven.label</code></td><td><code>tests.unitTests.maven.label</code></td><td><code>tools.sonar.maven.label</code></td><td><code>asoc.maven.label</code></td><td><code>delivery.maven.label</code></td></tr>
+<tr><td>Return the output to the pipeline (Gradle)</td><td><code>build.gradle.returnStdout</code></td><td><code>tests.unitTests.gradle.returnStdout</code></td><td><code>tools.sonar.gradle.returnStdout</code></td><td><code>asoc.gradle.returnStdout</code></td><td></td></tr>
+<tr><td>Return the output to the pipeline (Maven)</td><td><code>build.maven.returnStdout</code></td><td><code>tests.unitTests.maven.returnStdout</code></td><td><code>tools.sonar.maven.returnStdout</code></td><td><code>asoc.maven.returnStdout</code></td><td><code>delivery.maven.returnStdout</code></td></tr>
+</tbody>
+</table>
+<h3 id="unit-tests-and-coverage">Unit tests and coverage</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Test results</td><td><code>tests.unitTests.unitTestResult</code></td><td>Gradle builds</td></tr>
+<tr><td>Coverage report</td><td><code>coverage.reportPath</code></td><td></td></tr>
+<tr><td>Root folder (Advanced)</td><td><code>tests.unitTests.rootDir</code></td><td>Maven builds</td></tr>
+<tr><td>Report folder (Advanced)</td><td><code>tests.unitTests.reportOutDir</code></td><td>Maven builds</td></tr>
+<tr><td>Accept a run without test results (Advanced)</td><td><code>tests.unitTests.allowEmptyResults</code></td><td>Maven builds</td></tr>
+</tbody>
+</table>
+<h3 id="test-jobs">Test jobs</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Parallel jobs, every stage</td><td><code>tests.maxParallel</code></td><td>Library default: test jobs at the same time</td></tr>
+<tr><td>Parallel jobs (smoke, regression, performance)</td><td><code>tests.smoke.maxParallel</code>, <code>tests.regression.maxParallel</code>, <code>tests.performance.maxParallel</code></td><td></td></tr>
+<tr><td>Poll interval (seconds) of a stage</td><td><code>tests.smoke.pollIntervalSec</code>, <code>tests.regression.pollIntervalSec</code>, <code>tests.performance.pollIntervalSec</code></td><td></td></tr>
+<tr><td>Required</td><td><code>tests.smoke.required</code>, <code>tests.regression.required</code>, <code>tests.performance.required</code></td><td>written only as <code>false</code></td></tr>
+<tr><td>Stage of a job</td><td><code>tests.smoke.jobs</code>, <code>tests.regression.jobs</code>, <code>tests.performance.jobs</code></td><td>the list the job is written to</td></tr>
+</tbody>
+</table>
+<p>Each job is an entry of its stage list:</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Key in the entry</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Name</td><td><code>name</code></td><td></td></tr>
+<tr><td>Jenkins job</td><td><code>job</code>, or <code>url</code> for the full address of a job on another Jenkins</td><td></td></tr>
+<tr><td>Runs on</td><td><code>type</code></td><td><code>local</code> or <code>remote</code>; left empty, a full address runs on another Jenkins</td></tr>
+<tr><td>Timeout (minutes)</td><td><code>timeoutMin</code></td><td></td></tr>
+<tr><td>Parameters</td><td><code>parameters</code></td><td><code>NAME=value</code> lines</td></tr>
+<tr><td>Remote Jenkins</td><td><code>remoteJenkins</code></td><td>another Jenkins only</td></tr>
+<tr><td>Remote Jenkins URL</td><td><code>remoteJenkinsUrl</code></td><td>another Jenkins only</td></tr>
+<tr><td>Credentials ID</td><td><code>credentialsId</code></td><td>another Jenkins only</td></tr>
+<tr><td>Poll interval (seconds)</td><td><code>pollIntervalSec</code></td><td>another Jenkins only</td></tr>
+<tr><td>Token credentials ID</td><td><code>tokenCredentialsId</code></td><td>another Jenkins only</td></tr>
+<tr><td>Abort the remote job with this run</td><td><code>abortTriggeredJob</code></td><td>another Jenkins only</td></tr>
+<tr><td>Wait for an idle remote job</td><td><code>preventRemoteBuildQueue</code></td><td>another Jenkins only</td></tr>
+<tr><td>Cache the crumb</td><td><code>useCrumbCache</code></td><td>another Jenkins only</td></tr>
+<tr><td>Trust every certificate</td><td><code>trustAllCertificates</code></td><td>another Jenkins only</td></tr>
+<tr><td>Override the remote Jenkins' certificate trust</td><td><code>overrideTrustAllCertificates</code></td><td>another Jenkins only</td></tr>
+<tr><td>Cache the job information</td><td><code>useJobInfoCache</code></td><td>another Jenkins only</td></tr>
+</tbody>
+</table>
+<h3 id="deployment">Deployment</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Virtual machine or OpenShift</td><td><code>deployTarget</code></td><td><code>vm</code> or <code>openshift</code></td></tr>
+<tr><td>Disable Nexus Delivery</td><td><code>deploy.vm.rd.nexusDeliveryEnabled</code>, <code>deploy.openshift.rd.nexusDeliveryEnabled</code></td><td>written only as <code>false</code>, in the section of the deployment target</td></tr>
+<tr><td>Application name</td><td><code>appName</code></td><td>required on OpenShift</td></tr>
+<tr><td>Artifact name</td><td><code>artifactName</code></td><td>required on OpenShift</td></tr>
+<tr><td>Built file name (Advanced)</td><td><code>baseArtifactName</code></td><td></td></tr>
+<tr><td>Delivery (Maven on virtual machines)</td><td><code>delivery.maven.goals</code> and the other command fields</td><td></td></tr>
+</tbody>
+</table>
+<h3 id="urbancode-deploy">UrbanCode Deploy</h3>
+<p>The settings of the section sit under <code>deploy.vm.dod</code>.</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Site name</td><td><code>deploy.vm.dod.siteName</code></td><td>Library default</td></tr>
+<tr><td>Deployment process</td><td><code>deploy.vm.dod.deployProcess</code></td><td>Library default</td></tr>
+<tr><td>Deploy with a snapshot</td><td><code>deployWithSnapshot</code></td><td><code>deploy.vm.dod.deployWithSnapshot</code></td></tr>
+<tr><td>Snapshot holds only the deployed versions</td><td><code>includeOnlyDeployVersions</code></td><td><code>deploy.vm.dod.includeOnlyDeployVersions</code></td></tr>
+<tr><td>Update the snapshot's components</td><td><code>updateSnapshotComp</code></td><td><code>deploy.vm.dod.updateSnapshotComp</code></td></tr>
+<tr><td>Deploy only changed versions</td><td><code>deployOnlyChanged</code></td><td><code>deploy.vm.dod.deployOnlyChanged</code></td></tr>
+<tr><td>Do not wait for the deployment result</td><td><code>skipWait</code></td><td><code>deploy.vm.dod.skipWait</code></td></tr>
+<tr><td>Deployment description</td><td><code>deploy.vm.dod.deployDescription</code></td><td></td></tr>
+<tr><td>Request properties</td><td><code>deploy.vm.dod.requestProperties</code></td><td></td></tr>
+<tr><td>Applications</td><td><code>deploy.vm.dod.applications</code></td><td>a list</td></tr>
+</tbody>
+</table>
+<p>Each application is an entry of <code>deploy.vm.dod.applications</code>:</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Key in the entry</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Application name</td><td><code>applicationName</code></td><td></td></tr>
+<tr><td>Order</td><td><code>order</code></td><td></td></tr>
+<tr><td>Environments</td><td><code>environments</code></td><td>left empty: all of them</td></tr>
+<tr><td>Snapshot name</td><td><code>snapshotName</code></td><td></td></tr>
+<tr><td>Site name</td><td><code>siteName</code></td><td>left empty: the setting above</td></tr>
+<tr><td>Deployment process</td><td><code>deployProcess</code></td><td>left empty: the setting above</td></tr>
+<tr><td>Deploy with a snapshot, Snapshot holds only the deployed versions, Update the snapshot's components, Deploy only changed versions, Do not wait for the result</td><td><code>deployWithSnapshot</code>, <code>includeOnlyDeployVersions</code>, <code>updateSnapshotComp</code>, <code>deployOnlyChanged</code>, <code>skipWait</code></td><td>Setting above, Yes or No</td></tr>
+<tr><td>Description</td><td><code>description</code></td><td></td></tr>
+<tr><td>Deployment description</td><td><code>deployDescription</code></td><td></td></tr>
+<tr><td>Request properties</td><td><code>requestProperties</code></td><td></td></tr>
+<tr><td>Components</td><td><code>components</code></td><td>a list</td></tr>
+</tbody>
+</table>
+<p>Each component is an entry of <code>components</code>:</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Key in the entry</th></tr>
+</thead>
+<tbody>
+<tr><td>Component name</td><td><code>componentName</code></td></tr>
+<tr><td>Base folder</td><td><code>baseDir</code></td></tr>
+<tr><td>Version prefix</td><td><code>versionPrefix</code></td></tr>
+<tr><td>Version</td><td><code>version</code></td></tr>
+<tr><td>Files to include</td><td><code>fileIncludePatterns</code></td></tr>
+<tr><td>Files to exclude</td><td><code>fileExcludePatterns</code></td></tr>
+<tr><td>Extensions</td><td><code>extensions</code></td></tr>
+<tr><td>Charset</td><td><code>charset</code></td></tr>
+<tr><td>Push description</td><td><code>pushDescription</code></td></tr>
+<tr><td>Version description</td><td><code>versionDescription</code></td></tr>
+<tr><td>Version properties</td><td><code>versionProperties</code></td></tr>
+<tr><td>Incremental version</td><td><code>incrementalVersion</code></td></tr>
+</tbody>
+</table>
+<h3 id="ssh-targets">SSH targets</h3>
+<p>Each region has its own section: <code>deploy.vm.rd</code> for RD, the lower test region, and <code>deploy.vm.qc</code> for QC, the higher test region.</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Key in the region</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Host</td><td><code>host</code></td><td>Library default: the RD or QC test server</td></tr>
+<tr><td>User</td><td><code>user</code></td><td>Library default</td></tr>
+<tr><td>Deployment folder</td><td><code>deployDir</code></td><td>left empty: /opt/ta/deployment</td></tr>
+<tr><td>Deployment script</td><td><code>deployScript</code></td><td>Library default</td></tr>
+<tr><td>Version file</td><td><code>versionFile</code></td><td>Library default</td></tr>
+</tbody>
+</table>
+<h3 id="openshift-targets">OpenShift targets</h3>
+<p>Each region has its own section: <code>deploy.openshift.rd</code> and <code>deploy.openshift.qc</code>.</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Key in the region</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Build project</td><td><code>projectBuildR</code></td><td>required in RD</td></tr>
+<tr><td>BuildConfig file</td><td><code>buildConfigPath</code></td><td>required in RD</td></tr>
+<tr><td>Dockerfile</td><td><code>dockerFilePath</code></td><td>required in RD</td></tr>
+<tr><td>Build context</td><td><code>buildContext</code></td><td>required in RD</td></tr>
+<tr><td>File added to the image</td><td><code>addFile</code></td><td></td></tr>
+<tr><td>Image pushed to</td><td><code>qcDockerRepoPush</code></td><td>required in RD</td></tr>
+<tr><td>Image pulled from</td><td><code>qcDockerRepoPull</code></td><td></td></tr>
+<tr><td>OpenShift certificates folder</td><td><code>openshiftCertDir</code></td><td></td></tr>
+<tr><td>Nexus auth file</td><td><code>nexus.authfile</code></td><td>required in RD</td></tr>
+<tr><td>Deployment project</td><td><code>projectDeploymentR</code></td><td></td></tr>
+<tr><td>Deployment file</td><td><code>deployConfigPath</code></td><td></td></tr>
+<tr><td>Configuration file</td><td><code>configPathR</code></td><td></td></tr>
+<tr><td>Health check path</td><td><code>healthCheckUrl</code></td><td></td></tr>
+<tr><td>Route host name</td><td><code>routeHostnameR</code></td><td></td></tr>
+<tr><td>Deployment path</td><td><code>deploymentPath</code></td><td>RD only</td></tr>
+<tr><td>Skip deploying the configuration</td><td><code>skipConfigDeploy</code></td><td></td></tr>
+<tr><td>Repository URL (deployment repository)</td><td><code>deploymentRepo.url</code></td><td>RD only</td></tr>
+<tr><td>Branch (deployment repository)</td><td><code>deploymentRepo.branch</code></td><td></td></tr>
+<tr><td>Credentials ID (deployment repository)</td><td><code>deploymentRepo.credentials</code></td><td></td></tr>
+<tr><td>Build tag</td><td><code>buildTag</code></td><td></td></tr>
+<tr><td>Internal image URL</td><td><code>internalDockerUrl</code></td><td>RD only</td></tr>
+</tbody>
+</table>
+<h3 id="appscan-sast-and-dast">AppScan SAST and DAST</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>AppScan application ID</td><td><code>appId</code></td><td>required</td></tr>
+<tr><td>AppScan API key ID</td><td><code>asoc.keyId</code></td><td>required</td></tr>
+<tr><td>API key secret credentials ID</td><td><code>asoc.token</code></td><td>left empty: the key ID names the credential</td></tr>
+<tr><td>Run DAST against the deployed application</td><td><code>dast.enabled</code></td><td>Full pipeline</td></tr>
+<tr><td>DAST target URL</td><td><code>dast.targetUrl</code></td><td></td></tr>
+<tr><td>Presence ID</td><td><code>dast.presenceId</code></td><td></td></tr>
+<tr><td>SAST scan name (Advanced)</td><td><code>sast.scanName</code></td><td>left empty: the SonarQube project name followed by -sast</td></tr>
+<tr><td>AppScan client path (Advanced)</td><td><code>appscanPath</code></td><td>Windows agents</td></tr>
+<tr><td>Included folders (Advanced)</td><td><code>includedDirs</code></td><td>written comma-separated</td></tr>
+<tr><td>Excluded folders (Advanced)</td><td><code>excludedDirs</code></td><td>written comma-separated</td></tr>
+<tr><td>Compile before preparing the IRX (Advanced)</td><td><code>asoc.doCompile</code></td><td>on by default; written only as <code>false</code></td></tr>
+<tr><td>Scan source code only (Advanced)</td><td><code>asoc.sourceCodeOnly</code></td><td></td></tr>
+<tr><td>Use the repository's AppScan configuration (Advanced)</td><td><code>asoc.useAppScanConfig</code></td><td></td></tr>
+<tr><td>Accept any TLS certificate (Advanced)</td><td><code>asoc.insecureTls</code></td><td></td></tr>
+<tr><td>Compile command (Advanced)</td><td><code>asoc.gradle.tasks</code>, <code>asoc.maven.goals</code> and the other command fields</td><td></td></tr>
+</tbody>
+</table>
+<p>The address of AppScan on Cloud comes from the Library defaults and is written to every service as <code>asoc.url</code>.</p>
+<h3 id="sonarqube">SonarQube</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Project name</td><td><code>tools.sonar.projectName</code></td><td></td></tr>
+<tr><td>Project key</td><td><code>tools.sonar.projectKey</code></td><td></td></tr>
+<tr><td>Jenkins installation</td><td><code>tools.sonar.installationName</code></td><td>Library default</td></tr>
+<tr><td>Analysis command</td><td><code>tools.sonar.gradle.tasks</code>, <code>tools.sonar.maven.goals</code> and the other command fields</td><td>required with a project key</td></tr>
+<tr><td>Token credentials ID (Advanced)</td><td><code>tools.sonar.authToken</code></td><td></td></tr>
+<tr><td>Scanner credentials ID (Advanced)</td><td><code>tools.sonar.credentialsId</code></td><td></td></tr>
+<tr><td>Server URL (Advanced)</td><td><code>tools.sonar.serverUrl</code></td><td>Library default</td></tr>
+<tr><td>Badge token (Advanced)</td><td><code>tools.sonar.badgeToken</code></td><td></td></tr>
+<tr><td>Badge token credentials ID (Advanced)</td><td><code>tools.sonar.badgeCredentialsId</code></td><td>give the badge token or its credentials ID, not both</td></tr>
+<tr><td>Badges in the Jenkins build description (Advanced)</td><td><code>tools.sonar.addBadges</code></td><td></td></tr>
+<tr><td>Every badge (Advanced)</td><td><code>tools.sonar.fullBadges</code></td><td></td></tr>
+</tbody>
+</table>
+<h3 id="nexus-iq">Nexus IQ</h3>
+<p>A service scans one Nexus IQ application, written under <code>tools.nexusIq.application</code>.</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Application</td><td><code>application</code></td><td><code>tools.nexusIq.application</code></td></tr>
+<tr><td>Stage</td><td><code>stage</code></td><td><code>tools.nexusIq.stage</code>, by default <code>build</code></td></tr>
+<tr><td>Treat a network error as a failed scan</td><td><code>failOnNetworkError</code></td><td><code>tools.nexusIq.failOnNetworkError</code></td></tr>
+<tr><td>Scan patterns</td><td><code>scanPatterns</code></td><td><code>tools.nexusIq.scanPatterns</code></td></tr>
+<tr><td>Server URL (Advanced)</td><td><code>tools.nexusIq.serverUrl</code></td><td>Library default</td></tr>
+<tr><td>Credentials ID (Advanced)</td><td><code>tools.nexusIq.credentialsId</code></td><td>Library default</td></tr>
+</tbody>
+</table>
+<h3 id="bitbucket">Bitbucket</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Repository URL</td><td><code>scm.bitbucket.url</code></td><td></td></tr>
+<tr><td>Credentials ID</td><td><code>scm.bitbucket.credentialsId</code></td><td>required with a repository URL</td></tr>
+<tr><td>Target branch</td><td><code>scm.bitbucket.targetBranch</code></td><td>left empty: the branch the pipeline runs on</td></tr>
+<tr><td>Reviewers</td><td><code>scm.bitbucket.reviewers</code></td><td></td></tr>
+<tr><td>Sign-in (Advanced)</td><td><code>scm.bitbucket.authType</code></td><td><code>basic</code> or <code>bearer</code></td></tr>
+<tr><td>Bitbucket (Advanced)</td><td><code>scm.bitbucket.type</code></td><td><code>server</code> or <code>cloud</code>; left empty: detected from the URL</td></tr>
+<tr><td>Clone URL (Advanced)</td><td><code>scm.bitbucket.cloneUrl</code></td><td></td></tr>
+<tr><td>Bitbucket API URL (Advanced)</td><td><code>scm.bitbucket.apiUrl</code></td><td></td></tr>
+<tr><td>Workspace (Advanced)</td><td><code>scm.bitbucket.workspace</code></td><td>Bitbucket Cloud</td></tr>
+<tr><td>Project key (Advanced)</td><td><code>scm.bitbucket.projectKey</code></td><td>Data Center</td></tr>
+<tr><td>Repository slug (Advanced)</td><td><code>scm.bitbucket.repoSlug</code></td><td></td></tr>
+</tbody>
+</table>
+<h3 id="goldenfix">GoldenFix</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Run GoldenFix</td><td><code>goldenFix.enabled</code></td><td>Library default, On or Off</td></tr>
+<tr><td>Shared version catalogs</td><td><code>goldenFix.versionCatalogs</code></td><td>the service's own list, outside the inherited policy</td></tr>
+<tr><td>Ecosystems</td><td><code>goldenFix.ecosystems</code></td><td>Override only</td></tr>
+<tr><td>Minimum threat level</td><td><code>minThreatLevel</code></td><td><code>goldenFix.minThreatLevel</code></td></tr>
+<tr><td>Dependencies</td><td><code>onlyDirectDependencies</code></td><td><code>goldenFix.onlyDirectDependencies</code></td></tr>
+<tr><td>Golden version types</td><td><code>goldenVersionTypes</code></td><td><code>goldenFix.goldenVersionTypes</code></td></tr>
+<tr><td>Excluded folders</td><td><code>excludeDirs</code></td><td><code>goldenFix.excludeDirs</code></td></tr>
+<tr><td>Verification</td><td><code>verify.enabled</code></td><td><code>goldenFix.verify.enabled</code></td></tr>
+<tr><td>Attempts</td><td><code>verify.maxAttempts</code></td><td><code>goldenFix.verify.maxAttempts</code></td></tr>
+<tr><td>Timeout (minutes)</td><td><code>verify.timeoutMinutes</code></td><td><code>goldenFix.verify.timeoutMinutes</code></td></tr>
+<tr><td>Maven command</td><td><code>verify.commands.maven</code></td><td><code>goldenFix.verify.commands.maven</code></td></tr>
+<tr><td>Gradle command</td><td><code>verify.commands.gradle</code></td><td><code>goldenFix.verify.commands.gradle</code></td></tr>
+<tr><td>npm command</td><td><code>verify.commands.npm</code></td><td><code>goldenFix.verify.commands.npm</code></td></tr>
+<tr><td>pip command</td><td><code>verify.commands.pip</code></td><td><code>goldenFix.verify.commands.pip</code></td></tr>
+<tr><td>pub command</td><td><code>verify.commands.pub</code></td><td><code>goldenFix.verify.commands.pub</code></td></tr>
+<tr><td>Author name</td><td><code>commitAuthorName</code></td><td><code>goldenFix.commitAuthorName</code></td></tr>
+<tr><td>Author e-mail</td><td><code>commitAuthorEmail</code></td><td><code>goldenFix.commitAuthorEmail</code></td></tr>
+<tr><td>Time zone</td><td><code>timeZone</code></td><td><code>goldenFix.timeZone</code></td></tr>
+</tbody>
+</table>
+<h3 id="monitoring">Monitoring</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Write pipeline metrics to InfluxDB</td><td><code>influx.enabled</code></td><td></td></tr>
+<tr><td>Project tag</td><td><code>influx.project</code></td><td>left empty: <code>&lt;CODE&gt;-&lt;service&gt;</code></td></tr>
+<tr><td>Environment tag</td><td><code>influx.env</code></td><td>left empty: test</td></tr>
+<tr><td>InfluxDB write URL (Advanced)</td><td><code>influx.url</code></td><td>Library default</td></tr>
+<tr><td>Credentials ID (Advanced)</td><td><code>influx.credentialsId</code></td><td>Library default</td></tr>
+</tbody>
+</table>
+<h3 id="flutter">Flutter</h3>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Platform</td><td><code>flutter.platform</code></td><td></td></tr>
+<tr><td>Modules</td><td><code>tools.flutter.flutterModules</code></td><td></td></tr>
+<tr><td>Tested modules</td><td><code>tests.modules</code></td><td></td></tr>
+<tr><td>Tested submodules</td><td><code>tests.submodules</code></td><td></td></tr>
+<tr><td>Tested subplugins</td><td><code>tests.subplugins</code></td><td></td></tr>
+<tr><td>Certificate password, Production licence, Test licence</td><td><code>build.credentialsId</code></td><td>a list in this order</td></tr>
+<tr><td>Group (Delivery)</td><td><code>delivery.group</code></td><td>required on virtual machines</td></tr>
+<tr><td>Artifact (Delivery)</td><td><code>delivery.artifact</code></td><td></td></tr>
+<tr><td>Maven plugin (Delivery)</td><td><code>delivery.plugin</code></td><td></td></tr>
+<tr><td>Sources</td><td><code>tools.sonar.sources</code></td><td></td></tr>
+<tr><td>Tests</td><td><code>tools.sonar.tests</code></td><td></td></tr>
+<tr><td>SonarScanner version</td><td><code>tools.sonar.sonarScannerVersion</code></td><td></td></tr>
+<tr><td>Dart analyze command</td><td><code>tools.sonar.dartAnalyzeCommand</code></td><td></td></tr>
+<tr><td>Flutter plugin</td><td><code>tools.sonar.flutterPlugin</code></td><td></td></tr>
+</tbody>
+</table>
+<h3 id="library-defaults">Library defaults</h3>
+<p>The values of Tools and servers are written to <code>platform</code>, and the per-service values (AppScan, SonarQube, Nexus IQ and InfluxDB servers) to each project unless the service sets its own. The other values are written under <code>defaults</code>.</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Jenkins URL</td><td><code>platform.jenkinsUrl</code></td><td></td></tr>
+<tr><td>Shared library</td><td><code>platform.jenkinsLibrary</code></td><td>the name in <code>@Library</code></td></tr>
+<tr><td>AppScan on Cloud URL</td><td><code>asoc.url</code></td><td>also <code>platform.environment.APPSCAN_SERVER_URL</code> and <code>APPSCAN_HOST</code></td></tr>
+<tr><td>Scan client download for Linux</td><td><code>SA_LINUX_URL</code></td><td><code>platform.environment.SA_LINUX_URL</code></td></tr>
+<tr><td>Scan client download for Windows</td><td><code>SA_WIN_URL</code></td><td><code>platform.environment.SA_WIN_URL</code></td></tr>
+<tr><td>Proxy host</td><td><code>PROXY_HOST</code></td><td><code>platform.environment.PROXY_HOST</code></td></tr>
+<tr><td>Proxy port</td><td><code>PROXY_PORT</code></td><td><code>platform.environment.PROXY_PORT</code></td></tr>
+<tr><td>Proxy user</td><td><code>PROXY_USER</code></td><td><code>platform.environment.PROXY_USER</code></td></tr>
+<tr><td>OIS host</td><td><code>platform.oisHost</code></td><td></td></tr>
+<tr><td>SonarQube server URL</td><td><code>tools.sonar.serverUrl</code></td><td>per project</td></tr>
+<tr><td>SonarQube installation</td><td><code>tools.sonar.installationName</code></td><td>per project</td></tr>
+<tr><td>Nexus IQ server URL</td><td><code>tools.nexusIq.serverUrl</code></td><td>per project</td></tr>
+<tr><td>Nexus IQ credentials ID</td><td><code>tools.nexusIq.credentialsId</code></td><td>per project</td></tr>
+<tr><td>Nexus snapshot repository URL</td><td><code>platform.nexusSnapshotRepositoryUrl</code></td><td></td></tr>
+<tr><td>Nexus snapshot repository ID</td><td><code>platform.nexusSnapshotRepositoryId</code></td><td></td></tr>
+<tr><td>InfluxDB write URL</td><td><code>influx.url</code></td><td>per project</td></tr>
+<tr><td>InfluxDB credentials ID</td><td><code>influx.credentialsId</code></td><td>per project</td></tr>
+<tr><td>iOS build agent</td><td><code>platform.iosBuildAgent</code></td><td></td></tr>
+<tr><td>UrbanCode Deploy site name</td><td><code>deploy.vm.dod.siteName</code></td><td>filled into a service with UrbanCode Deploy settings</td></tr>
+<tr><td>UrbanCode Deploy process</td><td><code>deploy.vm.dod.deployProcess</code></td><td>filled in the same way</td></tr>
+<tr><td>RD test server</td><td><code>deploy.vm.rd.host</code></td><td>filled into a service on virtual machines</td></tr>
+<tr><td>QC test server</td><td><code>deploy.vm.qc.host</code></td><td>filled in the same way</td></tr>
+<tr><td>SSH user</td><td><code>deploy.vm.&lt;region&gt;.user</code></td><td>filled in the same way</td></tr>
+<tr><td>Deploy script</td><td><code>deploy.vm.&lt;region&gt;.deployScript</code></td><td>filled in the same way</td></tr>
+<tr><td>Version file</td><td><code>deploy.vm.&lt;region&gt;.versionFile</code></td><td>filled in the same way</td></tr>
+<tr><td>Security limits</td><td><code>defaults.sast</code>, <code>defaults.sca</code>, <code>defaults.tools.nexusIq</code> and <code>defaults.dast</code>, each with <code>maxCritical</code>, <code>maxHigh</code> and <code>maxMedium</code></td><td></td></tr>
+<tr><td>Minimum line coverage (%)</td><td><code>coverage.minLine</code></td><td><code>defaults.coverage.minLine</code></td></tr>
+<tr><td>SAST: longest preparation</td><td><code>sast.prepareTimeoutMin</code></td><td><code>defaults.sast.prepareTimeoutMin</code>; not applied yet by the library</td></tr>
+<tr><td>SAST: longest wait for the result</td><td><code>sast.pollTimeoutMin</code></td><td><code>defaults.sast.pollTimeoutMin</code></td></tr>
+<tr><td>SAST: check for the result every</td><td><code>sast.pollIntervalSec</code></td><td><code>defaults.sast.pollIntervalSec</code></td></tr>
+<tr><td>DAST: longest wait for the result</td><td><code>dast.pollTimeoutMin</code></td><td><code>defaults.dast.pollTimeoutMin</code></td></tr>
+<tr><td>DAST: check for the result every</td><td><code>dast.pollIntervalSec</code></td><td><code>defaults.dast.pollIntervalSec</code></td></tr>
+<tr><td>DAST: longest wait for the report</td><td><code>dast.reportTimeoutMin</code></td><td><code>defaults.dast.reportTimeoutMin</code></td></tr>
+<tr><td>DAST: check for the report every</td><td><code>dast.reportIntervalSec</code></td><td><code>defaults.dast.reportIntervalSec</code></td></tr>
+<tr><td>Wait for the quality gate</td><td><code>tools.sonar.qualityGate.waitForQualityGate</code></td><td><code>defaults.tools.sonar.qualityGate.waitForQualityGate</code></td></tr>
+<tr><td>Longest wait (minutes) for the quality gate</td><td><code>tools.sonar.qualityGate.timeoutMinutes</code></td><td><code>defaults.tools.sonar.qualityGate.timeoutMinutes</code></td></tr>
+<tr><td>Release gate scans</td><td><code>releaseGate.scanners</code></td><td>written as <code>sast</code>, <code>sca</code>, <code>niq</code> and <code>dast</code></td></tr>
+<tr><td>Also require the minimum line coverage</td><td><code>releaseGate.requireCoverage</code></td><td><code>defaults.releaseGate.requireCoverage</code></td></tr>
+<tr><td>Result file</td><td><code>releaseGate.stateFile</code></td><td><code>defaults.releaseGate.stateFile</code>, fixed</td></tr>
+<tr><td>Build tool</td><td><code>buildTool</code></td><td><code>defaults.buildTool</code></td></tr>
+<tr><td>Runs on</td><td><code>deployTarget</code></td><td><code>defaults.deployTarget</code></td></tr>
+<tr><td>Source folder</td><td><code>sourceDir</code></td><td><code>defaults.sourceDir</code></td></tr>
+<tr><td>Test jobs at the same time</td><td><code>tests.maxParallel</code></td><td><code>defaults.tests.maxParallel</code></td></tr>
+<tr><td>Node.js installation</td><td><code>build.node.installationName</code></td><td><code>defaults.build.node.installationName</code></td></tr>
+<tr><td>npm registry</td><td><code>build.node.registry</code></td><td><code>defaults.build.node.registry</code></td></tr>
+<tr><td>.npmrc credentials ID</td><td><code>build.node.npmrcCredentialsId</code></td><td><code>defaults.build.node.npmrcCredentialsId</code></td></tr>
+<tr><td>GoldenFix runs by default</td><td><code>goldenFix.enabled</code></td><td><code>defaults.goldenFix.enabled</code></td></tr>
+<tr><td>The GoldenFix policy fields</td><td>as in the GoldenFix table above</td><td>under <code>defaults.goldenFix</code></td></tr>
+</tbody>
+</table>
+<p>The Portal monitoring block sets the portal itself and is not written to <code>config.yaml</code>:</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Portal setting</th></tr>
+</thead>
+<tbody>
+<tr><td>InfluxDB read URL</td><td><code>dso.influx.url</code></td></tr>
+<tr><td>InfluxDB organization</td><td><code>dso.influx.org</code></td></tr>
+<tr><td>InfluxDB bucket</td><td><code>dso.influx.bucket</code></td></tr>
+<tr><td>InfluxDB read token</td><td><code>dso.influx.token</code></td></tr>
+<tr><td>Grafana instance name</td><td><code>dso.grafana.instances[0].name</code></td></tr>
+<tr><td>Grafana pipeline dashboard URL</td><td><code>dso.grafana.instances[0].dashboard-url</code></td></tr>
+<tr><td>Grafana security dashboard URL</td><td><code>dso.grafana.instances[0].security-dashboard-url</code></td></tr>
+<tr><td>Second Grafana instance name</td><td><code>dso.grafana.instances[1].name</code></td></tr>
+<tr><td>Second Grafana pipeline dashboard URL</td><td><code>dso.grafana.instances[1].dashboard-url</code></td></tr>
+<tr><td>Second Grafana security dashboard URL</td><td><code>dso.grafana.instances[1].security-dashboard-url</code></td></tr>
+</tbody>
+</table>
+<h3 id="headings-with-keys">Headings with keys</h3>
+<p>Some headings of the service form name the section they write to: <code>deploy.vm.rd</code> and <code>deploy.vm.qc</code> (SSH targets), <code>deploy.openshift.rd</code> and <code>deploy.openshift.qc</code> (OpenShift targets), <code>tools.nexusIq.application</code> (Nexus IQ), <code>deploy.vm.dod.applications</code> and <code>components</code> (UrbanCode Deploy) and <code>build.credentialsId</code> (Flutter credentials).</p>
+</div>
+
+<div class="section" id="17-database-and-environments">
+<h2><span class="num">17</span> Database and environments</h2>
+<h3 id="where-the-portal-runs">Where the portal runs</h3>
+<table>
+<thead>
+<tr><th>Environment</th><th>Database</th><th>How it starts</th></tr>
+</thead>
+<tbody>
+<tr><td>A BBH laptop</td><td>H2 in Oracle mode, in the file <code>~/bbh-devsecops/dso-portal/dso-portal.mv.db</code> (<code>DSO_DATA_DIR</code> moves the folder)</td><td><code>gradlew :backend:bootRun</code> or <code>java -jar backend/build/libs/dso-portal-&lt;version&gt;.jar</code></td></tr>
+<tr><td>RD</td><td>Oracle</td><td>the <code>dso-portal</code> Deployment in OpenShift, profile <code>rd</code></td></tr>
+<tr><td>QC</td><td>Oracle</td><td>the same image, profile <code>qc</code></td></tr>
+<tr><td>Production</td><td>Oracle</td><td>the same image, profile <code>prod</code></td></tr>
+</tbody>
+</table>
+<p><code>SPRING_PROFILES_ACTIVE</code> chooses the profile; <code>local</code> is the default. The profiles <code>rd</code>, <code>qc</code> and <code>prod</code> use Oracle with <code>DB_URL</code>, <code>DB_USERNAME</code> and <code>DB_PASSWORD</code>, and a pool of 5, 10 or 20 connections by default (<code>DB_POOL_SIZE</code>). <code>PORT</code> sets the HTTP port (8080 by default). <a href="../deploy/openshift/README.md">deploy/openshift/README.md</a> describes the OpenShift deployment.</p>
+<h3 id="liquibase-rules">Liquibase rules</h3>
+<p>Liquibase updates the schema when the portal starts. The changesets are in <code>backend/src/main/resources/db/changelog</code>.</p>
+<ol>
+<li>Never change a changeset that a database has already applied. Liquibase refuses to start when its checksum changes.</li>
+<li>Add a new file <code>oracle/&lt;next number&gt;-&lt;name&gt;.sql</code> that starts with <code>--liquibase formatted sql</code>.</li>
+<li>Give each changeset the header <code>--changeset dso-portal:&lt;id&gt; dbms:oracle,h2</code> and a <code>--rollback</code> that undoes it.</li>
+<li>Include the file in <code>db.changelog-master.yaml</code>.</li>
+<li>Keep names of constraints at 30 characters or fewer, as Oracle requires.</li>
+<li>Test the update, the rollback and the update again on H2, and on Oracle Free 23 when a container can run it.</li>
+</ol>
+<h3 id="upgrade-note-changeset-031">Upgrade note: changeset 031</h3>
+<p>Changeset 031 moves the AppScan key ID and the secret credentials ID of each product to its services. It also adds the SAST scan name (<code>APPSCAN_SCAN_NAME</code>), the Sonar badge credentials ID (<code>SONAR_BADGE_CREDENTIALS_ID</code>) and the Nexus delivery switch (<code>NEXUS_DELIVERY_DISABLED</code>) to <code>DSO_SERVICE</code>.</p>
+<div class="callout"><strong>Warning.</strong> A product without services loses both AppScan values, and a rollback cannot restore them. Record them before the upgrade and enter them on the first service of the product afterwards.</div>
+<h3 id="upgrade-note-changeset-032">Upgrade note: changeset 032</h3>
+<p>Changeset 032 adds the Node.js build and the shared version catalogs. It has three changesets:</p>
+<ul>
+<li><code>032-node-build</code> adds to <code>DSO_SERVICE</code> the columns <code>NODE_ENABLED</code> (0 or 1, 0 by default), <code>NODE_DIRECTORY</code>, <code>NODE_COMMANDS</code>, <code>NODE_INSTALLATION_NAME</code>, <code>NODE_PATH</code>, <code>NODE_ENVIRONMENT</code>, <code>NODE_REGISTRY</code>, <code>NODE_NPMRC_CREDENTIALS_ID</code>, <code>NODE_TIMEOUT_MINUTES</code> and <code>NODE_NEXUS_IQ_SCAN</code>, with the checks <code>CK_DSO_SERVICE_NODE_ENABLED</code> and <code>CK_DSO_SERVICE_NODE_IQ_SCAN</code>.</li>
+<li><code>032-version-catalogs</code> adds <code>GOLDEN_FIX_VERSION_CATALOGS</code> to <code>DSO_SERVICE</code>.</li>
+<li><code>032-node-defaults</code> adds <code>NODE_INSTALLATION_NAME</code>, <code>NPM_REGISTRY</code> and <code>NPMRC_CREDENTIALS_ID</code> to <code>DSO_GLOBAL_SETTINGS</code>.</li>
+</ul>
+<p>Every service starts with the Node.js build off and no catalogs, so every configuration stays as it was. A rollback drops the columns with whatever they hold.</p>
+</div>
+
+<div class="section" id="18-troubleshooting">
+<h2><span class="num">18</span> Troubleshooting</h2>
+<h3 id="add-service-stays-disabled">&quot;Add service&quot; stays disabled</h3>
+<p>The text next to the button names the missing fields, for example &quot;Complete these fields first: AppScan API key ID&quot;. Click a field name. The form opens its section, under Advanced settings if needed, and puts the cursor in the field.</p>
+<h3 id="a-service-shows-needs-attention">A service shows &quot;Needs attention&quot;</h3>
+<p>A field of the service has a problem. Open the service and look for the red marks in the list of sections. Saving opens the first section with a problem.</p>
+<h3 id="give-the-nodejs-installation-or-its-home-on-the-agent-not-both">&quot;give the Node.js installation or its home on the agent, not both&quot;</h3>
+<p>The service names a Node.js installation and a Node.js home on the agent. Empty one of them. The home wins in the library, so keep the home when the agent has a fixed Node.js folder.</p>
+<h3 id="must-be-off-for-flutter-a-flutter-build-has-no-gradle-or-maven-stage-for-the-nodejs-build-to-run-before">&quot;must be off for Flutter: a Flutter build has no Gradle or Maven stage for the Node.js build to run before&quot;</h3>
+<p>A Flutter service cannot use the Node.js build. Switch it off, or choose Gradle or Maven when the service is not a Flutter app.</p>
+<h3 id="the-nodejs-build-does-not-run">The Node.js build does not run</h3>
+<ul>
+<li>The log says <code>[NODE] &lt;service&gt;: build.node.enabled is not set - no Node.js build</code>: tick &quot;Build the frontend with Node.js first&quot; for the service.</li>
+<li>The log says <code>[NODE] &lt;service&gt;: the SAST scan does not compile this service - no Node.js build</code>: in SAST scanning the stage runs only while &quot;Compile before preparing the IRX&quot; is on and on Linux agents.</li>
+</ul>
+<h3 id="the-nodejs-build-fails">The Node.js build fails</h3>
+<ul>
+<li><code>npm: not found</code> or <code>node: not found</code>: the agent has no Node.js on its path. Set the Node.js installation (NodeJS plugin, Manage Jenkins, Tools) or the Node.js home on the agent.</li>
+<li>npm cannot reach its registry: set the npm registry, or an .npmrc credentials ID whose file names the registry. A registry is ignored while an .npmrc is used.</li>
+<li>The stage times out: raise the Node.js timeout (30 minutes by default).</li>
+<li>A failing command fails the stage, and the later stages are shown as blocked.</li>
+</ul>
+<h3 id="the-frontend-is-missing-from-the-jar">The frontend is missing from the jar</h3>
+<ul>
+<li>Write the Node.js output outside <code>build</code> and <code>target</code>. The <code>clean</code> of the Gradle or Maven build deletes those folders.</li>
+<li>Copy the output into the jar with the Gradle <code>processResources</code> or Maven <code>resources</code> snippet of <a href="#package-the-frontend-into-the-jar">chapter 6</a>.</li>
+<li>On OpenShift, the image gets only the artifact. Put the frontend into the jar, not next to it.</li>
+</ul>
+<h3 id="the-nexus-iq-stage-turns-orange-after-the-nodejs-build-was-switched-on">The Nexus IQ stage turns orange after the Node.js build was switched on</h3>
+<p>Nexus IQ now scans the npm dependencies of <code>package-lock.json</code>. Fix them with GoldenFix, or untick &quot;Scan the npm dependencies with Nexus IQ&quot; when another pipeline scans them.</p>
+<h3 id="goldenfix-the-branch-branch-already-exists-in-repository"><code>[GOLDENFIX] The branch &lt;branch&gt; already exists in &lt;repository&gt;</code></h3>
+<p>Two GoldenFix jobs of one repository ran in the same minute. Run one job for all services of the repository with the combined Jenkinsfile. See <a href="#one-jenkins-job-for-each-repository">chapter 7</a>.</p>
+<h3 id="version-catalog-path-not-found-in-the-repository"><code>version catalog &lt;path&gt; not found in the repository</code></h3>
+<p>A path in &quot;Shared version catalogs&quot; matches no file, or the file lies in a folder that GoldenFix excludes. Check the spelling and the excluded folders of the GoldenFix policy. A path must be relative to the repository root.</p>
+<h3 id="version-catalog-path-is-outside-the-repository"><code>version catalog &lt;path&gt; is outside the repository</code></h3>
+<p>The path starts with <code>/</code> or uses <code>..</code>. Write it relative to the repository root.</p>
+<h3 id="goldenfix-no-gradle-build-found-for-file---not-verified"><code>GoldenFix: no Gradle build found for &lt;file&gt; - not verified</code></h3>
+<p>No <code>settings.gradle</code> of the repository uses the changed catalog. GoldenFix still raises the version but cannot verify it. Review the pull request with care.</p>
+<h3 id="managed-by-bom-gav-imported-in-file-raise-the-bom-or-add-an-override-to-the-catalog"><code>managed by BOM g:a:v imported in &lt;file&gt;: raise the BOM or add an override to the catalog</code></h3>
+<p>A BOM or platform decides the version of the dependency. Raise the BOM, or add an entry for the dependency to the catalog.</p>
+<h3 id="managed-by-the-version-catalog-artifact-gav-outside-this-repository-or-version-name-is-defined-in-buildsrcfile-not-updated-automatically"><code>managed by the version catalog artifact g:a:v outside this repository</code> or <code>version &lt;name&gt; is defined in buildSrc/&lt;file&gt;: not updated automatically</code></h3>
+<p>GoldenFix does not change a catalog outside the repository or a version in <code>buildSrc</code>. Raise the version by hand.</p>
+<h3 id="goldenfix-the-pull-request-comment-could-not-be-added-reason"><code>[GOLDENFIX] The pull request comment could not be added: &lt;reason&gt;</code></h3>
+<p>The upgrades are in the shared pull request, but the comment that lists them failed. Check that the Bitbucket credentials of the service may comment on pull requests.</p>
+<h3 id="jenkins-answers-403-or-404-before-the-stages">Jenkins answers 403 or 404 before the stages</h3>
+<ul>
+<li>403 <code>Pipeline key invalidated</code>: the key was invalidated. Issue a new key on the pipeline page and put it in the Jenkinsfile.</li>
+<li>404 <code>Unknown DevSecOps pipeline key</code>: the Jenkinsfile holds a key the portal never issued. Copy the Jenkinsfile again from the portal.</li>
+</ul>
+<h3 id="the-import-of-a-configyaml-is-refused">The import of a config.yaml is refused</h3>
+<p>The portal names the line and the column of the problem. It also refuses a file that names no project setting, a file larger than 262,144 characters and a file with more than 50 projects.</p>
+<h3 id="saving-fails-because-someone-else-changed-the-product">Saving fails because someone else changed the product</h3>
+<p>Another user saved the product after you opened it. Reload the page and make your change again.</p>
+<h3 id="pipeline-monitoring-shows-no-runs">Pipeline Monitoring shows no runs</h3>
+<p>The InfluxDB of the portal is not set, or the pipeline has not run yet. Set it in Library defaults, Portal monitoring, or with <code>INFLUX_URL</code>, and check that the service writes its metrics (&quot;Write pipeline metrics to InfluxDB&quot;).</p>
+<h3 id="the-appscan-key-of-a-product-disappeared-after-the-upgrade">The AppScan key of a product disappeared after the upgrade</h3>
+<p>Changeset 031 moved the key to the services. A product without services lost it. Enter the key on the first service of the product.</p>
+</div>
+
+<div class="footer">DevSecOps Management Portal</div>
+</div>
+</body>
+</html>
