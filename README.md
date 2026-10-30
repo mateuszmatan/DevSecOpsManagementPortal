@@ -159,9 +159,10 @@ with who, what, when and the result, and shown under Action history.
   defaults to `DSO_GLOBAL_SETTINGS`. Every service starts with the Node.js build off and no catalogs, so the
   configurations stay as they were; a rollback drops the columns with whatever they hold.
 - Changeset 033 adds `PARALLEL_STATIC_ANALYSIS` to `DSO_GLOBAL_SETTINGS` with 1 for the saved settings, so "Run Nexus
-  IQ and SonarQube while AppScan scans" is ticked after the upgrade and the full and security pipelines run the Static
-  analysis stage with a library version that knows the key. Untick it before the next runs to keep the order Nexus IQ,
-  SAST, SonarQube; a rollback drops the column.
+  IQ and SonarQube while AppScan scans" is ticked after the upgrade and the full and security pipelines with a key run
+  the Static analysis stage with a library version that knows the key. Untick it before the next runs to keep the
+  order Nexus IQ, SAST, SonarQube; a rollback drops the column. A Jenkinsfile without a key does not follow the box,
+  because the library's copy of the defaults leaves the key out.
 
 ## Known gaps
 

@@ -416,7 +416,9 @@ export const SETTINGS_PAGE: SettingsSection[] = [
               'analysis, and the build log lists them in this order. If SAST stops before the code is sent, Nexus IQ ' +
               'and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run one after another, ' +
               'as before. The Jenkins environment variable DSO_STATIC_ANALYSIS_PARALLEL, when set to true or false, ' +
-              'overrides this box.',
+              'overrides this box. A Jenkinsfile without a key does not follow this box: it runs the three scans ' +
+              'one after another unless DSO_STATIC_ANALYSIS_PARALLEL is true or every service of the run sets ' +
+              'staticAnalysis.parallel: true in devsecops_config.yaml.',
           },
         ],
       },

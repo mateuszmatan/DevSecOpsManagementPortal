@@ -134,7 +134,7 @@ describe('GlobalSettingsPage', () => {
     );
     expect(text(block)).toContain('staticAnalysis.parallel');
     expect(helpOf(box.closest('dso-checkbox')!)).toBe(
-      'Ticked, the full and security pipelines first send the code of every service to AppScan. Nexus IQ and SonarQube then run while AppScan scans it, and the SAST results are read last. The pipeline finishes sooner; the findings and the release gate stay the same, and the SAST duration in the report and the metrics covers the whole Static analysis stage. Jenkins shows the three scans as one stage, Static analysis, and the build log lists them in this order. If SAST stops before the code is sent, Nexus IQ and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run one after another, as before. The Jenkins environment variable DSO_STATIC_ANALYSIS_PARALLEL, when set to true or false, overrides this box.',
+      'Ticked, the full and security pipelines first send the code of every service to AppScan. Nexus IQ and SonarQube then run while AppScan scans it, and the SAST results are read last. The pipeline finishes sooner; the findings and the release gate stay the same, and the SAST duration in the report and the metrics covers the whole Static analysis stage. Jenkins shows the three scans as one stage, Static analysis, and the build log lists them in this order. If SAST stops before the code is sent, Nexus IQ and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run one after another, as before. The Jenkins environment variable DSO_STATIC_ANALYSIS_PARALLEL, when set to true or false, overrides this box. A Jenkinsfile without a key does not follow this box: it runs the three scans one after another unless DSO_STATIC_ANALYSIS_PARALLEL is true or every service of the run sets staticAnalysis.parallel: true in devsecops_config.yaml.',
     );
     expect(box.checked).toBe(true);
 
@@ -354,7 +354,8 @@ describe('GlobalSettingsPage', () => {
       subtitle:
         'The part of the settings every pipeline with a key receives along with the settings of its own ' +
         'service, built from the saved library defaults. A Jenkinsfile without a key receives only the ' +
-        'defaults part, from the copy kept in the DevSecOps library; it never receives the platform part.',
+        'defaults part, from the copy kept in the DevSecOps library; it never receives the platform part. ' +
+        'That copy leaves out staticAnalysis.parallel.',
       code: 'platform:\n  jenkinsLibrary: DevSecOpsJenkinsLibrary\n',
       fileName: 'devsecops-global.yaml',
     });
