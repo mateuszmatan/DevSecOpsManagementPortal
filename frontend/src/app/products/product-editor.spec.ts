@@ -748,7 +748,7 @@ describe('ProductEditor', () => {
     expect(imported.controls.scm.controls.repositoryUrl.value).toBe(
       'https://bitbucket.bbh.com/projects/PAY/repos/pay-ledger',
     );
-    expect(imported.controls.scm.controls.credentialsId.value).toBe('bitbucket-http-credentials');
+    expect(imported.controls.scm.controls.credentialsId.value).toBe('');
   });
 
   it('offers the import in the empty list of services', async () => {
@@ -820,6 +820,23 @@ describe('ProductEditor', () => {
     expect(copy.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
     expect(copy.versionCatalogs).toBe('gradle/libs.versions.toml');
     expect(editor()['expanded']()).toBe(2);
+  });
+
+  it('keeps the empty Bitbucket credentials ID of a copied service, also when it is renamed', async () => {
+    const gui = service({ scm: { ...service().scm, credentialsId: '' } });
+    await edit([gui, anotherService()]);
+
+    editor()['duplicate'](0);
+    await fixture.whenStable();
+    const copy = editor()['form'].controls.services.at(1);
+
+    expect(copy.controls.name.value).toBe('gui-copy');
+    expect(copy.controls.scm.controls.credentialsId.value).toBe('');
+
+    copy.controls.name.setValue('ledger');
+
+    expect(copy.controls.nexusIqApplications.at(0).controls.application.value).toBe('cert-ledger');
+    expect(copy.controls.scm.controls.credentialsId.value).toBe('');
   });
 
   it('puts a copy in place of the blank new service and lists only the other services to copy', async () => {

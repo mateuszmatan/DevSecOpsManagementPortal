@@ -350,7 +350,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected duplicate(index: number): void {
     const source = this.form.controls.services.at(index);
     const copy = duplicateService(source, this.settings());
-    this.followServiceName(copy, source.controls.name.value);
+    this.followServiceName(copy, source.controls.name.value, false, false);
     this.fill(this.withFullPipeline(copy), index + 1, source);
   }
 
@@ -472,7 +472,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
 
   /**
    * Prefills a new service with the Library defaults and the AppScan key, its build with the tool's defaults and what
-   * the service template takes from its name; an imported one keeps what its file gives until it is renamed.
+   * the service template takes from its name; an imported one keeps what its file gives until it is renamed, and its
+   * Bitbucket credentials ID even then.
    */
   private prepared(service: ServiceForm, imported = false): ServiceForm {
     prefillNewService(
@@ -481,17 +482,27 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       this.form.controls.services.controls.map((other) => other.controls.appScan.getRawValue()),
     );
     followToolDefaults(service, this.template(), this.destroyRef);
-    this.followServiceName(service, imported ? service.controls.name.value.trim() : '', imported);
+    const name = imported ? service.controls.name.value.trim() : '';
+    this.followServiceName(service, name, imported, !imported);
     return this.withFullPipeline(service);
   }
 
-  private followServiceName(service: ServiceForm, copiedFrom = '', imported = false): void {
+  /**
+   * Lets a service follow its name. Without credentials, as for a copy or an import, the name never fills the Bitbucket
+   * credentials ID.
+   */
+  private followServiceName(
+    service: ServiceForm,
+    copiedFrom: string,
+    imported: boolean,
+    credentials: boolean,
+  ): void {
     const code = this.form.controls.code;
     const codes = code.valueChanges.pipe(
       startWith(null),
       map(() => code.value),
     );
-    followName(service, this.template(), codes, this.destroyRef, copiedFrom, imported);
+    followName(service, this.template(), codes, this.destroyRef, copiedFrom, imported, credentials);
   }
 
   private add(service: ServiceForm, index = this.form.controls.services.length): void {
