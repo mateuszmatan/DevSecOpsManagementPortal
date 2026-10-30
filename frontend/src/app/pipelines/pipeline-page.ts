@@ -482,7 +482,7 @@ export class PipelinePage {
     const names = listed(together.pipelines.map((pipeline) => pipeline.serviceName));
     return (
       `One Jenkinsfile with the keys of ${names} goes into ${together.repository}. Ask for one ` +
-      `Jenkins job for the repository, not one per service${sharedJobReason(together.pipelines[0].type)}.`
+      `Jenkins job for these services, not one per service${sharedJobReason(together.pipelines[0].type)}.`
     );
   });
   /** Which Jenkinsfile the new key of an invalidated pipeline goes into. */

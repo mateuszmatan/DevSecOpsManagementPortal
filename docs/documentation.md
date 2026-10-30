@@ -213,7 +213,7 @@ Check the product, the pipeline, the Jenkins agents and what happens to each ser
 5. For an OSA pipeline, ask a developer to review and merge the golden pull requests.
 6. Follow the results in Pipeline Monitoring.
 
-When the pipelines of two or more services share one Bitbucket repository, their Jenkins agents and one Jenkins job, as the pipelines that one save starts for a repository do, the step shows one Jenkinsfile with all their keys, asks for one Jenkins job for each repository and says where Pipeline Monitoring shows the runs of that job. See [chapter 7](#7-shared-version-catalogs-and-the-combined-jenkinsfile).
+When the pipelines of two or more services share one Bitbucket repository, their Jenkins agents and one Jenkins job, as the pipelines that one save starts for a repository do, the step shows one Jenkinsfile with all their keys, asks for one Jenkins job for each Jenkinsfile and says where Pipeline Monitoring shows the runs of that job. See [chapter 7](#7-shared-version-catalogs-and-the-combined-jenkinsfile).
 
 ## 5. Add a service in the admin editor
 
@@ -227,7 +227,7 @@ The admin editor is for the DevSecOps team. It shows every field of a service.
 4. Fill in the product fields: Owner team, Description and Contact e-mail are optional.
 5. Open the service panel ("Edit settings") and fill in the service as in [step 3 of chapter 4](#step-3-services). A new service starts with "Set up the build tool automatically" on; a Flutter service starts with it off, because Flutter needs the JDK path, and turns it on when you choose Gradle or Maven while you have not changed the checkbox. Typing its name fills in the repository URL, the Bitbucket credentials ID, the Nexus IQ application and its scan pattern from the service template.
 6. Every new service gets a Full pipeline. A service on virtual machines therefore needs an UrbanCode Deploy application for DV.
-7. Click "Add product". Each service gets a Full pipeline with its own key. The product page opens with the notice "Pipeline keys generated for ..." and asks you to copy each key into the Jenkinsfile of its service; services whose pipelines share the Jenkins job of their repository share one Jenkinsfile, shown below the notice. "Show key" and "Copy key" give a key at any time.
+7. Click "Add product". Each service gets a Full pipeline with its own key. The product page opens with the notice "Pipeline keys generated for ..." and asks you to copy each key into the Jenkinsfile of its service; services whose pipelines share a Jenkins job share one Jenkinsfile, shown below the notice. "Show key" and "Copy key" give a key at any time.
 
 ### A service of an existing product
 
@@ -370,7 +370,7 @@ The library takes the Jenkins agents of a run from the first key, so only pipeli
 
 - The pipelines that one save starts for the services of a repository get one Jenkins job, the job of the first of them. A new pipeline joins a job that two or more pipelines of its type, repository and agents run in already. Otherwise it gets the job of the service template, so the services of a product that run in jobs of their own keep doing so.
 - The product page shows a notice for each repository and pipeline type whose pipelines share one job. It names the services and offers "Show the Jenkinsfile". The Jenkinsfile item of each of these pipelines and the pipeline page show the same combined Jenkinsfile. A pipeline with a job of its own keeps its own Jenkinsfile.
-- The Next steps of the Self-service wizard show one Jenkinsfile for the services whose pipelines share a job and ask for one Jenkins job for each repository.
+- The Next steps of the Self-service wizard show one Jenkinsfile for the services whose pipelines share a job and ask for one Jenkins job for each Jenkinsfile.
 - To combine services that run in jobs of their own, give their pipelines the same Jenkins job with "Edit pipeline settings" and put the combined Jenkinsfile into the repository. The More menu of a pipeline offers it as "Jenkinsfile for several services" when other services have a pipeline of the same type. When their Jenkins agents differ, the dialog warns that the job runs every service on the agents of the first key.
 
 Pipeline Monitoring shows the runs of a shared job under the service of the first key: the library reports every run with the monitoring project tag of that service. To see the runs on the other services too, give them the same Project tag (Monitoring section) and the shared job as the Jenkins job of their pipelines. With a shared tag, the portal matches the runs to a pipeline by its Jenkins job, so each pipeline of the group then shows the runs of the shared job.

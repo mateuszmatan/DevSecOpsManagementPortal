@@ -424,8 +424,8 @@
                 service to do so.
                 @if (done.shared) {
                   <span
-                    >Services that share a repository share one Jenkinsfile with all their
-                    keys.</span
+                    >Services whose pipelines share a Jenkins job share one Jenkinsfile with all
+                    their keys.</span
                   >
                 }
               </p>
@@ -478,11 +478,12 @@
             </li>
             <li>
               @if (done.shared) {
-                <h3>Ask your Jenkins administrator for a job for each repository</h3>
+                <h3>Ask your Jenkins administrator for a job for each Jenkinsfile</h3>
                 <p>
-                  Ask for a Pipeline job per repository, not per service, that reads the Jenkinsfile
-                  from the repository (Pipeline script from SCM){{ sharedJobReason(pipeline()!) }}.
-                  Use these names:
+                  Ask for one Pipeline job for each Jenkinsfile above, not one per service, that
+                  reads the Jenkinsfile from its repository (Pipeline script from SCM){{
+                    sharedJobReason(pipeline()!)
+                  }}. Use these names:
                 </p>
               } @else {
                 <h3>Ask your Jenkins administrator for a job for each service</h3>

@@ -100,9 +100,9 @@ export function sharedRunsNote(firstService: string): string {
   );
 }
 
-/** Why services that share a repository share one Jenkins job, or '' for pipelines without GoldenFix. */
+/** Why the services of one Jenkinsfile share one Jenkins job, or '' for pipelines without GoldenFix. */
 export function sharedJobReason(type: PipelineType): string {
   return GOLDEN_FIX_TYPES.includes(type)
-    ? ': one GoldenFix pull request then covers the whole repository'
+    ? ': one GoldenFix pull request then covers all the services of the job'
     : '';
 }

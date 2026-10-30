@@ -79,9 +79,10 @@ class ConfigPreviewSpec extends ProductPageSpecification {
 
         then:
         assertThat(page.locator('.shared-repository .notice-text')).hasText([
-                'gui and backend-api share the repository https://bitbucket.bbh.com/projects/TA/repos/cert-scanner. ' +
-                        'Put one Jenkinsfile with the keys of their full pipelines there and ask for one Jenkins job for the ' +
-                        'repository, not one per service: one GoldenFix pull request then covers the whole repository. ' +
+                'gui and backend-api share the repository https://bitbucket.bbh.com/projects/TA/repos/cert-scanner ' +
+                        'and one Jenkins job. Put one Jenkinsfile with the keys of their full pipelines there and ask for ' +
+                        'one Jenkins job for these services, not one per service: one GoldenFix pull request then covers ' +
+                        'all the services of the job. ' +
                         'Pipeline Monitoring shows the runs of the shared job under gui, the service of the first key. To see ' +
                         'them on the other services too, give them the same Project tag (Monitoring section) and the shared ' +
                         'job as the Jenkins job of their pipelines.'

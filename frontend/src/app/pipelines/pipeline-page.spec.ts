@@ -208,7 +208,7 @@ describe('PipelinePage', () => {
     await loadWithApi(pipeline());
 
     expect(text(page().querySelector('.jenkinsfile .section-help'))).toBe(
-      'One Jenkinsfile with the keys of gui and api goes into https://bitbucket.bbh.com/projects/CERT/repos/gui. Ask for one Jenkins job for the repository, not one per service: one GoldenFix pull request then covers the whole repository.',
+      'One Jenkinsfile with the keys of gui and api goes into https://bitbucket.bbh.com/projects/CERT/repos/gui. Ask for one Jenkins job for these services, not one per service: one GoldenFix pull request then covers all the services of the job.',
     );
     expect(text(page().querySelector('pre.code-block'))).toBe(
       "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsPipeline(pipelineKeys: [ '6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc', ])",

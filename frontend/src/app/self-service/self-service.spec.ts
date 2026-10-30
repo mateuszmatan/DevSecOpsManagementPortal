@@ -672,8 +672,8 @@ describe('SelfService', () => {
     ]);
   });
 
-  async function saveWithApi(jenkinsJob: string) {
-    const stored = product({ services: [service(), anotherService()] });
+  async function saveWithApi(jenkinsJob: string, webJob?: string) {
+    const services = [service(), anotherService()];
     const listed = [
       servicePipelines(),
       servicePipelines({
@@ -690,6 +690,34 @@ describe('SelfService', () => {
         ],
       }),
     ];
+    if (webJob) {
+      services.push(
+        anotherService({
+          id: 12,
+          name: 'web',
+          sonar: { ...service().sonar, projectKey: 'cert-web' },
+        }),
+      );
+      listed.push(
+        servicePipelines({
+          serviceId: 12,
+          serviceName: 'web',
+          pipelines: [
+            pipeline({
+              id: 201,
+              serviceId: 12,
+              serviceName: 'web',
+              jenkinsJob: webJob,
+              activeKey: {
+                ...pipeline().activeKey!,
+                value: 'b2c3d4e5-0000-4abc-9def-123456789abc',
+              },
+            }),
+          ],
+        }),
+      );
+    }
+    const stored = product({ services });
     await chooseProduct(3, stored, listed);
     await next();
     wizard()['pipeline'].set('FULL');
@@ -707,10 +735,10 @@ describe('SelfService', () => {
 
     expect(all('.next-steps > li h3').slice(0, 2)).toEqual([
       "Put the Jenkinsfile in each service's repository",
-      'Ask your Jenkins administrator for a job for each repository',
+      'Ask your Jenkins administrator for a job for each Jenkinsfile',
     ]);
     expect(step(0)).toContain(
-      'Services that share a repository share one Jenkinsfile with all their keys.',
+      'Services whose pipelines share a Jenkins job share one Jenkinsfile with all their keys.',
     );
     expect(all('.jenkinsfile-head')).toEqual([
       'gui and api · goes into https://bitbucket.bbh.com/projects/CERT/repos/gui Copy',
@@ -720,7 +748,7 @@ describe('SelfService', () => {
     );
     expect(buttonOf(page(), 'Copy the Jenkinsfile of gui and api')).toBeDefined();
     expect(step(1)).toContain(
-      'Ask for a Pipeline job per repository, not per service, that reads the Jenkinsfile from the repository (Pipeline script from SCM): one GoldenFix pull request then covers the whole repository. Use these names:',
+      'Ask for one Pipeline job for each Jenkinsfile above, not one per service, that reads the Jenkinsfile from its repository (Pipeline script from SCM): one GoldenFix pull request then covers all the services of the job. Use these names:',
     );
     expect(all('.job-names li')).toEqual(['gui and api: DevSecOps/CERT/gui-full']);
     expect(all('.shared-runs')).toEqual([
@@ -739,6 +767,22 @@ describe('SelfService', () => {
       'api: DevSecOps/CERT/api-full',
     ]);
     expect(page().querySelectorAll('.jenkinsfile .code-block')).toHaveLength(2);
+  });
+
+  it('asks for one job for each Jenkinsfile when only some services of a repository share a job', async () => {
+    await saveWithApi('DevSecOps/CERT/api-full', 'DevSecOps/CERT/API-full');
+
+    expect(all('.next-steps > li h3')[1]).toBe(
+      'Ask your Jenkins administrator for a job for each Jenkinsfile',
+    );
+    expect(all('.jenkinsfile-head')).toEqual([
+      'gui · goes into https://bitbucket.bbh.com/projects/CERT/repos/gui Copy',
+      'api and web · goes into https://bitbucket.bbh.com/projects/CERT/repos/gui Copy',
+    ]);
+    expect(all('.job-names li')).toEqual([
+      'gui: DevSecOps/CERT/gui-full',
+      'api and web: DevSecOps/CERT/api-full',
+    ]);
   });
 
   it('points to the pipeline page of a service whose key is invalidated instead of its Jenkinsfile', async () => {

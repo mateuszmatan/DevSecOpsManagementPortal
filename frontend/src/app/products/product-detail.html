@@ -112,8 +112,8 @@
         <span class="notice-text"
           >{{ generatedNotice() }}
           @if (sharedRepositories().length) {
-            Copy the keys into the Jenkinsfiles: services that share a repository share one
-            Jenkinsfile, shown below.
+            Copy the keys into the Jenkinsfiles: services whose pipelines share a Jenkins job share
+            one Jenkinsfile, shown below.
           } @else {
             Copy each key into the Jenkinsfile of its service.
           }

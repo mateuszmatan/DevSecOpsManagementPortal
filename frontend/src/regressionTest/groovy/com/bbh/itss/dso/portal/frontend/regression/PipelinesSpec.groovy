@@ -171,8 +171,8 @@ class PipelinesSpec extends DsoSpecification {
 
         then:
         assertThat(page.locator('.jenkinsfile .section-help')).hasText('One Jenkinsfile with the keys of gui and backend-api ' +
-                'goes into https://bitbucket.bbh.com/projects/TA/repos/cert-scanner. Ask for one Jenkins job for the repository, ' +
-                'not one per service: one GoldenFix pull request then covers the whole repository.')
+                'goes into https://bitbucket.bbh.com/projects/TA/repos/cert-scanner. Ask for one Jenkins job for these services, ' +
+                'not one per service: one GoldenFix pull request then covers all the services of the job.')
         assertThat(page.locator('pre.code-block')).containsText("devSecOpsPipeline(pipelineKeys: [\n    '${GUI_FULL_KEY}',\n    '${API_FULL_KEY}',\n])")
         ownErrors().isEmpty()
     }

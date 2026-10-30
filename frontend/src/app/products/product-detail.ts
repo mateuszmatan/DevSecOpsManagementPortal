@@ -124,9 +124,10 @@ export class ProductDetail {
         return {
           pipelines,
           text:
-            `${names} share the repository ${this.repositories().get(serviceId)}. Put one Jenkinsfile ` +
-            `with the keys of their ${typeName(type)} pipelines there and ask for one Jenkins job for ` +
-            `the repository, not one per service${sharedJobReason(type)}. ${sharedRunsNote(serviceName)}`,
+            `${names} share the repository ${this.repositories().get(serviceId)} and one Jenkins job. ` +
+            `Put one Jenkinsfile with the keys of their ${typeName(type)} pipelines there and ask for ` +
+            `one Jenkins job for these services, not one per service${sharedJobReason(type)}. ` +
+            sharedRunsNote(serviceName),
         };
       }),
   );

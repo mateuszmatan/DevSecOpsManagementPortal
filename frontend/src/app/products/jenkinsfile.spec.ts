@@ -131,7 +131,7 @@ describe('sharingWith', () => {
 describe('sharedJobReason', () => {
   it('names the shared GoldenFix pull request only where GoldenFix runs', () => {
     expect(sharedJobReason('FULL')).toBe(
-      ': one GoldenFix pull request then covers the whole repository',
+      ': one GoldenFix pull request then covers all the services of the job',
     );
     expect(sharedJobReason('NEXUS_IQ')).toBe(sharedJobReason('SECURITY'));
     expect(sharedJobReason('SAST')).toBe('');

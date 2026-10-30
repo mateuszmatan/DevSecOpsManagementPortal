@@ -412,9 +412,9 @@ describe('ProductDetail', () => {
       ]);
 
       expect([...page().querySelectorAll('.shared-repository .notice-text')].map(text)).toEqual([
-        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their full pipelines there and ask for one Jenkins job for the repository, not one per service: one GoldenFix pull request then covers the whole repository. ' +
+        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui and one Jenkins job. Put one Jenkinsfile with the keys of their full pipelines there and ask for one Jenkins job for these services, not one per service: one GoldenFix pull request then covers all the services of the job. ' +
           MONITORED_UNDER_GUI,
-        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui. Put one Jenkinsfile with the keys of their SAST scanning pipelines there and ask for one Jenkins job for the repository, not one per service. ' +
+        'gui and api share the repository https://bitbucket.bbh.com/projects/CERT/repos/gui and one Jenkins job. Put one Jenkinsfile with the keys of their SAST scanning pipelines there and ask for one Jenkins job for these services, not one per service. ' +
           MONITORED_UNDER_GUI,
       ]);
 
@@ -447,7 +447,7 @@ describe('ProductDetail', () => {
       ]);
 
       expect(text(page().querySelector('.generated .notice-text'))).toBe(
-        'Pipeline keys generated for 2 new services: gui, api. Copy the keys into the Jenkinsfiles: services that share a repository share one Jenkinsfile, shown below.',
+        'Pipeline keys generated for 2 new services: gui, api. Copy the keys into the Jenkinsfiles: services whose pipelines share a Jenkins job share one Jenkinsfile, shown below.',
       );
     });
 
