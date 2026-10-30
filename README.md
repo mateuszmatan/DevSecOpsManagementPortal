@@ -86,7 +86,7 @@ start-up. In the image the logs are written to the console and to `/application/
 
 ## How DSOEnhanced reads its configuration
 
-Each Jenkinsfile holds only a pipeline key. Before the stages start, the library sends
+A Jenkinsfile with a key holds only that key. Before the stages start, the library sends
 `GET $DSO_PORTAL_URL/api/dso/config/<key>?format=json` from a Jenkins agent; `DSO_PORTAL_URL` is a global
 environment variable of Jenkins, for example `https://dso-portal.apps.bbh.com`. Jenkins needs no database account and
 no other setting.

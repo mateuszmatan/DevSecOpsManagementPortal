@@ -32,7 +32,7 @@ The portal holds the DevSecOps settings of every BBH product. Jenkins runs the p
 The portal does five things:
 
 1. It records the products, their services and the pipelines of each service.
-2. It issues a secret pipeline key for each pipeline. The key is the only thing the Jenkinsfile holds.
+2. It issues a secret pipeline key for each pipeline. The key is the only thing a Jenkinsfile with a key holds.
 3. It renders the settings of a pipeline as a `devsecops_config.yaml` document when Jenkins asks for them with the key.
 4. It shows how the pipelines are doing: the latest runs and the delivery performance (DORA).
 5. It records every change in the action history.
@@ -46,7 +46,7 @@ The portal does five things:
 | Service | One part of a product that is built and deployed on its own, for example its API or its web front end. |
 | Pipeline | The automated build, test and security checks that Jenkins runs on the code of one service. A service has at most one pipeline of each type. |
 | Pipeline key | The secret code that the Jenkins job of a pipeline uses to fetch its settings from the portal. |
-| Jenkinsfile | The file in the repository of the service that tells Jenkins to run the pipeline. It holds only the pipeline key. |
+| Jenkinsfile | The file in the repository of the service that tells Jenkins to run the pipeline. It holds the pipeline key or, without a key, the services and the Jenkins agents of the run; see [A Jenkinsfile without a key](#a-jenkinsfile-without-a-key). |
 | devsecops_config.yaml | The settings document that the library reads. The portal renders it from its database each time a pipeline with a key starts. A Jenkinsfile without a key makes the library read it from the root of the repository instead, or `config.yaml`, its former name, when there is none. |
 | Library defaults | The values on the Library defaults page (Admin, Library defaults), also called the Global Settings. They apply to every service that leaves a field empty. |
 | Service template | The values a new service starts with, such as its build tasks and the name of its Nexus IQ application. |

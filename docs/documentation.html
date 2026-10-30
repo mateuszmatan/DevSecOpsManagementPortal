@@ -80,7 +80,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <p>The portal does five things:</p>
 <ol>
 <li>It records the products, their services and the pipelines of each service.</li>
-<li>It issues a secret pipeline key for each pipeline. The key is the only thing the Jenkinsfile holds.</li>
+<li>It issues a secret pipeline key for each pipeline. The key is the only thing a Jenkinsfile with a key holds.</li>
 <li>It renders the settings of a pipeline as a <code>devsecops_config.yaml</code> document when Jenkins asks for them with the key.</li>
 <li>It shows how the pipelines are doing: the latest runs and the delivery performance (DORA).</li>
 <li>It records every change in the action history.</li>
@@ -96,7 +96,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><td>Service</td><td>One part of a product that is built and deployed on its own, for example its API or its web front end.</td></tr>
 <tr><td>Pipeline</td><td>The automated build, test and security checks that Jenkins runs on the code of one service. A service has at most one pipeline of each type.</td></tr>
 <tr><td>Pipeline key</td><td>The secret code that the Jenkins job of a pipeline uses to fetch its settings from the portal.</td></tr>
-<tr><td>Jenkinsfile</td><td>The file in the repository of the service that tells Jenkins to run the pipeline. It holds only the pipeline key.</td></tr>
+<tr><td>Jenkinsfile</td><td>The file in the repository of the service that tells Jenkins to run the pipeline. It holds the pipeline key or, without a key, the services and the Jenkins agents of the run; see <a href="#a-jenkinsfile-without-a-key">A Jenkinsfile without a key</a>.</td></tr>
 <tr><td>devsecops_config.yaml</td><td>The settings document that the library reads. The portal renders it from its database each time a pipeline with a key starts. A Jenkinsfile without a key makes the library read it from the root of the repository instead, or <code>config.yaml</code>, its former name, when there is none.</td></tr>
 <tr><td>Library defaults</td><td>The values on the Library defaults page (Admin, Library defaults), also called the Global Settings. They apply to every service that leaves a field empty.</td></tr>
 <tr><td>Service template</td><td>The values a new service starts with, such as its build tasks and the name of its Nexus IQ application.</td></tr>
