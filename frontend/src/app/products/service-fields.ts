@@ -669,14 +669,17 @@ export class ServiceFields {
 
   protected buildFields(): Field[] {
     const maven = this.tool() === 'MAVEN';
+    const liquibase = this.tool() === 'LIQUIBASE';
     const c = this.form().controls.build.controls;
     return [
       mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
-        placeholder: maven ? 'target/*.jar' : 'build/libs/*.jar',
+        placeholder: liquibase ? 'db/changelog/*.xml' : maven ? 'target/*.jar' : 'build/libs/*.jar',
         hint:
           this.isVm() && maven && this.delivers()
             ? 'the artifact the Nexus snapshot delivery uploads'
-            : 'what the build produces',
+            : liquibase
+              ? 'optional for Liquibase database migrations'
+              : 'what the build produces',
         help: 'A path or wildcard pattern relative to the workspace; the first matching file is used. On OpenShift only its folder counts: the image build takes the artifact from there.',
         error: SHELL_SAFE_ERROR,
       }),
@@ -690,7 +693,9 @@ export class ServiceFields {
               placeholder: '/usr/lib/jvm/java-17-openjdk',
               hint: this.flutter()
                 ? 'must be set for Flutter builds'
-                : 'JAVA_HOME of the Gradle or Maven build and the later stages',
+                : liquibase
+                  ? 'optional for Liquibase when java and liquibase are on the agent'
+                  : 'JAVA_HOME of the Gradle or Maven build and the later stages',
               help: this.flutter()
                 ? 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.'
                 : 'The absolute path of a JDK installed on the Jenkins agent.',

@@ -260,6 +260,63 @@ class ServiceConfigReaderSpec extends Specification {
         service.notes() == [problem('deploy.openshift.rd.nexusDeliveryEnabled', 'not imported: the service deploys to vm')]
     }
 
+    def "a Liquibase SQL/PL-SQL config imports build, unit test, SAST and SonarQube sources, inclusions and exclusions"() {
+        when:
+        def importedService = imported('''
+            projects:
+              billing-db:
+                buildTool: liquibase
+                sourceDir: db
+                appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+                staticAnalysis:
+                  parallel: true
+                build:
+                  liquibase:
+                    commands: updateSQL
+                    flags:
+                      - --changelog-file=db/changelog/db.changelog-master.xml
+                      - --url=offline:oracle
+                tests:
+                  unitTests:
+                    liquibase:
+                      tasks: validate
+                      flags: --changelog-file=db/changelog/db.changelog-master.xml
+                asoc:
+                  liquibase:
+                    commands: updateSQL
+                    flags: --changelog-file=db/changelog/db.changelog-master.xml
+                tools:
+                  sonar:
+                    projectKey: com.bbh:billing-db
+                    projectName: Billing-DB
+                    liquibase:
+                      sources: [db/changelog, db/plsql]
+                      inclusions: "**/*.sql,**/*.pls,**/*.pks,**/*.pkb"
+                      exclusions: "**/testdata/**"
+                      flags:
+                        - -Dsonar.plsql.file.suffixes=.sql,.pls,.pks,.pkb
+            '''.stripIndent()).services()[0]
+        def db = importedService.service()
+
+        then:
+        importedService.name() == 'billing-db'
+        importedService.notes() == [problem('staticAnalysis.parallel', GLOBAL)]
+        db.build().tool() == LIQUIBASE
+        db.build().sourceDir() == 'db'
+        db.build().command().tasks() == ['updateSQL']
+        db.build().command().flags() == ['--changelog-file=db/changelog/db.changelog-master.xml', '--url=offline:oracle']
+        db.unitTests().command().tasks() == ['validate']
+        db.unitTests().command().flags() == ['--changelog-file=db/changelog/db.changelog-master.xml']
+        db.appScan().compileCommand().tasks() == ['updateSQL']
+        db.sonar().projectKey() == 'com.bbh:billing-db'
+        db.sonar().command().flags() == [
+                '-Dsonar.plsql.file.suffixes=.sql,.pls,.pks,.pkb',
+                '-Dsonar.sources=db/changelog,db/plsql',
+                '-Dsonar.inclusions=**/*.sql,**/*.pls,**/*.pks,**/*.pkb',
+                '-Dsonar.exclusions=**/testdata/**'
+        ]
+    }
+
     def "a hand-written config.yaml gives a service per project, inherits the global values and notes what it leaves out"() {
         when:
         def result = imported(getClass().getResource('/config-import/CertScanner-config.yaml').text)

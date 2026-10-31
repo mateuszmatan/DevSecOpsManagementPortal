@@ -136,7 +136,7 @@ final class ServiceConfigReader {
     private static final Map<BuildTool, List<Rule>> COMMANDS = Map.of(
             GRADLE, concat(List.of(rule("tasks", "tasks", WORDS)), COMMAND),
             MAVEN, concat(List.of(rule("goals", "tasks", WORDS), rule("mvnPath", "mavenHome", TEXT)), COMMAND),
-            LIQUIBASE, concat(List.of(rule("commands", "tasks", WORDS)), COMMAND));
+            LIQUIBASE, concat(List.of(rule("commands", "tasks", WORDS), rule("tasks", "tasks", WORDS)), COMMAND));
     private static final List<Rule> TEST_JOB = concat(
             same(TEXT, "name", "remoteJenkins", "remoteJenkinsUrl", "credentialsId", "tokenCredentialsId"),
             same(FLAG, "abortTriggeredJob", "overrideTrustAllCertificates", "preventRemoteBuildQueue",
@@ -277,6 +277,36 @@ final class ServiceConfigReader {
                 }
             }
         }
+        if (tool == LIQUIBASE) {
+            readLiquibaseSonar(project, request);
+        }
+    }
+
+    /** Reads Liquibase SonarQube sources, inclusions and exclusions as -Dsonar.* flags on the SonarQube command. */
+    private static void readLiquibaseSonar(ConfigInput project, ConfigTree request) {
+        List<String> flags = new ArrayList<>(request.get("sonar.command.flags") instanceof List<?> list
+                ? list.stream().map(String::valueOf).toList() : List.of());
+        Object topSources = request.get("flutter.sonarSources");
+        for (String prop : List.of("sources", "inclusions", "exclusions")) {
+            String key = "tools.sonar.liquibase." + prop;
+            Object raw = project.take(key);
+            if (raw != null) {
+                try {
+                    String joined = String.join(",", items(raw, ","));
+                    if (!joined.isBlank() && flags.stream().noneMatch(f -> f.startsWith("-Dsonar." + prop + "="))) {
+                        flags.add("-Dsonar." + prop + "=" + joined);
+                    }
+                } catch (NotImported e) {
+                    project.note(key, e.getMessage());
+                }
+            } else if ("sources".equals(prop) && topSources instanceof String s && !s.isBlank()
+                    && flags.stream().noneMatch(f -> f.startsWith("-Dsonar.sources="))) {
+                flags.add("-Dsonar.sources=" + s.trim());
+            }
+        }
+        if (!flags.isEmpty()) {
+            request.set("sonar.command.flags", List.copyOf(flags));
+        }
     }
 
     /** Reads the delivery switch of the service's deploy target; the switch of the other target is left out. */
@@ -368,6 +398,7 @@ final class ServiceConfigReader {
                 rule("excludedDirs", "appScan.excludedDirs", COMMAS),
                 rule("appscanPath", "appScan.clientPath", TEXT),
                 note("asoc.url", GLOBAL),
+                note("staticAnalysis.parallel", GLOBAL),
                 rule("asoc.keyId", "appScan.keyId", TEXT),
                 rule("asoc.token", "appScan.secretCredentialsId", TEXT),
                 rule("asoc.doCompile", "appScan.compile", FLAG),

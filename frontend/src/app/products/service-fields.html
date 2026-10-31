@@ -91,6 +91,7 @@
               part="tasks"
               gradleExample="test jacocoTestReport"
               mavenExample="test jacoco:report"
+              liquibaseExample="validate"
             />
           }
           <dso-fields [group]="f.controls.unitTests" [fields]="unitTestFields()" />
@@ -211,6 +212,7 @@
                 path="asoc"
                 gradleExample="compileJava"
                 mavenExample="compile"
+                liquibaseExample="updateSQL"
               />
             }
           </dso-advanced-settings>
@@ -228,6 +230,7 @@
               part="tasks"
               gradleExample="sonarqube"
               mavenExample="sonar:sonar"
+              liquibaseExample="sonar"
             />
           }
           <dso-advanced-settings
