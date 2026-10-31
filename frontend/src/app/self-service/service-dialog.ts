@@ -32,6 +32,7 @@ import {
   nexusIqApplicationForm,
   prefillNewService,
   toServiceRequest,
+  withDatabaseRules,
 } from '../products/product-form-model';
 import { MissingFields } from '../products/missing-fields';
 import { ServiceFields } from '../products/service-fields';
@@ -235,7 +236,7 @@ export class ServiceDialog {
       form.patchValue({ openShiftTargets: initialTargets as any });
     }
 
-    if (s?.nexusIqApplication) {
+    if (s?.nexusIqApplication && tool !== 'LIQUIBASE') {
       form.controls.nexusIqApplications.clear();
       form.controls.nexusIqApplications.push(
         nexusIqApplicationForm(s.nexusIqApplication, build.scanPattern),
@@ -265,6 +266,7 @@ export class ServiceDialog {
       form.controls.urbanCodeApplications.addValidators(dvApplication);
       form.controls.urbanCodeApplications.updateValueAndValidity();
     }
+    withDatabaseRules(form, this.data.defaults.settings, [this.data.pipeline]);
 
     followToolDefaults(form, this.data.defaults.template, this.destroyRef);
 

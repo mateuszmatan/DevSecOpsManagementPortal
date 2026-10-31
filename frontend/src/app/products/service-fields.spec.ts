@@ -14,7 +14,15 @@ import {
   text,
   unexplained,
 } from '@common/testing/dom';
-import { globalSettings, nodeBuild, service } from '../testing/fixtures';
+import {
+  databaseDefaults,
+  databaseService,
+  databaseSettings,
+  databaseTarget,
+  globalSettings,
+  nodeBuild,
+  service,
+} from '../testing/fixtures';
 import {
   BADGE_TWICE,
   NODE_TWICE,
@@ -407,6 +415,272 @@ describe('ServiceFields', () => {
       expect(text(page().querySelector('.rail-item.active span'))).toBe('Build');
       expect(form.controls.nodeBuild.controls.nodePath.errors).toEqual({ rule: NODE_TWICE });
       expect(pane().querySelector('dso-advanced-settings .has-errors')).not.toBeNull();
+    });
+  });
+
+  describe('Database changes', () => {
+    const DATABASE_SECTIONS = [
+      'General',
+      'Build',
+      'Database changes',
+      'Test jobs',
+      'AppScan SAST and DAST',
+      'SonarQube',
+      'Bitbucket',
+      'Monitoring',
+    ];
+    /** A database service that shows every field: utPLSQL, the reset and all three databases. */
+    const everyField = () =>
+      databaseService({
+        database: databaseSettings({ testReset: true, utplsql: true, groupId: 'com.bbh.orders' }),
+      });
+    const withDefaults = (overrides = {}) =>
+      globalSettings({ database: databaseDefaults(overrides) });
+    const labels = (root: ParentNode, advanced = false) =>
+      [...root.querySelectorAll('dso-form-field dso-label, dso-checkbox label, h4')]
+        .filter((label) => !!label.closest('dso-advanced-settings') === advanced)
+        .map((label) => text(label).replace(/ \(\S+\)$/, ''));
+    const helpFor = (label: string) =>
+      helpOf(fieldOf(pane(), label) ?? checkboxOf(pane(), label).closest('dso-checkbox')!);
+
+    it('opens each section of a database service and explains each field and problem', async () => {
+      await render(everyField(), withDefaults());
+
+      expect(railLabels()).toEqual(DATABASE_SECTIONS);
+      for (const label of railLabels()) {
+        await open(label);
+        pane()
+          .querySelectorAll<HTMLButtonElement>('dso-advanced-settings .accordion-button.collapsed')
+          .forEach((toggle) => toggle.click());
+        await fixture.whenStable();
+        expect(pane().querySelector('h3')?.textContent).toBe(label);
+        expect(unexplained(pane()), label).toEqual([]);
+      }
+
+      breakEveryField(form);
+      form.markAllAsTouched();
+      fixture.componentRef.setInput('submitted', true);
+      await fixture.whenStable();
+      await open('Database changes');
+      const errors = [...pane().querySelectorAll('dso-error')].map((e) => text(e));
+      expect(errors.length).toBeGreaterThan(5);
+      expect(errors.every((error) => !!error)).toBe(true);
+    }, 45_000);
+
+    it('gives each section of a database service a note of its own', async () => {
+      await render(databaseService());
+      const note = async (label: string) => {
+        await open(label);
+        return text(pane().querySelector('.pane-header p'));
+      };
+
+      expect(await note('Build')).toBe(
+        'Where the SQL and PL/SQL code sits in the repository and which JDK runs Liquibase and utPLSQL. A database service has no build command and no artifact: the pipelines package the changelog and the files it includes into a zip.',
+      );
+      expect(await note('Database changes')).toContain(
+        'The database users and their passwords stay in Jenkins: the portal keeps only the IDs of their Jenkins credentials. A database service runs on Linux or macOS agents only.',
+      );
+      expect(await note('Test jobs')).toContain(
+        'For a database service a test stage without jobs is not required, so it never turns the run orange.',
+      );
+      expect(await note('AppScan SAST and DAST')).toContain(
+        'A dynamic scan (DAST) does not apply to a database service.',
+      );
+      expect(await note('SonarQube')).toContain(
+        'only when the SonarQube server has a PL/SQL analyzer and the service has a project key',
+      );
+      expect(await note('Bitbucket')).toBe(
+        'The Bitbucket repository of the SQL and PL/SQL code. The services of one repository share one Jenkinsfile and one Jenkins job.',
+      );
+    });
+
+    it('builds nothing: no command, no artifact path and no Node.js build', async () => {
+      await render(databaseService());
+      await open('Build');
+
+      expect(labels(pane())).toEqual([
+        'Build tool',
+        'Source folder',
+        'Set up the build tool automatically',
+        'JDK path',
+      ]);
+      expect(pane().querySelector('dso-tool-command-fields, dso-advanced-settings')).toBeNull();
+      expect(hints()).toContain(
+        'The folder of the SQL and PL/SQL code; a dot means the repository root · sourceDir',
+      );
+    });
+
+    it('shows the changelog, the three databases and the package, with the options under Advanced settings', async () => {
+      await render(everyField(), withDefaults());
+      await open('Database changes');
+
+      expect(labels(pane())).toEqual([
+        'Changelog file',
+        'Search folder',
+        'Changelog parameters',
+        'Test database, for the utPLSQL tests database.test',
+        'JDBC URL',
+        'Credentials ID',
+        'Empty the test schema before each deployment',
+        'Unit tests with utPLSQL',
+        'Run the utPLSQL tests',
+        'Test suites',
+        'Owner of the tests',
+        'Folder of the packages',
+        'Folder of the test packages',
+        'utPLSQL timeout',
+        'RD, the lower test region database.rd',
+        'JDBC URL',
+        'Credentials ID',
+        'QC, the higher test region database.qc',
+        'JDBC URL',
+        'Credentials ID',
+        'Package and Nexus delivery',
+        'Deliver the package to Nexus',
+        'Group ID',
+        'Artifact ID',
+      ]);
+      expect(labels(pane(), true)).toEqual([
+        'Maven home',
+        'Snapshot repository ID',
+        'Snapshot repository URL',
+        'Release repository ID',
+        'Release repository URL',
+        'Oracle version',
+        'Contexts',
+        'Labels',
+        'Lock wait',
+        'Default schema',
+        'Liquibase schema',
+        'Require a rollback for every change',
+        'Tag each deployment',
+        'Check for invalid objects after a deployment',
+        'Recompile invalid objects first',
+        'Objects the check ignores',
+        'Files the static checks ignore',
+        ...['database.test', 'database.rd', 'database.qc'].flatMap((code, index) => [
+          `${['Test database, for the utPLSQL tests', 'RD, the lower test region', 'QC, the higher test region'][index]} ${code}`,
+          'Contexts',
+          'Labels',
+          'Default schema',
+          'Liquibase schema',
+          'Changelog parameters',
+          'Timeout',
+        ]),
+        'SonarQube analysis of SQL and PL/SQL',
+        'Sources',
+        'SonarScanner version',
+      ]);
+      expect(text(fieldOf(pane(), 'JDBC URL')?.querySelector('dso-hint'))).toBe(
+        'A database of its own, never the RD or QC database · url',
+      );
+    });
+
+    it('shows the utPLSQL fields only while the tests are ticked', async () => {
+      await render(databaseService({ database: databaseSettings() }));
+      await open('Database changes');
+      expect(fieldOf(pane(), 'Test suites')).toBeNull();
+
+      checkboxOf(pane(), 'Run the utPLSQL tests').click();
+      await fixture.whenStable();
+
+      expect(form.controls.database.controls.utplsql.value).toBe(true);
+      expect(fieldOf(pane(), 'Test suites')).not.toBeNull();
+      expect(fieldOf(pane(), 'Folder of the packages')).not.toBeNull();
+    });
+
+    it('asks for the group ID only while the package is delivered and keeps the artifact ID', async () => {
+      await render(databaseService({ name: 'orders-db' }), withDefaults());
+      await open('Database changes');
+      const artifact = inputOf(pane(), 'Artifact ID');
+      expect(artifact.placeholder).toBe('orders-db');
+      expect(text(fieldOf(pane(), 'Artifact ID')?.querySelector('dso-hint'))).toBe(
+        'Library default: the service name · database.package.artifactId',
+      );
+
+      checkboxOf(pane(), 'Deliver the package to Nexus').click();
+      await fixture.whenStable();
+
+      expect(fieldOf(pane(), 'Group ID')).toBeNull();
+      expect(fieldOf(pane(), 'Maven home')).toBeNull();
+      expect(fieldOf(pane(), 'Artifact ID')).not.toBeNull();
+      expect(form.controls.database.controls.artifactId.enabled).toBe(true);
+    });
+
+    it('shows a repository without a Library default as a main field, and one with a default under Advanced', async () => {
+      await render(
+        databaseService(),
+        withDefaults({ releaseRepositoryId: null, releaseRepositoryUrl: null }),
+      );
+      await open('Database changes');
+
+      expect(labels(pane()).slice(-4)).toEqual([
+        'Group ID',
+        'Artifact ID',
+        'Release repository ID',
+        'Release repository URL',
+      ]);
+      const snapshot = fieldOf(pane(), 'Snapshot repository URL')!;
+      expect(snapshot.closest('dso-advanced-settings')).not.toBeNull();
+      expect(text(snapshot.querySelector('dso-hint'))).toBe(
+        'Library default: https://tools.bbh.com/nexus/repository/db-snapshots · database.package.snapshotRepository.url',
+      );
+      expect(helpFor('Release repository URL')).toBe(
+        'The Nexus repository that receives the zip the release gate allowed. Empty: the Library default.',
+      );
+    });
+
+    it('says that only objects a deployment made invalid fail it (library 9.3, the compile verdict)', async () => {
+      await render(databaseService());
+      await open('Database changes');
+
+      expect(helpFor('Check for invalid objects after a deployment')).toBe(
+        'After each deployment to RD or QC, lists the invalid PL/SQL objects of the schema. An object that the deployment made invalid fails the deployment stage; objects that were invalid before it are only listed.',
+      );
+    });
+
+    it('says that the rollback check does not run while it is unticked (library 8.4, C4 future-rollback-sql)', async () => {
+      await render(databaseService());
+      await open('Database changes');
+
+      expect(helpFor('Require a rollback for every change')).toBe(
+        'Ticked, the Unit tests stage checks that every change can be rolled back, and a change without a working rollback turns the stage orange. Unticked, this check does not run.',
+      );
+    });
+
+    it('says that a rollback to the tag is a DBA task that leaves PL/SQL code at its new version (library 10.8, the tag)', async () => {
+      await render(databaseService());
+      await open('Database changes');
+
+      expect(helpFor('Tag each deployment')).toBe(
+        'After a deployment that applied changes, tags the RD or QC database with the artifact ID and the version. A DBA can roll the database back to a tag by hand: that undoes the changes that have a rollback, while PL/SQL code keeps its new version, because its changes have an empty rollback.',
+      );
+    });
+
+    it('says that empty test suites run every suite of the owner of the tests (library 8.7, utPLSQL)', async () => {
+      await render(databaseService());
+      await open('Database changes');
+
+      expect(helpFor('Test suites')).toBe(
+        'The suites or packages to run, separated by commas, such as orders_tests. Empty: every suite of the owner of the tests.',
+      );
+      expect(helpFor('Owner of the tests')).toBe(
+        'The schema that owns the packages and their tests. Empty: the default schema of the test database, else the schema of the database user.',
+      );
+    });
+
+    it('scans the SQL and PL/SQL files without compiling them and without DAST', async () => {
+      await render(databaseService());
+      await open('AppScan SAST and DAST');
+      const all = labels(pane()).concat(labels(pane(), true));
+
+      expect(all).not.toContain('Compile before preparing the IRX');
+      expect(all).not.toContain('Source code only');
+      expect(all.some((label) => label.includes('DAST'))).toBe(false);
+      expect(pane().querySelector('dso-tool-command-fields')).toBeNull();
+
+      await open('SonarQube');
+      expect(pane().querySelector('dso-tool-command-fields')).toBeNull();
     });
   });
 

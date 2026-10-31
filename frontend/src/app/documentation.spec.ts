@@ -6,6 +6,8 @@ import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { BuildTool, DeployTarget, Service, TestJob } from './core/models';
 import {
+  databaseService,
+  databaseSettings,
   department,
   globalSettings,
   nodeBuild,
@@ -64,6 +66,10 @@ describe('docs/documentation.md', () => {
       deployment: { ...stored.deployment, target },
       appScan: { ...stored.appScan, compile: true, dastEnabled: true },
       goldenFix: { ...stored.goldenFix, minThreatLevel: 7 },
+      ...(tool === 'LIQUIBASE' && {
+        database: databaseSettings({ utplsql: true, testReset: true, nexusDelivery: true }),
+        databaseTargets: databaseService().databaseTargets,
+      }),
       testJobs: [
         job('SMOKE', 'smoke'),
         job('REGRESSION', 'regression', { type: 'REMOTE', remoteJenkins: 'qa' }),
@@ -122,6 +128,15 @@ describe('docs/documentation.md', () => {
     },
     30_000,
   );
+
+  it('names every devsecops_config.yaml key of a LIQUIBASE service', async () => {
+    const codes = await serviceCodes(everyField('LIQUIBASE', 'VM'));
+
+    expect(codes).toEqual(
+      expect.arrayContaining(['database.changelogFile', 'database.test', 'utplsql.enabled']),
+    );
+    expect(undocumented(codes)).toEqual([]);
+  }, 30_000);
 
   it('names every devsecops_config.yaml key of the Library defaults', async () => {
     TestBed.configureTestingModule({ imports: [GoldenFixFields] });

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { GlobalSettings, TestJob } from '../core/models';
+import { BuildTool, GlobalSettings, TestJob } from '../core/models';
 import { applyFieldProblems } from '@common/shared/form-controls';
 import { buttonOf, checkboxOf, fieldOf, helpOf, inputOf, text } from '@common/testing/dom';
 import { globalSettings, service } from '../testing/fixtures';
@@ -64,6 +64,20 @@ describe('TestJobsFields', () => {
     expect(text(textarea.closest('dso-form-field'))).toContain(
       'Write each parameter as NAME=value: SUITE critical',
     );
+  });
+
+  it.each<[BuildTool, boolean]>([
+    ['GRADLE', true],
+    ['MAVEN', true],
+    ['FLUTTER', true],
+    ['LIQUIBASE', false],
+  ])('offers to make a test stage of a %s service required: %s', async (tool, offered) => {
+    await render([job({ name: 'smoke' })]);
+    form.controls.build.controls.tool.setValue(tool);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(!!checkboxOf(page(), 'Required')).toBe(offered);
   });
 
   it('lists the jobs of each stage with their counts and parallel limits', async () => {

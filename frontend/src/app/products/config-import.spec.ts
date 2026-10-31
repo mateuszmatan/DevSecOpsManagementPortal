@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { ImportedService, ServiceConfigImport } from '../core/models';
 import { Notifier } from '@common/core/notifier';
 import { buttonOf, helpOf, text } from '@common/testing/dom';
-import { nodeBuild, service } from '../testing/fixtures';
+import { databaseService, nodeBuild, service } from '../testing/fixtures';
 import {
   ConfigImport,
   ConfigServicePicker,
@@ -344,6 +344,22 @@ describe('the import into a service form', () => {
     expect(toServiceRequest(form)).toMatchObject({
       nodeBuild: node,
       versionCatalogs: ['gradle/libs.versions.toml'],
+    });
+  });
+
+  it('fills a SQL and PL/SQL service with its changelog and databases from the file', () => {
+    const orders = databaseService();
+    const form = importedServiceForm({ ...file, name: 'orders-db', service: orders }, null);
+
+    expect(form.valid).toBe(true);
+    expect(form.controls.database.enabled).toBe(true);
+    expect(toServiceRequest(form)).toMatchObject({
+      id: null,
+      name: 'orders-db',
+      build: { tool: 'LIQUIBASE' },
+      database: { changelogFile: 'db/changelog-master.xml', groupId: 'com.bbh.orders' },
+      databaseTargets: orders.databaseTargets,
+      nexusIqApplications: [],
     });
   });
 

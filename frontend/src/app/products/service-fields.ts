@@ -11,7 +11,15 @@ import {
 } from '@angular/core';
 import { AbstractControl, FormArray, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { SvgIconComponent } from 'angular-svg-icon';
-import { FLUTTER_PLATFORMS, GlobalSettings, PipelineType, REGIONS, Region } from '../core/models';
+import {
+  DATABASE_TARGETS,
+  DatabaseTarget,
+  FLUTTER_PLATFORMS,
+  GlobalSettings,
+  PipelineType,
+  REGIONS,
+  Region,
+} from '../core/models';
 import {
   Field,
   Fields,
@@ -31,11 +39,13 @@ import {
   POWERSHELL_PATH_ERROR,
   SHELL_SAFE_ERROR,
   addItem,
+  optional,
   removeItem,
 } from '@common/shared/form-controls';
 import { DsoHelp } from '@common/ui/help';
 import { TOGGLES } from '@common/ui/toggle-group';
-import { GRADLE_MAVEN_FLUTTER, TOOL_HINTS } from '../shared/build-options';
+import { BUILD_TOOLS, TOOL_HINTS } from '../shared/build-options';
+import { RepositoryKey } from '../shared/database-rules';
 import { AdvancedSettings } from './advanced-settings';
 import { GoldenFixFields } from './golden-fix-fields';
 import { MissingField } from './missing-fields';
@@ -59,7 +69,12 @@ const REGION_NAMES: Record<Region, string> = {
   QC: 'QC, the higher test region',
 };
 
-const NOTES: Record<ServiceSectionId, string> = {
+const DATABASE_NAMES: Record<DatabaseTarget, string> = {
+  TEST: 'Test database, for the utPLSQL tests',
+  ...REGION_NAMES,
+};
+
+const NOTES: Record<Exclude<ServiceSectionId, 'database'>, string> = {
   general: 'The name of the service, used in its Jenkins job names and reports, and what it does.',
   build:
     'How Jenkins builds the service, with an optional Node.js build first, and where the build leaves its result (the artifact). A service in a subfolder of its repository names that folder under Advanced settings.',
@@ -85,6 +100,21 @@ const NOTES: Record<ServiceSectionId, string> = {
   metrics:
     'Where the pipelines store their results for Pipeline Monitoring and the delivery performance (DORA) figures. The tags are the names the results are stored under.',
   flutter: 'What a Flutter build needs besides the common settings.',
+};
+
+/** The notes of the sections that read differently for a SQL and PL/SQL service. */
+const DATABASE_NOTES: Partial<Record<ServiceSectionId, string>> = {
+  build:
+    'Where the SQL and PL/SQL code sits in the repository and which JDK runs Liquibase and utPLSQL. A database service has no build command and no artifact: the pipelines package the changelog and the files it includes into a zip.',
+  database:
+    'The Liquibase changelog of the service, the databases the pipelines deploy it to, and its package in Nexus. The pipelines check the changes, install them in the test database for the utPLSQL tests when one is set, and deploy them to RD and QC. The database users and their passwords stay in Jenkins: the portal keeps only the IDs of their Jenkins credentials. A database service runs on Linux or macOS agents only.',
+  testJobs:
+    'The Jenkins jobs that run the smoke, regression and performance tests after a deployment. For a database service a test stage without jobs is not required, so it never turns the run orange.',
+  appScan:
+    'The static security scan (SAST) of the SQL and PL/SQL source files by HCL AppScan. The pipelines send the files without compiling them. A dynamic scan (DAST) does not apply to a database service.',
+  sonar:
+    'The code quality checks of SonarQube. The SQL and PL/SQL files are analysed only when the SonarQube server has a PL/SQL analyzer and the service has a project key; otherwise the stage is not required.',
+  scm: 'The Bitbucket repository of the SQL and PL/SQL code. The services of one repository share one Jenkinsfile and one Jenkins job.',
 };
 
 const SECRET_TEXT = 'The ID of a Jenkins Secret text credential';
@@ -323,6 +353,145 @@ const BITBUCKET_REPOSITORY: Field[] = [
   }),
 ];
 
+const SCANNER_VERSION_HELP =
+  "Selects the Jenkins tool installation named sonar-scanner-cli- followed by this version. Left empty, the sonar-scanner on the agent's PATH runs.";
+const SCANNER_VERSION_ERROR = 'Must be a version such as 5.0.1.3006';
+
+const DATABASE: Field[] = [
+  mono('changelogFile', 'Changelog file', 'database.changelogFile', 6, {
+    placeholder: 'db/changelog-master.xml',
+    hint: 'the main Liquibase changelog, relative to the search folder',
+    help: 'The file that lists every change of the service. It ends with .xml, .yaml, .yml, .json or .sql. The pipelines check it, package it with the files it includes, and deploy it. Its path is part of the identity of every change in the database, so it must not change after the first deployment.',
+  }),
+  mono('searchPath', 'Search folder', 'database.searchPath', 6, {
+    placeholder: '.',
+    hint: 'relative to the source folder; a dot means the source folder itself',
+    help: 'Liquibase looks for the changelog and every file it includes in this folder and reads nothing outside it; the package holds this folder. Like the changelog path, it must not change after the first deployment.',
+  }),
+  area('parameters', 'Changelog parameters', 'database.parameters', 12, {
+    mono: true,
+    placeholder: 'app_role=orders_app_role',
+    help: 'Values the changelog uses as ${name}, one name=value per line, such as a role or a tablespace name. A database may set its own value for a name. They are written into the package, so they must not hold a secret, and names such as password or token are refused.',
+  }),
+];
+
+const TEST_RESET: Field[] = [
+  check('testReset', 'Empty the test schema before each deployment', 'reset', 12, {
+    help: "Drops every object of the test schema before the changes are installed, so that the changes of other branches do not remain. Tick it only for a schema that holds nothing but this service's test objects. Needs the JDBC URL of the test database.",
+  }),
+];
+
+const UTPLSQL_SWITCH: Field[] = [
+  check('utplsql', 'Run the utPLSQL tests', 'utplsql.enabled', 12, {
+    help: 'After the changes are installed in the test database, runs the utPLSQL test packages there and reads their results and coverage. Needs the JDBC URL of the test database, with the utPLSQL framework installed in it.',
+  }),
+];
+
+const UTPLSQL: Field[] = [
+  mono('utplsqlPaths', 'Test suites', 'utplsql.paths', 6, {
+    help: 'The suites or packages to run, separated by commas, such as orders_tests. Empty: every suite of the owner of the tests.',
+  }),
+  mono('utplsqlOwner', 'Owner of the tests', 'utplsql.owner', 6, {
+    help: 'The schema that owns the packages and their tests. Empty: the default schema of the test database, else the schema of the database user.',
+  }),
+  mono('utplsqlSourcePath', 'Folder of the packages', 'utplsql.sourcePath', 6, {
+    placeholder: 'db/code',
+    help: 'Relative to the search folder; the folder must exist in the repository. The coverage report then names the source files.',
+  }),
+  mono('utplsqlTestPath', 'Folder of the test packages', 'utplsql.testPath', 6, {
+    placeholder: 'db/test',
+    help: 'Relative to the search folder; the folder must exist in the repository. SonarQube then treats these files as tests.',
+  }),
+  count('utplsqlTimeoutMinutes', 'utPLSQL timeout (minutes)', 'utplsql.timeoutMinutes', 6, {
+    min: 1,
+    max: 240,
+    placeholder: '30',
+    help: 'How long the tests may take together, from 1 to 240 minutes.',
+  }),
+];
+
+const NEXUS_DELIVERY = check(
+  'nexusDelivery',
+  'Deliver the package to Nexus',
+  'database.package.nexusDelivery',
+  12,
+  {
+    help: 'Ticked, the Full and Security pipelines upload a zip of the changes to the snapshot repository, the Full and Extended pipelines release it after the release gate, and the Extended pipeline deploys the zip the last delivery uploaded. Unticked, nothing is uploaded, and each pipeline deploys the changes of its own checkout.',
+  },
+);
+
+const GROUP_ID = mono('groupId', 'Group ID', 'database.package.groupId', 4, {
+  placeholder: 'com.bbh.orders',
+  help: 'The Maven group ID of the zip in Nexus. The Full, Security and Extended pipelines need it while the package is delivered.',
+});
+
+const MAVEN_HOME = mono('mvnPath', 'Maven home', 'database.package.mvnPath', 6, {
+  placeholder: '/opt/maven',
+  help: 'The absolute path of the Maven installation (the folder that holds bin/mvn) that uploads and fetches the zip. Empty: mvn from the PATH of the agent.',
+});
+
+const DATABASE_OPTIONS: Field[] = [
+  mono('oracleVersion', 'Oracle version', 'database.oracleVersion', 3, {
+    placeholder: '19.0',
+    help: 'The Oracle version that the offline check of the changelog assumes. Use the version of the RD and QC databases, such as 19.0 or 23.0.',
+  }),
+  line('contexts', 'Contexts', 'database.contexts', 3, {
+    placeholder: '!test',
+    help: 'The Liquibase context filter of RD and QC. The default !test leaves out the changesets marked context:test, which only the test database receives. QC must never receive them.',
+  }),
+  line('labels', 'Labels', 'database.labels', 3, {
+    help: 'A Liquibase label filter for every deployment. Empty: every label.',
+  }),
+  count('lockWaitMinutes', 'Lock wait (minutes)', 'database.lockWaitMinutes', 3, {
+    min: 0,
+    max: 60,
+    placeholder: '5',
+    help: 'How long a deployment waits for another deployment to release the Liquibase lock of the database, from 0 to 60 minutes.',
+  }),
+  mono('defaultSchema', 'Default schema', 'database.defaultSchema', 6, {
+    help: 'The schema of the objects that the changes name without a schema. Every step that connects to a database uses it: the deployment, its status and tag, and the compile check. Empty: the schema of the database user.',
+  }),
+  mono('liquibaseSchema', 'Liquibase schema', 'database.liquibaseSchema', 6, {
+    help: 'The schema of the tables in which Liquibase records the deployed changes (DATABASECHANGELOG) and its lock. Every step that connects to a database uses it. Empty: the default schema.',
+  }),
+  check('requireRollback', 'Require a rollback for every change', 'database.requireRollback', 6, {
+    help: 'Ticked, the Unit tests stage checks that every change can be rolled back, and a change without a working rollback turns the stage orange. Unticked, this check does not run.',
+  }),
+  check('tag', 'Tag each deployment', 'database.tag', 6, {
+    help: 'After a deployment that applied changes, tags the RD or QC database with the artifact ID and the version. A DBA can roll the database back to a tag by hand: that undoes the changes that have a rollback, while PL/SQL code keeps its new version, because its changes have an empty rollback.',
+  }),
+  check(
+    'compileCheck',
+    'Check for invalid objects after a deployment',
+    'database.compileCheck.enabled',
+    6,
+    {
+      help: 'After each deployment to RD or QC, lists the invalid PL/SQL objects of the schema. An object that the deployment made invalid fails the deployment stage; objects that were invalid before it are only listed.',
+    },
+  ),
+  check('recompile', 'Recompile invalid objects first', 'database.compileCheck.recompile', 6, {
+    help: 'Before the check, recompiles the invalid objects of the schema with their own compiler settings, so that only objects that stay invalid are listed.',
+  }),
+  area('ignoreObjects', 'Objects the check ignores', 'database.compileCheck.ignoreObjects', 6, {
+    mono: true,
+    help: 'One object name per line, at most 50, such as an old view that is invalid on purpose.',
+  }),
+  area('ignoreFiles', 'Files the static checks ignore', 'database.checks.ignoreFiles', 6, {
+    mono: true,
+    help: 'One path per line, relative to the search folder, at most 50. The checks for passwords and unsafe commands still read these files.',
+  }),
+];
+
+const DATABASE_SONAR: Field[] = [
+  mono('sonarSources', 'Sources', 'tools.sonar.sources', 6, {
+    help: 'The folders SonarQube analyses. Empty: the folder the package is made of.',
+  }),
+  mono('sonarScannerVersion', 'SonarScanner version', 'tools.sonar.sonarScannerVersion', 6, {
+    help: SCANNER_VERSION_HELP,
+    error: SCANNER_VERSION_ERROR,
+  }),
+];
+
 const FLUTTER_MODULES: Field[] = [
   area('modules', 'Modules', 'tools.flutter.flutterModules', 8, {
     mono: true,
@@ -370,8 +539,8 @@ const FLUTTER_SONAR: Field[] = [
   }),
   mono('sonarScannerVersion', 'SonarScanner version', 'tools.sonar.sonarScannerVersion', 4, {
     placeholder: '5.0.1.3006',
-    help: "Selects the Jenkins tool installation named sonar-scanner-cli- followed by this version. Left empty, the sonar-scanner on the agent's PATH runs.",
-    error: 'Must be a version such as 5.0.1.3006',
+    help: SCANNER_VERSION_HELP,
+    error: SCANNER_VERSION_ERROR,
   }),
   mono('dartAnalyzeCommand', 'Dart analyze command', 'tools.sonar.dartAnalyzeCommand', 8, {
     help: 'Runs when the Flutter plugin is off; its findings, in machine format, are imported into SonarQube as external issues. Left empty: dart analyze --format=machine.',
@@ -442,9 +611,15 @@ export class ServiceFields {
 
   protected readonly regions = REGIONS;
   protected readonly regionNames = REGION_NAMES;
+  protected readonly databaseTargets = DATABASE_TARGETS;
+  protected readonly databaseNames = DATABASE_NAMES;
+  protected readonly databaseFields = DATABASE;
+  protected readonly testReset = TEST_RESET;
+  protected readonly utplsqlSwitch = UTPLSQL_SWITCH;
+  protected readonly utplsqlFields = UTPLSQL;
+  protected readonly databaseSonar = DATABASE_SONAR;
   protected readonly general = GENERAL;
   protected readonly appScan = APP_SCAN;
-  protected readonly appScanOptions = APP_SCAN_OPTIONS;
   protected readonly dastEnabled = DAST_ENABLED;
   protected readonly dast = DAST;
   protected readonly nexusIqApplication = NEXUS_IQ_APPLICATION;
@@ -505,6 +680,15 @@ export class ServiceFields {
       nexusIq: [c.nexusIq],
       scm: of(c.scm, 'cloneUrl', 'apiUrl', 'workspace', 'projectKey', 'repoSlug'),
       metrics: of(c.metrics, 'influxUrl', 'influxCredentialsId'),
+      database: [
+        ...of(c.database, ...[...this.databaseOptions(), ...DATABASE_SONAR].map(({ key }) => key)),
+        ...DATABASE_TARGETS.flatMap((target) =>
+          of(
+            c.databaseTargets.controls[target],
+            ...this.databaseTargetOptions(target).map(({ key }) => key),
+          ),
+        ),
+      ],
     };
   });
 
@@ -526,7 +710,10 @@ export class ServiceFields {
         ? ' Its environments are set under UrbanCode Deploy and SSH targets.'
         : ' Its environments are set under OpenShift targets.',
     };
-    return { label: section?.label ?? '', note: chips(NOTES[id] + (extra[id] ?? '')) };
+    const notes: Partial<Record<ServiceSectionId, string>> = this.liquibase()
+      ? { ...NOTES, ...DATABASE_NOTES }
+      : NOTES;
+    return { label: section?.label ?? '', note: chips((notes[id] ?? '') + (extra[id] ?? '')) };
   });
 
   /** The fields that need input, in the order of the sections. */
@@ -608,6 +795,15 @@ export class ServiceFields {
       [c.metrics, [...this.metricsFields(), ...this.metricsOptions()]],
       [c.flutter, [...FLUTTER_PLATFORM, ...FLUTTER_MODULES, ...FLUTTER_CREDENTIALS]],
       [c.flutter, [...FLUTTER_SONAR, ...this.flutterDelivery()]],
+      [c.database, [...DATABASE, ...TEST_RESET, ...UTPLSQL_SWITCH, ...UTPLSQL]],
+      [c.database, [...this.packageFields(), ...this.databaseOptions(), ...DATABASE_SONAR]],
+      ...DATABASE_TARGETS.map(
+        (target) =>
+          [
+            c.databaseTargets.controls[target],
+            [...this.databaseTargetFields(target), ...this.databaseTargetOptions(target)],
+          ] as const,
+      ),
       ...commands.map((command) => [command, commandFields(this.tool(), '')] as const),
       ...REGIONS.flatMap((region) => [
         [c.sshTargets.controls[region], this.sshFields(region)] as const,
@@ -641,6 +837,15 @@ export class ServiceFields {
     return this.tool() === 'FLUTTER';
   }
 
+  protected liquibase(): boolean {
+    return this.tool() === 'LIQUIBASE';
+  }
+
+  /** Whether Gradle or Maven builds the service, with the commands that come with them. */
+  protected builds(): boolean {
+    return this.tool() === 'GRADLE' || this.tool() === 'MAVEN';
+  }
+
   protected delivers(): boolean {
     return !this.form().controls.deployment.controls.nexusDeliveryDisabled.value;
   }
@@ -660,7 +865,7 @@ export class ServiceFields {
 
   protected buildTool(): Field[] {
     return [
-      choice('tool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 6, {
+      choice('tool', 'Build tool', BUILD_TOOLS, 'buildTool', 6, {
         hint: TOOL_HINTS[this.tool()],
         help: 'The tool that builds the service. It decides which commands, test reports and artifacts the pipeline expects.',
       }),
@@ -669,43 +874,160 @@ export class ServiceFields {
 
   protected buildFields(): Field[] {
     const maven = this.tool() === 'MAVEN';
+    const liquibase = this.liquibase();
     const c = this.form().controls.build.controls;
+    const jdk = liquibase
+      ? {
+          hint: 'the JDK Liquibase and utPLSQL run with, Java 17 or newer',
+          help: 'The absolute path of a JDK 17 or newer installed on the Linux or macOS agent.',
+        }
+      : this.flutter()
+        ? {
+            hint: 'must be set for Flutter builds',
+            help: 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.',
+          }
+        : {
+            hint: 'JAVA_HOME of the Gradle or Maven build and the later stages',
+            help: 'The absolute path of a JDK installed on the Jenkins agent.',
+          };
     return [
-      mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
-        placeholder: maven ? 'target/*.jar' : 'build/libs/*.jar',
-        hint:
-          this.isVm() && maven && this.delivers()
-            ? 'the artifact the Nexus snapshot delivery uploads'
-            : 'what the build produces',
-        help: 'A path or wildcard pattern relative to the workspace; the first matching file is used. On OpenShift only its folder counts: the image build takes the artifact from there.',
-        error: SHELL_SAFE_ERROR,
-      }),
+      liquibase
+        ? mono('sourceDir', 'Source folder', 'sourceDir', 6, {
+            placeholder: '.',
+            hint: 'the folder of the SQL and PL/SQL code; a dot means the repository root',
+            help: 'Choose it once, before the first deployment: the folder of the changelogs, such as orders-db, or a dot when the repository holds only the database code. With a Java service in the same repository, exclude this folder from the AppScan scope of the Java service. Liquibase records every change in the database under its path, which depends on this folder and on the search folder, so changing either later makes Liquibase treat every change as new.',
+          })
+        : mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
+            placeholder: maven ? 'target/*.jar' : 'build/libs/*.jar',
+            hint:
+              this.isVm() && maven && this.delivers()
+                ? 'the artifact the Nexus snapshot delivery uploads'
+                : 'what the build produces',
+            help: 'A path or wildcard pattern relative to the workspace; the first matching file is used. On OpenShift only its folder counts: the image build takes the artifact from there.',
+            error: SHELL_SAFE_ERROR,
+          }),
       check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 6, {
-        help: 'Gradle and Maven builds: reads the Java version from pom.xml or the Gradle build file and selects a JDK of that version installed on the agent, instead of the JDK path.',
+        help: liquibase
+          ? 'Selects a JDK of the Java version in the Library defaults (17 unless set there) installed on the agent, instead of the JDK path.'
+          : 'Gradle and Maven builds: reads the Java version from pom.xml or the Gradle build file and selects a JDK of that version installed on the agent, instead of the JDK path.',
       }),
       ...(c.autoSetup.value && !this.flutter()
         ? []
         : [
             mono('javaPath', 'JDK path', 'javaPath', 12, {
               placeholder: '/usr/lib/jvm/java-17-openjdk',
-              hint: this.flutter()
-                ? 'must be set for Flutter builds'
-                : 'JAVA_HOME of the Gradle or Maven build and the later stages',
-              help: this.flutter()
-                ? 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.'
-                : 'The absolute path of a JDK installed on the Jenkins agent.',
+              ...jdk,
             }),
           ]),
     ];
   }
 
   protected buildOptions(): Field[] {
+    if (this.liquibase()) {
+      return [];
+    }
     return [
       mono('sourceDir', 'Source folder', 'sourceDir', 6, {
         placeholder: '.',
         hint: 'relative to the repository root; for a service in a subfolder: that folder',
         help: 'The folder the AppScan static scan prepares; the Gradle, Maven and Node.js builds have their own folder fields. Change it when the code of the service is in a subfolder.',
       }),
+    ];
+  }
+
+  protected appScanOptions(): Field[] {
+    return this.liquibase()
+      ? APP_SCAN_OPTIONS.filter(({ key }) => key !== 'compile' && key !== 'sourceCodeOnly')
+      : APP_SCAN_OPTIONS;
+  }
+
+  protected databaseTargetFields(target: DatabaseTarget): Field[] {
+    return [
+      mono('url', 'JDBC URL', 'url', 8, {
+        placeholder: 'jdbc:oracle:thin:@//db-host:1521/SERVICE',
+        ...(target === 'TEST' && { hint: 'a database of its own, never the RD or QC database' }),
+        help: 'The Oracle thin URL of the database, without a user or a password: @//host:port/SERVICE, @tcps://host:port/SERVICE?ssl_server_dn_match=true, @host:port:SID or @(DESCRIPTION=...). The Library defaults must allow its host. Leave it empty when the pipelines do not deploy to this database.',
+      }),
+      mono('credentialsId', 'Credentials ID', 'credentialsId', 4, {
+        help: 'The ID of a Jenkins Username with password credential of the database user, in the Jenkins folder of the product. Required with the JDBC URL. The portal never sees the password.',
+      }),
+    ];
+  }
+
+  protected databaseTargetOptions(target: DatabaseTarget): Field[] {
+    const contexts = this.form().controls.database.controls.contexts.value.trim() || '!test';
+    return [
+      line('contexts', 'Contexts', 'contexts', 4, {
+        placeholder: target === 'TEST' ? 'test' : contexts,
+        help: 'The context filter for this database. Empty: test for the test database, and the Contexts of the service for RD and QC.',
+      }),
+      line('labels', 'Labels', 'labels', 4, { help: 'Empty: the Labels of the service.' }),
+      mono('defaultSchema', 'Default schema', 'defaultSchema', 4, {
+        help: 'Empty: the value of the service.',
+      }),
+      mono('liquibaseSchema', 'Liquibase schema', 'liquibaseSchema', 4, {
+        help: 'Empty: the value of the service.',
+      }),
+      area('parameters', 'Changelog parameters', 'parameters', 8, {
+        mono: true,
+        help: 'Values for this database only, one name=value per line. A name set here replaces the value of the service for this database.',
+      }),
+      count('timeoutMinutes', 'Timeout (minutes)', 'timeoutMinutes', 4, {
+        min: 1,
+        max: 240,
+        placeholder: '30',
+        help: 'How long each step that connects to this database may take, from 1 to 240 minutes.',
+      }),
+    ];
+  }
+
+  /** The repositories of the package, each a main field while the Library defaults have no value for it. */
+  private repositoryFields(main: boolean): Field[] {
+    const defaults = this.defaults()?.database;
+    const c = this.form().controls.database.controls;
+    const snapshot =
+      'The Nexus repository that receives the zip of every delivering build. Empty: the Library default.';
+    const release =
+      'The Nexus repository that receives the zip the release gate allowed. Empty: the Library default.';
+    const repositories: [RepositoryKey, string, string, number, string][] = [
+      ['snapshotRepositoryId', 'Snapshot repository ID', 'snapshotRepository.id', 4, snapshot],
+      ['snapshotRepositoryUrl', 'Snapshot repository URL', 'snapshotRepository.url', 8, snapshot],
+      ['releaseRepositoryId', 'Release repository ID', 'releaseRepository.id', 4, release],
+      ['releaseRepositoryUrl', 'Release repository URL', 'releaseRepository.url', 8, release],
+    ];
+    return repositories
+      .filter(([key]) => !optional(defaults?.[key]) === main)
+      .map(([key, label, code, span, help]) =>
+        mono(key, label, `database.package.${code}`, span, {
+          ...defaulted(defaults?.[key], c[key].value),
+          help,
+        }),
+      );
+  }
+
+  private deliversPackage(): boolean {
+    return this.form().controls.database.controls.nexusDelivery.value;
+  }
+
+  protected packageFields(): Field[] {
+    const delivers = this.deliversPackage();
+    const name = this.form().controls.name.value.trim();
+    return [
+      NEXUS_DELIVERY,
+      ...(delivers ? [GROUP_ID] : []),
+      mono('artifactId', 'Artifact ID', 'database.package.artifactId', 4, {
+        placeholder: name,
+        hint: 'Library default: the service name',
+        help: 'Names the zip and the tag of each deployment (artifact ID and version), also when the package is not delivered to Nexus.',
+      }),
+      ...(delivers ? this.repositoryFields(true) : []),
+    ];
+  }
+
+  protected databaseOptions(): Field[] {
+    return [
+      ...(this.deliversPackage() ? [MAVEN_HOME, ...this.repositoryFields(false)] : []),
+      ...DATABASE_OPTIONS,
     ];
   }
 

@@ -4,7 +4,7 @@ import {
   SHELL_SAFE_ERROR,
   SHELL_SAFE_URL_ERROR,
 } from '@common/shared/form-controls';
-import { GRADLE_MAVEN_FLUTTER, VM_OPENSHIFT } from '../shared/build-options';
+import { DEFAULT_BUILD_TOOLS, VM_OPENSHIFT } from '../shared/build-options';
 import { SettingsSectionId } from './settings-form-model';
 
 interface SettingsBlock {
@@ -440,7 +440,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
       'service keeps its own values; only the number of test jobs at the same time and the ' +
       'Node.js build values also apply later, to every service that leaves them empty.',
     fields: [
-      choice('buildTool', 'Build tool', GRADLE_MAVEN_FLUTTER, 'buildTool', 3, {
+      choice('buildTool', 'Build tool', DEFAULT_BUILD_TOOLS, 'buildTool', 3, {
         help: 'The build tool a new service starts with. It decides which commands, test reports and artifacts the pipeline expects.',
       }),
       choice('deployTarget', 'Runs on', VM_OPENSHIFT, 'deployTarget', 3, {

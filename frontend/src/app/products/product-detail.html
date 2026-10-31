@@ -179,10 +179,12 @@
                   <dt>Build tool</dt>
                   <dd>{{ toolLabels[service.buildTool] }}</dd>
                 </div>
-                <div>
-                  <dt>Deployed to</dt>
-                  <dd>{{ targetLabels[service.deployTarget] }}</dd>
-                </div>
+                @if (service.buildTool !== 'LIQUIBASE') {
+                  <div>
+                    <dt>Deployed to</dt>
+                    <dd>{{ targetLabels[service.deployTarget] }}</dd>
+                  </div>
+                }
                 <div class="repository">
                   <dt>Bitbucket repository</dt>
                   <dd>

@@ -1,4 +1,4 @@
-import { DEFAULT_JENKINS_LIBRARY, Pipeline, PipelineType } from '../core/models';
+import { BuildTool, DEFAULT_JENKINS_LIBRARY, Pipeline, PipelineType } from '../core/models';
 
 /** The pipeline types whose Nexus IQ stage runs GoldenFix. */
 const GOLDEN_FIX_TYPES: readonly PipelineType[] = ['FULL', 'SECURITY', 'NEXUS_IQ'];
@@ -75,6 +75,35 @@ export function repositoryKey(url: string | null | undefined): string {
       .replace(/(\.git)?\/*$/, '')
       .toLowerCase() ?? ''
   );
+}
+
+export interface OrderedService {
+  name: string;
+  tool: BuildTool;
+  repositoryUrl: string | null | undefined;
+}
+
+export const RUN_IN_ORDER =
+  'the services of one repository run in their order, so the database changes reach RD before the application that needs them';
+
+/**
+ * The Gradle or Maven service of the same repository that a SQL and PL/SQL service comes after, or null: its
+ * database changes must come first.
+ */
+export function buildBefore(services: readonly OrderedService[], index: number): string | null {
+  const service = services[index];
+  const key = repositoryKey(service?.repositoryUrl);
+  if (service?.tool !== 'LIQUIBASE' || !key) {
+    return null;
+  }
+  const build = services
+    .slice(0, index)
+    .find(
+      (other) =>
+        (other.tool === 'GRADLE' || other.tool === 'MAVEN') &&
+        repositoryKey(other.repositoryUrl) === key,
+    );
+  return build?.name ?? null;
 }
 
 /** The Jenkins agents of a pipeline, in a stable order. */

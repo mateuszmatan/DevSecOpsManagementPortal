@@ -30,7 +30,8 @@ import { DIALOG } from '@common/ui/dialog';
 import { DsoSpinner } from '@common/ui/loading';
 
 export interface PipelineDialogData {
-  service: Pick<ServicePipelines, 'serviceId' | 'serviceName' | 'pipelines'>;
+  service: Pick<ServicePipelines, 'serviceId' | 'serviceName' | 'pipelines'> &
+    Partial<Pick<ServicePipelines, 'buildTool'>>;
   productCode?: string;
   pipeline?: Pipeline;
 }
@@ -72,7 +73,8 @@ export class PipelineDialog {
   protected readonly types = PIPELINE_TYPES.filter(
     (type) =>
       type.value === this.data.pipeline?.type ||
-      !this.data.service.pipelines.some((p) => p.type === type.value),
+      (!this.data.service.pipelines.some((p) => p.type === type.value) &&
+        !(type.value === 'NEXUS_IQ' && this.data.service.buildTool === 'LIQUIBASE')),
   );
 
   private readonly stored = settingsOf(this.data.pipeline);

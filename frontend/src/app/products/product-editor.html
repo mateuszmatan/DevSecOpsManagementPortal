@@ -181,10 +181,12 @@
                   </span>
                   <span class="panel-description">
                     <span>{{ toolLabels[service.controls.build.controls.tool.value] }}</span>
-                    <span class="dot">·</span>
-                    <span>{{
-                      targetLabels[service.controls.deployment.controls.target.value]
-                    }}</span>
+                    @if (service.controls.build.controls.tool.value !== 'LIQUIBASE') {
+                      <span class="dot">·</span>
+                      <span>{{
+                        targetLabels[service.controls.deployment.controls.target.value]
+                      }}</span>
+                    }
                     @if (service.controls.id.value === null) {
                       <span class="tag new">New</span>
                     } @else if (pipelinesOf(service); as count) {
@@ -196,6 +198,9 @@
                   }}</span>
                 </dso-panel-header>
 
+                @if (orderNote(i); as note) {
+                  <div class="banner" role="status">{{ note }}</div>
+                }
                 <dso-service-fields
                   [form]="service"
                   [productCode]="form.controls.code.value"

@@ -7,9 +7,13 @@ import { of } from 'rxjs';
 import { ConfirmDialog, ConfirmDialogData } from '@common/shared/confirm-dialog';
 import {
   anotherService,
+  databaseDefaults,
+  databaseService,
+  databaseSettings,
   department,
   globalSettings,
   nodeBuild,
+  pipeline,
   product,
   service,
   servicePipelines,
@@ -474,6 +478,51 @@ describe('ProductEditor', () => {
 
     http.expectOne({ method: 'PUT', url: '/api/products/1' }).flush(product());
     await fixture.whenStable();
+  });
+
+  it('asks a stored SQL and PL/SQL service for what its own pipelines deliver and to come before the Java service of its repository', async () => {
+    const orders = databaseService({
+      id: 11,
+      database: databaseSettings({ groupId: null }),
+      scm: { ...service().scm },
+    });
+    fixture.componentRef.setInput('id', '1');
+    await fixture.whenStable();
+    http.expectOne('/api/products/1').flush(product({ services: [service(), orders] }));
+    http.expectOne('/api/products/1/pipelines').flush([
+      servicePipelines(),
+      servicePipelines({
+        serviceId: 11,
+        serviceName: 'orders-db',
+        buildTool: 'LIQUIBASE',
+        pipelines: [
+          pipeline({ id: 101, serviceId: 11, serviceName: 'orders-db', type: 'SECURITY' }),
+        ],
+      }),
+    ]);
+    http.expectOne('/api/settings').flush(globalSettings({ database: databaseDefaults() }));
+    template();
+    http.expectOne('/api/departments').flush(departments);
+    await fixture.whenStable();
+    const database = editor()['form'].controls.services.at(1).controls.database.controls;
+    const note =
+      'Move this service up, before gui: the services of one repository run in their order, so the database changes reach RD before the application that needs them.';
+
+    expect(database.groupId.errors).toEqual({
+      rule: 'Add the group ID of the package, or untick Deliver the package to Nexus: the Security pipeline delivers it',
+    });
+    expect(database.releaseRepositoryId.valid).toBe(true);
+    expect(text(panels()[1].querySelector('.panel-description'))).toBe(
+      'SQL and PL/SQL (Liquibase)1 pipeline',
+    );
+    expect(text(panels()[1].querySelector('.banner'))).toBe(note);
+    expect(panels()[0].querySelector('.banner')).toBeNull();
+
+    buttonOf(page(), 'Move orders-db up').click();
+    await fixture.whenStable();
+
+    expect(names()).toEqual(['orders-db', 'gui']);
+    expect(page().querySelector('.service-panel .banner')).toBeNull();
   });
 
   it('shows why the portal refused the product', async () => {

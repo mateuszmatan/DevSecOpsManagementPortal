@@ -7,6 +7,7 @@ import { RETRY } from '@common/core/errors';
 import { buttonOf, fieldOf, helpOf, text, unexplained } from '@common/testing/dom';
 import {
   anotherService,
+  databaseService,
   department,
   globalSettings,
   pipeline,
@@ -676,6 +677,36 @@ describe('SelfService', () => {
     await next();
 
     expect(wizard()['step']()).toBe(3);
+  });
+
+  it('keeps SQL and PL/SQL services out of the Nexus IQ wizard and out of the UrbanCode Deploy check', async () => {
+    const stored = product({ services: [service(), databaseService({ id: 11 })] });
+    const pipelines = [
+      servicePipelines(),
+      servicePipelines({ serviceId: 11, serviceName: 'orders-db', pipelines: [] }),
+    ];
+    await chooseProduct(3, stored, pipelines);
+    await next();
+    wizard()['pipeline'].set('NEXUS_IQ');
+    await next();
+    await next();
+
+    expect(wizard()['step']()).toBe(2);
+    expect(all('.choice-error')).toEqual([
+      'A Nexus IQ GoldenFix pipeline scans open source dependencies, which SQL and PL/SQL services do not have. Remove these services from this pipeline: orders-db',
+    ]);
+
+    wizard()['back']();
+    wizard()['pipeline'].set('FULL');
+    await fixture.whenStable();
+    await next();
+    await next();
+
+    expect(all('.choice-error')).toEqual([]);
+    expect(wizard()['step']()).toBe(3);
+    expect(entries()[1]).toBe(
+      'orders-db · Gets a Full pipeline with its own key; nothing else changes.',
+    );
   });
 
   it('flags a service in the portal without the AppScan API key ID and continues once it has one', async () => {

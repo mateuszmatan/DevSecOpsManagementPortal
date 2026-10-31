@@ -6,12 +6,14 @@ import { FormControl } from '@angular/forms';
 import { buttonOf, choose, inputOf, optionsOf, selectOf, text } from '@common/testing/dom';
 import {
   anotherService,
+  databaseDefaults,
   globalSettings,
   nodeBuild,
   service,
   serviceTemplate,
 } from '../testing/fixtures';
 import {
+  NOT_ALLOWED_DATABASE,
   createServiceForm,
   createUrbanCodeApplicationForm,
   toServiceRequest,
@@ -198,6 +200,52 @@ describe('ServiceDialog', () => {
       expect(form().controls.deployment.controls.target.value).toBe(target);
     },
   );
+
+  it('asks for the group ID of a SQL and PL/SQL service the Full pipeline delivers and checks its databases', async () => {
+    const settings = globalSettings({ database: databaseDefaults() });
+    await open({ pipeline: 'FULL', defaults: { ...BBH_DEFAULTS, settings } });
+    fillIn('orders-db');
+    form().controls.build.controls.tool.setValue('LIQUIBASE');
+    form().controls.database.controls.changelogFile.setValue('db/changelog-master.xml');
+    const d = form().controls.database.controls;
+    const rd = form().controls.databaseTargets.controls.RD.controls;
+    rd.credentialsId.setValue('orders-db-rd');
+    rd.url.setValue('jdbc:oracle:thin:@//prod-db.bbh.com:1521/ORDERS');
+    await fixture.whenStable();
+
+    expect(d.groupId.errors).toEqual({
+      rule: 'Add the group ID of the package, or untick Deliver the package to Nexus: the Full pipeline delivers it',
+    });
+    expect(d.releaseRepositoryUrl.valid).toBe(true);
+    expect(rd.url.errors).toEqual({ rule: NOT_ALLOWED_DATABASE });
+    expect(submit().disabled).toBe(true);
+
+    d.groupId.setValue('com.bbh.orders');
+    rd.url.setValue('jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD');
+    await fixture.whenStable();
+
+    expect(submit().disabled).toBe(false);
+  });
+
+  it('offers no Nexus IQ application to a SQL and PL/SQL service', async () => {
+    await open({
+      pipeline: 'SECURITY',
+      service: {
+        id: null,
+        name: 'orders-db',
+        description: '',
+        appScanId: APP_ID,
+        tool: 'LIQUIBASE',
+        target: 'VM',
+        openShiftProject: '',
+        nexusIqApplication: 'orders',
+        repositoryUrl: REPOSITORY,
+      },
+    });
+
+    expect(form().controls.nexusIqApplications.disabled).toBe(true);
+    expect(toServiceRequest(form()).nexusIqApplications).toEqual([]);
+  });
 
   it('starts a new service with the Library defaults and the AppScan key of the product', async () => {
     await open({

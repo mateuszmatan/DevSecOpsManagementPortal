@@ -13,6 +13,7 @@ export const TOOL_LABELS: Record<BuildTool, string> = {
   GRADLE: 'Gradle',
   MAVEN: 'Maven',
   FLUTTER: 'Flutter',
+  LIQUIBASE: 'SQL and PL/SQL (Liquibase)',
 };
 
 /** How to tell the build tool of a service from its code. */
@@ -20,6 +21,8 @@ export const TOOL_HINTS: Record<BuildTool, string> = {
   GRADLE: 'The code has a build.gradle file',
   MAVEN: 'The code has a pom.xml file',
   FLUTTER: 'The code has a pubspec.yaml file',
+  LIQUIBASE:
+    'The code is SQL and PL/SQL with a Liquibase changelog, such as db/changelog-master.xml',
 };
 
 export const TARGET_LABELS: Record<DeployTarget, string> = {
@@ -27,7 +30,9 @@ export const TARGET_LABELS: Record<DeployTarget, string> = {
   OPENSHIFT: 'OpenShift',
 };
 
-export const GRADLE_MAVEN_FLUTTER = optionsOf(TOOL_LABELS);
+export const BUILD_TOOLS = optionsOf(TOOL_LABELS);
+/** The build tools a new service may start with: a database service needs its own changelog. */
+export const DEFAULT_BUILD_TOOLS = BUILD_TOOLS.filter(({ value }) => value !== 'LIQUIBASE');
 export const VM_OPENSHIFT = optionsOf(TARGET_LABELS);
 
 export const agentLabels = (value: string, required = true) =>

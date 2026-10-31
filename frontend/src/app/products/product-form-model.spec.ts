@@ -1,10 +1,16 @@
+import { DestroyRef, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 import { FormGroup } from '@angular/forms';
 import { applyFieldProblems, controlAt, revalidateAll } from '@common/shared/form-controls';
-import { ServiceDefaults } from '../core/models';
+import { BuildTool, PipelineType, ServiceDefaults } from '../core/models';
 import {
   anotherService,
   command,
+  databaseDefaults,
+  databaseService,
+  databaseSettings,
+  databaseTarget,
   globalSettings,
   nodeBuild,
   product,
@@ -13,6 +19,11 @@ import {
 } from '../testing/fixtures';
 import {
   BADGE_TWICE,
+  CHANGELOG_AT_ROOT,
+  NOT_ALLOWED_DATABASE,
+  NO_ALLOWED_DATABASES,
+  OWN_TEST_DATABASE,
+  QC_GETS_TESTS,
   NODE_TWICE,
   NO_COMMAND,
   ONE_APPLICATION,
@@ -35,6 +46,7 @@ import {
   dvApplication,
   firstInvalidSection,
   firstServiceWithProblem,
+  followName,
   followToolDefaults,
   NO_GOLDEN_FIX_OVERRIDES,
   createGlobalGoldenFixForm,
@@ -55,6 +67,7 @@ import {
   unitTestsConfigured,
   visibleSections,
   visibleSectionsForPipeline,
+  withDatabaseRules,
 } from './product-form-model';
 
 const DEFAULTS: ServiceDefaults = {
@@ -1552,5 +1565,356 @@ describe('followToolDefaults', () => {
     TestBed.runInInjectionContext(() => followToolDefaults(stored, serviceTemplate()));
     stored.controls.build.controls.tool.setValue('GRADLE');
     expect(stored.controls.build.controls.autoSetup.value).toBe(false);
+  });
+});
+
+describe('SQL and PL/SQL services', () => {
+  const ORDERS_DB = 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD';
+  const gradle = () => createServiceForm(service());
+  const database = (overrides = {}) =>
+    createServiceForm(databaseService({ database: databaseSettings(overrides) }));
+
+  it('opens a stored database service with its sections and values', () => {
+    const form = createServiceForm(databaseService());
+    const c = form.controls;
+
+    expect(form.valid).toBe(true);
+    expect(visibleSections(form).map((section) => section.id)).toEqual([
+      'general',
+      'build',
+      'database',
+      'testJobs',
+      'appScan',
+      'sonar',
+      'scm',
+      'metrics',
+    ]);
+    expect(c.database.controls.parameters.value).toBe('app_role=orders_app_role');
+    expect([c.database.controls.tag.value, c.database.controls.testReset.value]).toEqual([
+      true,
+      false,
+    ]);
+    expect(c.databaseTargets.controls.QC.controls.credentialsId.value).toBe('orders-db-qc');
+    expect(visibleSectionsForPipeline(form, 'SAST').map((section) => section.id)).toEqual([
+      'general',
+      'build',
+      'database',
+      'appScan',
+      'scm',
+    ]);
+  });
+
+  const APPLIES: Record<string, BuildTool[]> = {
+    'build.command': ['GRADLE', 'MAVEN'],
+    'build.buildPath': ['GRADLE', 'MAVEN', 'FLUTTER'],
+    nodeBuild: ['GRADLE', 'MAVEN'],
+    unitTests: ['GRADLE', 'MAVEN', 'FLUTTER'],
+    'unitTests.command': ['GRADLE', 'MAVEN'],
+    'sonar.command': ['GRADLE', 'MAVEN'],
+    'appScan.compile': ['GRADLE', 'MAVEN', 'FLUTTER'],
+    'appScan.sourceCodeOnly': ['GRADLE', 'MAVEN', 'FLUTTER'],
+    'appScan.compileCommand': ['GRADLE', 'MAVEN'],
+    'appScan.dastEnabled': ['GRADLE', 'MAVEN', 'FLUTTER'],
+    deployment: ['GRADLE', 'MAVEN', 'FLUTTER'],
+    urbanCode: ['GRADLE', 'MAVEN', 'FLUTTER'],
+    urbanCodeApplications: ['GRADLE', 'MAVEN', 'FLUTTER'],
+    sshTargets: ['GRADLE', 'MAVEN', 'FLUTTER'],
+    nexusIq: ['GRADLE', 'MAVEN', 'FLUTTER'],
+    nexusIqApplications: ['GRADLE', 'MAVEN', 'FLUTTER'],
+    goldenFix: ['GRADLE', 'MAVEN', 'FLUTTER'],
+    versionCatalogs: ['GRADLE', 'MAVEN', 'FLUTTER'],
+    flutter: ['FLUTTER'],
+    database: ['LIQUIBASE'],
+    databaseTargets: ['LIQUIBASE'],
+    'database.artifactId': ['LIQUIBASE'],
+    'database.groupId': ['LIQUIBASE'],
+    'database.utplsqlSourcePath': [],
+  };
+
+  it.each<BuildTool>(['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'])(
+    'enables only what a %s service uses',
+    (tool) => {
+      const form = gradle();
+      form.controls.build.controls.tool.setValue(tool);
+
+      expect(
+        Object.fromEntries(Object.keys(APPLIES).map((path) => [path, form.get(path)!.enabled])),
+      ).toEqual(
+        Object.fromEntries(
+          Object.entries(APPLIES).map(([path, tools]) => [path, tools.includes(tool)]),
+        ),
+      );
+    },
+  );
+
+  it('turns the utPLSQL fields on with the tests and the delivery fields off with the delivery', () => {
+    const d = database({ utplsql: false }).controls.database.controls;
+    const utplsql = [d.utplsqlPaths, d.utplsqlOwner, d.utplsqlSourcePath, d.utplsqlTestPath];
+    const delivery = [d.groupId, d.mvnPath, d.snapshotRepositoryId, d.releaseRepositoryUrl];
+    expect([...utplsql, ...delivery].map((c) => c.enabled)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+    ]);
+
+    d.utplsql.setValue(true);
+    d.nexusDelivery.setValue(false);
+
+    expect([...utplsql, ...delivery].map((c) => c.enabled)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(d.artifactId.enabled).toBe(true);
+  });
+
+  it('sends the values of layout (a) and nothing of the build, deployment or Nexus IQ', () => {
+    const request = toServiceRequest(createServiceForm(databaseService()));
+
+    expect(request.database).toEqual(
+      databaseSettings({
+        parameters: ['app_role=orders_app_role'],
+        requireRollback: false,
+        tag: true,
+        compileCheck: true,
+        recompile: true,
+        groupId: 'com.bbh.orders',
+        nexusDelivery: true,
+        testReset: false,
+        utplsql: true,
+        utplsqlSourcePath: 'db/code',
+        utplsqlTestPath: 'db/test',
+      }),
+    );
+    expect(request.databaseTargets).toEqual(databaseService().databaseTargets);
+    expect(request).toMatchObject({
+      build: { tool: 'LIQUIBASE', sourceDir: '.', command: NO_COMMAND },
+      unitTests: { command: NO_COMMAND },
+      sonar: { command: NO_COMMAND },
+      appScan: {
+        compile: false,
+        sourceCodeOnly: false,
+        compileCommand: NO_COMMAND,
+        dastEnabled: false,
+        dastTargetUrl: null,
+        dastPresenceId: null,
+      },
+      urbanCodeApplications: [],
+      sshTargets: {},
+      openShiftTargets: {},
+      nexusIqApplications: [],
+      versionCatalogs: [],
+      flutter: null,
+    });
+  });
+
+  it.each<BuildTool>(['GRADLE', 'MAVEN', 'FLUTTER'])(
+    'sends no database values for a %s service',
+    (tool) => {
+      const form = gradle();
+      form.controls.build.controls.tool.setValue(tool);
+      form.controls.database.controls.changelogFile.setValue('db/changelog-master.xml');
+
+      const request = toServiceRequest(form);
+
+      expect(request).not.toHaveProperty('database');
+      expect(request).not.toHaveProperty('databaseTargets');
+    },
+  );
+
+  it('keeps every value of a Gradle service switched to Liquibase and back', () => {
+    const form = gradle();
+    TestBed.runInInjectionContext(() => followToolDefaults(form, serviceTemplate()));
+    const before = toServiceRequest(form);
+
+    form.controls.build.controls.tool.setValue('LIQUIBASE');
+    expect(toServiceRequest(form).nexusIqApplications).toEqual([]);
+    form.controls.build.controls.tool.setValue('GRADLE');
+
+    expect(toServiceRequest(form)).toEqual(before);
+    expect(form.controls.nexusIqApplications.enabled).toBe(true);
+  });
+
+  it('offers the Nexus IQ application of the template only once the service is not a database service', () => {
+    const form = createServiceForm();
+    form.controls.build.controls.tool.setValue('LIQUIBASE');
+    TestBed.runInInjectionContext(() =>
+      followName(form, serviceTemplate(), of('CERT'), inject(DestroyRef)),
+    );
+
+    form.controls.name.setValue('orders-db');
+    expect(form.controls.nexusIqApplications.length).toBe(0);
+    expect(form.controls.nexusIqApplications.disabled).toBe(true);
+
+    form.controls.build.controls.tool.setValue('GRADLE');
+    form.controls.name.setValue('orders');
+    expect(form.controls.nexusIqApplications.getRawValue()[0].application).toBe('cert-orders');
+  });
+
+  it('sends no hidden, disabled or invalid database value', () => {
+    const form = database({ utplsql: false, nexusDelivery: false, defaultSchema: 'ORDERS' });
+    const d = form.controls.database.controls;
+    d.utplsqlSourcePath.setValue('db/code');
+    d.liquibaseSchema.setValue('1 not a schema');
+    form.controls.databaseTargets.controls.RD.controls.timeoutMinutes.setValue(500);
+
+    const request = toServiceRequest(form);
+
+    expect(request.database).toMatchObject({
+      defaultSchema: 'ORDERS',
+      liquibaseSchema: null,
+      groupId: null,
+      nexusDelivery: false,
+      utplsql: false,
+      utplsqlSourcePath: null,
+    });
+    expect(request.databaseTargets?.RD?.timeoutMinutes).toBeNull();
+  });
+
+  const NEEDS: [PipelineType, string[]][] = [
+    [
+      'FULL',
+      [
+        'groupId',
+        'snapshotRepositoryId',
+        'snapshotRepositoryUrl',
+        'releaseRepositoryId',
+        'releaseRepositoryUrl',
+      ],
+    ],
+    [
+      'EXTENDED',
+      [
+        'groupId',
+        'snapshotRepositoryId',
+        'snapshotRepositoryUrl',
+        'releaseRepositoryId',
+        'releaseRepositoryUrl',
+      ],
+    ],
+    ['SECURITY', ['groupId', 'snapshotRepositoryId', 'snapshotRepositoryUrl']],
+    ['SAST', []],
+  ];
+  const missing = (form: ReturnType<typeof database>) =>
+    Object.entries(form.controls.database.controls)
+      .filter(([, control]) => control.hasError('rule'))
+      .map(([key]) => key);
+
+  it.each(NEEDS)(
+    'needs what a delivering %s pipeline uploads, without Library defaults: %j',
+    (type, keys) => {
+      const form = withDatabaseRules(database({ groupId: null }), null, [type]);
+
+      expect(missing(form)).toEqual(keys);
+    },
+  );
+
+  it('takes the repositories of the Library defaults and needs only the group ID then', () => {
+    const settings = globalSettings({ database: databaseDefaults() });
+    const form = withDatabaseRules(database({ groupId: null }), settings, ['FULL', 'SECURITY']);
+
+    expect(missing(form)).toEqual(['groupId']);
+    expect(form.controls.database.controls.groupId.errors).toEqual({
+      rule: 'Add the group ID of the package, or untick Deliver the package to Nexus: the Full pipeline delivers it',
+    });
+
+    form.controls.database.controls.nexusDelivery.setValue(false);
+    expect(form.valid).toBe(true);
+  });
+
+  it('names each repository the delivery needs and the Library defaults do not hold', () => {
+    const settings = globalSettings({
+      database: databaseDefaults({ releaseRepositoryUrl: null }),
+    });
+    const d = withDatabaseRules(database(), settings, ['FULL']).controls.database.controls;
+
+    expect(d.releaseRepositoryUrl.errors).toEqual({
+      rule: 'Add the release repository URL, set it in the Library defaults (SQL and PL/SQL), or untick Deliver the package to Nexus',
+    });
+    expect(d.releaseRepositoryId.valid).toBe(true);
+  });
+
+  it('deploys only to the databases the Library defaults allow', () => {
+    const url = (form: ReturnType<typeof database>) =>
+      form.controls.databaseTargets.controls.RD.controls.url;
+    const allowed = globalSettings({ database: databaseDefaults() });
+
+    expect(url(withDatabaseRules(database(), allowed, ['FULL'])).valid).toBe(true);
+    expect(url(withDatabaseRules(database(), globalSettings(), ['FULL'])).errors).toEqual({
+      rule: NO_ALLOWED_DATABASES,
+    });
+    const prod = url(withDatabaseRules(database(), allowed, ['SAST']));
+    prod.setValue('jdbc:oracle:thin:@//prod-db.bbh.com:1521/ORDERS');
+    expect(prod.errors).toEqual({ rule: NOT_ALLOWED_DATABASE });
+    expect(url(withDatabaseRules(database(), null, ['FULL'])).valid).toBe(true);
+  });
+
+  it('needs a test database of its own', () => {
+    const t = database().controls.databaseTargets.controls;
+
+    t.TEST.controls.url.setValue(` ${ORDERS_DB.replace('rd-db', 'RD-DB')} `);
+    expect(t.TEST.controls.url.errors).toEqual({ rule: OWN_TEST_DATABASE });
+
+    t.RD.controls.url.setValue('jdbc:oracle:thin:@//rd2-db.bbh.com:1521/ORDERS_RD');
+    expect(t.TEST.controls.url.valid).toBe(true);
+  });
+
+  it('keeps the test changesets out of QC, under QC Contexts or else under the service Contexts', () => {
+    const form = database();
+    const contexts = form.controls.database.controls.contexts;
+    const qc = form.controls.databaseTargets.controls.QC.controls.contexts;
+    expect(contexts.valid && qc.valid).toBe(true);
+
+    contexts.setValue('test, prod');
+    expect(contexts.errors).toEqual({ rule: QC_GETS_TESTS });
+
+    qc.setValue('!test');
+    expect(contexts.valid).toBe(true);
+
+    qc.setValue('test');
+    expect(qc.errors).toEqual({ rule: QC_GETS_TESTS });
+    expect(contexts.valid).toBe(true);
+  });
+
+  it('needs a folder for a changelog in the repository root', () => {
+    const form = database({ changelogFile: 'changelog.xml' });
+    const changelog = form.controls.database.controls.changelogFile;
+    expect(changelog.errors).toEqual({ rule: CHANGELOG_AT_ROOT });
+
+    form.controls.database.controls.searchPath.setValue('db');
+    expect(changelog.valid).toBe(true);
+
+    form.controls.database.controls.searchPath.setValue('.');
+    form.controls.build.controls.sourceDir.setValue('db');
+    expect(changelog.valid).toBe(true);
+  });
+
+  it('needs the test database for the utPLSQL tests and for the reset, and a credentials ID with each URL', () => {
+    const form = database({ utplsql: false });
+    const test = form.controls.databaseTargets.controls.TEST.controls;
+    test.url.setValue('');
+    test.credentialsId.setValue('');
+    expect(form.controls.databaseTargets.valid).toBe(true);
+
+    form.controls.database.controls.testReset.setValue(true);
+    expect(test.url.hasError('required')).toBe(true);
+
+    test.url.setValue('jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI');
+    expect(test.credentialsId.hasError('required')).toBe(true);
+
+    test.url.setValue('');
+    form.controls.database.controls.testReset.setValue(false);
+    test.credentialsId.setValue('orders-db-test');
+    expect(test.credentialsId.errors).toEqual({ rule: 'Is set without a JDBC URL' });
   });
 });

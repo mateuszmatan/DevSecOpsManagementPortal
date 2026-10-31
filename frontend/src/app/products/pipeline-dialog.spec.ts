@@ -72,6 +72,17 @@ describe('PipelineDialog', () => {
     expect(dialog()['types'].map((type) => type.value)).not.toContain('FULL');
   });
 
+  it('offers no Nexus IQ GoldenFix pipeline to a SQL and PL/SQL service, which has no open source dependencies', async () => {
+    await render({ service: servicePipelines({ buildTool: 'LIQUIBASE', pipelines: [] }) });
+
+    expect(dialog()['types'].map((type) => type.value)).toEqual([
+      'FULL',
+      'SECURITY',
+      'EXTENDED',
+      'SAST',
+    ]);
+  });
+
   it('keeps the type of a stored pipeline and shows only its own job field', async () => {
     const stored = pipeline({ type: 'SECURITY', extendedPipelineJob: 'CERT/gui-extended' });
     await render({ service: servicePipelines({ pipelines: [stored] }), pipeline: stored });

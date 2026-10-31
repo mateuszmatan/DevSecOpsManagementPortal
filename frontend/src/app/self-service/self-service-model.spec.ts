@@ -1,6 +1,7 @@
 import { Pipeline } from '../core/models';
 import { RETRY, UNREACHABLE } from '@common/core/errors';
 import {
+  databaseService,
   globalSettings,
   nodeBuild,
   pipeline,
@@ -55,7 +56,7 @@ function added(overrides: Partial<WizardService> = {}): WizardService {
 
 describe('self-service model', () => {
   it('asks only what the chosen pipeline needs', () => {
-    expect(preparation('SAST')).toHaveLength(2);
+    expect(preparation('SAST')).toHaveLength(3);
     expect(preparation('FULL')).toContain(
       'Whether each service runs on virtual machines or on OpenShift',
     );
@@ -631,6 +632,41 @@ describe('self-service model', () => {
       `Built with Gradle, runs on virtual machines, Nexus IQ application cert-gui, repository ${GUI_REPOSITORY}.`,
     );
     expect(serviceSummary('NEXUS_IQ', added())).toBe('Built with Gradle.');
+  });
+
+  it('asks for the changelog, the databases and the group ID of a SQL and PL/SQL service, except for Nexus IQ', () => {
+    const line =
+      'For a SQL and PL/SQL service: its changelog file, the JDBC URL of each database with the ID of its Jenkins credential, and the Maven group ID of its package; the DBA and the DevSecOps team provide them';
+
+    expect((['FULL', 'SECURITY', 'SAST'] as const).map((type) => preparation(type).at(-1))).toEqual(
+      [line, line, line],
+    );
+    expect(preparation('NEXUS_IQ')).not.toContain(line);
+  });
+
+  it('sums up a SQL and PL/SQL service without a build tool or where it runs', () => {
+    expect(serviceSummary('FULL', added({ tool: 'LIQUIBASE' }))).toBe(
+      'SQL and PL/SQL changes with Liquibase.',
+    );
+    expect(serviceSummary('SECURITY', fromService(databaseService()))).toBe(
+      'SQL and PL/SQL changes with Liquibase, repository https://bitbucket.bbh.com/projects/ORD/repos/orders.',
+    );
+  });
+
+  it('asks to move a new SQL and PL/SQL service before the Java service of its repository', () => {
+    const stored = [service()];
+    const database = added({ name: 'gui-db', tool: 'LIQUIBASE', repositoryUrl: GUI_REPOSITORY });
+    const order =
+      'It comes after gui of the same repository, but the services of one repository run in their order, so the database changes reach RD before the application that needs them. Ask the DevSecOps team to move it up in the admin editor.';
+
+    expect(
+      reviewEntries('FULL', [fromService(service()), database], stored, [], null, AGENTS, true)[1]
+        .text,
+    ).toContain(order);
+    expect(
+      reviewEntries('FULL', [database, fromService(service())], stored, [], null, AGENTS, true)[0]
+        .text,
+    ).not.toContain(order);
   });
 
   it('says what changes for a service of the portal', () => {

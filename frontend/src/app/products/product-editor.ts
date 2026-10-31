@@ -31,7 +31,7 @@ import {
 } from 'rxjs';
 import { PipelinesApi, ProductsApi, ServiceTemplateApi, SettingsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '@common/core/errors';
-import { Department, GlobalSettings, Product, ServiceTemplate } from '../core/models';
+import { Department, GlobalSettings, PipelineType, Product, ServiceTemplate } from '../core/models';
 import { ADMIN, ADMIN_PRODUCTS, adminProduct } from '../core/sections';
 import { Notifier } from '@common/core/notifier';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
@@ -65,7 +65,9 @@ import {
   patchProduct,
   prefillNewService,
   toProductRequest,
+  withDatabaseRules,
 } from './product-form-model';
+import { RUN_IN_ORDER, buildBefore } from './jenkinsfile';
 import {
   ConfigImport,
   ImportNotes,
@@ -286,21 +288,22 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
       )
       .subscribe({
         next: ({ product, pipelines, settings, template, departments }) => {
+          this.settings.set(settings);
           patchProduct(this.form, product);
-          const full = new Set(
-            pipelines
-              .filter((service) => service.pipelines.some(({ type }) => type === 'FULL'))
-              .map((service) => service.serviceId),
+          const types = new Map(
+            pipelines.map((service) => [
+              service.serviceId,
+              service.pipelines.map(({ type }) => type),
+            ]),
           );
-          this.form.controls.services.controls
-            .filter((service) => full.has(service.controls.id.value!))
-            .forEach((service) => this.withFullPipeline(service));
+          this.form.controls.services.controls.forEach((service) =>
+            this.withPipelines(service, types.get(service.controls.id.value!) ?? []),
+          );
           this.form.controls.services.controls
             .filter((service) => service.invalid)
             .forEach((service) => service.markAllAsTouched());
           this.form.markAsPristine();
           this.product.set(product);
-          this.settings.set(settings);
           this.template.set(template);
           this.departments.set(departments);
           this.pipelineCounts.set(
@@ -319,6 +322,17 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   protected pipelinesOf(service: ServiceForm): number {
     const id = service.controls.id.value;
     return id === null ? 0 : (this.pipelineCounts().get(id) ?? 0);
+  }
+
+  /** The note of a SQL and PL/SQL service that comes after the Gradle or Maven service of its repository. */
+  protected orderNote(index: number): string | null {
+    const services = this.services().map(({ controls }) => ({
+      name: controls.name.value.trim(),
+      tool: controls.build.controls.tool.value,
+      repositoryUrl: controls.scm.controls.repositoryUrl.value,
+    }));
+    const build = buildBefore(services, index);
+    return build && `Move this service up, before ${build}: ${RUN_IN_ORDER}.`;
   }
 
   protected showsErrors(service: ServiceForm): boolean {
@@ -351,7 +365,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     const source = this.form.controls.services.at(index);
     const copy = duplicateService(source, this.settings());
     this.followServiceName(copy, source.controls.name.value, false, false);
-    this.fill(this.withFullPipeline(copy), index + 1, source);
+    this.fill(this.withPipelines(copy), index + 1, source);
   }
 
   protected move(index: number, offset: -1 | 1): void {
@@ -484,7 +498,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     followToolDefaults(service, this.template(), this.destroyRef);
     const name = imported ? service.controls.name.value.trim() : '';
     this.followServiceName(service, name, imported, !imported);
-    return this.withFullPipeline(service);
+    return this.withPipelines(service);
   }
 
   /**
@@ -542,10 +556,16 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     this.add(service, index);
   }
 
-  private withFullPipeline(service: ServiceForm): ServiceForm {
-    service.controls.urbanCodeApplications.addValidators(dvApplication);
-    service.controls.urbanCodeApplications.updateValueAndValidity();
-    return service;
+  /** Adds the rules of the pipeline types of a service; saving gives a new service a Full pipeline. */
+  private withPipelines(
+    service: ServiceForm,
+    types: readonly PipelineType[] = ['FULL'],
+  ): ServiceForm {
+    if (types.includes('FULL')) {
+      service.controls.urbanCodeApplications.addValidators(dvApplication);
+      service.controls.urbanCodeApplications.updateValueAndValidity();
+    }
+    return withDatabaseRules(service, this.settings(), types);
   }
 
   private followNameWithCode(): void {

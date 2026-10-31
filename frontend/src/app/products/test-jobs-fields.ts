@@ -163,9 +163,13 @@ export class TestJobsFields {
           help: 'How often the stage asks a remote Jenkins for the result of a build, unless the job sets its own. Left empty: 15 seconds.',
         },
       ),
-      check(stage.required, 'Required', `${path}.required`, 0, {
-        help: 'A required stage without jobs turns orange. Clear it when these tests run elsewhere.',
-      }),
+      ...(this.form().controls.build.controls.tool.value === 'LIQUIBASE'
+        ? []
+        : [
+            check(stage.required, 'Required', `${path}.required`, 0, {
+              help: 'A required stage without jobs turns orange. Clear it when these tests run elsewhere.',
+            }),
+          ]),
     ];
   }
 

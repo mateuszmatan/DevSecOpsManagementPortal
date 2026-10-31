@@ -1,7 +1,7 @@
 import { FieldProblem, Department as PortalDepartment } from '@common/core/models';
 import { labelOf } from '@common/shared/formatting';
 
-export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER';
+export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER' | 'LIQUIBASE';
 export type DeployTarget = 'VM' | 'OPENSHIFT';
 export type PipelineType = 'FULL' | 'SECURITY' | 'EXTENDED' | 'SAST' | 'NEXUS_IQ';
 export type KeyStatus = 'ACTIVE' | 'REVOKED';
@@ -11,6 +11,7 @@ export type DoraLevel = 'ELITE' | 'HIGH' | 'MEDIUM' | 'LOW';
 export type TestStage = 'SMOKE' | 'REGRESSION' | 'PERFORMANCE';
 export type TestJobType = 'LOCAL' | 'REMOTE';
 export type Region = 'RD' | 'QC';
+export type DatabaseTarget = 'TEST' | 'RD' | 'QC';
 export type BitbucketAuthType = 'BASIC' | 'BEARER';
 export type BitbucketType = 'SERVER' | 'CLOUD';
 export const FLUTTER_PLATFORMS = [
@@ -26,6 +27,7 @@ export type FlutterPlatform = (typeof FLUTTER_PLATFORMS)[number];
 export type Scanner = 'SAST' | 'SCA' | 'NEXUS_IQ' | 'DAST';
 
 export const REGIONS: Region[] = ['RD', 'QC'];
+export const DATABASE_TARGETS: readonly DatabaseTarget[] = ['TEST', 'RD', 'QC'];
 export const TEST_STAGES: TestStage[] = ['SMOKE', 'REGRESSION', 'PERFORMANCE'];
 export type TestSuite = 'UNIT' | TestStage;
 export const SCANNERS: Scanner[] = ['SAST', 'SCA', 'NEXUS_IQ', 'DAST'];
@@ -318,6 +320,52 @@ export interface FlutterSettings {
   sonarScannerVersion: string | null;
 }
 
+export interface DatabaseSettings {
+  changelogFile: string | null;
+  searchPath: string | null;
+  oracleVersion: string | null;
+  defaultSchema: string | null;
+  liquibaseSchema: string | null;
+  contexts: string | null;
+  labels: string | null;
+  parameters: string[];
+  requireRollback: boolean | null;
+  tag: boolean | null;
+  lockWaitMinutes: number | null;
+  compileCheck: boolean | null;
+  recompile: boolean | null;
+  ignoreObjects: string[];
+  ignoreFiles: string[];
+  groupId: string | null;
+  artifactId: string | null;
+  nexusDelivery: boolean | null;
+  mvnPath: string | null;
+  snapshotRepositoryId: string | null;
+  snapshotRepositoryUrl: string | null;
+  releaseRepositoryId: string | null;
+  releaseRepositoryUrl: string | null;
+  testReset: boolean | null;
+  utplsql: boolean | null;
+  utplsqlPaths: string | null;
+  utplsqlOwner: string | null;
+  utplsqlSourcePath: string | null;
+  utplsqlTestPath: string | null;
+  utplsqlTimeoutMinutes: number | null;
+  sonarSources: string | null;
+  sonarScannerVersion: string | null;
+}
+
+export interface DatabaseTargetSettings {
+  url: string | null;
+  credentialsId: string | null;
+  contexts: string | null;
+  labels: string | null;
+  defaultSchema: string | null;
+  liquibaseSchema: string | null;
+  parameters: string[];
+  timeoutMinutes: number | null;
+}
+
 export interface ServiceSettings {
   build: BuildSettings;
   nodeBuild: NodeBuildSettings;
@@ -339,6 +387,8 @@ export interface ServiceSettings {
   versionCatalogs: string[];
   metrics: MetricsSettings;
   flutter: FlutterSettings | null;
+  database?: DatabaseSettings | null;
+  databaseTargets?: Partial<Record<DatabaseTarget, DatabaseTargetSettings>>;
 }
 
 export interface Service extends ServiceSettings {
@@ -546,6 +596,24 @@ export interface ServiceTemplateRequest extends ServiceTemplateValues {
   version: number | null;
 }
 
+export interface DatabaseDefaults {
+  liquibaseHome: string | null;
+  liquibaseUrl: string | null;
+  liquibaseSha256: string | null;
+  liquibaseJavaVersion: number | null;
+  oracleJdbcPath: string | null;
+  oracleJdbcUrl: string | null;
+  oracleJdbcSha256: string | null;
+  utplsqlHome: string | null;
+  utplsqlUrl: string | null;
+  utplsqlSha256: string | null;
+  allowedTargets: string[];
+  snapshotRepositoryId: string | null;
+  snapshotRepositoryUrl: string | null;
+  releaseRepositoryId: string | null;
+  releaseRepositoryUrl: string | null;
+}
+
 export interface GlobalSettingsValues {
   platform: PlatformSettings;
   deployment: DeploymentDefaults;
@@ -554,6 +622,7 @@ export interface GlobalSettingsValues {
   releaseGate: ReleaseGateSettings;
   serviceDefaults: ServiceDefaults;
   goldenFix: GlobalGoldenFixPolicy;
+  database?: DatabaseDefaults | null;
 }
 
 export interface GlobalSettings extends GlobalSettingsValues {

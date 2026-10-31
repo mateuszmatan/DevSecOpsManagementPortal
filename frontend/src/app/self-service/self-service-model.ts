@@ -26,7 +26,7 @@ import {
   nexusIqApplicationForm,
   toServiceRequest,
 } from '../products/product-form-model';
-import { byRepository, repositoryKey } from '../products/jenkinsfile';
+import { RUN_IN_ORDER, buildBefore, byRepository, repositoryKey } from '../products/jenkinsfile';
 import { bitbucketRepositoryUrl } from '../shared/bitbucket';
 import { TOOL_LABELS } from '../shared/build-options';
 import { Choice } from '../shared/choice-tiles';
@@ -145,9 +145,11 @@ export function preparation(pipeline: WizardPipeline): string[] {
   if (pipeline === 'NEXUS_IQ') {
     return [...needs, 'The Nexus IQ application and the Bitbucket repository of each service'];
   }
+  const database =
+    'For a SQL and PL/SQL service: its changelog file, the JDBC URL of each database with the ID of its Jenkins credential, and the Maven group ID of its package; the DBA and the DevSecOps team provide them';
   return deploys(pipeline)
-    ? [...needs, 'Whether each service runs on virtual machines or on OpenShift']
-    : needs;
+    ? [...needs, 'Whether each service runs on virtual machines or on OpenShift', database]
+    : [...needs, database];
 }
 
 export interface WizardService {
@@ -218,10 +220,13 @@ function sentence(text: string): string {
 export function serviceSummary(pipeline: WizardPipeline, service: WizardService): string {
   const target = deploysWith(pipeline, service);
   const node = service.nodeDirectory ?? null;
+  const database = service.tool === 'LIQUIBASE';
   const parts = [
-    `built with ${toolName(service.tool)}${node === null ? '' : ` after ${nodeBuildIn(node)}`}`,
+    database
+      ? 'SQL and PL/SQL changes with Liquibase'
+      : `built with ${toolName(service.tool)}${node === null ? '' : ` after ${nodeBuildIn(node)}`}`,
   ];
-  if (target && (deploys(pipeline) || service.id !== null)) {
+  if (target && !database && (deploys(pipeline) || service.id !== null)) {
     parts.push(runsOn(target, target === 'OPENSHIFT' ? service.openShiftProject : ''));
   }
   if (pipeline === 'NEXUS_IQ' && service.nexusIqApplication) {
@@ -410,9 +415,15 @@ export function reviewEntries(
       ? `Shares its repository with ${names(together)}, so they get one Jenkinsfile and one Jenkins job.`
       : '';
   };
+  const order = (service: WizardService) => {
+    const build = service.id === null ? buildBefore(kept, kept.indexOf(service)) : null;
+    return build
+      ? `It comes after ${build} of the same repository, but ${RUN_IN_ORDER}. Ask the DevSecOps team to move it up in the admin editor.`
+      : '';
+  };
   return services.map((service) => {
     const entry = reviewEntry(pipeline, service, stored, removed, current);
-    const text = note(service);
+    const text = [note(service), order(service)].filter(Boolean).join(' ');
     return text ? { ...entry, text: `${entry.text} ${text}` } : entry;
   });
 }

@@ -1,4 +1,7 @@
 import {
+  DatabaseDefaults,
+  DatabaseSettings,
+  DatabaseTargetSettings,
   Department,
   DoraSummary,
   GlobalSettings,
@@ -280,6 +283,111 @@ export function anotherService(overrides: Partial<Service> = {}): Service {
   });
 }
 
+export function databaseSettings(overrides: Partial<DatabaseSettings> = {}): DatabaseSettings {
+  return {
+    changelogFile: 'db/changelog-master.xml',
+    searchPath: null,
+    oracleVersion: null,
+    defaultSchema: null,
+    liquibaseSchema: null,
+    contexts: null,
+    labels: null,
+    parameters: [],
+    requireRollback: null,
+    tag: null,
+    lockWaitMinutes: null,
+    compileCheck: null,
+    recompile: null,
+    ignoreObjects: [],
+    ignoreFiles: [],
+    groupId: null,
+    artifactId: null,
+    nexusDelivery: null,
+    mvnPath: null,
+    snapshotRepositoryId: null,
+    snapshotRepositoryUrl: null,
+    releaseRepositoryId: null,
+    releaseRepositoryUrl: null,
+    testReset: null,
+    utplsql: null,
+    utplsqlPaths: null,
+    utplsqlOwner: null,
+    utplsqlSourcePath: null,
+    utplsqlTestPath: null,
+    utplsqlTimeoutMinutes: null,
+    sonarSources: null,
+    sonarScannerVersion: null,
+    ...overrides,
+  };
+}
+
+export function databaseTarget(
+  overrides: Partial<DatabaseTargetSettings> = {},
+): DatabaseTargetSettings {
+  return {
+    url: null,
+    credentialsId: null,
+    contexts: null,
+    labels: null,
+    defaultSchema: null,
+    liquibaseSchema: null,
+    parameters: [],
+    timeoutMinutes: null,
+    ...overrides,
+  };
+}
+
+/** The orders-db service of layout (a): SQL and PL/SQL changes deployed with Liquibase. */
+export function databaseService(overrides: Partial<Service> = {}): Service {
+  const stored = service();
+  const appId = '6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10';
+  return service({
+    id: 12,
+    name: 'orders-db',
+    description: null,
+    build: { ...stored.build, tool: 'LIQUIBASE', buildPath: null, command: command() },
+    unitTests: { ...stored.unitTests, command: command(), resultPattern: null },
+    testJobs: [],
+    urbanCodeApplications: [],
+    sshTargets: {},
+    appScan: {
+      ...stored.appScan,
+      applicationId: appId,
+      keyId: `bbh_${appId}`,
+      compile: false,
+      secretCredentialsId: 'appscan-orders-key-secret',
+    },
+    sonar: { ...stored.sonar, projectName: null, projectKey: 'bbh-orders-db', command: command() },
+    nexusIqApplications: [],
+    scm: { ...stored.scm, repositoryUrl: 'https://bitbucket.bbh.com/projects/ORD/repos/orders' },
+    metrics: { ...stored.metrics, influxProject: null },
+    flutter: null,
+    database: databaseSettings({
+      parameters: ['app_role=orders_app_role'],
+      groupId: 'com.bbh.orders',
+      utplsql: true,
+      utplsqlSourcePath: 'db/code',
+      utplsqlTestPath: 'db/test',
+    }),
+    databaseTargets: {
+      TEST: databaseTarget({
+        url: 'jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI',
+        credentialsId: 'orders-db-test',
+      }),
+      RD: databaseTarget({
+        url: 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD',
+        credentialsId: 'orders-db-rd',
+      }),
+      QC: databaseTarget({
+        url: 'jdbc:oracle:thin:@tcps://qc-db.bbh.com:2484/ORDERS_QC?ssl_server_dn_match=true',
+        credentialsId: 'orders-db-qc',
+        parameters: ['app_role=orders_qc_role'],
+      }),
+    },
+    ...overrides,
+  });
+}
+
 export function product(overrides: Partial<Product> = {}): Product {
   return {
     id: 1,
@@ -511,6 +619,29 @@ export function globalSettings(overrides: Partial<GlobalSettings> = {}): GlobalS
       commitAuthorEmail: 'devsecops-goldenfix@noreply.local',
       timeZone: null,
     },
+    ...overrides,
+  };
+}
+
+/** The Library defaults of SQL and PL/SQL services, as the regression Global Settings hold them. */
+export function databaseDefaults(overrides: Partial<DatabaseDefaults> = {}): DatabaseDefaults {
+  return {
+    liquibaseHome: '/opt/liquibase/4.33.0',
+    liquibaseUrl: null,
+    liquibaseSha256: null,
+    liquibaseJavaVersion: null,
+    oracleJdbcPath: '/opt/oracle/ojdbc11.jar',
+    oracleJdbcUrl: null,
+    oracleJdbcSha256: null,
+    utplsqlHome: null,
+    utplsqlUrl:
+      'https://tools.bbh.com/nexus/repository/raw-tools/utplsql/utPLSQL-cli/3.2.2/utPLSQL-cli.zip',
+    utplsqlSha256: '15a3addd921b7f2e415537b47c18a4a9d3e0b70ff0e403943fd4c03b0ba02006',
+    allowedTargets: ['dev-db.bbh.com', 'rd-db.bbh.com', 'qc-db.bbh.com'],
+    snapshotRepositoryId: 'bbh-db-snapshots',
+    snapshotRepositoryUrl: 'https://tools.bbh.com/nexus/repository/db-snapshots',
+    releaseRepositoryId: 'bbh-db-releases',
+    releaseRepositoryUrl: 'https://tools.bbh.com/nexus/repository/db-releases',
     ...overrides,
   };
 }

@@ -10,6 +10,7 @@ import { CodeDialog } from '../shared/code-dialog';
 import { ConfirmDialog } from '@common/shared/confirm-dialog';
 import {
   anotherService,
+  databaseService,
   department,
   globalSettings,
   pipeline,
@@ -93,6 +94,29 @@ describe('ProductDetail', () => {
     expect(page().querySelector('.stats')).toBeNull();
     expect(page().querySelector('.pipeline-title strong')?.textContent).toBe('Full pipeline');
     expect(page().querySelector('svg-icon')).toBeNull();
+  });
+
+  it('says where each service is deployed, except a SQL and PL/SQL service, which only changes its databases', async () => {
+    await load(product({ services: [service(), databaseService({ id: 11 })] }), [
+      servicePipelines(),
+      servicePipelines({
+        serviceId: 11,
+        serviceName: 'orders-db',
+        buildTool: 'LIQUIBASE',
+        pipelines: [],
+      }),
+    ]);
+    const facts = [...page().querySelectorAll('.service-facts')].map((facts) =>
+      [...facts.querySelectorAll('dt')].map(text),
+    );
+
+    expect(facts).toEqual([
+      ['Build tool', 'Deployed to', 'Bitbucket repository'],
+      ['Build tool', 'Bitbucket repository'],
+    ]);
+    expect(text(page().querySelectorAll('.service-facts dd')[3])).toBe(
+      'SQL and PL/SQL (Liquibase)',
+    );
   });
 
   it('leaves the department out of a product that is not in one', async () => {
