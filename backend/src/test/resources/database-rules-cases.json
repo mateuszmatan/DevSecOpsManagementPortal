@@ -1,0 +1,34 @@
+{
+  "selectsTest": [
+    {"filter": "", "selects": true}, {"filter": "test", "selects": true}, {"filter": "TEST", "selects": true},
+    {"filter": "test, rd", "selects": true}, {"filter": "rd or test", "selects": true}, {"filter": "!rd", "selects": true},
+    {"filter": "!dev and !rd", "selects": true}, {"filter": "(test)", "selects": true}, {"filter": "!nocontexts", "selects": true},
+    {"filter": "@test", "selects": true},
+    {"filter": "!test", "selects": false}, {"filter": "! test", "selects": false}, {"filter": "not test", "selects": false},
+    {"filter": "!test and !rd", "selects": false}, {"filter": "(rd and !test)", "selects": false}, {"filter": "rd", "selects": false},
+    {"filter": "test-heavy", "selects": false}, {"filter": "rd and test", "selects": false}
+  ],
+  "urls": [
+    {"url": "jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD", "hosts": ["rd-db.bbh.com"], "service": "orders_rd"},
+    {"url": "jdbc:oracle:thin:@rd-db.bbh.com:1521/ORDERS_RD", "hosts": ["rd-db.bbh.com"], "service": "orders_rd"},
+    {"url": "jdbc:oracle:thin:@tcps://qc-db.bbh.com:2484/ORDERS_QC?ssl_server_dn_match=true", "hosts": ["qc-db.bbh.com"], "service": "orders_qc"},
+    {"url": "jdbc:oracle:thin:@rd-db1.bbh.com:1521,rd-db2.bbh.com:1521/ORDERS", "hosts": ["rd-db1.bbh.com", "rd-db2.bbh.com"], "service": "orders"},
+    {"url": "jdbc:oracle:thin:@rd-db.bbh.com:1521:ORCL", "hosts": ["rd-db.bbh.com"], "service": "orcl"},
+    {"url": "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)(HOST=a.rd.bbh.com)(PORT=2484))(CONNECT_DATA=(SERVICE_NAME=ORDERS)))", "hosts": ["a.rd.bbh.com"], "service": "orders"},
+    {"url": "jdbc:oracle:thin:scott/tiger@//rd-db.bbh.com:1521/ORDERS_RD", "problem": "SECRET"},
+    {"url": "jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD?user=scott", "problem": "SECRET"},
+    {"url": "jdbc:oracle:thin:@//scott@rd-db.bbh.com:1521/ORDERS_RD", "problem": "SECRET"},
+    {"url": "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(HOST=a.bbh.com)(PORT=1521))(PASSWORD=x))", "problem": "SECRET"},
+    {"url": "jdbc:oracle:thin:@ORDERS", "problem": "FORM"},
+    {"url": "jdbc:oracle:oci:@//rd-db.bbh.com:1521/ORDERS_RD", "problem": "FORM"},
+    {"url": "jdbc:oracle:thin:@//[::1]:1521/ORDERS", "problem": "FORM"},
+    {"url": "jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD?wallet_location=/x", "problem": "FORM"}
+  ],
+  "allowed": [
+    {"entries": ["rd-db*.bbh.com"], "url": "jdbc:oracle:thin:@//RD-DB1.bbh.com:1521/ORDERS_RD", "allowed": true},
+    {"entries": ["qc-db.bbh.com/ORDERS_QC"], "url": "jdbc:oracle:thin:@//qc-db.bbh.com:1521/ORDERS_RD", "allowed": false},
+    {"entries": ["rd-db1.bbh.com"], "url": "jdbc:oracle:thin:@rd-db1.bbh.com:1521,rd-db2.bbh.com:1521/ORDERS", "allowed": false},
+    {"entries": ["*.rd.bbh.com"], "url": "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)(HOST=a.rd.bbh.com)(PORT=2484))(CONNECT_DATA=(SERVICE_NAME=ORDERS)))", "allowed": true},
+    {"entries": [], "url": "jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD", "allowed": false}
+  ]
+}
