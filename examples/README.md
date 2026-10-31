@@ -16,9 +16,13 @@ product page, or from `api/pipeline-key.sh`.
 | [jenkins/multi-service/gateway.Jenkinsfile](jenkins/multi-service/gateway.Jenkinsfile) | the full pipeline of Payments Hub `gateway` |
 | [jenkins/multi-service/ledger.Jenkinsfile](jenkins/multi-service/ledger.Jenkinsfile) | the full pipeline of Payments Hub `ledger` |
 | [jenkins/multi-service/payhub-full.Jenkinsfile](jenkins/multi-service/payhub-full.Jenkinsfile) | one full run that builds every Payments Hub service, `gateway` first |
+| [jenkins/multi-service/orders-full.Jenkinsfile](jenkins/multi-service/orders-full.Jenkinsfile) | one full run of the product `ORDERSGRADLE`: the SQL and PL/SQL service `orders-db` first, so its changes reach RD before `orders-app` |
 | [api/list-departments.sh](api/list-departments.sh) | the departments (Business Services in the GUI) with their product, service and pipeline counts |
 | [api/list-products.sh](api/list-products.sh) | the products, optionally filtered by a search text |
 | [api/create-product.sh](api/create-product.sh) with [api/new-product.json](api/new-product.json) | a new product with two services, as the Self-service wizard creates it, one of them with a Node.js frontend build |
+| [api/create-database-product.sh](api/create-database-product.sh) | the two products below, created with a Full pipeline for each service; the Library defaults must first allow their databases and name the Nexus repositories of the database packages |
+| [api/new-database-product.json](api/new-database-product.json) | the product `ORDERSDB` with one SQL and PL/SQL service, `orders-db`: a Liquibase changelog, a test database with utPLSQL tests, RD and QC |
+| [api/new-mixed-product.json](api/new-mixed-product.json) | the product `ORDERSGRADLE`, one repository with a Gradle build and its Liquibase module: `orders-db` first, then the Gradle service `orders-app` with its Node.js frontend, which leaves `orders-db` out of its AppScan scope |
 | [api/product-pipelines.sh](api/product-pipelines.sh) | the services of a product with their pipelines and active keys |
 | [api/pipeline-key.sh](api/pipeline-key.sh) | the active key of one pipeline, found by product code, service and type |
 | [api/rotate-key.sh](api/rotate-key.sh) | a new key for a pipeline |
@@ -27,6 +31,7 @@ product page, or from `api/pipeline-key.sh`.
 | [api/import-config.sh](api/import-config.sh) | a `devsecops_config.yaml`, a `config.yaml` or a rendered configuration read back into new service forms |
 | [api/monitoring.sh](api/monitoring.sh) | the monitoring status, every product, all pipelines together, one product and one pipeline |
 | [config/payhub-gateway-full.json](config/payhub-gateway-full.json), [.yaml](config/payhub-gateway-full.yaml) | the configuration of the full pipeline of the sample product Payments Hub, service `gateway` |
+| [config/orders-db-full.json](config/orders-db-full.json), [.yaml](config/orders-db-full.yaml) | the configuration of the full pipeline of the SQL and PL/SQL service `orders-db` of `ORDERSDB` |
 
 ## Jenkinsfiles
 
@@ -139,6 +144,18 @@ BOM `bom/pom.xml` in `goldenFix.versionCatalogs`. Its build is delivered to Nexu
 `platform.jenkinsUrl` is the Jenkins URL of the library defaults. Run `api/dso-config.sh` to see the configuration
 of the portal you run. The [user and administrator guide](../docs/documentation.md#17-field-reference-from-the-portal-to-devsecops_configyaml)
 lists every key with the field that sets it.
+
+`config/orders-db-full.json` and `config/orders-db-full.yaml` are the configuration of the full pipeline of the SQL and
+PL/SQL service `orders-db` of `new-database-product.json`, with Library defaults that allow its databases and name the
+Nexus repositories of the database packages. `defaults.tools.liquibase`, `defaults.tools.oracleJdbc`,
+`defaults.tools.utplsql` and `defaults.database` hold those Library defaults; they are rendered only while they are set.
+The project has `buildTool: liquibase` and a `database` block after its build settings: the changelog, a changelog
+parameter, the group ID of the package, and the three databases `test`, `rd` and `qc`, each with its JDBC URL and the
+ID of the Jenkins credential of its database user. The test database runs the utPLSQL tests, and QC sets its own value
+of the parameter. The project has no `deploy`, `delivery`, `goldenFix` or `tools.nexusIq`: the pipelines deploy the
+database changes themselves, and a SQL and PL/SQL service has no open source dependencies for Nexus IQ. It holds no
+user and no password. [Chapter 7 of the guide](../docs/documentation.md#7-sql-and-plsql-changes-with-liquibase)
+describes SQL and PL/SQL services.
 
 ## Screenshots
 

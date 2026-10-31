@@ -1,0 +1,78 @@
+{
+  "code": "ORDERSGRADLE",
+  "name": "Orders",
+  "description": "Order capture for custody clients, with its database",
+  "ownerTeam": "Order Management",
+  "contactEmail": "orders-team@bbh.com",
+  "departmentId": 3,
+  "agentLabels": ["linux-agent"],
+  "version": null,
+  "services": [
+    {
+      "id": null,
+      "name": "orders-db",
+      "description": "SQL and PL/SQL of the orders schema, the Liquibase module of the Gradle build",
+      "build": { "tool": "LIQUIBASE", "sourceDir": "orders-db", "autoSetup": true },
+      "deployment": { "target": "VM" },
+      "appScan": {
+        "applicationId": "6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10",
+        "keyId": "bbh_6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10",
+        "secretCredentialsId": "appscan-orders-key-secret"
+      },
+      "sonar": { "projectKey": "bbh-orders-db" },
+      "scm": {
+        "repositoryUrl": "https://bitbucket.bbh.com/projects/ORD/repos/orders",
+        "credentialsId": "bitbucket-http-credentials"
+      },
+      "metrics": { "enabled": true, "influxEnv": "test" },
+      "database": {
+        "changelogFile": "db/changelog/db.changelog-master.xml",
+        "searchPath": "src/main/resources",
+        "groupId": "com.bbh.orders",
+        "utplsql": true,
+        "utplsqlSourcePath": "db/changelog/code",
+        "utplsqlTestPath": "db/changelog/test"
+      },
+      "databaseTargets": {
+        "TEST": { "url": "jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI", "credentialsId": "orders-db-test" },
+        "RD": { "url": "jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD", "credentialsId": "orders-db-rd" },
+        "QC": { "url": "jdbc:oracle:thin:@//qc-db.bbh.com:1521/ORDERS_QC", "credentialsId": "orders-db-qc" }
+      }
+    },
+    {
+      "id": null,
+      "name": "orders-app",
+      "description": "Order capture application with its Angular frontend",
+      "build": {
+        "tool": "GRADLE",
+        "sourceDir": ".",
+        "javaPath": "/usr/lib/jvm/java-17-openjdk",
+        "command": { "tasks": ["clean", "build"] }
+      },
+      "nodeBuild": { "enabled": true, "directory": "frontend" },
+      "deployment": { "target": "VM" },
+      "urbanCodeApplications": [
+        {
+          "applicationName": "ORDERS",
+          "components": [
+            { "componentName": "orders-app", "baseDir": "app/build/libs", "fileIncludePatterns": "*.jar" }
+          ]
+        }
+      ],
+      "appScan": {
+        "applicationId": "6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10",
+        "keyId": "bbh_6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10",
+        "secretCredentialsId": "appscan-orders-key-secret",
+        "excludedDirs": ["orders-db"]
+      },
+      "nexusIqApplications": [
+        { "application": "orders-app", "scanPatterns": ["**/app/build/libs/*.jar"] }
+      ],
+      "scm": {
+        "repositoryUrl": "https://bitbucket.bbh.com/projects/ORD/repos/orders",
+        "credentialsId": "bitbucket-http-credentials"
+      },
+      "metrics": { "enabled": true, "influxEnv": "test" }
+    }
+  ]
+}

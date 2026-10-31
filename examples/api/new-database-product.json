@@ -1,0 +1,52 @@
+{
+  "code": "ORDERSDB",
+  "name": "Orders Database",
+  "description": "The order book of the custody clients",
+  "ownerTeam": "Order Management",
+  "contactEmail": "orders-team@bbh.com",
+  "departmentId": 3,
+  "agentLabels": ["linux-agent"],
+  "version": null,
+  "services": [
+    {
+      "id": null,
+      "name": "orders-db",
+      "description": "SQL and PL/SQL of the orders schema",
+      "build": {
+        "tool": "LIQUIBASE",
+        "sourceDir": ".",
+        "javaPath": "/usr/lib/jvm/java-17-openjdk",
+        "autoSetup": false
+      },
+      "deployment": { "target": "VM" },
+      "appScan": {
+        "applicationId": "6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10",
+        "keyId": "bbh_6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10",
+        "secretCredentialsId": "appscan-orders-key-secret"
+      },
+      "sonar": { "projectKey": "bbh-orders-db" },
+      "scm": {
+        "repositoryUrl": "https://bitbucket.bbh.com/projects/ORD/repos/orders",
+        "credentialsId": "bitbucket-http-credentials"
+      },
+      "metrics": { "enabled": true, "influxEnv": "test" },
+      "database": {
+        "changelogFile": "db/changelog-master.xml",
+        "parameters": ["app_role=orders_app_role"],
+        "groupId": "com.bbh.orders",
+        "utplsql": true,
+        "utplsqlSourcePath": "db/code",
+        "utplsqlTestPath": "db/test"
+      },
+      "databaseTargets": {
+        "TEST": { "url": "jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI", "credentialsId": "orders-db-test" },
+        "RD": { "url": "jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD", "credentialsId": "orders-db-rd" },
+        "QC": {
+          "url": "jdbc:oracle:thin:@tcps://qc-db.bbh.com:2484/ORDERS_QC?ssl_server_dn_match=true",
+          "credentialsId": "orders-db-qc",
+          "parameters": ["app_role=orders_qc_role"]
+        }
+      }
+    }
+  ]
+}
