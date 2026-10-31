@@ -36,6 +36,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
 import static com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings.ONE_APPLICATION;
@@ -134,7 +135,8 @@ final class ServiceConfigReader {
             rule("env", "environment", ENV), rule("label", "label", TEXT), rule("returnStdout", "returnStdout", FLAG));
     private static final Map<BuildTool, List<Rule>> COMMANDS = Map.of(
             GRADLE, concat(List.of(rule("tasks", "tasks", WORDS)), COMMAND),
-            MAVEN, concat(List.of(rule("goals", "tasks", WORDS), rule("mvnPath", "mavenHome", TEXT)), COMMAND));
+            MAVEN, concat(List.of(rule("goals", "tasks", WORDS), rule("mvnPath", "mavenHome", TEXT)), COMMAND),
+            LIQUIBASE, concat(List.of(rule("commands", "tasks", WORDS)), COMMAND));
     private static final List<Rule> TEST_JOB = concat(
             same(TEXT, "name", "remoteJenkins", "remoteJenkinsUrl", "credentialsId", "tokenCredentialsId"),
             same(FLAG, "abortTriggeredJob", "overrideTrustAllCertificates", "preventRemoteBuildQueue",
@@ -266,7 +268,7 @@ final class ServiceConfigReader {
     /** Reads the command block of the service's build tool; a block of another tool is left out with a note. */
     private static void readCommands(ConfigInput project, BuildTool tool, ConfigTree request) {
         for (Block block : COMMAND_BLOCKS) {
-            for (BuildTool blockTool : List.of(GRADLE, MAVEN)) {
+            for (BuildTool blockTool : List.of(GRADLE, MAVEN, LIQUIBASE)) {
                 String key = block.key() + "." + blockTool.name().toLowerCase(ROOT);
                 if (blockTool == tool) {
                     read(project, prefixed(key + ".", block.field() + ".", COMMANDS.get(tool)), request);

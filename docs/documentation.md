@@ -675,7 +675,7 @@ This chapter lists every field that writes to `devsecops_config.yaml`. The colum
 
 | Field | Key | Notes |
 |-------|-----|-------|
-| Build tool | `buildTool` | `gradle`, `maven` or `flutter` |
+| Build tool | `buildTool` | `gradle`, `maven`, `flutter` or `liquibase` |
 | Artifact path | `build.buildPath` | |
 | Set up the build tool automatically | `buildToolAutoSetup` | |
 | JDK path | `javaPath` | |
@@ -691,7 +691,7 @@ This chapter lists every field that writes to `devsecops_config.yaml`. The colum
 | .npmrc credentials ID (Advanced) | `build.node.npmrcCredentialsId` | |
 | Node.js environment variables (Advanced) | `build.node.env` | a map of `NAME: value` |
 
-The Gradle or Maven command of the build has the command fields of the next table.
+The Gradle, Maven, or Liquibase command of the build has the command fields of the next table.
 
 ### Command fields
 
@@ -701,17 +701,23 @@ Five steps share the same command fields: the build, the unit tests, the SonarQu
 |-------|-------|------------|-----------|-----------------|----------------|
 | Gradle tasks | `build.gradle.tasks` | `tests.unitTests.gradle.tasks` | `tools.sonar.gradle.tasks` | `asoc.gradle.tasks` | |
 | Maven goals | `build.maven.goals` | `tests.unitTests.maven.goals` | `tools.sonar.maven.goals` | `asoc.maven.goals` | `delivery.maven.goals` |
+| Liquibase commands | `build.liquibase.commands` | `tests.unitTests.liquibase.commands` | `tools.sonar.liquibase.commands` | `asoc.liquibase.commands` | |
 | Directory (Gradle) | `build.gradle.dir` | `tests.unitTests.gradle.dir` | `tools.sonar.gradle.dir` | `asoc.gradle.dir` | |
 | Directory (Maven) | `build.maven.dir` | `tests.unitTests.maven.dir` | `tools.sonar.maven.dir` | `asoc.maven.dir` | `delivery.maven.dir` |
+| Directory (Liquibase) | `build.liquibase.dir` | `tests.unitTests.liquibase.dir` | `tools.sonar.liquibase.dir` | `asoc.liquibase.dir` | |
 | Maven home | `build.maven.mvnPath` | `tests.unitTests.maven.mvnPath` | `tools.sonar.maven.mvnPath` | `asoc.maven.mvnPath` | `delivery.maven.mvnPath` |
 | Flags (Gradle) | `build.gradle.flags` | `tests.unitTests.gradle.flags` | `tools.sonar.gradle.flags` | `asoc.gradle.flags` | |
 | Flags (Maven) | `build.maven.flags` | `tests.unitTests.maven.flags` | `tools.sonar.maven.flags` | `asoc.maven.flags` | `delivery.maven.flags` |
+| Flags (Liquibase) | `build.liquibase.flags` | `tests.unitTests.liquibase.flags` | `tools.sonar.liquibase.flags` | `asoc.liquibase.flags` | |
 | Environment variables (Gradle) | `build.gradle.env` | `tests.unitTests.gradle.env` | `tools.sonar.gradle.env` | `asoc.gradle.env` | |
 | Environment variables (Maven) | `build.maven.env` | `tests.unitTests.maven.env` | `tools.sonar.maven.env` | `asoc.maven.env` | `delivery.maven.env` |
+| Environment variables (Liquibase) | `build.liquibase.env` | `tests.unitTests.liquibase.env` | `tools.sonar.liquibase.env` | `asoc.liquibase.env` | |
 | Step label (Gradle) | `build.gradle.label` | `tests.unitTests.gradle.label` | `tools.sonar.gradle.label` | `asoc.gradle.label` | |
 | Step label (Maven) | `build.maven.label` | `tests.unitTests.maven.label` | `tools.sonar.maven.label` | `asoc.maven.label` | `delivery.maven.label` |
+| Step label (Liquibase) | `build.liquibase.label` | `tests.unitTests.liquibase.label` | `tools.sonar.liquibase.label` | `asoc.liquibase.label` | |
 | Return the output to the pipeline (Gradle) | `build.gradle.returnStdout` | `tests.unitTests.gradle.returnStdout` | `tools.sonar.gradle.returnStdout` | `asoc.gradle.returnStdout` | |
 | Return the output to the pipeline (Maven) | `build.maven.returnStdout` | `tests.unitTests.maven.returnStdout` | `tools.sonar.maven.returnStdout` | `asoc.maven.returnStdout` | `delivery.maven.returnStdout` |
+| Return the output to the pipeline (Liquibase) | `build.liquibase.returnStdout` | `tests.unitTests.liquibase.returnStdout` | `tools.sonar.liquibase.returnStdout` | `asoc.liquibase.returnStdout` | |
 
 ### Unit tests and coverage
 

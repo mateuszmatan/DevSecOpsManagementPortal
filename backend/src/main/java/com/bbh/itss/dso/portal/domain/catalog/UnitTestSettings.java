@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import lombok.Builder;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.ObjectUtils.anyNotNull;
@@ -37,7 +38,7 @@ public record UnitTestSettings(ToolCommand command, String resultPattern, String
 
     public void validate(ValidationProblems problems, BuildTool tool) {
         boolean configured = !command.isEmpty() || anyNotNull(resultPattern, rootDir, reportOutDir) || allowEmptyResults;
-        if (tool != FLUTTER && configured && command.tasks().isEmpty()) {
+        if (tool != FLUTTER && tool != LIQUIBASE && configured && command.tasks().isEmpty()) {
             problems.add("command.tasks", tool == MAVEN
                     ? "add the Maven goals of the unit tests, for example test jacoco:report"
                     : "add the Gradle tasks of the unit tests, for example test jacocoTestReport");

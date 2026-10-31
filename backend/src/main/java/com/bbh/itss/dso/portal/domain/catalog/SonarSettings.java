@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import lombok.Builder;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
@@ -50,7 +51,7 @@ public record SonarSettings(String projectName, String projectKey, String instal
     }
 
     public void validate(ValidationProblems problems, BuildTool tool) {
-        if (tool != FLUTTER && (projectKey != null || !command.isEmpty()) && command.tasks().isEmpty()) {
+        if (tool != FLUTTER && tool != LIQUIBASE && (projectKey != null || !command.isEmpty()) && command.tasks().isEmpty()) {
             problems.add("command.tasks", tool == MAVEN
                     ? "add the Maven goals of the analysis, for example sonar:sonar"
                     : "add the Gradle tasks of the analysis, for example sonarqube");

@@ -10,21 +10,30 @@ export function commandFields(
   path: string,
   gradleExample = '',
   mavenExample = '',
+  liquibaseExample = 'updateSQL',
 ): Field[] {
   const maven = tool === 'MAVEN';
-  const key = `${path}.${maven ? 'maven' : 'gradle'}`;
+  const liquibase = tool === 'LIQUIBASE';
+  const toolName = liquibase ? 'liquibase' : maven ? 'maven' : 'gradle';
+  const key = `${path}.${toolName}`;
+  const taskKey = liquibase ? 'commands' : maven ? 'goals' : 'tasks';
+  const taskLabel = liquibase ? 'Liquibase commands' : maven ? 'Maven goals' : 'Gradle tasks';
+  const taskPlaceholder = liquibase ? liquibaseExample : maven ? mavenExample : gradleExample;
+  const taskHelp = liquibase
+    ? 'The commands passed to liquibase, for example updateSQL, validate, or status.'
+    : maven
+      ? 'The goals the step passes to Maven: the mvn of the Maven home, otherwise ./mvnw when the repository has it, otherwise the mvn of the agent.'
+      : 'The tasks the step passes to the Gradle wrapper (./gradlew) of the repository.';
   return [
     mono(
       'tasks',
-      maven ? 'Maven goals' : 'Gradle tasks',
-      `${key}.${maven ? 'goals' : 'tasks'}`,
+      taskLabel,
+      `${key}.${taskKey}`,
       6,
       {
-        placeholder: maven ? mavenExample : gradleExample,
+        placeholder: taskPlaceholder,
         hint: 'separated by spaces',
-        help: maven
-          ? 'The goals the step passes to Maven: the mvn of the Maven home, otherwise ./mvnw when the repository has it, otherwise the mvn of the agent.'
-          : 'The tasks the step passes to the Gradle wrapper (./gradlew) of the repository.',
+        help: taskHelp,
       },
     ),
     mono('directory', 'Directory', `${key}.dir`, maven ? 3 : 6, {
@@ -43,7 +52,11 @@ export function commandFields(
       : []),
     area('flags', 'Flags', `${key}.flags`, 6, {
       mono: true,
-      placeholder: maven ? '-B' : '--refresh-dependencies',
+      placeholder: liquibase
+        ? '--changelog-file=src/main/resources/changelog.xml'
+        : maven
+          ? '-B'
+          : '--refresh-dependencies',
       hint: 'one per line',
       help: 'Command line options added after the goals or tasks, such as system properties or profiles.',
     }),

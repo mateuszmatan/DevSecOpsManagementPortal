@@ -805,7 +805,11 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   const deliveryDisabled = deployment.controls.nexusDeliveryDisabled;
   const openShift = () => target.value === 'OPENSHIFT';
   const vm = () => target.value === 'VM';
-  build.controls.command.controls.tasks.addValidators(filled);
+  requireWhile(
+    build.controls.command.controls.tasks,
+    () => tool.value !== 'LIQUIBASE' && tool.value !== 'FLUTTER',
+    tool,
+  );
   form.controls.delivery.controls.tasks.addValidators(filled);
   requireOnceUsed(form.controls.openShiftTargets.controls.QC);
   revalidateOnChange(sonar.controls.badgeToken, sonar.controls.badgeCredentialsId);
@@ -814,7 +818,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   revalidateOnChange(nodeBuild.controls.nodePath, nodeBuild.controls.installationName);
   requireWhile(
     build.controls.javaPath,
-    () => tool.value === 'FLUTTER' || !build.controls.autoSetup.value,
+    () => (tool.value === 'FLUTTER' || !build.controls.autoSetup.value) && tool.value !== 'LIQUIBASE',
     tool,
     build.controls.autoSetup,
   );
@@ -839,19 +843,24 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   );
   requireWhile(
     unitTests.controls.command.controls.tasks,
-    () => unitTestsConfigured(form),
+    () => unitTestsConfigured(form) && tool.value !== 'LIQUIBASE',
     unitTests,
+    tool,
   );
   requireWhile(
     sonar.controls.command.controls.tasks,
-    () => !!optional(sonar.controls.projectKey.value) || commandEntered(sonar.controls.command),
+    () =>
+      (!!optional(sonar.controls.projectKey.value) || commandEntered(sonar.controls.command)) &&
+      tool.value !== 'LIQUIBASE',
     sonar.controls.projectKey,
     sonar.controls.command,
+    tool,
   );
   requireWhile(
     appScan.controls.compileCommand.controls.tasks,
-    () => commandEntered(appScan.controls.compileCommand),
+    () => commandEntered(appScan.controls.compileCommand) && tool.value !== 'LIQUIBASE',
     appScan.controls.compileCommand,
+    tool,
   );
   requireWhile(
     scm.controls.credentialsId,

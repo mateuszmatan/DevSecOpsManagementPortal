@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
@@ -34,10 +35,10 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
     public void validate(ValidationProblems problems) {
         if (tool == FLUTTER) {
             validateFlutter(problems);
-        } else if (javaPath == null && !autoSetup) {
+        } else if (tool != LIQUIBASE && javaPath == null && !autoSetup) {
             problems.add("javaPath", "set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them");
         }
-        if (tool != FLUTTER && command.tasks().isEmpty()) {
+        if (tool != FLUTTER && tool != LIQUIBASE && command.tasks().isEmpty()) {
             problems.add("command.tasks", tool == MAVEN
                     ? "add the Maven goals of the build, for example clean verify"
                     : "add the Gradle tasks of the build, for example clean build");

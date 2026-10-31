@@ -1,7 +1,7 @@
 import { FieldProblem, Department as PortalDepartment } from '@common/core/models';
 import { labelOf } from '@common/shared/formatting';
 
-export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER';
+export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER' | 'LIQUIBASE';
 export type DeployTarget = 'VM' | 'OPENSHIFT';
 export type PipelineType = 'FULL' | 'SECURITY' | 'EXTENDED' | 'SAST' | 'NEXUS_IQ';
 export type KeyStatus = 'ACTIVE' | 'REVOKED';

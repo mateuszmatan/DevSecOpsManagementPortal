@@ -111,6 +111,8 @@ describe('docs/documentation.md', () => {
     ['MAVEN', 'OPENSHIFT'],
     ['FLUTTER', 'VM'],
     ['FLUTTER', 'OPENSHIFT'],
+    ['LIQUIBASE', 'VM'],
+    ['LIQUIBASE', 'OPENSHIFT'],
   ])(
     'names every devsecops_config.yaml key of a %s service on %s',
     async (tool, target) => {
