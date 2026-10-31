@@ -242,13 +242,40 @@ The admin editor is for the DevSecOps team. It shows every field of a service.
 
 To add a pipeline of another type to a service, use "Add pipeline" on the product page. See [chapter 8](#8-pipeline-types-pipeline-keys-the-jenkinsfile-and-the-jenkins-jobs).
 
+### SQL and PL/SQL services with Liquibase (single-module and multi-module)
+
+Choose **Liquibase** as the Build tool (`buildTool: liquibase`) for a service that manages database schemas, DDL migrations, or stored procedures (Oracle PL/SQL, PostgreSQL PL/pgSQL, T-SQL, ANSI SQL) with Liquibase changelogs (`changelog.xml`, `changelog.yaml`, `changelog.yml`, or formatted `.sql` files).
+
+#### Single-module SQL / PL/SQL repository
+
+When a repository contains only database scripts and Liquibase changelogs:
+
+- **Build (`build.liquibase.*`)**: Set the Liquibase commands (by default `updateSQL`) and flags (for example `--changelog-file=changelog.xml --url=offline:oracle`). No JDK path (`javaPath`) or automatic build tool setup (`buildToolAutoSetup`) is required unless a custom Java runtime is needed by the Liquibase CLI or JDBC drivers.
+- **Unit tests and coverage (`tests.unitTests.liquibase.*`)**: Run changelog verification (`validate`, `status`) or PL/SQL unit tests (such as utPLSQL exporting JUnit XML to `tests.unitTests.unitTestResult` and JaCoCo/LCOV coverage to `coverage.reportPath`).
+- **Static analysis (`tools.sonar.liquibase.*` and `asoc.liquibase.*`)**:
+  - **SonarQube**: Runs `sonar-scanner` against your SQL / PL/SQL sources (`-Dsonar.sources` defaults to the Liquibase directory or `sourceDir`) so SonarQube's PL/SQL and SQL analyzers inspect packages, triggers, procedures, and views.
+  - **AppScan SAST**: Packages the SQL / PL/SQL source tree into the `.irx` archive; if `asoc.liquibase.commands` is configured and "Compile before preparing the IRX" (`asoc.doCompile`) is enabled, that Liquibase command runs first (for example `updateSQL` to render SQL scripts before scanning).
+  - **Nexus IQ**: Scans any JDBC drivers, Liquibase extensions, or packaged zip/jar archives matching your `scanPatterns`.
+
+#### Multi-module and polyglot repositories (SQL / PL/SQL with Java, Gradle, Maven, Node.js, Python, or Kotlin)
+
+In a multi-module or polyglot repository that combines SQL / PL/SQL database modules with application services (such as a Java / Kotlin backend built with Gradle or Maven, an Angular / React / Node.js frontend, or Python utilities), you can model the product in two ways:
+
+1. **Separate services in the same product and repository (recommended)**:
+   - Add one service for each application module (`buildTool: gradle` or `buildTool: maven`, optionally with **Node.js build (stage 0)** enabled for the Angular/Node.js frontend) and a dedicated database service (`buildTool: liquibase`, with `build.liquibase.dir` and `sourceDir` pointing to the database subfolder such as `db` or `sql/plsql`).
+   - Give the services of the same repository the same Jenkins job so they run together from a single combined `Jenkinsfile` (`pipelineKeys: [...]`).
+   - During the run, the library executes Stage 0 Node.js pre-builds for the web frontend, builds and tests the Gradle/Maven backend and the Liquibase SQL/PL-SQL module, aggregates all JaCoCo XML and LCOV coverage reports across all modules (computing per-service and overall run averages), and runs AppScan SAST, SonarQube, and Nexus IQ + GoldenFix across every module.
+2. **Liquibase service with Node.js Stage 0 or Gradle/Maven wrapper**:
+   - A `liquibase` service can also enable **Node.js build (stage 0)** (`build.node.enabled: true`) when the database repository uses Node.js tooling (for example SQL linters, documentation generators, or frontend assets packaged alongside migrations).
+   - Conversely, if Liquibase is invoked via the `liquibase-maven-plugin` or `org.liquibase.gradle` plugin inside a Java build, keep `buildTool: maven` or `buildTool: gradle` and include the Liquibase goals/tasks (`liquibase:validate`, `liquibase:updateSQL`) in the Maven or Gradle command.
+
 ## 6. Build the frontend with Node.js first (stage 0)
 
-Many services have a frontend, for example an Angular application, next to the Java code. The optional Node.js build runs the npm commands of that frontend in an extra stage before the Gradle or Maven build. The Gradle or Maven build then packages the frontend into the jar.
+Many services have a frontend, for example an Angular application, next to the Java code. The optional Node.js build runs the npm commands of that frontend in an extra stage before the Gradle, Maven, or Liquibase build. The Gradle or Maven build then packages the frontend into the jar.
 
 ### When to use it
 
-- Use it when the Gradle or Maven build needs the built frontend and does not run npm itself.
+- Use it when the Gradle, Maven, or Liquibase build needs the built frontend and does not run npm itself.
 - Leave it off when the Gradle or Maven build already runs npm, for example through a Gradle Node plugin or the Maven frontend plugin.
 - A Flutter service cannot use it: a Flutter build has no Gradle or Maven stage for the Node.js build to run before. Choosing Flutter switches the Node.js build off.
 

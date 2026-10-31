@@ -31,6 +31,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType.BASIC
 import static com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType.BEARER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
@@ -66,6 +67,12 @@ class ServiceConfigReaderSpec extends Specification {
             tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(), urbanCode: MAVEN_VM.urbanCode(),
             urbanCodeApplications: MAVEN_VM.urbanCodeApplications(), sshTargets: MAVEN_VM.sshTargets(),
             appScan: MAVEN_VM.appScan(), sonar: MAVEN_VM.sonar(), scm: MAVEN_VM.scm(), metrics: MAVEN_VM.metrics())
+    static final ServiceSettings LIQUIBASE_VM = settings(
+            build: build(tool: LIQUIBASE, sourceDir: 'db', javaPath: null),
+            unitTests: MAVEN_VM.unitTests(), tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(),
+            urbanCode: MAVEN_VM.urbanCode(), urbanCodeApplications: MAVEN_VM.urbanCodeApplications(),
+            sshTargets: MAVEN_VM.sshTargets(), appScan: MAVEN_VM.appScan(), sonar: MAVEN_VM.sonar(),
+            scm: MAVEN_VM.scm(), metrics: MAVEN_VM.metrics())
 
     @Shared
     JsonMapper json = JsonMapper.builder().build()
@@ -96,6 +103,7 @@ class ServiceConfigReaderSpec extends Specification {
                                          problem('deploy.openshift.rd.internalDockerUrl', RUN_TIME)]
         GRADLE_OPENSHIFT_NO_DELIVERY || []
         FLUTTER_VM                   || []
+        LIQUIBASE_VM                 || []
 
         tool = settings.build().tool()
         target = settings.deployment().target()
@@ -440,7 +448,7 @@ class ServiceConfigReaderSpec extends Specification {
         then:
         result.notes() == [problem('other', UNKNOWN)]
         result.services()[0].notes() as Set == [
-                problem('buildTool', 'not imported: expected one of gradle, maven, flutter'),
+                problem('buildTool', 'not imported: expected one of gradle, maven, flutter, liquibase'),
                 problem('tests.maxParallel', 'not imported: expected a whole number'),
                 problem('tests.smoke.required', 'not imported: expected true or false'),
                 problem('tools.sonar.projectKey', 'not imported: expected a single value'),

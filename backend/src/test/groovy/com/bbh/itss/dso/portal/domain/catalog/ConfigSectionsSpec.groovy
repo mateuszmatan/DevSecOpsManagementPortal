@@ -8,6 +8,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.BitbucketType.CLOUD
 import static com.bbh.itss.dso.portal.domain.catalog.BitbucketType.SERVER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
@@ -52,6 +53,9 @@ class ConfigSectionsSpec extends Specification {
                 [buildTool: 'gradle', sourceDir: 'app', buildToolAutoSetup: true, build: [gradle: [tasks: ['build']]]]
         written(new BuildSettings(FLUTTER, null, null, false, 'build/app.apk', ToolCommand.of(['assemble'], ['-q']))) ==
                 [buildTool: 'flutter', sourceDir: '.', build: [buildPath: 'build/app.apk']]
+        written(new BuildSettings(LIQUIBASE, 'sql', '/jdk', false, null, ToolCommand.of(['updateSQL'], ['--changelog-file=changelog.xml']))) ==
+                [buildTool: 'liquibase', sourceDir: 'sql', javaPath: '/jdk',
+                 build    : [liquibase: [commands: ['updateSQL'], flags: ['--changelog-file=changelog.xml']]]]
     }
 
     def "a #tool build with java path #javaPath, auto setup #autoSetup and tasks #tasks reports #fields"() {
@@ -59,18 +63,20 @@ class ConfigSectionsSpec extends Specification {
         problems(new BuildSettings(tool, null, javaPath, autoSetup, null, ToolCommand.of(tasks, []))) == fields
 
         where:
-        tool    | javaPath | autoSetup | tasks     || fields
-        GRADLE  | null     | false     | ['build'] || ['javaPath']
-        MAVEN   | null     | null      | ['verify']|| ['javaPath']
-        GRADLE  | '/jdk'   | false     | []        || ['command.tasks']
-        MAVEN   | null     | true      | []        || ['command.tasks']
-        GRADLE  | null     | false     | []        || ['javaPath', 'command.tasks']
-        GRADLE  | '/jdk'   | false     | ['build'] || []
-        MAVEN   | null     | true      | ['verify']|| []
-        FLUTTER | null     | false     | []        || ['javaPath']
-        FLUTTER | '/jdk'   | true      | []        || ['autoSetup']
-        FLUTTER | null     | true      | []        || ['javaPath', 'autoSetup']
-        FLUTTER | '/jdk'   | false     | []        || []
+        tool      | javaPath | autoSetup | tasks         || fields
+        GRADLE    | null     | false     | ['build']     || ['javaPath']
+        MAVEN     | null     | null      | ['verify']    || ['javaPath']
+        GRADLE    | '/jdk'   | false     | []            || ['command.tasks']
+        MAVEN     | null     | true      | []            || ['command.tasks']
+        GRADLE    | null     | false     | []            || ['javaPath', 'command.tasks']
+        GRADLE    | '/jdk'   | false     | ['build']     || []
+        MAVEN     | null     | true      | ['verify']    || []
+        LIQUIBASE | null     | false     | ['updateSQL'] || []
+        LIQUIBASE | '/jdk'   | false     | []            || []
+        FLUTTER   | null     | false     | []            || ['javaPath']
+        FLUTTER   | '/jdk'   | true      | []            || ['autoSetup']
+        FLUTTER   | null     | true      | []            || ['javaPath', 'autoSetup']
+        FLUTTER   | '/jdk'   | false     | []            || []
     }
 
     def "OpenShift deployment needs the application name, and the artifact name while it delivers to Nexus"() {
@@ -142,10 +148,11 @@ class ConfigSectionsSpec extends Specification {
         written { appScan.writeTo(it, tool) }.asoc == asoc
 
         where:
-        tool    || key      | asoc
-        GRADLE  || 'gradle' | [keyId: 'bbh_key', gradle: [tasks: ['compile']]]
-        MAVEN   || 'maven'  | [keyId: 'bbh_key', maven: [goals: ['compile'], mvnPath: '/opt/maven']]
-        FLUTTER || 'none'   | [keyId: 'bbh_key']
+        tool      || key         | asoc
+        GRADLE    || 'gradle'    | [keyId: 'bbh_key', gradle: [tasks: ['compile']]]
+        MAVEN     || 'maven'     | [keyId: 'bbh_key', maven: [goals: ['compile'], mvnPath: '/opt/maven']]
+        LIQUIBASE || 'liquibase' | [keyId: 'bbh_key', liquibase: [commands: ['compile']]]
+        FLUTTER   || 'none'      | [keyId: 'bbh_key']
     }
 
     def "every service needs its AppScan key ID, and enabled DAST needs a target URL"() {
@@ -167,13 +174,14 @@ class ConfigSectionsSpec extends Specification {
         problems { appScan.validate(it, tool) } == fields
 
         where:
-        description              | tool    | compile | command                                                         || fields
-        'nothing'                | GRADLE  | true    | NONE                                                            || []
-        'only a step label'      | GRADLE  | true    | ToolCommand.builder().label('Compile').build()                  || ['compileCommand.tasks']
-        'only returnStdout'      | MAVEN   | true    | ToolCommand.builder().returnStdout(true).build()                || ['compileCommand.tasks']
-        'a label, not compiling' | GRADLE  | false   | ToolCommand.builder().label('Compile').build()                  || []
-        'a label'                | FLUTTER | true    | ToolCommand.builder().label('Compile').build()                  || []
-        'tasks and a label'      | GRADLE  | true    | ToolCommand.builder().tasks(['classes']).label('Compile').build() || []
+        description              | tool      | compile | command                                                           || fields
+        'nothing'                | GRADLE    | true    | NONE                                                              || []
+        'only a step label'      | GRADLE    | true    | ToolCommand.builder().label('Compile').build()                    || ['compileCommand.tasks']
+        'only returnStdout'      | MAVEN     | true    | ToolCommand.builder().returnStdout(true).build()                  || ['compileCommand.tasks']
+        'only a step label'      | LIQUIBASE | true    | ToolCommand.builder().label('Compile').build()                    || []
+        'a label, not compiling' | GRADLE    | false   | ToolCommand.builder().label('Compile').build()                    || []
+        'a label'                | FLUTTER   | true    | ToolCommand.builder().label('Compile').build()                    || []
+        'tasks and a label'      | GRADLE    | true    | ToolCommand.builder().tasks(['classes']).label('Compile').build() || []
     }
 
     def "SonarQube settings trim their values and switch the badges off by default"() {
@@ -200,6 +208,7 @@ class ConfigSectionsSpec extends Specification {
                                  authToken       : 'sonar-token', badgeToken: 'sqb_1a2b', addBadges: true, fullBadges: true,
                                  maven           : [goals: ['sonar:sonar'], flags: ['-Dsonar.branch.name=main']]]]]
         written { sonar.writeTo(it, GRADLE) }.tools.sonar.gradle == [tasks: ['sonar:sonar'], flags: ['-Dsonar.branch.name=main']]
+        written { sonar.writeTo(it, LIQUIBASE) }.tools.sonar.liquibase == [commands: ['sonar:sonar'], flags: ['-Dsonar.branch.name=main']]
         written { sonar.writeTo(it, FLUTTER) }.tools.sonar.keySet() as List ==
                 ['projectName', 'projectKey', 'installationName', 'credentialsId', 'authToken', 'badgeToken', 'addBadges',
                  'fullBadges']
@@ -227,13 +236,15 @@ class ConfigSectionsSpec extends Specification {
         problems { SonarSettings.of(null, key, ToolCommand.of(tasks, [])).validate(it, tool) } == fields
 
         where:
-        tool    | key    | tasks           || fields
-        GRADLE  | 'cert' | []              || ['command.tasks']
-        MAVEN   | 'cert' | []              || ['command.tasks']
-        GRADLE  | null   | []              || []
-        FLUTTER | 'cert' | []              || []
-        MAVEN   | 'cert' | ['sonar:sonar'] || []
-        GRADLE  | 'cert' | ['sonarqube']   || []
+        tool      | key    | tasks           || fields
+        GRADLE    | 'cert' | []              || ['command.tasks']
+        MAVEN     | 'cert' | []              || ['command.tasks']
+        LIQUIBASE | 'cert' | []              || []
+        GRADLE    | null   | []              || []
+        FLUTTER   | 'cert' | []              || []
+        MAVEN     | 'cert' | ['sonar:sonar'] || []
+        GRADLE    | 'cert' | ['sonarqube']   || []
+        LIQUIBASE | 'cert' | ['sonar']       || []
     }
 
     def "a SonarQube command that sets only a step label or the output switch needs its tasks without a project key too"() {
@@ -249,12 +260,12 @@ class ConfigSectionsSpec extends Specification {
         messages(validation) == [message]
 
         where:
-        tool     | stage      | validation                                                                  || message
-        'Maven'  | 'build'    | new BuildSettings(MAVEN, null, '/jdk', false, null, null)                   || 'add the Maven goals of the build, for example clean verify'
-        'Gradle' | 'build'    | new BuildSettings(GRADLE, null, '/jdk', false, null, null)                  || 'add the Gradle tasks of the build, for example clean build'
+        tool     | stage      | validation                                                                        || message
+        'Maven'  | 'build'    | new BuildSettings(MAVEN, null, '/jdk', false, null, null)                         || 'add the Maven goals of the build, for example clean verify'
+        'Gradle' | 'build'    | new BuildSettings(GRADLE, null, '/jdk', false, null, null)                        || 'add the Gradle tasks of the build, for example clean build'
         'JDK'    | 'build'    | new BuildSettings(GRADLE, null, null, false, null, ToolCommand.of(['build'], [])) || 'set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them'
-        'Maven'  | 'analysis' | { SonarSettings.of(null, 'cert', null).validate(it, MAVEN) }                || 'add the Maven goals of the analysis, for example sonar:sonar'
-        'Gradle' | 'analysis' | { SonarSettings.of(null, 'cert', null).validate(it, GRADLE) }               || 'add the Gradle tasks of the analysis, for example sonarqube'
+        'Maven'  | 'analysis' | { SonarSettings.of(null, 'cert', null).validate(it, MAVEN) }                      || 'add the Maven goals of the analysis, for example sonar:sonar'
+        'Gradle' | 'analysis' | { SonarSettings.of(null, 'cert', null).validate(it, GRADLE) }                     || 'add the Gradle tasks of the analysis, for example sonarqube'
     }
 
     def "a Nexus IQ application keeps each scan pattern once and defaults the stage to build"() {

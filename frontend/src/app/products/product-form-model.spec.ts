@@ -120,7 +120,7 @@ describe('createServiceForm', () => {
     expect(value.deployment.target).toBe('VM');
   });
 
-  it('needs the JDK path unless a Gradle or Maven build sets it up automatically', () => {
+  it('needs the JDK path unless a Gradle or Maven build sets it up automatically or the build tool is Liquibase', () => {
     const form = createServiceForm();
     const { javaPath, autoSetup, tool } = form.controls.build.controls;
     expect(javaPath.hasError('required')).toBe(true);
@@ -130,6 +130,11 @@ describe('createServiceForm', () => {
 
     tool.setValue('MAVEN');
     expect(javaPath.valid).toBe(true);
+
+    tool.setValue('LIQUIBASE');
+    autoSetup.setValue(false);
+    expect(javaPath.valid).toBe(true);
+    expect(form.controls.build.controls.command.enabled).toBe(true);
 
     tool.setValue('FLUTTER');
     expect(autoSetup.value).toBe(false);

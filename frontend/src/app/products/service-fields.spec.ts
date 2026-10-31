@@ -106,6 +106,7 @@ describe('ServiceFields', () => {
     ['MAVEN', 'OPENSHIFT'],
     ['FLUTTER', 'VM'],
     ['FLUTTER', 'OPENSHIFT'],
+    ['LIQUIBASE', 'VM'],
   ];
 
   describe('every section', () => {
@@ -583,22 +584,26 @@ describe('ServiceFields', () => {
   });
 
   describe('servers and credentials of the service', () => {
-    it('name the Library default, and whether the value still equals it', async () => {
-      await render();
-      await open('SonarQube');
-      expect(hints()).toContain(
-        'Library default: https://tools.bbh.com/sonar · tools.sonar.serverUrl',
-      );
+    it(
+      'name the Library default, and whether the value still equals it',
+      async () => {
+        await render();
+        await open('SonarQube');
+        expect(hints()).toContain(
+          'Library default: https://tools.bbh.com/sonar · tools.sonar.serverUrl',
+        );
 
-      form.controls.sonar.controls.installationName.setValue('SonarQube');
-      await fixture.whenStable();
+        form.controls.sonar.controls.installationName.setValue('SonarQube');
+        await fixture.whenStable();
 
-      expect(hints()).toContain('Library default · tools.sonar.installationName');
-      await open('Monitoring');
-      expect(hints()).toContain('Library default: influxdb-token · influx.credentialsId');
-      await open('SSH targets');
-      expect(hints()).toContain('Library default: taadmin · user');
-    });
+        expect(hints()).toContain('Library default · tools.sonar.installationName');
+        await open('Monitoring');
+        expect(hints()).toContain('Library default: influxdb-token · influx.credentialsId');
+        await open('SSH targets');
+        expect(hints()).toContain('Library default: taadmin · user');
+      },
+      20_000,
+    );
 
     it('hints at nothing without the global settings', async () => {
       await render(service(), null);

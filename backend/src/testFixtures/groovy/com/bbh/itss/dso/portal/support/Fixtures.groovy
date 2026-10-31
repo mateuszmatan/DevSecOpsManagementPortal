@@ -44,6 +44,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType.BEARER
 import static com.bbh.itss.dso.portal.domain.catalog.BitbucketType.SERVER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
 import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.APPBUNDLE
@@ -81,6 +82,7 @@ final class Fixtures {
     static BuildSettings build(Map args = [:]) {
         BuildTool tool = args.tool as BuildTool ?: GRADLE
         ToolCommand defaultCommand = tool == FLUTTER ? NONE
+                : tool == LIQUIBASE ? command(['updateSQL'], ['--changelog-file=changelog.xml'])
                 : tool == MAVEN ? command(['clean', 'verify']) : command(['clean', 'build'])
         new BuildSettings(tool, args.sourceDir as String,
                 args.containsKey('javaPath') ? args.javaPath as String : JDK, args.autoSetup as Boolean,

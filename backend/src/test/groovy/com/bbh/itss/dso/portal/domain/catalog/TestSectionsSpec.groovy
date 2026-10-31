@@ -4,6 +4,7 @@ import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.TestJobType.LOCAL
 import static com.bbh.itss.dso.portal.domain.catalog.TestJobType.REMOTE
@@ -48,18 +49,23 @@ class TestSectionsSpec extends Specification {
         written { unitTests.writeTo(it, tool) } == config
 
         where:
-        tool << [MAVEN, FLUTTER, FLUTTER, GRADLE, MAVEN, FLUTTER]
+        tool << [MAVEN, LIQUIBASE, FLUTTER, FLUTTER, GRADLE, MAVEN, LIQUIBASE, FLUTTER]
         unitTests << [UnitTestSettings.builder()
                               .command(ToolCommand.builder().tasks(['test', 'jacoco:report']).mavenHome('/opt/maven').build())
                               .coverageReportPath('target/site/jacoco/jacoco.xml').build(),
+                      UnitTestSettings.builder()
+                              .command(ToolCommand.of(['validate'], ['--changelog-file=changelog.xml']))
+                              .resultPattern('build/test-results/utplsql/*.xml').build(),
                       UnitTestSettings.builder().command(ToolCommand.of(['test'], []))
                               .resultPattern('test-results/*.xml').build(),
                       UnitTestSettings.builder().coverageReportPath(' coverage/lcov.info\nplugins/*/coverage/lcov.info ').build(),
-                      NONE, NONE, NONE]
+                      NONE, NONE, NONE, NONE]
         config << [[tests   : [unitTests: [maven: [goals: ['test', 'jacoco:report'], mvnPath: '/opt/maven']]],
                     coverage: [reportPath: 'target/site/jacoco/jacoco.xml']],
+                   [tests   : [unitTests: [liquibase: [commands: ['validate'], flags: ['--changelog-file=changelog.xml']],
+                                           unitTestResult: 'build/test-results/utplsql/*.xml']]],
                    [tests: [unitTests: [unitTestResult: 'test-results/*.xml']]],
-                   [coverage: [reportPath: 'coverage/lcov.info\nplugins/*/coverage/lcov.info']], [:], [:], [:]]
+                   [coverage: [reportPath: 'coverage/lcov.info\nplugins/*/coverage/lcov.info']], [:], [:], [:], [:]]
     }
 
     def "a #tool unit tests stage that sets #description reports #fields"() {
@@ -67,17 +73,19 @@ class TestSectionsSpec extends Specification {
         problems { unitTests.validate(it, tool) } == fields
 
         where:
-        description                | tool    | unitTests                                                                                       || fields
-        'nothing'                  | GRADLE  | NONE                                                                                            || []
-        'only a coverage report'   | MAVEN   | UnitTestSettings.builder().coverageReportPath('jacoco.xml').build()                             || []
-        'a result pattern'         | GRADLE  | UnitTestSettings.builder().resultPattern('**/TEST-*.xml').build()                               || ['command.tasks']
-        'a root directory'         | MAVEN   | UnitTestSettings.builder().rootDir('gui').build()                                               || ['command.tasks']
-        'a report directory'       | GRADLE  | UnitTestSettings.builder().reportOutDir('reports').build()                                      || ['command.tasks']
-        'empty results allowed'    | MAVEN   | UnitTestSettings.builder().allowEmptyResults(true).build()                                      || ['command.tasks']
-        'flags without tasks'      | GRADLE  | UnitTestSettings.builder().command(ToolCommand.of([], ['--info'])).build()                      || ['command.tasks']
-        'a step label'             | MAVEN   | UnitTestSettings.builder().command(ToolCommand.builder().label('Tests').build()).build()         || ['command.tasks']
-        'tasks'                    | GRADLE  | UnitTestSettings.builder().command(ToolCommand.of(['test'], [])).resultPattern('**/*.xml').build() || []
-        'a result pattern'         | FLUTTER | UnitTestSettings.builder().resultPattern('**/TEST-*.xml').allowEmptyResults(true).build()       || []
+        description                | tool      | unitTests                                                                                          || fields
+        'nothing'                  | GRADLE    | NONE                                                                                               || []
+        'only a coverage report'   | MAVEN     | UnitTestSettings.builder().coverageReportPath('jacoco.xml').build()                                || []
+        'a result pattern'         | GRADLE    | UnitTestSettings.builder().resultPattern('**/TEST-*.xml').build()                                  || ['command.tasks']
+        'a result pattern'         | LIQUIBASE | UnitTestSettings.builder().resultPattern('**/TEST-*.xml').build()                                  || []
+        'a root directory'         | MAVEN     | UnitTestSettings.builder().rootDir('gui').build()                                                  || ['command.tasks']
+        'a report directory'       | GRADLE    | UnitTestSettings.builder().reportOutDir('reports').build()                                         || ['command.tasks']
+        'empty results allowed'    | MAVEN     | UnitTestSettings.builder().allowEmptyResults(true).build()                                         || ['command.tasks']
+        'flags without tasks'      | GRADLE    | UnitTestSettings.builder().command(ToolCommand.of([], ['--info'])).build()                         || ['command.tasks']
+        'a step label'             | MAVEN     | UnitTestSettings.builder().command(ToolCommand.builder().label('Tests').build()).build()           || ['command.tasks']
+        'tasks'                    | GRADLE    | UnitTestSettings.builder().command(ToolCommand.of(['test'], [])).resultPattern('**/*.xml').build() || []
+        'tasks'                    | LIQUIBASE | UnitTestSettings.builder().command(ToolCommand.of(['validate'], [])).build()                       || []
+        'a result pattern'         | FLUTTER   | UnitTestSettings.builder().resultPattern('**/TEST-*.xml').allowEmptyResults(true).build()          || []
     }
 
     def "a unit tests stage without a command is explained in the words of the build tool"() {
