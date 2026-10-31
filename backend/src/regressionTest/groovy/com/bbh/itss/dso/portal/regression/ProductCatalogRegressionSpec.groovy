@@ -8,6 +8,8 @@ import java.util.concurrent.Callable
 
 import static com.bbh.itss.dso.portal.support.ApiJson.appScan
 import static com.bbh.itss.dso.portal.support.ApiJson.build
+import static com.bbh.itss.dso.portal.support.ApiJson.databaseDefaults
+import static com.bbh.itss.dso.portal.support.ApiJson.databaseService
 import static com.bbh.itss.dso.portal.support.ApiJson.deployedBy
 import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
@@ -631,6 +633,59 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                 [resourceName: 'batch \u00b7 Full', status: 'FAILURE', departmentName: department]
     }
 
+    def "a SQL and PL/SQL service deploys only to allowed databases and gets no Nexus IQ pipeline, nor a Full one without its group ID"() {
+        given:
+        def code = uniqueCode('ORDERS')
+        def orders = { Map settings -> product(code: code, name: "Product $code", services: [databaseService(database: settings)]) }
+        def database = databaseService().database
+        def nowhere = 'is set, but the Library defaults allow no database yet: the pipelines deploy only to the' +
+                ' databases the DevSecOps team allows in the Global Settings'
+
+        when:
+        def none = api.post('/api/products', orders(database))
+
+        then:
+        none.status == 400
+        none.json.errors.collect { [it.field, it.message] } == ['TEST', 'RD', 'QC'].collect {
+            ["services[0].databaseTargets[$it].url".toString(), nowhere]
+        }
+        !none.body.contains('bbh.com')
+
+        when:
+        saveDatabaseDefaults(databaseDefaults() + [allowedTargets: ['dev-db.bbh.com', 'qc-db.bbh.com']])
+        def notAllowed = api.post('/api/products', orders(database))
+
+        then:
+        notAllowed.status == 400
+        notAllowed.json.errors.collect { [it.field, it.message] } == [['services[0].databaseTargets[RD].url',
+                'names a database that the Library defaults do not allow: ask the DevSecOps team to add the test, RD or' +
+                        ' QC database to the Global Settings']]
+
+        when:
+        saveDatabaseDefaults(databaseDefaults())
+        def noGroup = api.post('/api/products', orders(database + [groupId: null]))
+
+        then:
+        noGroup.status == 409
+        noGroup.json.detail == 'Service orders-db delivers its database package to Nexus in the Full pipeline but has no' +
+                ' group ID. Set it under Database changes, or untick Deliver the package to Nexus'
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCT WHERE CODE = ?', Integer, code) == 0
+
+        when:
+        def created = createProduct(orders(database))
+        def nexusIq = api.post("/api/services/${created.services[0].id}/pipelines", pipeline(type: 'NEXUS_IQ'))
+
+        then:
+        nexusIq.status == 409
+        nexusIq.json.detail == 'Service orders-db changes a database with SQL and PL/SQL and has no open source' +
+                ' dependencies, so a Nexus IQ GoldenFix pipeline would scan nothing. Choose another pipeline type, or' +
+                ' delete the Nexus IQ GoldenFix pipeline of the service before you change its build tool to SQL and' +
+                ' PL/SQL (Liquibase)'
+
+        cleanup:
+        saveDatabaseDefaults([:])
+    }
+
     def "#refusal is a problem detail that keeps the portal's internals to itself"() {
         when:
         def response = call.call(api)
@@ -676,8 +731,8 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         unknownTool.status == 400
         with(unknownTool.json) {
             title == 'Malformed request'
-            detail == 'services[0].build.tool must be one of GRADLE, MAVEN, FLUTTER'
-            errors == [[field: 'services[0].build.tool', message: 'must be one of GRADLE, MAVEN, FLUTTER']]
+            detail == 'services[0].build.tool must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE'
+            errors == [[field: 'services[0].build.tool', message: 'must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE']]
         }
         wrongType.status == 400
         wrongType.json.errors == [[field  : 'services[0].build.command.tasks',

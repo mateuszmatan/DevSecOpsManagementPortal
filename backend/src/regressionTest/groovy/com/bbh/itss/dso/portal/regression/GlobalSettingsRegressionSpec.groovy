@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.regression
 import com.bbh.itss.dso.portal.support.PortalSpecification
 import org.yaml.snakeyaml.Yaml
 
+import static com.bbh.itss.dso.portal.support.ApiJson.databaseDefaults
 import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
@@ -174,6 +175,45 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         then:
         changed.status == 200
         changed.json.goldenFix.enabled == true
+    }
+
+    def "the Library defaults (SQL and PL/SQL) are stored, reach the defaults of every configuration and are cleared again"() {
+        when:
+        def saved = api.put('/api/settings', original + [database: databaseDefaults()])
+        def defaults = api.get('/api/settings/config?format=json').json.defaults
+
+        then:
+        saved.status == 200
+        saved.json.database.findAll { it.value != null } == databaseDefaults()
+        defaults.tools.subMap(['liquibase', 'oracleJdbc', 'utplsql']) == [
+                liquibase: [home: '/opt/liquibase/4.33.0'], oracleJdbc: [path: '/opt/oracle/ojdbc11.jar'],
+                utplsql  : [url: databaseDefaults().utplsqlUrl, sha256: databaseDefaults().utplsqlSha256]]
+        defaults.database == [allowedTargets: ['dev-db.bbh.com', 'rd-db.bbh.com', 'qc-db.bbh.com'],
+                              package       : [snapshotRepository: [id : 'bbh-db-snapshots',
+                                                                    url: 'https://tools.bbh.com/nexus/repository/db-snapshots'],
+                                               releaseRepository : [id : 'bbh-db-releases',
+                                                                    url: 'https://tools.bbh.com/nexus/repository/db-releases']]]
+
+        when:
+        def cleared = api.put('/api/settings', saved.json + [database: original.database])
+        def emptied = api.get('/api/settings/config?format=json').json.defaults
+
+        then:
+        cleared.status == 200
+        cleared.json.database == original.database
+        original.database.every { !it.value }
+        !emptied.containsKey('database')
+        emptied.tools.keySet() == ['sonar', 'nexusIq'] as Set
+    }
+
+    def "SQL and PL/SQL cannot be the default build tool, since a database service needs its database settings"() {
+        when:
+        def response = api.put('/api/settings', original + [serviceDefaults: original.serviceDefaults + [buildTool: 'LIQUIBASE']])
+
+        then:
+        response.status == 400
+        response.json.errors*.field == ['serviceDefaults.buildTool']
+        api.get('/api/settings').json.version == original.version
     }
 
     def "a change based on an outdated version is refused"() {

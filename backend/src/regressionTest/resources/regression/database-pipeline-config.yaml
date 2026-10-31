@@ -1,0 +1,152 @@
+pipeline:
+  type: full
+  entryPoint: devSecOpsPipeline
+  product: ORDERSDB
+  projectNames: orders-db
+  agentNames:
+  - linux-agent
+platform:
+  jenkinsLibrary: DevSecOpsJenkinsLibrary
+  environment:
+    APPSCAN_SERVER_URL: https://bbh.cloud.appscan.com
+    APPSCAN_HOST: bbh.cloud.appscan.com
+    SA_LINUX_URL: https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Linux/SAClientUtil-8.0.1646_Linux-SAClientUtil_8.0.1646_Linux.zip
+    SA_WIN_URL: https://tools.bbh.com/nexus/repository/releases/com/bbh/appscan/SAClientUtil/8.0.1646_Win/SAClientUtil-8.0.1646_Win-SAClientUtil_8.0.1646_Win.zip
+    PROXY_HOST: tstproxy.bbh.com
+    PROXY_PORT: '9090'
+    PROXY_USER: PROXY_ASOCJenk
+  oisHost: oisapi.bbh.com
+  nexusSnapshotRepositoryUrl: http://tools.bbh.com/nexus/content/repositories/snapshots/
+  nexusSnapshotRepositoryId: bbh-snapshots
+  iosBuildAgent: mac002.bbh.com
+defaults:
+  buildTool: gradle
+  deployTarget: vm
+  sourceDir: .
+  coverage:
+    minLine: 60
+  tools:
+    sonar:
+      qualityGate:
+        waitForQualityGate: true
+        timeoutMinutes: 5
+    nexusIq:
+      maxCritical: 0
+      maxHigh: 0
+      maxMedium: 0
+    liquibase:
+      home: /opt/liquibase/4.33.0
+    oracleJdbc:
+      path: /opt/oracle/ojdbc11.jar
+    utplsql:
+      url: https://tools.bbh.com/nexus/repository/raw-tools/utplsql/utPLSQL-cli/3.2.2/utPLSQL-cli.zip
+      sha256: 15a3addd921b7f2e415537b47c18a4a9d3e0b70ff0e403943fd4c03b0ba02006
+  sast:
+    prepareTimeoutMin: 120
+    pollTimeoutMin: 50
+    pollIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  sca:
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  dast:
+    pollTimeoutMin: 60
+    pollIntervalSec: 60
+    reportTimeoutMin: 30
+    reportIntervalSec: 30
+    maxCritical: 0
+    maxHigh: 0
+    maxMedium: 0
+  staticAnalysis:
+    parallel: true
+  tests:
+    maxParallel: 20
+  releaseGate:
+    scanners:
+    - sast
+    - sca
+    - niq
+    - dast
+    requireCoverage: true
+    stateFile: release-gate.json
+  goldenFix:
+    enabled: true
+    onlyDirectDependencies: true
+    minThreatLevel: 2
+    ecosystems:
+    - maven
+    - npm
+    - pypi
+    goldenVersionTypes:
+    - recommended-non-breaking-with-dependencies
+    - recommended-non-breaking
+    verify:
+      enabled: true
+      maxAttempts: 3
+      timeoutMinutes: 20
+    commitAuthorName: DevSecOps GoldenFix
+    commitAuthorEmail: devsecops-goldenfix@noreply.local
+  database:
+    allowedTargets:
+    - dev-db.bbh.com
+    - rd-db.bbh.com
+    - qc-db.bbh.com
+    package:
+      snapshotRepository:
+        id: bbh-db-snapshots
+        url: https://tools.bbh.com/nexus/repository/db-snapshots
+      releaseRepository:
+        id: bbh-db-releases
+        url: https://tools.bbh.com/nexus/repository/db-releases
+projects:
+  orders-db:
+    appId: 6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10
+    buildTool: liquibase
+    sourceDir: .
+    javaPath: /usr/lib/jvm/java-17-openjdk
+    asoc:
+      url: https://bbh.cloud.appscan.com
+      keyId: bbh_6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10
+      token: appscan-orders-key-secret
+    influx:
+      url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
+      credentialsId: influxdb-token
+      enabled: true
+      project: ORDERSDB-orders-db
+      env: test
+    tools:
+      sonar:
+        serverUrl: https://tools.bbh.com/sonar
+        installationName: SonarQube
+        projectKey: bbh-orders-db
+    dast:
+      enabled: false
+    database:
+      changelogFile: db/changelog-master.xml
+      parameters:
+        app_role: orders_app_role
+      package:
+        groupId: com.bbh.orders
+      test:
+        url: jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI
+        credentialsId: orders-db-test
+        utplsql:
+          enabled: true
+          sourcePath: db/code
+          testPath: db/test
+      rd:
+        url: jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD
+        credentialsId: orders-db-rd
+      qc:
+        url: jdbc:oracle:thin:@tcps://qc-db.bbh.com:2484/ORDERS_QC?ssl_server_dn_match=true
+        credentialsId: orders-db-qc
+        parameters:
+          app_role: orders_qc_role
+    scm:
+      bitbucket:
+        url: https://bitbucket.bbh.com/projects/ORD/repos/orders
+        credentialsId: bitbucket-http-credentials
+        authType: basic

@@ -4,9 +4,12 @@ import com.bbh.itss.dso.portal.support.PortalSpecification
 
 import static com.bbh.itss.dso.portal.support.ApiJson.appScan
 import static com.bbh.itss.dso.portal.support.ApiJson.build
+import static com.bbh.itss.dso.portal.support.ApiJson.databaseDefaults
+import static com.bbh.itss.dso.portal.support.ApiJson.databaseService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
+import static com.bbh.itss.dso.portal.support.ApiJson.mavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.openShiftTarget
 import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
@@ -42,6 +45,28 @@ class ConfigContractRegressionSpec extends PortalSpecification {
                     fullMavenService(),
                     fullFlutterService(name: 'mobile-app', description: 'Flutter mobile application',
                             deployment: [target: 'VM', nexusDeliveryDisabled: true], goldenFix: [enabled: false])])
+
+    static final Map ORDERS_DB = databaseService()
+    static final Map QC_DB = [url: 'jdbc:oracle:thin:@//qc-db.bbh.com:1521/ORDERS_QC', credentialsId: 'orders-db-qc']
+    static final Map GRADLE_DB = databaseService(build: [tool: 'LIQUIBASE', sourceDir: 'orders-db', autoSetup: true],
+            database: ORDERS_DB.database + [changelogFile: 'db/changelog/db.changelog-master.xml', parameters: null,
+                                            searchPath: 'src/main/resources', utplsqlSourcePath: 'db/changelog/code',
+                                            utplsqlTestPath: 'db/changelog/test'],
+            databaseTargets: ORDERS_DB.databaseTargets + [QC: QC_DB])
+    static final Map MAVEN_DB = databaseService(build: ORDERS_DB.build + [sourceDir: 'orders-db'],
+            database: [changelogFile: 'changelog-master.yaml', groupId: 'com.bbh.orders'],
+            databaseTargets: [RD: ORDERS_DB.databaseTargets.RD, QC: QC_DB])
+    static final Map ORDERS_APP = service(name: 'orders-app', build: build(sourceDir: '.'),
+            appScan: ORDERS_DB.appScan + [excludedDirs: ['orders-db']], nodeBuild: [enabled: true, directory: 'frontend'],
+            urbanCodeApplications: [ordersDeployment('orders-app', 'app/build/libs')],
+            nexusIqApplications: [[application: 'orders-app', scanPatterns: ['**/app/build/libs/*.jar']]],
+            scm: ORDERS_DB.scm)
+    static final Map ORDERS_API = mavenService(name: 'orders-api', build: build(tool: 'MAVEN', sourceDir: '.',
+            buildPath: 'api/target/*.jar', command: [tasks: ['clean', 'verify'], directory: 'api']),
+            appScan: ORDERS_APP.appScan, nodeBuild: [enabled: true, directory: 'web'],
+            urbanCodeApplications: [ordersDeployment('orders-api', 'api/target')],
+            nexusIqApplications: [[application: 'orders-api', scanPatterns: ['**/api/target/*.jar']]],
+            scm: ORDERS_DB.scm)
 
     def "the pipeline and product configs keep the shape the DevSecOps library reads"() {
         given:
@@ -92,6 +117,29 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         nexusIqConfig.status == 200
         matchesExpected('node-catalog-product-config.yaml', productConfig.body)
         matchesExpected('node-catalog-nexus-iq-pipeline-config.yaml', nexusIqConfig.body)
+    }
+
+    def "SQL and PL/SQL services render the database block the library reads and leave the other services of their repository as they are"() {
+        given:
+        saveDatabaseDefaults(databaseDefaults())
+        def orders = createProduct(product(code: 'ORDERSDB', name: 'Orders Database', services: [ORDERS_DB]))
+        def gradle = createProduct(product(code: 'ORDERSGRADLE', name: 'Orders Gradle', services: [GRADLE_DB, ORDERS_APP]))
+        def maven = createProduct(product(code: 'ORDERSMAVEN', name: 'Orders Maven', services: [MAVEN_DB, ORDERS_API]))
+        def full = pipelineFor(orders.services[0].id as long, pipeline(type: 'FULL'))
+        def appAlone = createProduct(product(code: uniqueCode('ORDERSAPP'), name: 'Orders App', services: [ORDERS_APP]))
+        def apiAlone = createProduct(product(code: uniqueCode('ORDERSAPI'), name: 'Orders API', services: [ORDERS_API]))
+
+        expect:
+        matchesExpected('database-global-config.yaml', api.get('/api/settings/config').body)
+        matchesExpected('database-product-config.yaml', api.get("/api/products/$orders.id/config").body)
+        matchesExpected('database-pipeline-config.yaml', api.get("/api/dso/config/$full.activeKey.value").body)
+        matchesExpected('database-gradle-product-config.yaml', api.get("/api/products/$gradle.id/config").body)
+        matchesExpected('database-maven-product-config.yaml', api.get("/api/products/$maven.id/config").body)
+        withoutInfluxProject(gradle, 'orders-app') == withoutInfluxProject(appAlone, 'orders-app')
+        withoutInfluxProject(maven, 'orders-api') == withoutInfluxProject(apiAlone, 'orders-api')
+
+        cleanup:
+        saveDatabaseDefaults([:])
     }
 
     def "the Bitbucket repository keys GoldenFix pull requests use are rendered only when they are set"() {
@@ -206,6 +254,16 @@ class ConfigContractRegressionSpec extends PortalSpecification {
 
         where:
         [kind, format] << [['vm', 'openshift', 'flutter'], ['yaml', 'json']].combinations()
+    }
+
+    private static Map ordersDeployment(String component, String baseDir) {
+        [applicationName: 'ORDERS',
+         components     : [[componentName: component, baseDir: baseDir, fileIncludePatterns: '*.jar']]]
+    }
+
+    private Map withoutInfluxProject(Map product, String service) {
+        Map project = api.get("/api/products/$product.id/config?format=json").json.projects[service] as Map
+        project + [influx: project.influx.findAll { it.key != 'project' }]
     }
 
     private static boolean matchesExpected(String name, String actual) {

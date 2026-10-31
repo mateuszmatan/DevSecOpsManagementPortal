@@ -3,9 +3,11 @@ package com.bbh.itss.dso.portal.regression
 import com.bbh.itss.dso.portal.support.PortalSpecification
 import org.yaml.snakeyaml.Yaml
 
+import static com.bbh.itss.dso.portal.support.ApiJson.databaseDefaults
 import static com.bbh.itss.dso.portal.support.ApiJson.fullFlutterService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullMavenService
 import static com.bbh.itss.dso.portal.support.ApiJson.fullOpenShiftService
+import static com.bbh.itss.dso.portal.support.ApiJson.pipeline
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.LibraryConfig.projectsAsRun
 
@@ -38,6 +40,33 @@ class ServiceConfigImportRegressionSpec extends PortalSpecification {
 
         then:
         asRun(api.get("/api/products/$copy.id/config").body) == asRun(config)
+    }
+
+    def "the orders-db project of the library's layout (#layout) imports without a note and saves with its Full and Security pipelines"() {
+        given:
+        saveDatabaseDefaults(databaseDefaults())
+        String file = getClass().getResource("/library-layouts/layout-${layout}.yaml").text
+        Map database = new Yaml().load(file).projects['orders-db'].database
+        database.package.keySet().removeAll(['snapshotRepository', 'releaseRepository'])
+        def code = uniqueCode('LAYOUT')
+
+        when:
+        def imported = api.post(IMPORT, [content: file])
+        def created = createProduct(product(code: code, name: "Layout $code", services: imported.json.services*.service))
+        long ordersDb = created.services.find { it.name == 'orders-db' }.id as long
+
+        then:
+        imported.status == 200
+        imported.json.services.find { it.name == 'orders-db' }.notes == []
+        api.get("/api/products/$created.id/config?format=json").json.projects['orders-db'].database == database
+        pipelineFor(ordersDb, pipeline(type: 'FULL')).type == 'FULL'
+        createPipeline(ordersDb, pipeline(type: 'SECURITY')).type == 'SECURITY'
+
+        cleanup:
+        saveDatabaseDefaults([:])
+
+        where:
+        layout << ['a', 'b', 'c']
     }
 
     def "a file that is not a config file, describes no project or refers to itself is refused without echoing the file"() {

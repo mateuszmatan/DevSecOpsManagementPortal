@@ -71,6 +71,14 @@ abstract class PortalSpecification extends Specification {
         response.json as Map
     }
 
+    /** Saves the Library defaults (SQL and PL/SQL) of the Global Settings; an empty map clears them. */
+    Map saveDatabaseDefaults(Map database) {
+        def current = api.get('/api/settings').json as Map
+        def response = api.put('/api/settings', current + [database: database])
+        assert response.status == 200: response
+        response.json as Map
+    }
+
     Map pipelineOfService(long serviceId, String type = 'FULL') {
         Long productId = jdbc.queryForObject('SELECT PRODUCT_ID FROM DSO_SERVICE WHERE ID = ?', Long, serviceId)
         api.get("/api/products/$productId/pipelines").json
