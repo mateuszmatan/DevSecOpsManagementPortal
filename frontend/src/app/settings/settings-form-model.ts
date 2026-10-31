@@ -2,6 +2,7 @@ import { FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms'
 import {
   BuildTool,
   DEFAULT_JENKINS_LIBRARY,
+  DatabaseDefaults,
   DeployTarget,
   GlobalSettingsRequest,
   GlobalSettingsValues,
@@ -10,16 +11,44 @@ import {
   Scanner,
   SeverityLimits,
 } from '../core/models';
-import { createGlobalGoldenFixForm, toGlobalGoldenFixPolicy } from '../products/product-form-model';
+import {
+  createGlobalGoldenFixForm,
+  inUse,
+  packageRepositories,
+  toGlobalGoldenFixPolicy,
+} from '../products/product-form-model';
+import {
+  ABSOLUTE,
+  ABSOLUTE_MESSAGE,
+  ARCHIVE,
+  ARCHIVE_MESSAGE,
+  JAR,
+  JAR_MESSAGE,
+  SHA256,
+  SHA256_MESSAGE,
+  TARGET,
+  TARGET_MESSAGE,
+  TOOL_URL,
+  TOOL_URL_MESSAGE,
+  ZIP,
+  ZIP_MESSAGE,
+  matching,
+} from '../shared/database-rules';
 import {
   HOST_NAME,
   INT_MAX,
   SHELL_SAFE_URL,
+  eachItem,
   filled,
+  fitsColumn,
   flag,
   integer,
+  joinLines,
+  lines,
   max,
+  maxItems,
   optional,
+  requireWhile,
   requiredRule,
   sent,
   shellSafe,
@@ -29,6 +58,40 @@ import {
 
 const host = (value: string | null | undefined, ...validators: ValidatorFn[]) =>
   text(value, ...validators, Validators.pattern(HOST_NAME), max(255));
+
+const absolute = (value: string | null | undefined, ...validators: ValidatorFn[]) =>
+  text(value, matching(ABSOLUTE, ABSOLUTE_MESSAGE), ...validators);
+const download = (value: string | null | undefined, file: RegExp, message: string) =>
+  text(value, max(1000), matching(TOOL_URL, TOOL_URL_MESSAGE), matching(file, message));
+
+/** The tools, allowed databases and package repositories of every SQL and PL/SQL service. */
+function createDatabaseDefaultsForm(d?: DatabaseDefaults | null) {
+  const form = new FormGroup({
+    liquibaseHome: absolute(d?.liquibaseHome),
+    liquibaseUrl: download(d?.liquibaseUrl, ARCHIVE, ARCHIVE_MESSAGE),
+    liquibaseSha256: text(d?.liquibaseSha256, matching(SHA256, SHA256_MESSAGE)),
+    liquibaseJavaVersion: integer(d?.liquibaseJavaVersion, 17, 25),
+    oracleJdbcPath: absolute(d?.oracleJdbcPath, matching(JAR, JAR_MESSAGE)),
+    oracleJdbcUrl: download(d?.oracleJdbcUrl, JAR, JAR_MESSAGE),
+    oracleJdbcSha256: text(d?.oracleJdbcSha256, matching(SHA256, SHA256_MESSAGE)),
+    utplsqlHome: absolute(d?.utplsqlHome),
+    utplsqlUrl: download(d?.utplsqlUrl, ZIP, ZIP_MESSAGE),
+    utplsqlSha256: text(d?.utplsqlSha256, matching(SHA256, SHA256_MESSAGE)),
+    allowedTargets: text(
+      joinLines(d?.allowedTargets),
+      maxItems(lines, 200),
+      eachItem(lines, TARGET, TARGET_MESSAGE),
+      fitsColumn(lines, '\n', 4000),
+    ),
+    ...packageRepositories(d),
+  });
+  const c = form.controls;
+  (['liquibase', 'oracleJdbc', 'utplsql'] as const).forEach((tool) => {
+    const url = c[`${tool}Url`];
+    requireWhile(c[`${tool}Sha256`], () => !!optional(url.value), url);
+  });
+  return form;
+}
 
 function createLimitsForm(limits?: SeverityLimits) {
   const count = (value: number | undefined) => integer(value, 0, 100_000, filled);
@@ -129,6 +192,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       npmRegistry: url(settings?.serviceDefaults.npmRegistry, 500),
       npmrcCredentialsId: text(settings?.serviceDefaults.npmrcCredentialsId, max(200)),
     }),
+    database: createDatabaseDefaultsForm(settings?.database),
     goldenFix: createGlobalGoldenFixForm(settings?.goldenFix),
   });
 }
@@ -164,6 +228,9 @@ export function toSettingsRequest(
       sourceDir: optional(v.serviceDefaults.sourceDir) ?? '.',
     },
     goldenFix: toGlobalGoldenFixPolicy(form.controls.goldenFix),
+    ...(inUse(v.database) && {
+      database: { ...sent(v.database), allowedTargets: lines(v.database.allowedTargets) },
+    }),
   };
 }
 

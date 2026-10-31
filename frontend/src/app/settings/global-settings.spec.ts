@@ -9,6 +9,8 @@ import {
   checkboxOf,
   fieldOf,
   helpOf,
+  optionsOf,
+  selectOf,
   text,
   toast,
   unexplained,
@@ -65,6 +67,7 @@ describe('GlobalSettingsPage', () => {
       'Scans and coverage',
       'Release gate',
       'Service defaults',
+      'SQL and PL/SQL (Liquibase)',
       'GoldenFix defaults',
     ]);
     expect(
@@ -221,6 +224,64 @@ describe('GlobalSettingsPage', () => {
     });
     request.flush(globalSettings());
     await fixture.whenStable();
+  });
+
+  it('sets the tools, the allowed databases and the package repositories of SQL and PL/SQL services', async () => {
+    await load();
+    const section = page().querySelector('#settings-database')!;
+    const type = (label: string, value: string) => {
+      const input = fieldOf(section, label)!.querySelector<HTMLInputElement>('input, textarea')!;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    };
+
+    expect(text(section.querySelector('h2'))).toBe('SQL and PL/SQL (Liquibase)');
+    expect([...section.querySelectorAll('.form-block h3')].map(text)).toEqual([
+      'Liquibase',
+      'Oracle JDBC driver',
+      'utPLSQL',
+      'Allowed databases',
+      'Nexus repositories of the database packages',
+    ]);
+    expect(text(fieldOf(section, 'Allowed databases')?.querySelector('dso-hint'))).toBe(
+      'database.allowedTargets',
+    );
+    expect(
+      optionsOf(selectOf(page().querySelector('#settings-serviceDefaults')!, 'Build tool')),
+    ).toEqual(['Gradle', 'Maven', 'Flutter']);
+
+    type('Liquibase folder on the agent', ' /opt/liquibase/4.33.0 ');
+    type('Allowed databases', 'rd-db*.bbh.com\nqc-db.bbh.com/ORDERS_QC');
+    type('Release repository ID', 'bbh-db-releases');
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/settings' });
+    expect(request.request.body.database).toEqual(
+      expect.objectContaining({
+        liquibaseHome: '/opt/liquibase/4.33.0',
+        liquibaseUrl: null,
+        allowedTargets: ['rd-db*.bbh.com', 'qc-db.bbh.com/ORDERS_QC'],
+        releaseRepositoryId: 'bbh-db-releases',
+      }),
+    );
+    request.flush(globalSettings());
+    await fixture.whenStable();
+  });
+
+  it('names the licence of each Liquibase version (library 19.5, the licence note)', async () => {
+    await load();
+
+    expect(helpOf(fieldOf(page(), 'Liquibase download')!)).toBe(
+      'The Nexus address of a Liquibase .tar.gz, .tgz or .zip. Use Liquibase 4.33.0, or 5.0 only after the BBH open-source office has accepted its licence, FSL-1.1-ALv2.',
+    );
+  });
+
+  it('recommends Liquibase 4.33.0 installed on the agent (library 19.2, chapter 14.2 Before you start)', async () => {
+    await load();
+
+    expect(text(page().querySelector('#settings-database .form-block p'))).toBe(
+      'Where the agents find the Liquibase CLI: a folder on the agent, or a download from Nexus with its checksum. Installing Liquibase 4.33.0 on the agent is recommended.',
+    );
   });
 
   it('sends nothing while values are invalid and marks their section', async () => {

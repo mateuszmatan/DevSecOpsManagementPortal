@@ -161,6 +161,8 @@ describe('docs/documentation.md', () => {
     expect(codes).toContain('build.node.installationName');
     expect(codes).toContain('staticAnalysis.parallel');
     expect(codes).toContain('verify.enabled');
+    expect(codes).toContain('tools.liquibase.home');
+    expect(codes).toContain('database.allowedTargets');
     expect(undocumented(codes)).toEqual([]);
   });
 

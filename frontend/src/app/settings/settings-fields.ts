@@ -1,4 +1,4 @@
-import { Field, check, choice, count, line, mono } from '@common/shared/fields';
+import { Field, area, check, choice, count, line, mono } from '@common/shared/fields';
 import {
   HTTP_URL_ERROR,
   SHELL_SAFE_ERROR,
@@ -471,6 +471,124 @@ export const SETTINGS_PAGE: SettingsSection[] = [
           mono('npmrcCredentialsId', '.npmrc credentials ID', 'build.node.npmrcCredentialsId', 3, {
             help: 'The ID of a Jenkins Secret file credential with an .npmrc, which npm reads as its user configuration, with its registry and login. A registry line of an .npmrc in the repository still wins over it.',
           }),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'database',
+    label: 'SQL and PL/SQL (Liquibase)',
+    note:
+      'The tools, the allowed databases and the Nexus repositories of every SQL and PL/SQL ' +
+      'service (build tool Liquibase). A tool left empty is taken from the PATH of the agent. ' +
+      'Credentials are never set here: each service names the IDs of its own.',
+    blocks: [
+      {
+        heading: 'Liquibase',
+        note: 'Where the agents find the Liquibase CLI: a folder on the agent, or a download from Nexus with its checksum. Installing Liquibase 4.33.0 on the agent is recommended.',
+        fields: [
+          mono('liquibaseHome', 'Liquibase folder on the agent', 'tools.liquibase.home', 6, {
+            placeholder: '/opt/liquibase/4.33.0',
+            help: 'The folder that holds the liquibase launcher. It wins over the download.',
+          }),
+          count('liquibaseJavaVersion', 'Java version', 'tools.liquibase.javaVersion', 6, {
+            min: 17,
+            help: 'The JDK version that a service with automatic build tool setup gets, from 17 to 25. Empty: 17.',
+          }),
+          mono('liquibaseUrl', 'Liquibase download', 'tools.liquibase.url', 8, {
+            help: 'The Nexus address of a Liquibase .tar.gz, .tgz or .zip. Use Liquibase 4.33.0, or 5.0 only after the BBH open-source office has accepted its licence, FSL-1.1-ALv2.',
+          }),
+          mono('liquibaseSha256', 'Its SHA-256', 'tools.liquibase.sha256', 4, {
+            help: 'The 64 lower-case hexadecimal digits of the file. Required with the download; a file with another checksum is deleted and the run stops.',
+          }),
+        ],
+      },
+      {
+        heading: 'Oracle JDBC driver',
+        note: 'Liquibase 5 and a trimmed Liquibase 4.33 need an Oracle driver, ojdbc11 or ojdbc17. The full Liquibase 4.33 download prefers the ojdbc8 driver it bundles.',
+        fields: [
+          mono('oracleJdbcPath', 'Driver on the agent', 'tools.oracleJdbc.path', 6, {
+            placeholder: '/opt/oracle/ojdbc11.jar',
+            help: 'The absolute path of the driver jar. It wins over the download.',
+          }),
+          mono('oracleJdbcUrl', 'Driver download', 'tools.oracleJdbc.url', 8, {
+            help: 'The Nexus address of the driver jar.',
+          }),
+          mono('oracleJdbcSha256', 'Its SHA-256', 'tools.oracleJdbc.sha256', 4, {
+            help: 'Required with the download.',
+          }),
+        ],
+      },
+      {
+        heading: 'utPLSQL',
+        note: 'Only the services that run utPLSQL tests need utPLSQL-cli 3.2.2.',
+        fields: [
+          mono('utplsqlHome', 'utPLSQL-cli folder on the agent', 'tools.utplsql.home', 6, {
+            placeholder: '/opt/utPLSQL-cli',
+            help: 'The folder that holds bin/utplsql. It wins over the download.',
+          }),
+          mono('utplsqlUrl', 'utPLSQL-cli download', 'tools.utplsql.url', 8, {
+            help: 'The Nexus address of utPLSQL-cli.zip.',
+          }),
+          mono('utplsqlSha256', 'Its SHA-256', 'tools.utplsql.sha256', 4, {
+            help: 'Required with the download.',
+          }),
+        ],
+      },
+      {
+        heading: 'Allowed databases',
+        note: 'The pipelines deploy only to the databases listed here; an empty list allows none. This is a guard against mistakes, not an access control: keep production credentials out of the Jenkins folders of the products.',
+        fields: [
+          area('allowedTargets', 'Allowed databases', 'database.allowedTargets', 12, {
+            placeholder: 'rd-db*.bbh.com\nqc-db.bbh.com/ORDERS_QC',
+            help: 'One host, or host/SERVICE, per line; * stands for any run of letters, digits, dots and hyphens. Every host of a JDBC URL must match a line, and its service too when the line names one. A service URL that no line allows is refused when the product is saved and when a pipeline runs.',
+          }),
+        ],
+      },
+      {
+        heading: 'Nexus repositories of the database packages',
+        note: 'Where the Full, Security and Extended pipelines upload and fetch the zips of the SQL and PL/SQL services. A service may name its own.',
+        fields: [
+          mono(
+            'snapshotRepositoryId',
+            'Snapshot repository ID',
+            'database.package.snapshotRepository.id',
+            4,
+            {
+              placeholder: 'bbh-db-snapshots',
+              help: 'The server ID of the snapshot repository in the Maven settings of the agents, which supplies the upload credentials.',
+            },
+          ),
+          mono(
+            'snapshotRepositoryUrl',
+            'Snapshot repository URL',
+            'database.package.snapshotRepository.url',
+            8,
+            {
+              placeholder: 'https://tools.bbh.com/nexus/repository/db-snapshots',
+              help: 'The Nexus repository that receives the zip of every delivering build, for every service that names none of its own.',
+            },
+          ),
+          mono(
+            'releaseRepositoryId',
+            'Release repository ID',
+            'database.package.releaseRepository.id',
+            4,
+            {
+              placeholder: 'bbh-db-releases',
+              help: 'The server ID of the release repository in the Maven settings of the agents, which supplies the upload credentials.',
+            },
+          ),
+          mono(
+            'releaseRepositoryUrl',
+            'Release repository URL',
+            'database.package.releaseRepository.url',
+            8,
+            {
+              placeholder: 'https://tools.bbh.com/nexus/repository/db-releases',
+              help: 'The Nexus repository that receives the zip the release gate allowed, for every service that names none of its own.',
+            },
+          ),
         ],
       },
     ],

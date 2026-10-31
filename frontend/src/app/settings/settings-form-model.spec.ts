@@ -1,5 +1,14 @@
 import { GlobalSettingsValues } from '../core/models';
-import { globalSettings } from '../testing/fixtures';
+import { databaseDefaults, globalSettings } from '../testing/fixtures';
+import {
+  ABSOLUTE_MESSAGE,
+  ARCHIVE_MESSAGE,
+  JAR_MESSAGE,
+  SHA256_MESSAGE,
+  TARGET_MESSAGE,
+  TOOL_URL_MESSAGE,
+  ZIP_MESSAGE,
+} from '../shared/database-rules';
 import { applyFieldProblems, controlAt } from '@common/shared/form-controls';
 import {
   createSettingsForm,
@@ -180,6 +189,103 @@ describe('toSettingsRequest', () => {
       NEXUS_IQ: { maxCritical: 0, maxHigh: 2, maxMedium: 10 },
       DAST: { maxCritical: 0, maxHigh: 3, maxMedium: 0 },
     });
+  });
+});
+
+describe('Library defaults of SQL and PL/SQL services', () => {
+  const NONE = {
+    liquibaseHome: null,
+    liquibaseUrl: null,
+    liquibaseSha256: null,
+    liquibaseJavaVersion: null,
+    oracleJdbcPath: null,
+    oracleJdbcUrl: null,
+    oracleJdbcSha256: null,
+    utplsqlHome: null,
+    utplsqlUrl: null,
+    utplsqlSha256: null,
+    allowedTargets: [],
+    snapshotRepositoryId: null,
+    snapshotRepositoryUrl: null,
+    releaseRepositoryId: null,
+    releaseRepositoryUrl: null,
+  };
+
+  it('sends no database block while every value is empty, as before', () => {
+    const form = createSettingsForm(globalSettings());
+    form.controls.database.patchValue({ liquibaseHome: '  ', allowedTargets: '\n' });
+
+    expect(form.controls.database.valid).toBe(true);
+    expect(toSettingsRequest(form, 4)).not.toHaveProperty('database');
+  });
+
+  it('sends the block once a value is set, trimmed and one allowed database per line', () => {
+    const form = createSettingsForm(globalSettings());
+    form.controls.database.patchValue({
+      liquibaseHome: ' /opt/liquibase/4.33.0 ',
+      allowedTargets: 'dev-db.bbh.com\n\n rd-db*.bbh.com \ndev-db.bbh.com',
+    });
+
+    expect(toSettingsRequest(form, 4).database).toEqual({
+      ...NONE,
+      liquibaseHome: '/opt/liquibase/4.33.0',
+      allowedTargets: ['dev-db.bbh.com', 'rd-db*.bbh.com'],
+    });
+  });
+
+  it('round-trips stored Library defaults', () => {
+    const settings = globalSettings({ database: databaseDefaults({ liquibaseJavaVersion: 21 }) });
+    const form = createSettingsForm(settings);
+
+    expect(form.controls.database.controls.allowedTargets.value).toBe(
+      'dev-db.bbh.com\nrd-db.bbh.com\nqc-db.bbh.com',
+    );
+    expect(form.valid).toBe(true);
+    expect(toSettingsRequest(form, 4).database).toEqual(settings.database);
+  });
+
+  it('checks the folders, downloads, checksums, Java version and allowed databases', () => {
+    const c = createSettingsForm(globalSettings()).controls.database.controls;
+    const tools = 'https://tools.bbh.com/nexus/repository/tools';
+    c.liquibaseHome.setValue('opt/liquibase');
+    c.liquibaseUrl.setValue(`${tools}/liquibase.jar`);
+    c.oracleJdbcPath.setValue('/opt/oracle/ojdbc11.zip');
+    c.oracleJdbcUrl.setValue('http://tools.bbh.com/ojdbc11.jar');
+    c.utplsqlUrl.setValue(`${tools}/utPLSQL-cli.tar.gz`);
+    c.utplsqlSha256.setValue('15A3');
+    c.allowedTargets.setValue('rd-db.bbh.com\nqc db.bbh.com');
+
+    expect(c.liquibaseHome.errors).toEqual({ rule: ABSOLUTE_MESSAGE });
+    expect(c.liquibaseUrl.errors).toEqual({ rule: ARCHIVE_MESSAGE });
+    expect(c.oracleJdbcPath.errors).toEqual({ rule: JAR_MESSAGE });
+    expect(c.oracleJdbcUrl.errors).toEqual({ rule: TOOL_URL_MESSAGE });
+    expect(c.utplsqlUrl.errors).toEqual({ rule: ZIP_MESSAGE });
+    expect(c.utplsqlSha256.errors).toEqual({ rule: SHA256_MESSAGE });
+    expect(c.allowedTargets.errors).toEqual({
+      item: { value: 'qc db.bbh.com', message: TARGET_MESSAGE },
+    });
+
+    c.liquibaseJavaVersion.setValue(16);
+    expect(c.liquibaseJavaVersion.hasError('min')).toBe(true);
+    c.liquibaseJavaVersion.setValue(26);
+    expect(c.liquibaseJavaVersion.hasError('max')).toBe(true);
+    c.allowedTargets.setValue(Array.from({ length: 201 }, (_, i) => `db${i}.bbh.com`).join('\n'));
+    expect(c.allowedTargets.hasError('maxItems')).toBe(true);
+  });
+
+  it('requires the checksum of each download, and only while the download is set', () => {
+    const c = createSettingsForm(globalSettings()).controls.database.controls;
+
+    expect(
+      [c.liquibaseSha256, c.oracleJdbcSha256, c.utplsqlSha256].map((sha) => sha.valid),
+    ).toEqual([true, true, true]);
+
+    c.oracleJdbcUrl.setValue('https://tools.bbh.com/nexus/repository/tools/ojdbc11.jar');
+    expect(c.oracleJdbcSha256.hasError('required')).toBe(true);
+    expect(c.liquibaseSha256.valid && c.utplsqlSha256.valid).toBe(true);
+
+    c.oracleJdbcUrl.setValue('');
+    expect(c.oracleJdbcSha256.valid).toBe(true);
   });
 });
 
