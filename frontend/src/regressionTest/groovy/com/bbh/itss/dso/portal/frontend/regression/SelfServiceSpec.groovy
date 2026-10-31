@@ -254,6 +254,96 @@ class SelfServiceSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
+    def "a Security pipeline of a new product gets a SQL and PL/SQL service with its changelog and its databases"() {
+        given:
+        allowDatabases()
+        def store = ProductStore.created(api, 3)
+
+        when:
+        startWizard('Orders Database', 'Security')
+
+        then:
+        assertThat(step().locator('.prepare li').last()).hasText('For a SQL and PL/SQL service: its changelog file, the JDBC URL ' +
+                'of each database with the ID of its Jenkins credential, and the Maven group ID of its package; the DBA and the ' +
+                'DevSecOps team provide them')
+
+        when:
+        button('Next: Services', true).click()
+        addDatabaseService()
+
+        then:
+        assertThat(dialogButton('Add service')).isDisabled()
+        assertThat(dialog().locator('.missing')).hasText('Complete these fields first: Changelog file, Group ID.')
+
+        when:
+        fillIn(dialog(), ['Changelog file': 'db/changelog-master.xml', 'Group ID': 'com.bbh.orders'])
+        fillIn(databaseBlock('rd', dialog()), ['JDBC URL'      : 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD',
+                                               'Credentials ID': 'orders-db-rd'])
+        dialogButton('Add service').click()
+
+        then:
+        assertThat(serviceRow('orders-db').locator('.muted')).hasText('SQL and PL/SQL changes with Liquibase.')
+
+        when:
+        button('Next: Review', true).click()
+        button('Create the pipelines', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('Orders Database is saved. Now do these steps in order')
+        def request = awaitRequest('POST', '/api/products', 1)
+        request.params() == [pipelineType: 'SECURITY']
+        with((request.json() as Map).services[0] as Map) {
+            name == 'orders-db'
+            build.tool == 'LIQUIBASE'
+            database.changelogFile == 'db/changelog-master.xml'
+            database.groupId == 'com.bbh.orders'
+            database.nexusDelivery == true
+            databaseTargets.keySet() == ['RD'] as Set
+            databaseTargets.RD.url == 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD'
+            databaseTargets.RD.credentialsId == 'orders-db-rd'
+            nexusIqApplications == []
+        }
+        store.services*.pipelines*.type == [['SECURITY']]
+        assertThat(page.locator('.jenkinsfile .code-block')).hasText(
+                "@Library('DevSecOpsJenkinsLibrary') _ devSecOpsSecurityPipeline(pipelineKey: '${store.generatedKeys['orders-db']}')".toString())
+        ownErrors().isEmpty()
+    }
+
+    def "a Nexus IQ GoldenFix pipeline asks to remove a SQL and PL/SQL service, which has no open source dependencies"() {
+        when:
+        startWizard('Orders Database', OSA)
+        button('Next: Services', true).click()
+        addDatabaseService()
+        input(dialog(), 'Changelog file').fill('db/changelog-master.xml')
+        dialogButton('Add service').click()
+        button('Next: Review', true).click()
+
+        then:
+        assertThat(currentStep()).hasText('Services')
+        assertThat(choiceError()).hasText('A Nexus IQ GoldenFix pipeline scans open source dependencies, which SQL and PL/SQL ' +
+                'services do not have. Remove these services from this pipeline: orders-db')
+        api.requests('POST', '/api/products').isEmpty()
+        ownErrors().isEmpty()
+    }
+
+    void startWizard(String product, String pipeline) {
+        open('/self-service')
+        choose(step(), 'Business Service', 'Custody')
+        input(step(), 'Product name').fill(product)
+        button('Next: Pipeline', true).click()
+        radio(step(), pipeline).click()
+    }
+
+    void addDatabaseService() {
+        button('Add a service', true).click()
+        input(dialog(), 'Service name').fill('orders-db')
+        showDialogSection('Build')
+        choose(dialog(), 'Build tool', 'SQL and PL/SQL (Liquibase)')
+        showDialogSection('AppScan SAST and DAST')
+        fillIn(dialog(), ['AppScan application ID': API_APPLICATION, 'AppScan API key ID': APP_SCAN_KEY])
+        showDialogSection('Database changes')
+    }
+
     void openProduct(String department, String product) {
         open('/self-service')
         choose(step(), 'Business Service', department)

@@ -65,6 +65,31 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         ownErrors().isEmpty()
     }
 
+    def "the settings of a product with a SQL and PL/SQL service show its database block and no deployment"() {
+        given:
+        def yaml = fixtureText('product-3-config.yaml')
+        open('/admin/products/3')
+
+        expect:
+        assertThat(serviceCard('orders-db').locator('.service-facts dt')).hasText(['Build tool', 'Bitbucket repository'] as String[])
+        assertThat(serviceCard('orders-db').locator('.service-facts dd').first()).hasText('SQL and PL/SQL (Liquibase)')
+
+        when:
+        productAction('Settings sent to Jenkins (devsecops_config.yaml)')
+
+        then:
+        assertThat(dialog().locator('h2')).hasText('Settings sent to Jenkins (devsecops_config.yaml) for Orders Database')
+        dialog().locator('pre.code-block').textContent() == yaml
+
+        when:
+        def download = page.waitForDownload { dialogButton('Download').click() }
+
+        then:
+        readString(download.path()) == yaml
+        api.requests('GET', '/api/products/3/config').size() == 1
+        ownErrors().isEmpty()
+    }
+
     def "the Jenkinsfile of a pipeline loads the shared library of the global settings with the pipeline's key"() {
         given:
         def settings = fixture('settings.json') as Map

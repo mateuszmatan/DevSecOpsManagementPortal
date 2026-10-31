@@ -16,6 +16,7 @@ class AddProductSpec extends EditorSpecification {
     static final String API_APPLICATION = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b32'
     static final String TAKEN_APPLICATION = '209f44ac-dd06-4ca0-884e-d944904f8020'
     static final String APP_SCAN_KEY = 'bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15'
+    static final String ORDERS_APPLICATION = '6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10'
 
     def "a new product starts from its department and name, and its code follows the name until the code is typed"() {
         when:
@@ -216,6 +217,56 @@ class AddProductSpec extends EditorSpecification {
         assertThat(page.locator('dso-import-notes')).containsText(
                 'The import did not read config.yaml: the DevSecOps library reads devsecops_config.yaml when a repository has both')
         api.requests('POST', '/api/service-configs/import')*.json()*.content == ['projects: {}']
+        ownErrors().isEmpty()
+    }
+
+    def "a product with a SQL and PL/SQL service typed in the editor sends its changelog and its databases"() {
+        given:
+        allowDatabases()
+        ProductStore.created(api, 3)
+        startProduct('Orders Database')
+
+        when:
+        fillIn(productFields(), ['Code'          : 'ORDERSDB', 'Owner team': 'Order Management',
+                                 'Description'   : 'The order book of the custody clients',
+                                 'Contact e-mail': 'orders-team@bbh.com'])
+        fillIn(openService(), ['Service name': 'orders-db', 'Description': 'SQL and PL/SQL of the orders schema'])
+        showSection('Build')
+        choose(openService(), 'Build tool', 'SQL and PL/SQL (Liquibase)')
+        checkbox(openService(), 'Set up the build tool automatically').uncheck()
+        input(openService(), 'JDK path').fill('/usr/lib/jvm/java-17-openjdk')
+
+        then:
+        assertThat(sectionNames()).hasText(['General', 'Build', 'Database changes', 'Test jobs', 'AppScan SAST and DAST',
+                                            'SonarQube', 'Bitbucket', 'Monitoring'] as String[])
+
+        when:
+        showSection('Database changes')
+        fillIn(openService().locator('.pane > .form-fields').first(), ['Changelog file'      : 'db/changelog-master.xml',
+                                                                     'Changelog parameters': 'app_role=orders_app_role'])
+        input(openService(), 'Group ID').fill('com.bbh.orders')
+        fillIn(databaseBlock('test'), ['JDBC URL': 'jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI', 'Credentials ID': 'orders-db-test'])
+        checkbox(databaseBlock('test'), 'Run the utPLSQL tests').check()
+        fillIn(databaseBlock('test'), ['Folder of the packages': 'db/code', 'Folder of the test packages': 'db/test'])
+        fillIn(databaseBlock('rd'), ['JDBC URL': 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD', 'Credentials ID': 'orders-db-rd'])
+        fillIn(databaseBlock('qc'), ['JDBC URL'      : 'jdbc:oracle:thin:@tcps://qc-db.bbh.com:2484/ORDERS_QC?ssl_server_dn_match=true',
+                                     'Credentials ID': 'orders-db-qc'])
+        showAdvancedSettings()
+        input(openService().locator("dso-advanced-settings h4:has(> code:text-is('database.qc')) + dso-fields"),
+                'Changelog parameters').fill('app_role=orders_qc_role')
+        showSection('AppScan SAST and DAST')
+        fillIn(openService(), ['AppScan application ID'       : ORDERS_APPLICATION, 'AppScan API key ID': "bbh_$ORDERS_APPLICATION".toString(),
+                               'API key secret credentials ID': 'appscan-orders-key-secret'])
+        showSection('SonarQube')
+        input(openService(), 'Project key').fill('bbh-orders-db')
+        showSection('Bitbucket')
+        input(openService(), 'Repository URL').fill('https://bitbucket.bbh.com/projects/ORD/repos/orders')
+        button('Add product', true).click()
+        page.waitForURL('**/admin/products/3')
+
+        then:
+        api.lastRequest('POST', '/api/products').json() == expected('new-database-product-request.json')
+        assertThat(page.locator('h1')).hasText('Orders Database')
         ownErrors().isEmpty()
     }
 

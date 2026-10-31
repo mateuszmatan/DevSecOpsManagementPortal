@@ -126,6 +126,50 @@ class EditProductSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
+    def "a Gradle service switched to SQL and PL/SQL shows Database changes, and switched back saves what was loaded"() {
+        given:
+        def loaded = fixture('product-1.json') as Map
+        def gradle = ['General', 'Build', 'Unit tests and coverage', 'Test jobs', 'Deployment', 'UrbanCode Deploy', 'SSH targets',
+                      'AppScan SAST and DAST', 'SonarQube', 'Nexus IQ', 'Bitbucket', 'GoldenFix', 'Monitoring'] as String[]
+        ProductStore.recorded(api, 1)
+        open('/admin/products/1/edit')
+        expandService('gui')
+        showSection('Build')
+
+        expect:
+        assertThat(sectionNames()).hasText(gradle)
+
+        when:
+        choose(openService(), 'Build tool', 'SQL and PL/SQL (Liquibase)')
+
+        then:
+        assertThat(sectionNames()).hasText(['General', 'Build', 'Database changes', 'Test jobs', 'AppScan SAST and DAST',
+                                            'SonarQube', 'Bitbucket', 'Monitoring'] as String[])
+        assertThat(input(openService(), 'Artifact path')).hasCount(0)
+
+        when:
+        showSection('Database changes')
+
+        then:
+        assertThat(input(openService(), 'Changelog file')).isVisible()
+
+        when:
+        showSection('Build')
+        choose(openService(), 'Build tool', 'Gradle')
+
+        then:
+        assertThat(sectionNames()).hasText(gradle)
+        assertThat(input(openService(), 'Artifact path')).hasValue('build/libs/*.jar')
+
+        when:
+        button('Save changes', true).click()
+        page.waitForURL('**/admin/products/1')
+
+        then:
+        awaitRequest('PUT', '/api/products/1').json() == withoutResponseFields(loaded)
+        ownErrors().isEmpty()
+    }
+
     def "new services of an existing product get their pipeline keys, shown once after the save"() {
         given:
         def store = ProductStore.recorded(api, 1)

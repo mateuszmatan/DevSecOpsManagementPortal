@@ -3,9 +3,21 @@ package com.bbh.itss.dso.portal.frontend.regression
 import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.microsoft.playwright.Locator
 
+import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
 abstract class EditorSpecification extends DsoSpecification {
+
+    /** The Library defaults (SQL and PL/SQL) that the service forms read: the allowed databases and the repositories. */
+    static final Map DATABASE_DEFAULTS = [allowedTargets       : ['dev-db.bbh.com', 'rd-db.bbh.com', 'qc-db.bbh.com'],
+                                          snapshotRepositoryId : 'bbh-db-snapshots',
+                                          snapshotRepositoryUrl: 'https://tools.bbh.com/nexus/repository/db-snapshots',
+                                          releaseRepositoryId  : 'bbh-db-releases',
+                                          releaseRepositoryUrl : 'https://tools.bbh.com/nexus/repository/db-releases']
+
+    void allowDatabases() {
+        api.respond('GET', '/api/settings', (fixture('settings.json') as Map) + [database: DATABASE_DEFAULTS])
+    }
 
     void startProduct(String name, String department = 'Corporate Technology') {
         open('/admin/products/new')
@@ -30,6 +42,15 @@ abstract class EditorSpecification extends DsoSpecification {
 
     Locator serviceNames() {
         page.locator('dso-panel.service-panel .service-name')
+    }
+
+    Locator sectionNames() {
+        openService().locator('.rail-item > span:not(.problem-mark)')
+    }
+
+    /** The block of the test, RD or QC database under Database changes. */
+    Locator databaseBlock(String target, Locator scope = openService()) {
+        scope.locator(".form-fields.block:has(> h4 > code:text-is('database.${target}'))")
     }
 
     void expandService(String name) {

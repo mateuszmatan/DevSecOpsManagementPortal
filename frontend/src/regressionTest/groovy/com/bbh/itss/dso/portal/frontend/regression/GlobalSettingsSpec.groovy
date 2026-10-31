@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.frontend.support.DsoSpecification
 import com.bbh.itss.dso.portal.frontend.support.RecordedRequest
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
+import groovy.json.JsonSlurper
 
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixtureText
@@ -180,6 +181,32 @@ class GlobalSettingsSpec extends DsoSpecification {
         then:
         dialog().locator('pre.code-block').textContent() ==
                 fixtureText('settings-config.yaml').replace('parallel: true', 'parallel: false')
+        ownErrors().isEmpty()
+    }
+
+    def "the SQL and PL/SQL section saves its tools, allowed databases and package repositories"() {
+        given:
+        open('/admin/settings')
+        def section = page.locator('#settings-database')
+        def block = { String heading -> holding(section.locator('.form-block'), "h3:text-is('${heading}')") }
+
+        when:
+        input(block('Liquibase'), 'Liquibase folder on the agent').fill('/opt/liquibase/4.33.0')
+        input(block('Oracle JDBC driver'), 'Driver on the agent').fill('/opt/oracle/ojdbc11.jar')
+        fillIn(block('utPLSQL'), ['utPLSQL-cli download': 'https://tools.bbh.com/nexus/repository/raw-tools/utplsql/utPLSQL-cli/3.2.2/utPLSQL-cli.zip',
+                                  'Its SHA-256'         : '15a3addd921b7f2e415537b47c18a4a9d3e0b70ff0e403943fd4c03b0ba02006'])
+        fillIn(section, ['Allowed databases'      : 'dev-db.bbh.com\nrd-db.bbh.com\nqc-db.bbh.com',
+                         'Snapshot repository ID' : 'bbh-db-snapshots',
+                         'Snapshot repository URL': 'https://tools.bbh.com/nexus/repository/db-snapshots',
+                         'Release repository ID'  : 'bbh-db-releases',
+                         'Release repository URL' : 'https://tools.bbh.com/nexus/repository/db-releases'])
+        button('Save settings', true).click()
+
+        then:
+        assertThat(snackBar()).containsText('Library defaults saved. Every pipeline gets them the next time it runs.')
+        awaitRequest('PUT', '/api/settings').json() == new JsonSlurper().parse(getClass().getResource('settings-with-database-request.json'))
+        assertThat(saved()).containsText('(version 2)')
+        assertThat(input(section, 'Allowed databases')).hasValue('dev-db.bbh.com\nrd-db.bbh.com\nqc-db.bbh.com')
         ownErrors().isEmpty()
     }
 
