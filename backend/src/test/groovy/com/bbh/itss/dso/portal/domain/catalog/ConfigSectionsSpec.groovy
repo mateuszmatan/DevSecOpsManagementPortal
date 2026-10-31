@@ -8,6 +8,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.BitbucketType.CLOUD
 import static com.bbh.itss.dso.portal.domain.catalog.BitbucketType.SERVER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
@@ -19,6 +20,8 @@ import static com.bbh.itss.dso.portal.domain.shared.Sections.reported
 import static com.bbh.itss.dso.portal.domain.shared.Sections.written
 
 class ConfigSectionsSpec extends Specification {
+
+    static final String SOURCE_FOLDER = 'must be "." or a relative path inside the repository, without ".."'
 
     static final String APP_ID = '109f44ac-cc06-4ca0-884e-d944904f7019'
     static final String REPO = 'https://bitbucket.bbh.com/scm/ta/cert.git'
@@ -71,6 +74,50 @@ class ConfigSectionsSpec extends Specification {
         FLUTTER | '/jdk'   | true      | []        || ['autoSetup']
         FLUTTER | null     | true      | []        || ['javaPath', 'autoSetup']
         FLUTTER | '/jdk'   | false     | []        || []
+    }
+
+    def "only Gradle and Maven run commands, and a Liquibase build writes no artifact path and no command"() {
+        expect:
+        BuildTool.values().findAll { it.runsCommands() } == [GRADLE, MAVEN]
+        written(new BuildSettings(LIQUIBASE, 'orders-db', '/jdk', true, 'target/*.jar', ToolCommand.of(['build'], []))) ==
+                [buildTool: 'liquibase', sourceDir: 'orders-db', javaPath: '/jdk', buildToolAutoSetup: true]
+    }
+
+    def "a Liquibase build in #sourceDir with java path #javaPath and auto setup #autoSetup reports #fields"() {
+        expect:
+        reported(new BuildSettings(LIQUIBASE, sourceDir, javaPath, autoSetup, null, null))
+                .collect { [it.field, it.message] } == fields
+
+        where:
+        sourceDir   | javaPath                       | autoSetup || fields
+        null        | null                           | true      || []
+        'orders-db' | '/usr/lib/jvm/java-17-openjdk' | false     || []
+        null        | null                           | false     || [['javaPath', 'set the JDK path or enable automatic build'
+                + ' tool setup: Liquibase and utPLSQL need Java 17 or newer']]
+        null        | 'jdk-17'                       | true      || [['javaPath', 'must be the absolute path of a JDK 17 or'
+                + ' newer, such as /usr/lib/jvm/java-17-openjdk']]
+        'db/../..'  | null                           | true      || [['sourceDir', SOURCE_FOLDER]]
+        'db folder' | null                           | true      || [['sourceDir', SOURCE_FOLDER]]
+        '/db'       | null                           | true      || [['sourceDir', SOURCE_FOLDER]]
+    }
+
+    def "a Liquibase service scans only its sources with AppScan, without a compile step or DAST"() {
+        given:
+        def appScan = new AppScanSettings(APP_ID, ['db'], ['db/test'], false, false, true, true, '/opt/appscan',
+                ToolCommand.of(['compile'], []), true, 'https://rdl1.testbbh.com', 'p-1', 'cert-secret', 'bbh_key',
+                'orders-db-sast')
+
+        expect:
+        written { appScan.writeTo(it, LIQUIBASE) } ==
+                [appId: APP_ID, includedDirs: 'db', excludedDirs: 'db/test', appscanPath: '/opt/appscan',
+                 asoc : [keyId: 'bbh_key', token: 'cert-secret', useAppScanConfig: true, insecureTls: true],
+                 sast : [scanName: 'orders-db-sast'], dast: [enabled: false]]
+        problems {
+            AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key').dastEnabled(true)
+                    .compileCommand(ToolCommand.builder().label('Compile').build()).build().validate(it, LIQUIBASE)
+        } == []
+        problems { SonarSettings.of(null, 'bbh-orders-db', ToolCommand.builder().label('Analyse').build())
+                .validate(it, LIQUIBASE) } == []
     }
 
     def "OpenShift deployment needs the application name, and the artifact name while it delivers to Nexus"() {

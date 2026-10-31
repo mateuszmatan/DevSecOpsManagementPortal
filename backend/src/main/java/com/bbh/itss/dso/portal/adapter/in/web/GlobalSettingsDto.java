@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.adapter.Mirrors;
 import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
+import com.bbh.itss.dso.portal.domain.settings.DatabaseDefaults;
 import com.bbh.itss.dso.portal.domain.settings.DeploymentDefaults;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
@@ -35,6 +36,25 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_URL
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_URL_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ABSOLUTE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ABSOLUTE_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ARCHIVE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ARCHIVE_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.JAR;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.JAR_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.MAVEN;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.MAVEN_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.OPTIONAL;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.REPOSITORY_URL;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.REPOSITORY_URL_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SHA256;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SHA256_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.TARGET;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.TARGET_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.TOOL_URL;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.TOOL_URL_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ZIP;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ZIP_MESSAGE;
 import static com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY;
 
 @JsonIgnoreProperties(value = "updatedAt", allowGetters = true)
@@ -47,7 +67,8 @@ public record GlobalSettingsDto(
         @NotNull @Valid ScanSettingsDto scans,
         @NotNull @Valid ReleaseGateSettingsDto releaseGate,
         @NotNull @Valid ServiceDefaultsDto serviceDefaults,
-        @NotNull @Valid ServiceDto.GoldenFixPolicyDto goldenFix) {
+        @NotNull @Valid ServiceDto.GoldenFixPolicyDto goldenFix,
+        @Valid DatabaseDefaultsDto database) {
 
     static GlobalSettingsDto from(GlobalSettings settings) {
         return RecordMapper.map(GlobalSettingsDto.class, settings, settings.values());
@@ -135,5 +156,29 @@ public record GlobalSettingsDto(
             @Size(max = 200) String nodeInstallationName,
             @Size(max = 500) @Pattern(regexp = URL, message = URL_MESSAGE) String npmRegistry,
             @Size(max = 200) String npmrcCredentialsId) implements Mirrors<ServiceDefaults> {
+    }
+
+    public record DatabaseDefaultsDto(
+            @Pattern(regexp = OPTIONAL + ABSOLUTE, message = ABSOLUTE_MESSAGE) String liquibaseHome,
+            @Size(max = 1000) @Pattern(regexp = OPTIONAL + TOOL_URL, message = TOOL_URL_MESSAGE)
+            @Pattern(regexp = OPTIONAL + ARCHIVE, message = ARCHIVE_MESSAGE) String liquibaseUrl,
+            @Pattern(regexp = OPTIONAL + SHA256, message = SHA256_MESSAGE) String liquibaseSha256,
+            @Min(17) @Max(25) Integer liquibaseJavaVersion,
+            @Pattern(regexp = OPTIONAL + ABSOLUTE, message = ABSOLUTE_MESSAGE)
+            @Pattern(regexp = OPTIONAL + JAR, message = JAR_MESSAGE) String oracleJdbcPath,
+            @Size(max = 1000) @Pattern(regexp = OPTIONAL + TOOL_URL, message = TOOL_URL_MESSAGE)
+            @Pattern(regexp = OPTIONAL + JAR, message = JAR_MESSAGE) String oracleJdbcUrl,
+            @Pattern(regexp = OPTIONAL + SHA256, message = SHA256_MESSAGE) String oracleJdbcSha256,
+            @Pattern(regexp = OPTIONAL + ABSOLUTE, message = ABSOLUTE_MESSAGE) String utplsqlHome,
+            @Size(max = 1000) @Pattern(regexp = OPTIONAL + TOOL_URL, message = TOOL_URL_MESSAGE)
+            @Pattern(regexp = OPTIONAL + ZIP, message = ZIP_MESSAGE) String utplsqlUrl,
+            @Pattern(regexp = OPTIONAL + SHA256, message = SHA256_MESSAGE) String utplsqlSha256,
+            @Size(max = 200) List<@NotBlank @Pattern(regexp = TARGET, message = TARGET_MESSAGE) String> allowedTargets,
+            @Pattern(regexp = OPTIONAL + MAVEN, message = MAVEN_MESSAGE) String snapshotRepositoryId,
+            @Size(max = 1000) @Pattern(regexp = OPTIONAL + REPOSITORY_URL, message = REPOSITORY_URL_MESSAGE)
+            String snapshotRepositoryUrl,
+            @Pattern(regexp = OPTIONAL + MAVEN, message = MAVEN_MESSAGE) String releaseRepositoryId,
+            @Size(max = 1000) @Pattern(regexp = OPTIONAL + REPOSITORY_URL, message = REPOSITORY_URL_MESSAGE)
+            String releaseRepositoryUrl) implements Mirrors<DatabaseDefaults> {
     }
 }

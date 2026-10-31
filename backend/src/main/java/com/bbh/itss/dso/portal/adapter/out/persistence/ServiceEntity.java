@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType;
 import com.bbh.itss.dso.portal.domain.catalog.BitbucketType;
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform;
 import com.bbh.itss.dso.portal.domain.catalog.Region;
@@ -94,6 +95,12 @@ public class ServiceEntity extends AuditedEntity {
     @MapKeyColumn(name = "REGION")
     private Map<Region, OpenShiftTargetEmbeddable> openShiftTargets = new HashMap<>();
 
+    @ElementCollection
+    @CollectionTable(name = "DSO_SERVICE_DATABASE_TARGET", joinColumns = @JoinColumn(name = "SERVICE_ID"))
+    @MapKeyEnumerated(STRING)
+    @MapKeyColumn(name = "TARGET")
+    private Map<DatabaseTarget, DatabaseTargetEmbeddable> databaseTargets = new HashMap<>();
+
     ServiceEntity(ProductEntity product) {
         this.product = product;
     }
@@ -115,8 +122,9 @@ public class ServiceEntity extends AuditedEntity {
         replace(testJobs, source.testJobs().stream().map(job -> RecordMapper.map(job, TestJobEmbeddable.class)).toList());
         replace(nexusIqApplications, source.nexusIqApplications().stream()
                 .map(application -> RecordMapper.map(application, NexusIqApplicationEmbeddable.class)).toList());
-        replace(sshTargets, regions(source.sshTargets(), SshTargetEmbeddable.class));
-        replace(openShiftTargets, regions(source.openShiftTargets(), OpenShiftTargetEmbeddable.class));
+        replace(sshTargets, keyed(Region.class, source.sshTargets(), SshTargetEmbeddable.class));
+        replace(openShiftTargets, keyed(Region.class, source.openShiftTargets(), OpenShiftTargetEmbeddable.class));
+        replace(databaseTargets, keyed(DatabaseTarget.class, source.databaseTargets(), DatabaseTargetEmbeddable.class));
         List<UrbanCodeApplicationSettings> applications = source.urbanCodeApplications();
         if (!applications.equals(urbanCodeApplications())) {
             urbanCodeApplications.clear();
@@ -130,9 +138,9 @@ public class ServiceEntity extends AuditedEntity {
         name = "~" + id;
     }
 
-    private static <S, T> Map<Region, T> regions(Map<Region, S> targets, Class<T> type) {
-        Map<Region, T> mapped = new EnumMap<>(Region.class);
-        targets.forEach((region, target) -> mapped.put(region, RecordMapper.map(target, type)));
+    private static <K extends Enum<K>, S, T> Map<K, T> keyed(Class<K> keys, Map<K, S> targets, Class<T> type) {
+        Map<K, T> mapped = new EnumMap<>(keys);
+        targets.forEach((key, target) -> mapped.put(key, RecordMapper.map(target, type)));
         return mapped;
     }
 
@@ -152,7 +160,8 @@ public class ServiceEntity extends AuditedEntity {
             @EmbeddedColumnNaming("GOLDEN_FIX_%s") GoldenFixPolicyEmbeddable goldenFix,
             @Column(name = "GOLDEN_FIX_VERSION_CATALOGS") List<String> versionCatalogs,
             MetricsSettingsEmbeddable metrics,
-            @EmbeddedColumnNaming("FLUTTER_%s") FlutterSettingsEmbeddable flutter) {
+            @EmbeddedColumnNaming("FLUTTER_%s") FlutterSettingsEmbeddable flutter,
+            @EmbeddedColumnNaming("DB_%s") DatabaseSettingsEmbeddable database) {
     }
 
     @Embeddable
@@ -331,5 +340,24 @@ public class ServiceEntity extends AuditedEntity {
             String deliveryArtifact, String deliveryPlugin, String sonarSources, String sonarTests,
             @Column(name = "SONAR_PLUGIN") Boolean sonarFlutterPlugin, String dartAnalyzeCommand,
             String sonarScannerVersion) {
+    }
+
+    @Embeddable
+    public record DatabaseSettingsEmbeddable(String changelogFile, String searchPath, String oracleVersion,
+            String defaultSchema, String liquibaseSchema, String contexts, String labels, List<String> parameters,
+            Boolean requireRollback, Boolean tag, Integer lockWaitMinutes, Boolean compileCheck, Boolean recompile,
+            @Column(name = "COMPILE_CHECK_IGNORE") List<String> ignoreObjects,
+            @Column(name = "CHECKS_IGNORE_FILES") List<String> ignoreFiles, String groupId, String artifactId,
+            Boolean nexusDelivery, String mvnPath, String snapshotRepositoryId, String snapshotRepositoryUrl,
+            String releaseRepositoryId, String releaseRepositoryUrl, Boolean testReset, Boolean utplsql,
+            String utplsqlPaths, String utplsqlOwner, String utplsqlSourcePath, String utplsqlTestPath,
+            @Column(name = "UTPLSQL_TIMEOUT") Integer utplsqlTimeoutMinutes, String sonarSources,
+            @Column(name = "SONAR_SCANNER") String sonarScannerVersion) {
+    }
+
+    @Embeddable
+    public record DatabaseTargetEmbeddable(String url, String credentialsId, String contexts, String labels,
+            String defaultSchema, String liquibaseSchema, List<String> parameters,
+            @Column(name = "TIMEOUT_MINUTES") Integer timeoutMinutes) {
     }
 }

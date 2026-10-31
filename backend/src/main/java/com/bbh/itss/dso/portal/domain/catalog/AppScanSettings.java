@@ -6,7 +6,7 @@ import lombok.Builder;
 
 import java.util.List;
 
-import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
@@ -48,29 +48,30 @@ public record AppScanSettings(String applicationId, List<String> includedDirs, L
     }
 
     public void writeTo(ConfigTree config, BuildTool tool) {
+        boolean database = tool == LIQUIBASE;
         config.set("appId", applicationId)
                 .set("includedDirs", String.join(",", includedDirs))
                 .set("excludedDirs", String.join(",", excludedDirs))
                 .set("appscanPath", clientPath)
                 .set("asoc.keyId", keyId)
                 .set("asoc.token", secretCredentialsId)
-                .set("asoc.doCompile", compile ? null : false)
-                .flag("asoc.sourceCodeOnly", sourceCodeOnly)
+                .set("asoc.doCompile", compile || database ? null : false)
+                .flag("asoc.sourceCodeOnly", sourceCodeOnly && !database)
                 .flag("asoc.useAppScanConfig", useConfigFile)
                 .flag("asoc.insecureTls", insecureTls);
         compileCommand.writeTo(config, "asoc", tool);
         config.set("sast.scanName", scanName)
-                .set("dast.enabled", dastEnabled)
-                .set("dast.targetUrl", dastTargetUrl)
-                .set("dast.presenceId", dastPresenceId);
+                .set("dast.enabled", dastEnabled && !database)
+                .set("dast.targetUrl", database ? null : dastTargetUrl)
+                .set("dast.presenceId", database ? null : dastPresenceId);
     }
 
     public void validate(ValidationProblems problems, BuildTool tool) {
         problems.require("keyId", keyId, "is required");
-        if (dastEnabled && dastTargetUrl == null) {
+        if (dastEnabled && dastTargetUrl == null && tool != LIQUIBASE) {
             problems.add("dastTargetUrl", "is required when DAST is enabled");
         }
-        if (compile && tool != FLUTTER && !compileCommand.isEmpty() && compileCommand.tasks().isEmpty()) {
+        if (compile && tool.runsCommands() && !compileCommand.isEmpty() && compileCommand.tasks().isEmpty()) {
             problems.add("compileCommand.tasks", tool == MAVEN
                     ? "add the Maven goals that compile the code for the scan, or clear the command to use the build goals"
                     : "add the Gradle tasks that compile the code for the scan, or clear the command to use the build tasks");

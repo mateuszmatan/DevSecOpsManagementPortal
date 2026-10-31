@@ -6,6 +6,7 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
 import static com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy.INHERITED
 import static com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues.bbhDefaults
@@ -15,6 +16,7 @@ import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
 import static com.bbh.itss.dso.portal.domain.settings.SeverityLimits.ZERO
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseDefaults
 
 class GlobalSettingsValuesSpec extends Specification {
 
@@ -167,6 +169,35 @@ class GlobalSettingsValuesSpec extends Specification {
         defaults.dast.subMap(['maxCritical', 'maxHigh', 'maxMedium']) == [maxCritical: 0, maxHigh: 2, maxMedium: 20]
         !defaults.sast.containsKey('maxCritical')
         !defaults.containsKey('sca')
+    }
+
+    def "the Library defaults (SQL and PL/SQL) are left out while none is set, and come last with their tools"() {
+        when:
+        def defaults = copy(BBH, database: databaseDefaults()).defaultsConfig()
+
+        then:
+        BBH.database() == DatabaseDefaults.NONE
+        copy(BBH, database: null).database() == DatabaseDefaults.NONE
+        !BBH.defaultsConfig().containsKey('database')
+        defaults.keySet() as List == ['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tools', 'sast', 'sca', 'dast',
+                                      'staticAnalysis', 'tests', 'releaseGate', 'goldenFix', 'database']
+        (defaults.tools as Map).keySet() as List == ['sonar', 'nexusIq', 'liquibase', 'oracleJdbc', 'utplsql']
+        (defaults.database as Map).keySet() as List == ['allowedTargets', 'package']
+        defaults.findAll { !(it.key in ['tools', 'database']) } == BBH.defaultsConfig().findAll { it.key != 'tools' }
+    }
+
+    def "a new service cannot start as SQL and PL/SQL, and the Library defaults (SQL and PL/SQL) report under database"() {
+        given:
+        def values = copy(BBH, serviceDefaults: copy(BBH.serviceDefaults(), buildTool: LIQUIBASE),
+                database: DatabaseDefaults.builder().utplsqlUrl('https://tools.bbh.com/utPLSQL-cli.zip').build())
+
+        expect:
+        problems(values).collect { [it.field(), it.message()] } == [
+                ['serviceDefaults.buildTool', 'must not be SQL and PL/SQL (Liquibase): a database service needs its own'
+                        + ' changelog, so every new service starts with Gradle, Maven or Flutter'],
+                ['database.utplsqlSha256', 'is required with the download URL: the 64 lower-case hexadecimal digits of'
+                        + ' the file']]
+        problems(copy(BBH, database: databaseDefaults())) == []
     }
 
     private static List<FieldProblem> problems(GlobalSettingsValues values) {

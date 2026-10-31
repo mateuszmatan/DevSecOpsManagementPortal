@@ -5,8 +5,11 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ProductDetails
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTargetSettings
 import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory
 import com.bbh.itss.dso.portal.domain.catalog.Service
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
@@ -23,7 +26,11 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.build
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static com.bbh.itss.dso.portal.support.Fixtures.command
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseSettings
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseTargets
+import static com.bbh.itss.dso.portal.support.Fixtures.storedSettings
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
@@ -37,7 +44,8 @@ class ProductCatalogServiceSpec extends Specification {
     ProductRepositoryPort products = Mock(defaultResponse: INSTANCE)
     PipelineCountsPort pipelineCounts = Stub()
     PipelinesUseCase pipelines = Mock()
-    def catalog = new ProductCatalogService(products, pipelineCounts, pipelines)
+    ManageGlobalSettingsUseCase settings = Mock()
+    def catalog = new ProductCatalogService(products, pipelineCounts, pipelines, settings)
 
     def setup() {
         products.departmentExists(_) >> true
@@ -259,6 +267,52 @@ class ProductCatalogServiceSpec extends Specification {
         'a product code in use'              | { it.create(command()) }                             || 'Product code CERT is already used by Certificates'
         'an update of an old version'        | { it.update(1L, command(version: 3L)) }              || STALE_VERSION
     }
+
+    def "a database URL is refused at #action when the Library defaults allow #allowed"() {
+        given:
+        settings.current() >> storedSettings { copy(it, database: copy(it.database(), allowedTargets: allowed)) }
+        products.load(5L) >> Optional.of(product(id: 5, services: [[name: 'orders-db', id: 30]]))
+        def orders = command(version: 0L, services: [service(name: 'gui'), service(name: 'orders-db', settings:
+                databaseSettings(databaseTargets: databaseTargets() + [(DatabaseTarget.RD): DatabaseTargetSettings
+                        .builder().url(RD_TWO_HOSTS).credentialsId('orders-db-rd').build()]))])
+
+        when:
+        save(catalog, orders)
+
+        then:
+        def e = thrown(InvalidRequestException)
+        e.problems().collect { [it.field(), it.message()] } == fields.collect { [it, message] }
+        0 * products.save(_)
+
+        where:
+        action   | save                                 | allowed                           || fields
+        'create' | { it, command -> it.create(command) }  | []                                || ALL_DATABASES
+        'update' | { it, command -> it.update(5L, command) } | []                             || ALL_DATABASES
+        'create' | { it, command -> it.create(command) }  | ['dev-db.bbh.com', 'qc-db.bbh.com', 'rd-db1.bbh.com'] || ['services[1].databaseTargets[RD].url']
+        'update' | { it, command -> it.update(5L, command) } | ['*.bbh.com/ORDERS_CI', 'rd-db?.bbh.com'] || ALL_DATABASES.drop(1)
+        message = allowed ? ProductCatalogService.NOT_ALLOWED : ProductCatalogService.NO_ALLOWED_TARGETS
+    }
+
+    def "allowed database URLs are saved, and a product without a database service does not read the Global Settings"() {
+        when:
+        catalog.create(command(services: [service(name: 'gui')]))
+
+        then:
+        0 * settings.current()
+        1 * products.save(_) >> { Product p -> stored(9L, p) }
+
+        when:
+        catalog.create(command(services: [service(name: 'orders-db', settings: databaseSettings())]))
+
+        then:
+        1 * settings.current() >> storedSettings { copy(it, database: copy(it.database(),
+                allowedTargets: ['dev-db.bbh.com', 'RD-DB.bbh.com/orders_rd', 'qc-db.bbh.com/ORDERS_*'])) }
+        1 * products.save(_) >> { Product p -> stored(9L, p) }
+    }
+
+    static final String RD_TWO_HOSTS = 'jdbc:oracle:thin:@rd-db1.bbh.com:1521,rd-db2.bbh.com:1521/ORDERS_RD'
+    static final List<String> ALL_DATABASES = ['services[1].databaseTargets[TEST].url',
+                                               'services[1].databaseTargets[RD].url', 'services[1].databaseTargets[QC].url']
 
     private static ProductSummary summary(long id, String code, String name, String ownerTeam, String description,
                                           Long departmentId, String departmentName) {

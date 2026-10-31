@@ -7,6 +7,7 @@ import lombok.Builder;
 import java.util.List;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.environmentMap;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_4000;
@@ -64,6 +65,9 @@ public record NodeBuildSettings(Boolean enabled, String directory, List<String> 
         if (tool == FLUTTER) {
             problems.add("enabled",
                     "must be off for Flutter: a Flutter build has no Gradle or Maven stage for the Node.js build to run before");
+        } else if (tool == LIQUIBASE) {
+            problems.add("enabled", "must be off for SQL and PL/SQL (Liquibase): a database service has no build for a"
+                    + " Node.js build to run before");
         }
         if (installationName != null && nodePath != null) {
             problems.add("nodePath", "give the Node.js installation or its home on the agent, not both");

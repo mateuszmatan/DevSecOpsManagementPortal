@@ -8,8 +8,12 @@ import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase;
+import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
+import com.bbh.itss.dso.portal.domain.catalog.OracleUrl;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -25,9 +29,15 @@ import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 @RequiredArgsConstructor
 public class ProductCatalogService implements ProductsUseCase {
 
+    static final String NO_ALLOWED_TARGETS = "is set, but the Library defaults allow no database yet: the pipelines"
+            + " deploy only to the databases the DevSecOps team allows in the Global Settings";
+    static final String NOT_ALLOWED = "names a database that the Library defaults do not allow: ask the DevSecOps"
+            + " team to add the test, RD or QC database to the Global Settings";
+
     private final ProductRepositoryPort products;
     private final PipelineCountsPort pipelineCounts;
     private final PipelinesUseCase pipelines;
+    private final ManageGlobalSettingsUseCase settings;
 
     @Override
     @ReadOnly
@@ -52,12 +62,14 @@ public class ProductCatalogService implements ProductsUseCase {
 
     @Override
     public Product create(ProductCommand command) {
+        requireAllowedDatabases(command.services());
         Product saved = products.save(Product.create(command.details(), command.services(), products));
         return withPipelines(saved, Set.of(), command);
     }
 
     @Override
     public Product update(long id, ProductCommand command) {
+        requireAllowedDatabases(command.services());
         Product product = find(id);
         Set<Long> known = product.serviceIds();
         product.update(command.version(), command.details(), command.services(), products);
@@ -75,6 +87,23 @@ public class ProductCatalogService implements ProductsUseCase {
     @ReadOnly
     public String suggestCode(String name) {
         return suggest(name, products);
+    }
+
+    /** Refuses a database URL that the Library defaults do not allow; the domain refuses a URL of another form. */
+    private void requireAllowedDatabases(List<ServiceDraft> services) {
+        if (services.stream().noneMatch(service -> service.settings().changesDatabase())) {
+            return;
+        }
+        List<String> allowed = settings.current().values().database().allowedTargets();
+        ValidationProblems problems = new ValidationProblems();
+        for (int i = 0; i < services.size(); i++) {
+            String at = "services[" + i + "].databaseTargets[";
+            services.get(i).settings().databaseTargets().forEach((target, value) -> OracleUrl.parse(value.url())
+                    .filter(url -> !url.allowedBy(allowed))
+                    .ifPresent(url -> problems.add(at + target + "].url",
+                            allowed.isEmpty() ? NO_ALLOWED_TARGETS : NOT_ALLOWED)));
+        }
+        problems.throwIfAny();
     }
 
     private Product withPipelines(Product saved, Set<Long> known, ProductCommand command) {

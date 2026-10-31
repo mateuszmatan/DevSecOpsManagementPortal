@@ -4,7 +4,12 @@ import com.bbh.itss.dso.portal.domain.shared.ConfigTree;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ABSOLUTE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.JDK_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.PATH;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SEARCH_PATH_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
@@ -27,7 +32,7 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
 
     public void writeTo(ConfigTree config) {
         config.set("buildTool", tool).set("sourceDir", sourceDir).set("javaPath", javaPath)
-                .flag("buildToolAutoSetup", autoSetup).set("build.buildPath", buildPath);
+                .flag("buildToolAutoSetup", autoSetup).set("build.buildPath", tool == LIQUIBASE ? null : buildPath);
         command.writeTo(config, "build", tool);
     }
 
@@ -35,14 +40,28 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
         if (tool == FLUTTER) {
             validateFlutter(problems);
         } else if (javaPath == null && !autoSetup) {
-            problems.add("javaPath", "set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them");
+            problems.add("javaPath", tool == LIQUIBASE
+                    ? "set the JDK path or enable automatic build tool setup: Liquibase and utPLSQL need Java 17 or newer"
+                    : "set the JDK path or enable automatic build tool setup, the unit tests stage needs one of them");
         }
-        if (tool != FLUTTER && command.tasks().isEmpty()) {
+        if (tool == LIQUIBASE) {
+            validateLiquibase(problems);
+        }
+        if (tool.runsCommands() && command.tasks().isEmpty()) {
             problems.add("command.tasks", tool == MAVEN
                     ? "add the Maven goals of the build, for example clean verify"
                     : "add the Gradle tasks of the build, for example clean build");
         }
         command.validate(problems.at("command"));
+    }
+
+    private void validateLiquibase(ValidationProblems problems) {
+        if (javaPath != null && !javaPath.matches(ABSOLUTE)) {
+            problems.add("javaPath", JDK_MESSAGE);
+        }
+        if (!sourceDir.equals(DEFAULT_SOURCE_DIR) && !sourceDir.matches(PATH)) {
+            problems.add("sourceDir", SEARCH_PATH_MESSAGE);
+        }
     }
 
     private void validateFlutter(ValidationProblems problems) {

@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageServiceTemplateUseCase
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseSettings
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
@@ -12,6 +13,7 @@ import com.bbh.itss.dso.portal.domain.monitoring.MetricsTag
 import com.bbh.itss.dso.portal.domain.pipeline.IssuedKey
 import com.bbh.itss.dso.portal.domain.pipeline.KeyGenerator
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
+import com.bbh.itss.dso.portal.domain.settings.DatabaseDefaults
 import com.bbh.itss.dso.portal.domain.settings.StoredServiceTemplate
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
@@ -21,13 +23,18 @@ import java.time.Instant
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SAST
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static com.bbh.itss.dso.portal.support.Fixtures.KEY
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
+import static com.bbh.itss.dso.portal.support.Fixtures.database
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseDefaults
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
 import static com.bbh.itss.dso.portal.support.Fixtures.pipelineSettings
@@ -318,6 +325,84 @@ class PipelineServiceSpec extends Specification {
                   [nexusIqApplications: [scanned('cert-batch')], deployment: deployment(target: OPENSHIFT)], [:]]
     }
 
+    def "a #type pipeline of a SQL and PL/SQL service that delivers its package is refused without its #missing"() {
+        given:
+        products.findByServiceId(30L) >> Optional.of(product(id: 3, services: [[name: 'orders-db', id: 30,
+                                                                                 settings: databaseSettings(database: own)]]))
+
+        when:
+        withDefaults(library).create(30L, type, pipelineSettings())
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message == "Service orders-db delivers its database package to Nexus in the ${type.label()} pipeline but has no" +
+                " $missing. Set it under Database changes$orDefaults, or untick Deliver the package to Nexus"
+        0 * pipelines.save(_)
+
+        where:
+        type     | own                                   | library                                 || missing
+        FULL     | own(groupId: null)                    | databaseDefaults()                      || 'group ID'
+        SECURITY | own(groupId: null)                    | databaseDefaults()                      || 'group ID'
+        FULL     | database()                            | DatabaseDefaults.NONE                   || 'snapshot repository ID'
+        SECURITY | database()                            | DatabaseDefaults.NONE                   || 'snapshot repository ID'
+        EXTENDED | own(snapshotRepositoryId: 's')        | DatabaseDefaults.NONE                   || 'snapshot repository URL'
+        FULL     | own(snapshotRepositoryId: 's')        | library(snapshotRepositoryUrl: 'u')     || 'release repository ID'
+        EXTENDED | own(releaseRepositoryId: 'r')         | library(snapshotRepositoryId: 's',
+                                                                   snapshotRepositoryUrl: 'u')     || 'release repository URL'
+        orDefaults = missing == 'group ID' ? '' : ' or in the Library defaults (SQL and PL/SQL)'
+    }
+
+    def "a SQL and PL/SQL service gets a #type pipeline when #reason"() {
+        given:
+        products.findByServiceId(30L) >> Optional.of(product(id: 3, services: [[name: 'orders-db', id: 30,
+                                                                                 settings: databaseSettings(database: own)]]))
+
+        when:
+        withDefaults(library).create(30L, type, pipelineSettings())
+
+        then:
+        1 * pipelines.save(_) >> { Pipeline p -> stored(100L, p) }
+
+        where:
+        reason                                                          | type     | own
+        'the Library defaults name the repositories, without UrbanCode' | FULL     | database()
+        'the Security pipeline needs no release repository'             | SECURITY | own(snapshotRepositoryId: 's',
+                                                                                         snapshotRepositoryUrl: 'u')
+        'the package is not delivered'                                  | EXTENDED | own(nexusDelivery: false, groupId: null)
+        'the SAST pipeline delivers nothing'                            | SAST     | own(groupId: null)
+        library = reason.startsWith('the Library') ? databaseDefaults() : DatabaseDefaults.NONE
+    }
+
+    def "a SQL and PL/SQL service has no Nexus IQ pipeline, and a product keeping one is refused"() {
+        given:
+        products.findByServiceId(30L) >> Optional.of(product(id: 3, services: [[name: 'orders-db', id: 30,
+                                                                                 settings: databaseSettings()]]))
+        pipelines.existsForService(31L, NEXUS_IQ) >> true
+
+        when:
+        service.create(30L, NEXUS_IQ, pipelineSettings())
+
+        then:
+        def created = thrown(IllegalStateException)
+        created.message == NO_DEPENDENCIES
+
+        when:
+        service.requireRunnablePipelines(product(id: 3, services: [[name: 'orders-db', id: 31,
+                                                                     settings: databaseSettings()]]))
+
+        then:
+        def saved = thrown(IllegalStateException)
+        saved.message == NO_DEPENDENCIES
+    }
+
+    def "a product whose services can run every pipeline type asks for none of their pipelines"() {
+        when:
+        service.requireRunnablePipelines(certScanner)
+
+        then:
+        0 * pipelines.existsForService(_, _)
+    }
+
     def "a pipeline's settings can change at the version they were read at"() {
         given:
         pipelines.load(100L) >> Optional.of(pipeline(id: 100, version: 4))
@@ -452,6 +537,31 @@ class PipelineServiceSpec extends Specification {
     private static List<Pipeline> twice(Map args) {
         [running(jenkinsJob: 'Teams/payhub', agentLabels: args.agentLabels),
          running([id: 91L, serviceId: 14L, jenkinsJob: 'Teams/payhub'] + args)]
+    }
+
+    static final String NO_DEPENDENCIES = 'Service orders-db changes a database with SQL and PL/SQL and has no open' +
+            ' source dependencies, so a Nexus IQ GoldenFix pipeline would scan nothing. Choose another pipeline type,' +
+            ' or delete the Nexus IQ GoldenFix pipeline of the service before you change its build tool to SQL and' +
+            ' PL/SQL (Liquibase)'
+
+    private static DatabaseSettings own(Map changes) {
+        def builder = database().toBuilder()
+        changes.each { name, value -> builder."$name"(value) }
+        builder.build()
+    }
+
+    private static DatabaseDefaults library(Map changes) {
+        def builder = DatabaseDefaults.builder()
+        changes.each { name, value -> builder."$name"(value) }
+        builder.build()
+    }
+
+    /** The service under a Global Settings stub with these Library defaults (SQL and PL/SQL). */
+    private PipelineService withDefaults(DatabaseDefaults defaults) {
+        ManageGlobalSettingsUseCase library = Stub() {
+            current() >> storedSettings { copy(it, database: defaults) }
+        }
+        new PipelineService(pipelines, products, library, templates, keys, fixed(NOW, UTC))
     }
 
     private static NexusIqApplication scanned(String application) {

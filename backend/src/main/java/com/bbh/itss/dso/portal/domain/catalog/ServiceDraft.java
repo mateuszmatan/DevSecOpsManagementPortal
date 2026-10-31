@@ -15,6 +15,7 @@ public record ServiceDraft(Long id, String name, String description, ServiceSett
     }
 
     Service place(int displayOrder, String productCode) {
-        return new Service(id, name, description, displayOrder, settings.withDefaultMetricsProject(productCode, name));
+        return new Service(id, name, description, displayOrder, settings.withDefaultMetricsProject(productCode, name)
+                .withDefaultArtifact(name));
     }
 }

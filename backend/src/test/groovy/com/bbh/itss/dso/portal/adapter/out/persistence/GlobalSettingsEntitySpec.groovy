@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.adapter.RecordMapper
 import com.bbh.itss.dso.portal.adapter.out.persistence.GlobalSettingsEntity.SeverityLimitsEmbeddable
 import com.bbh.itss.dso.portal.adapter.out.persistence.ServiceEntity.GoldenFixPolicyEmbeddable
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
+import com.bbh.itss.dso.portal.domain.settings.DatabaseDefaults
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
 import com.bbh.itss.dso.portal.domain.settings.SeverityLimits
 import spock.lang.Specification
@@ -18,6 +19,7 @@ import static com.bbh.itss.dso.portal.domain.settings.Scanner.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseDefaults
 import static org.springframework.test.util.ReflectionTestUtils.getField
 import static org.springframework.test.util.ReflectionTestUtils.setField
 
@@ -77,6 +79,17 @@ class GlobalSettingsEntitySpec extends Specification {
         then:
         1 * stored.clear()
         1 * stored.putAll({ it == [(SAST): new SeverityLimitsEmbeddable(3, 2, 1)] })
+    }
+
+    def "the Library defaults (SQL and PL/SQL) are read back unchanged, and an empty block as none"() {
+        when:
+        entity.apply(copy(bbh, database: database))
+
+        then:
+        entity.toDomain().values().database() == database
+
+        where:
+        database << [databaseDefaults(), DatabaseDefaults.NONE]
     }
 
     def "a GoldenFix policy keeps every value through its columns"() {

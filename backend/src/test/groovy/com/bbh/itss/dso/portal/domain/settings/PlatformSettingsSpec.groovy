@@ -99,8 +99,8 @@ class PlatformSettingsSpec extends Specification {
         def bare = new ConfigTree()
 
         when:
-        bbh.writeProjectDefaults(tree)
-        copy(bbh, influxWriteUrl: null, influxCredentialsId: null).writeProjectDefaults(bare)
+        bbh.writeProjectDefaults(tree, true)
+        copy(bbh, influxWriteUrl: null, influxCredentialsId: null).writeProjectDefaults(bare, true)
 
         then:
         tree.toMap() == [asoc  : [url: 'https://bbh.cloud.appscan.com'],
@@ -108,5 +108,18 @@ class PlatformSettingsSpec extends Specification {
                          tools : [sonar  : [serverUrl: 'https://tools.bbh.com/sonar', installationName: 'SonarQube'],
                                   nexusIq: [serverUrl: 'https://tools.bbh.com/IQ', credentialsId: 'nexusiqP']]]
         bare.toMap() == tree.toMap().findAll { it.key != 'influx' }
+    }
+
+    def "the entry of a service without dependencies to scan names no Nexus IQ server"() {
+        given:
+        def full = new ConfigTree()
+        def database = new ConfigTree()
+
+        when:
+        bbh.writeProjectDefaults(full, true)
+        bbh.writeProjectDefaults(database, false)
+
+        then:
+        database.toMap() == full.toMap() + [tools: [sonar: full.toMap().tools.sonar]]
     }
 }

@@ -6,7 +6,12 @@ import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.MetricsSettingsDto
 import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.NexusIqApplicationDto
 import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.NodeBuildSettingsDto
 import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.SshTargetDto
+import com.bbh.itss.dso.portal.domain.catalog.BuildSettings
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTargetSettings
+import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings
+import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.dsoconfig.DsoConfigBuilder
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
@@ -24,13 +29,19 @@ import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.GLOBAL
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.LONG_PATHS
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.MAX_PROJECTS
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NODE_WITH_FLUTTER
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NOT_A_DATABASE
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NOT_FOR_DATABASE
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NO_PRODUCTION
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NO_PROJECT
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.PIPELINE
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.RUN_TIME
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.SECRET_IN_URL
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.TOOLS_IN_DEFAULTS
 import static com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType.BASIC
 import static com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType.BEARER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
@@ -47,7 +58,12 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
+import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
+import static com.bbh.itss.dso.portal.support.Fixtures.database
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseDefaults
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseSettings
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseTargets
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.fullCommand
 import static com.bbh.itss.dso.portal.support.Fixtures.fullSettings
@@ -100,6 +116,116 @@ class ServiceConfigReaderSpec extends Specification {
         tool = settings.build().tool()
         target = settings.deployment().target()
         disabled = settings.deployment().nexusDeliveryDisabled()
+    }
+
+    def "a SQL and PL/SQL service read back from its config runs the same, without a note"() {
+        given:
+        Map config = builder.productConfig(product(services: [[name: 'orders-db', settings: ORDERS_DB]]))
+
+        when:
+        def result = imported(new Yaml().dump(config))
+
+        then:
+        result.notes() == []
+        result.services()[0].notes() == []
+        result.services()[0].service().build().tool() == LIQUIBASE
+        asRun(rendered(result.services()[0])) == asRun(config)
+    }
+
+    def "a SQL and PL/SQL project leaves out #key with a note, once"() {
+        when:
+        def service = imported(new Yaml().dump(merged(ORDERS, extra))).services()[0]
+
+        then:
+        service.notes() == [problem(key, message)]
+        service.service().database().changelogFile() == 'db/changelog-master.xml'
+        service.service().databaseTargets().isEmpty()
+
+        where:
+        extra                                                                        || key                       | message
+        [database: [rd: [password: 'x', username: 'scott'].subMap(['password'])]]   || 'database.rd.password'    | SECRET
+        [database: [test: [user: 'scott']]]                                         || 'database.test.user'      | SECRET
+        [database: [qc: [url: 'jdbc:oracle:thin:scott/tiger@//qc-db.bbh.com:1521/X']]] || 'database.qc.url'      | SECRET_IN_URL
+        [database: [prod: [url: 'jdbc:oracle:thin:@//prod-db.bbh.com:1521/X']]]    || 'database.prod'           | NO_PRODUCTION
+        [database: [live: [credentialsId: 'live']]]                                 || 'database.live'           | NO_PRODUCTION
+        [database: [allowedTargets: ['rd-db.bbh.com']]]                             || 'database.allowedTargets' | GLOBAL
+        [database: [rd: [port: 1521]]]                                              || 'database.rd.port'        | UNKNOWN
+        [tools: [liquibase: [home: '/opt/liquibase']]]                              || 'tools.liquibase'         | TOOLS_IN_DEFAULTS
+        [tools: [utplsql: [url: 'https://tools.bbh.com/u.zip']]]                    || 'tools.utplsql'           | TOOLS_IN_DEFAULTS
+        [deploy: [vm: [rd: [host: 'rdltaapps1.testbbh.com']]]]                      || 'deploy'                  | NOT_FOR_DATABASE
+        [deployTarget: 'openshift']                                                 || 'deployTarget'            | NOT_FOR_DATABASE
+        [build: [node: [enabled: true, dir: 'web']]]                                || 'build.node'              | NOT_FOR_DATABASE
+        [build: [gradle: [tasks: ['build']]]]                                       || 'build.gradle'            | NOT_FOR_DATABASE
+        [build: [maven: [goals: ['verify']]]]                                       || 'build.maven'             | NOT_FOR_DATABASE
+        [goldenFix: [enabled: false]]                                               || 'goldenFix'               | NOT_FOR_DATABASE
+        [tools: [nexusIq: [application: 'orders', scanPatterns: ['**/*.zip']]]]     || 'tools.nexusIq'           | NOT_FOR_DATABASE
+        [tests: [unitTests: [unitTestResult: '**/*.xml']]]                          || 'tests.unitTests'         | NOT_FOR_DATABASE
+        [coverage: [reportPath: 'target/jacoco.xml']]                               || 'coverage'                | NOT_FOR_DATABASE
+        [asoc: [doCompile: false]]                                                  || 'asoc.doCompile'          | NOT_FOR_DATABASE
+        [dast: [enabled: true]]                                                     || 'dast.enabled'            | NOT_FOR_DATABASE
+        [dast: [targetUrl: 'https://orders.bbh.com']]                               || 'dast.targetUrl'          | NOT_FOR_DATABASE
+        [appName: 'orders']                                                         || 'appName'                 | NOT_FOR_DATABASE
+    }
+
+    def "a Gradle project leaves its database block out with a note"() {
+        expect:
+        imported(new Yaml().dump([buildTool: 'gradle', database: [changelogFile: 'db/changelog-master.xml']]))
+                .services()[0].notes() == [problem('database', NOT_A_DATABASE)]
+    }
+
+    def "the Maven home of build.maven fills that of the package unless the package names its own: #maven"() {
+        when:
+        def service = imported(new Yaml().dump(merged(ORDERS, [build: [maven: maven]] + extra))).services()[0]
+
+        then:
+        service.service().database().mvnPath() == mvnPath
+        service.notes() == notes
+
+        where:
+        maven                                         | extra                                             || mvnPath        | notes
+        [mvnPath: '/opt/maven']                       | [:]                                               || '/opt/maven'   | []
+        [mvnPath: '/opt/maven', goals: ['verify']]    | [:]                                               || '/opt/maven'   | [problem('build.maven', NOT_FOR_DATABASE)]
+        [mvnPath: '/opt/maven']                       | [database: [package: [mvnPath: '/opt/maven-3']]]  || '/opt/maven-3' | [problem('build.maven', NOT_FOR_DATABASE)]
+    }
+
+    def "repositories equal to the Library defaults and a package named after the project come back empty"() {
+        given:
+        useDatabaseDefaults()
+        def own = [id: 'own-snapshots', url: 'https://nexus.bbh.com/own']
+
+        when:
+        def service = imported(new Yaml().dump(merged(ORDERS, [database: [package: [artifactId: 'orders-db',
+                snapshotRepository: own, releaseRepository: [id: 'bbh-db-releases',
+                url: 'https://tools.bbh.com/nexus/repository/db-releases']]]])), 'orders-db').services()[0]
+        def renamed = imported(new Yaml().dump(merged(ORDERS, [database: [package: [artifactId: 'orders-db']]])),
+                'orders').services()[0]
+
+        then:
+        service.notes() == []
+        with(service.service().database()) {
+            [artifactId(), releaseRepositoryId(), releaseRepositoryUrl()] == [null, null, null]
+            [snapshotRepositoryId(), snapshotRepositoryUrl()] == [own.id, own.url]
+        }
+        renamed.service().database().artifactId() == 'orders-db'
+    }
+
+    def "the orders-db project of the library's layout (#layout) imports without a note and renders its database block"() {
+        given:
+        useDatabaseDefaults()
+        String file = getClass().getResource("/library-layouts/layout-${layout}.yaml").text
+        Map database = new Yaml().load(file).projects['orders-db'].database
+        database.package.keySet().removeAll(['snapshotRepository', 'releaseRepository'])
+
+        when:
+        def ordersDb = imported(file).services().find { it.name() == 'orders-db' }
+
+        then:
+        ordersDb.notes() == []
+        ordersDb.service().build().tool() == LIQUIBASE
+        rendered(ordersDb).projects['orders-db'].database == database
+
+        where:
+        layout << ['a', 'b', 'c']
     }
 
     def "values equal to the Library defaults come back empty, so the service keeps inheriting them"() {
@@ -440,7 +566,7 @@ class ServiceConfigReaderSpec extends Specification {
         then:
         result.notes() == [problem('other', UNKNOWN)]
         result.services()[0].notes() as Set == [
-                problem('buildTool', 'not imported: expected one of gradle, maven, flutter'),
+                problem('buildTool', 'not imported: expected one of gradle, maven, flutter, liquibase'),
                 problem('tests.maxParallel', 'not imported: expected a whole number'),
                 problem('tests.smoke.required', 'not imported: expected true or false'),
                 problem('tools.sonar.projectKey', 'not imported: expected a single value'),
@@ -499,6 +625,41 @@ class ServiceConfigReaderSpec extends Specification {
         'a: &a [x]\nb: [' + (['*a'] * 21).join(', ') + ']\n'                        || LIMITS
         'a: ' + '[' * 31 + ']' * 31                                                 || LIMITS
         'a: ' + 'x' * MAX_LENGTH                                                    || LIMITS
+    }
+
+    /** A SQL and PL/SQL service with every database setting that is not the library's default. */
+    static final ServiceSettings ORDERS_DB = databaseSettings(
+            build: new BuildSettings(LIQUIBASE, 'orders-db', '/usr/lib/jvm/java-17-openjdk', true, null, null),
+            database: database().toBuilder().searchPath('src/main/resources').oracleVersion('23.4').defaultSchema('APP')
+                    .liquibaseSchema('LB').contexts('rd, !test').labels('core').requireRollback(true).tag(false)
+                    .lockWaitMinutes(10).compileCheck(false).recompile(false).ignoreObjects(['PKG_LEGACY'])
+                    .ignoreFiles(['db/legacy/old.sql']).artifactId('orders-schema').mvnPath('/opt/maven')
+                    .snapshotRepositoryId('own-snapshots').snapshotRepositoryUrl('https://nexus.bbh.com/own')
+                    .testReset(true).utplsqlPaths('orders').utplsqlOwner('APP_OWNER').utplsqlTimeoutMinutes(60)
+                    .sonarSources('db').sonarScannerVersion('5.0.1.3006').build(),
+            databaseTargets: databaseTargets() + [(DatabaseTarget.RD): DatabaseTargetSettings.builder()
+                    .url('jdbc:oracle:thin:@rd-db1.bbh.com:1521,rd-db2.bbh.com:1521/ORDERS_RD').credentialsId('orders-rd')
+                    .contexts('rd').labels('core').defaultSchema('APP').liquibaseSchema('LB').parameters(['a=1'])
+                    .timeoutMinutes(45).build()],
+            appScan: appScan(includedDirs: ['orders-db'], useConfigFile: true, insecureTls: true, clientPath: '/opt/appscan',
+                    secretCredentialsId: 'orders-secret', scanName: 'orders-db-sast'),
+            sonar: SonarSettings.of('Orders DB', 'bbh-orders-db', null),
+            scm: ScmSettings.of('https://bitbucket.bbh.com/projects/ORD/repos/orders', 'bitbucket-http-credentials'),
+            tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(), metrics: MAVEN_VM.metrics())
+    static final Map ORDERS = [buildTool: 'liquibase', javaPath: '/usr/lib/jvm/java-17-openjdk',
+                               database : [changelogFile: 'db/changelog-master.xml']]
+
+    private void useDatabaseDefaults() {
+        global = copy(globalSettings(), database: databaseDefaults())
+        builder = new DsoConfigBuilder(global)
+        reader = new ServiceConfigReader(global, json)
+    }
+
+    private static Map merged(Map base, Map own) {
+        (base.keySet() + own.keySet()).collectEntries { key ->
+            [key, base[key] instanceof Map && own[key] instanceof Map ? merged(base[key] as Map, own[key] as Map)
+                    : own.containsKey(key) ? own[key] : base[key]]
+        }
     }
 
     private ConfigImportResponse imported(String content, String serviceName = null) {

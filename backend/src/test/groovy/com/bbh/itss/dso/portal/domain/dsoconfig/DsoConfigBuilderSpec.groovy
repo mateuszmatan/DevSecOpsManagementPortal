@@ -21,6 +21,7 @@ import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.fullSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.pipeline
@@ -108,6 +109,24 @@ class DsoConfigBuilderSpec extends Specification {
         off == builder.productConfig(certScanner).projects.gui
         !off.build.containsKey('node')
         !off.containsKey('goldenFix')
+    }
+
+    def "a SQL and PL/SQL service renders its database block in the template's place, without Nexus IQ or VM hosts"() {
+        given:
+        def orders = product(code: 'ORDERSDB', services: [[id: 20L, name: 'orders-db', settings: databaseSettings(
+                sonar: SonarSettings.of(null, 'bbh-orders-db', null), scm: ScmSettings.of(REPOSITORY, 'bitbucket'))]])
+
+        when:
+        Map entry = builder.productConfig(orders).projects['orders-db']
+
+        then:
+        entry.keySet() as List == ['appId', 'buildTool', 'sourceDir', 'javaPath', 'asoc', 'influx', 'tools', 'dast',
+                                   'database', 'scm']
+        entry.tools == [sonar: [serverUrl: 'https://tools.bbh.com/sonar', installationName: 'SonarQube',
+                                projectKey: 'bbh-orders-db']]
+        entry.dast == [enabled: false]
+        DsoConfigBuilder.KEY_ORDER.subList(DsoConfigBuilder.KEY_ORDER.indexOf('build'),
+                DsoConfigBuilder.KEY_ORDER.indexOf('delivery') + 1) == ['build', 'database', 'delivery']
     }
 
     def "the global deployment defaults fill in what a VM deployment leaves out"() {

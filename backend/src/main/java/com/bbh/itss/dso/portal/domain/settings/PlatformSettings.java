@@ -68,14 +68,17 @@ public record PlatformSettings(@With String jenkinsUrl, String jenkinsLibrary, S
                 .toMap();
     }
 
-    public void writeProjectDefaults(ConfigTree config) {
+    /** The servers every project uses; the Nexus IQ server only for a service whose dependencies it scans. */
+    public void writeProjectDefaults(ConfigTree config, boolean dependencyScan) {
         config.set("asoc.url", asocUrl)
                 .set("influx.url", influxWriteUrl)
                 .set("influx.credentialsId", influxCredentialsId)
                 .set("tools.sonar.serverUrl", sonarServerUrl)
-                .set("tools.sonar.installationName", sonarInstallationName)
-                .set("tools.nexusIq.serverUrl", nexusIqServerUrl)
-                .set("tools.nexusIq.credentialsId", nexusIqCredentialsId);
+                .set("tools.sonar.installationName", sonarInstallationName);
+        if (dependencyScan) {
+            config.set("tools.nexusIq.serverUrl", nexusIqServerUrl)
+                    .set("tools.nexusIq.credentialsId", nexusIqCredentialsId);
+        }
     }
 
     private static String host(String url) {

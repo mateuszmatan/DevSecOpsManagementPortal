@@ -5,8 +5,10 @@ import com.bbh.itss.dso.portal.adapter.in.web.ConfigImportResponse.ImportedServi
 import com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType;
 import com.bbh.itss.dso.portal.domain.catalog.BitbucketType;
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform;
+import com.bbh.itss.dso.portal.domain.catalog.OracleUrl;
 import com.bbh.itss.dso.portal.domain.catalog.Region;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.catalog.TestJobType;
@@ -32,10 +34,12 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.invalid;
+import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.SECRET;
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
 import static com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings.ONE_APPLICATION;
@@ -63,6 +67,15 @@ final class ServiceConfigReader {
     static final String LONG_PATHS = "not imported: longer than the 500 characters the portal keeps; name fewer"
             + " reports, or one pattern such as **/build/reports/jacoco/test/*.xml";
     static final String NO_PROJECT = "found no project: expected a projects map or the settings of one project";
+    static final String NOT_FOR_DATABASE = "not imported: a SQL and PL/SQL service (buildTool liquibase) does not use"
+            + " it";
+    static final String NOT_A_DATABASE = "not imported: database settings belong to a service with buildTool"
+            + " liquibase";
+    static final String NO_PRODUCTION = "not imported: the pipelines never deploy to production";
+    static final String SECRET_IN_URL = "not imported: the URL holds a user or a password; the portal keeps only the"
+            + " ID of the Jenkins credentials";
+    static final String TOOLS_IN_DEFAULTS = "not imported: the portal sets the SQL and PL/SQL tools for every service"
+            + " in the Library defaults";
     static final int MAX_PROJECTS = 50;
 
     private static final List<String> DOCUMENT_KEYS = List.of("pipeline", "platform", "defaults");
@@ -104,6 +117,25 @@ final class ServiceConfigReader {
         }
         throw expected("a map of variables");
     };
+    private static final Conversion MAP = value -> {
+        if (value instanceof Map<?, ?> parameters) {
+            return pairs(parameters);
+        }
+        throw expected("a map of names to values");
+    };
+    private static final Conversion JDBC = value -> {
+        String url = text(value);
+        if (OracleUrl.problemOf(url.trim()).filter(OracleUrl.Problem.SECRET::equals).isPresent()) {
+            throw new NotImported(SECRET_IN_URL);
+        }
+        return url;
+    };
+    private static final Conversion DAST_OFF = value -> {
+        if ((Boolean) FLAG.apply(value)) {
+            throw new NotImported(NOT_FOR_DATABASE);
+        }
+        return false;
+    };
     private static final Conversion PARAMETERS = value ->
             String.join("\n", value instanceof Map<?, ?> parameters ? pairs(parameters) : items(value, null));
     private static final Conversion DISABLED = value -> !(Boolean) FLAG.apply(value);
@@ -126,6 +158,19 @@ final class ServiceConfigReader {
     private static final List<Rule> PROJECT = projectRules();
     private static final Set<String> PROJECT_KEYS = Stream.concat(DEFAULTED.stream(), PROJECT.stream())
             .map(rule -> rule.key().split("\\.")[0]).collect(toSet());
+    private static final List<Rule> DATABASE = databaseRules();
+    private static final List<String> UNUSED_BY_DATABASE = List.of("deployTarget", "appName", "artifactName",
+            "baseArtifactName", "build.buildPath", "build.gradle", "build.maven", "build.flutter", "build.node",
+            "build.credentialsId", "asoc.gradle", "asoc.maven", "asoc.doCompile", "asoc.sourceCodeOnly",
+            "dast.targetUrl", "dast.presenceId", "coverage", "tests.unitTests", "tests.modules", "tests.submodules",
+            "tests.subplugins", "tools.sonar.gradle", "tools.sonar.maven", "tools.sonar.tests",
+            "tools.sonar.dartAnalyzeCommand", "tools.sonar.flutterPlugin", "tools.flutter", "tools.nexusIq", "deploy",
+            "delivery", "goldenFix", "flutter");
+    private static final List<Rule> DATABASE_PROJECT = PROJECT.stream()
+            .filter(rule -> DATABASE.stream().noneMatch(database -> database.key().equals(rule.key()))
+                    && UNUSED_BY_DATABASE.stream().noneMatch(key -> (rule.key() + ".").startsWith(key + ".")))
+            .toList();
+    private static final String MAVEN_HOME = "build.maven.mvnPath";
     private static final String DELIVERY = "deploy.%s.rd.nexusDeliveryEnabled";
     private static final List<Block> COMMAND_BLOCKS = List.of(new Block("build", "build.command"),
             new Block("tests.unitTests", "unitTests.command"), new Block("tools.sonar", "sonar.command"),
@@ -163,20 +208,10 @@ final class ServiceConfigReader {
 
     private final GlobalSettingsValues global;
     private final JsonMapper json;
-    private final Map<String, Object> inherited;
 
     ServiceConfigReader(GlobalSettingsValues global, JsonMapper json) {
         this.global = global;
         this.json = json;
-        ConfigTree inherited = new ConfigTree().set("deploy.vm.dod.applications", List.of(Map.of()));
-        global.platform().writeProjectDefaults(inherited);
-        global.deployment().fillIn(inherited, VM);
-        global.goldenFix().writeTo(inherited);
-        inherited.set("tests.maxParallel", global.serviceDefaults().testsMaxParallel());
-        global.serviceDefaults().writeNodeTo(inherited);
-        inherited.set("build.node.commands", List.of("npm ci", "npm run build")).set("build.node.timeoutMin", 30)
-                .set("build.node.nexusIqScan", true);
-        this.inherited = inherited.toMap();
     }
 
     ConfigImportResponse read(Object document, String serviceName) {
@@ -219,9 +254,23 @@ final class ServiceConfigReader {
         return json.convertValue(pipeline.toMap(), ImportedPipeline.class);
     }
 
+    /** The values the portal writes into the project anyway, among them the package named after the project. */
+    private Map<String, Object> inherited(String name) {
+        ConfigTree inherited = new ConfigTree().set("deploy.vm.dod.applications", List.of(Map.of()));
+        global.platform().writeProjectDefaults(inherited, true);
+        global.deployment().fillIn(inherited, VM);
+        global.goldenFix().writeTo(inherited);
+        inherited.set("tests.maxParallel", global.serviceDefaults().testsMaxParallel());
+        global.serviceDefaults().writeNodeTo(inherited);
+        inherited.set("build.node.commands", List.of("npm ci", "npm run build")).set("build.node.timeoutMin", 30)
+                .set("build.node.nexusIqScan", true);
+        global.database().writePackageTo(inherited);
+        return inherited.set("database.package.artifactId", name).toMap();
+    }
+
     private ImportedService service(String name, Map<?, ?> settings, ConfigInput fileDefaults) {
         List<FieldProblem> notes = new ArrayList<>();
-        ConfigInput project = new ConfigInput(settings, inherited, notes);
+        ConfigInput project = new ConfigInput(settings, inherited(name), notes);
         ConfigTree request = new ConfigTree();
         ConfigInput globalDefaults = new ConfigInput(global.defaultsConfig(), Map.of(), new ArrayList<>());
         for (Rule rule : DEFAULTED) {
@@ -233,21 +282,30 @@ final class ServiceConfigReader {
         }
         BuildTool tool = BuildTool.valueOf(String.valueOf(request.get("build.tool")));
         DeployTarget target = DeployTarget.valueOf(String.valueOf(request.get("deployment.target")));
-        read(project, PROJECT, request);
-        if (tool == FLUTTER && Boolean.TRUE.equals(request.get("nodeBuild.enabled"))) {
-            request.set("nodeBuild.enabled", false);
-            project.note("build.node.enabled", NODE_WITH_FLUTTER);
+        if (tool == LIQUIBASE) {
+            readDatabase(project, request);
+            request.set("testJobs", testJobs(project));
+        } else {
+            read(project, PROJECT, request);
+            if (project.take("database") != null) {
+                project.note("database", NOT_A_DATABASE);
+            }
+            if (tool == FLUTTER && Boolean.TRUE.equals(request.get("nodeBuild.enabled"))) {
+                request.set("nodeBuild.enabled", false);
+                project.note("build.node.enabled", NODE_WITH_FLUTTER);
+            }
+            readCommands(project, tool, request);
+            readDelivery(project, target, request);
+            request.set("testJobs", testJobs(project))
+                    .set("urbanCodeApplications", project.entries("deploy.vm.dod.applications", null, null).stream()
+                            .map(application -> entry(application, URBAN_CODE_APPLICATION, new ConfigTree()
+                                    .set("components", application.entries("components", null, null).stream()
+                                            .map(component -> entry(component, URBAN_CODE_COMPONENT,
+                                                    new ConfigTree()))
+                                            .toList())))
+                            .toList())
+                    .set("nexusIqApplications", nexusIqApplications(project, settings));
         }
-        readCommands(project, tool, request);
-        readDelivery(project, target, request);
-        request.set("testJobs", testJobs(project))
-                .set("urbanCodeApplications", project.entries("deploy.vm.dod.applications", null, null).stream()
-                        .map(application -> entry(application, URBAN_CODE_APPLICATION, new ConfigTree()
-                                .set("components", application.entries("components", null, null).stream()
-                                        .map(component -> entry(component, URBAN_CODE_COMPONENT, new ConfigTree()))
-                                        .toList())))
-                        .toList())
-                .set("nexusIqApplications", nexusIqApplications(project, settings));
         boolean delivers = !Boolean.TRUE.equals(request.get("deployment.nexusDeliveryDisabled"));
         for (String key : List.of("buildTag", "internalDockerUrl")) {
             if (request.get("openShiftTargets.RD." + key) != null && delivers) {
@@ -261,6 +319,26 @@ final class ServiceConfigReader {
         Service service = new Service(null, name, null, 0,
                 json.convertValue(fields, ServiceDto.class).toDraft().settings());
         return new ImportedService(name, ServiceDto.from(service), notes);
+    }
+
+    /**
+     * Reads a SQL and PL/SQL service: its database block, the project keys it shares with every service, and one note
+     * for each key it ignores. The Maven home of build.maven fills that of the package, as in the library.
+     */
+    private static void readDatabase(ConfigInput project, ConfigTree request) {
+        read(project, DATABASE, request);
+        read(project, DATABASE_PROJECT, request);
+        for (String key : UNUSED_BY_DATABASE) {
+            Object value = project.take(key);
+            if (key.equals("build.maven") && value instanceof Map<?, ?> maven
+                    && request.get("database.mvnPath") == null) {
+                read(project, List.of(rule(MAVEN_HOME, "database.mvnPath", TEXT)), request);
+                value = maven.keySet().equals(Set.of("mvnPath")) ? null : value;
+            }
+            if (value != null) {
+                project.note(key, NOT_FOR_DATABASE);
+            }
+        }
     }
 
     /** Reads the command block of the service's build tool; a block of another tool is left out with a note. */
@@ -457,6 +535,45 @@ final class ServiceConfigReader {
             rules.addAll(prefixed("deploy.openshift." + region.configKey() + ".", "openShiftTargets." + region + ".",
                     openShiftTarget));
         }
+        return List.copyOf(rules);
+    }
+
+    private static List<Rule> databaseRules() {
+        List<Rule> database = new ArrayList<>(concat(
+                same(TEXT, "changelogFile", "searchPath", "oracleVersion", "defaultSchema", "liquibaseSchema",
+                        "contexts", "labels"),
+                same(FLAG, "requireRollback", "tag"),
+                List.of(rule("parameters", "parameters", MAP), rule("lockWaitMinutes", "lockWaitMinutes", NUMBER),
+                        rule("compileCheck.enabled", "compileCheck", FLAG),
+                        rule("compileCheck.recompile", "recompile", FLAG),
+                        rule("compileCheck.ignoreObjects", "ignoreObjects", LIST),
+                        rule("checks.ignoreFiles", "ignoreFiles", LIST), rule("package.groupId", "groupId", TEXT),
+                        rule("package.artifactId", "artifactId", TEXT),
+                        rule("package.nexusDelivery", "nexusDelivery", FLAG),
+                        rule("package.mvnPath", "mvnPath", TEXT), rule("test.reset", "testReset", FLAG),
+                        rule("test.utplsql.enabled", "utplsql", FLAG), note("allowedTargets", GLOBAL)),
+                prefixed("test.utplsql.", "utplsql", List.of(rule("paths", "Paths", TEXT),
+                        rule("owner", "Owner", TEXT), rule("sourcePath", "SourcePath", TEXT),
+                        rule("testPath", "TestPath", TEXT), rule("timeoutMinutes", "TimeoutMinutes", NUMBER)))));
+        for (String repository : List.of("snapshotRepository", "releaseRepository")) {
+            database.addAll(prefixed("package." + repository + ".", repository,
+                    List.of(rule("id", "Id", TEXT), rule("url", "Url", TEXT))));
+        }
+        for (String production : List.of("prod", "production", "prd", "live")) {
+            database.add(note(production, NO_PRODUCTION));
+        }
+        List<Rule> rules = new ArrayList<>(prefixed("database.", "database.", database));
+        for (DatabaseTarget target : DatabaseTarget.values()) {
+            rules.addAll(prefixed("database." + target.configKey() + ".", "databaseTargets." + target + ".", concat(
+                    same(TEXT, "credentialsId", "contexts", "labels", "defaultSchema", "liquibaseSchema"),
+                    List.of(rule("url", "url", JDBC), rule("parameters", "parameters", MAP),
+                            rule("timeoutMinutes", "timeoutMinutes", NUMBER), note("password", SECRET),
+                            note("username", SECRET), note("user", SECRET)))));
+        }
+        rules.addAll(List.of(rule("tools.sonar.sources", "database.sonarSources", TEXT),
+                rule("tools.sonar.sonarScannerVersion", "database.sonarScannerVersion", TEXT),
+                rule("dast.enabled", "appScan.dastEnabled", DAST_OFF), note("tools.liquibase", TOOLS_IN_DEFAULTS),
+                note("tools.oracleJdbc", TOOLS_IN_DEFAULTS), note("tools.utplsql", TOOLS_IN_DEFAULTS)));
         return List.copyOf(rules);
     }
 

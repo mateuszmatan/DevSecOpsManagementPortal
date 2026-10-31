@@ -7,6 +7,9 @@ import com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType;
 import com.bbh.itss.dso.portal.domain.catalog.BitbucketType;
 import com.bbh.itss.dso.portal.domain.catalog.BuildSettings;
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseSettings;
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget;
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTargetSettings;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.domain.catalog.DeploymentSettings;
 import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform;
@@ -69,10 +72,36 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FIL
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SCANNER_VERSION;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SCANNER_VERSION_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ABSOLUTE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CHANGELOG_PATH_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CHANGELOG_SUFFIX;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CHANGELOG_SUFFIX_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CONTEXTS;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CONTEXTS_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CREDENTIALS;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CREDENTIALS_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.IGNORE_OBJECT_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.MAVEN;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.MAVEN_HOME_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.MAVEN_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.OPTIONAL;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ORACLE_VERSION;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ORACLE_VERSION_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.PATH;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.REPOSITORY_URL;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.REPOSITORY_URL_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SCHEMA;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SCHEMA_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SEARCH_PATH_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SEARCH_ROOT_PATH_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.UTPLSQL_PATHS;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.UTPLSQL_PATHS_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings.ONE_APPLICATION;
 
 @Builder
@@ -103,7 +132,9 @@ public record ServiceDto(
         List<@Size(min = 1, max = 300) @Pattern(regexp = REPOSITORY_PATH, message = REPOSITORY_PATH_MESSAGE)
                 @Pattern(regexp = REPOSITORY_FILE, message = REPOSITORY_FILE_MESSAGE) String> versionCatalogs,
         @Valid MetricsSettingsDto metrics,
-        @Valid FlutterSettingsDto flutter) {
+        @Valid FlutterSettingsDto flutter,
+        @Valid DatabaseSettingsDto database,
+        Map<DatabaseTarget, @Valid DatabaseTargetDto> databaseTargets) {
 
     static ServiceDto from(Service service) {
         return RecordMapper.map(ServiceDto.class, service, service.settings());
@@ -413,8 +444,63 @@ public record ServiceDto(
             @Size(max = 500) String sonarTests,
             Boolean sonarFlutterPlugin,
             @Size(max = 500) String dartAnalyzeCommand,
-            @Size(max = 50)
-            @Pattern(regexp = "^[0-9A-Za-z._-]*$", message = "must be a SonarScanner version such as 5.0.1.3006")
+            @Size(max = 50) @Pattern(regexp = SCANNER_VERSION, message = SCANNER_VERSION_MESSAGE)
             String sonarScannerVersion) implements Mirrors<FlutterSettings> {
+    }
+
+    public record DatabaseSettingsDto(
+            @Size(max = 500) @Pattern(regexp = OPTIONAL + PATH, message = CHANGELOG_PATH_MESSAGE)
+            @Pattern(regexp = OPTIONAL + CHANGELOG_SUFFIX, message = CHANGELOG_SUFFIX_MESSAGE) String changelogFile,
+            @Size(max = 500) @Pattern(regexp = OPTIONAL + "\\.|" + PATH, message = SEARCH_PATH_MESSAGE)
+            String searchPath,
+            @Pattern(regexp = OPTIONAL + ORACLE_VERSION, message = ORACLE_VERSION_MESSAGE) String oracleVersion,
+            @Pattern(regexp = OPTIONAL + SCHEMA, message = SCHEMA_MESSAGE) String defaultSchema,
+            @Pattern(regexp = OPTIONAL + SCHEMA, message = SCHEMA_MESSAGE) String liquibaseSchema,
+            @Pattern(regexp = CONTEXTS, message = CONTEXTS_MESSAGE) String contexts,
+            @Pattern(regexp = CONTEXTS, message = CONTEXTS_MESSAGE) String labels,
+            @Size(max = 50) List<@NotBlank @Size(max = 600) String> parameters,
+            Boolean requireRollback,
+            Boolean tag,
+            @Min(0) @Max(60) Integer lockWaitMinutes,
+            Boolean compileCheck,
+            Boolean recompile,
+            @Size(max = 50)
+            List<@NotBlank @Pattern(regexp = SCHEMA, message = IGNORE_OBJECT_MESSAGE) String> ignoreObjects,
+            @Size(max = 50)
+            List<@NotBlank @Size(max = 500) @Pattern(regexp = PATH, message = SEARCH_ROOT_PATH_MESSAGE)
+                    String> ignoreFiles,
+            @Pattern(regexp = OPTIONAL + MAVEN, message = MAVEN_MESSAGE) String groupId,
+            @Pattern(regexp = OPTIONAL + MAVEN, message = MAVEN_MESSAGE) String artifactId,
+            Boolean nexusDelivery,
+            @Pattern(regexp = OPTIONAL + ABSOLUTE, message = MAVEN_HOME_MESSAGE) String mvnPath,
+            @Pattern(regexp = OPTIONAL + MAVEN, message = MAVEN_MESSAGE) String snapshotRepositoryId,
+            @Size(max = 1000) @Pattern(regexp = OPTIONAL + REPOSITORY_URL, message = REPOSITORY_URL_MESSAGE)
+            String snapshotRepositoryUrl,
+            @Pattern(regexp = OPTIONAL + MAVEN, message = MAVEN_MESSAGE) String releaseRepositoryId,
+            @Size(max = 1000) @Pattern(regexp = OPTIONAL + REPOSITORY_URL, message = REPOSITORY_URL_MESSAGE)
+            String releaseRepositoryUrl,
+            Boolean testReset,
+            Boolean utplsql,
+            @Pattern(regexp = UTPLSQL_PATHS, message = UTPLSQL_PATHS_MESSAGE) String utplsqlPaths,
+            @Pattern(regexp = OPTIONAL + SCHEMA, message = SCHEMA_MESSAGE) String utplsqlOwner,
+            @Size(max = 500) @Pattern(regexp = OPTIONAL + PATH, message = SEARCH_ROOT_PATH_MESSAGE)
+            String utplsqlSourcePath,
+            @Size(max = 500) @Pattern(regexp = OPTIONAL + PATH, message = SEARCH_ROOT_PATH_MESSAGE)
+            String utplsqlTestPath,
+            @Min(1) @Max(240) Integer utplsqlTimeoutMinutes,
+            @Size(max = 500) @Pattern(regexp = COMMAND, message = COMMAND_MESSAGE) String sonarSources,
+            @Size(max = 50) @Pattern(regexp = SCANNER_VERSION, message = SCANNER_VERSION_MESSAGE)
+            String sonarScannerVersion) implements Mirrors<DatabaseSettings> {
+    }
+
+    public record DatabaseTargetDto(
+            @Size(max = 1000) String url,
+            @Pattern(regexp = OPTIONAL + CREDENTIALS, message = CREDENTIALS_MESSAGE) String credentialsId,
+            @Pattern(regexp = CONTEXTS, message = CONTEXTS_MESSAGE) String contexts,
+            @Pattern(regexp = CONTEXTS, message = CONTEXTS_MESSAGE) String labels,
+            @Pattern(regexp = OPTIONAL + SCHEMA, message = SCHEMA_MESSAGE) String defaultSchema,
+            @Pattern(regexp = OPTIONAL + SCHEMA, message = SCHEMA_MESSAGE) String liquibaseSchema,
+            @Size(max = 50) List<@NotBlank @Size(max = 600) String> parameters,
+            @Min(1) @Max(240) Integer timeoutMinutes) implements Mirrors<DatabaseTargetSettings> {
     }
 }

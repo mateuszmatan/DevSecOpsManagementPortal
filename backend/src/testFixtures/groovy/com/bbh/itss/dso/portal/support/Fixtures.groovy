@@ -3,6 +3,9 @@ package com.bbh.itss.dso.portal.support
 import com.bbh.itss.dso.portal.domain.catalog.AppScanSettings
 import com.bbh.itss.dso.portal.domain.catalog.BuildSettings
 import com.bbh.itss.dso.portal.domain.catalog.BuildTool
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseSettings
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTargetSettings
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget
 import com.bbh.itss.dso.portal.domain.catalog.DeploymentSettings
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings
@@ -35,6 +38,7 @@ import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType
 import com.bbh.itss.dso.portal.domain.pipeline.ServiceRef
+import com.bbh.itss.dso.portal.domain.settings.DatabaseDefaults
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 
@@ -44,6 +48,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.BitbucketAuthType.BEARER
 import static com.bbh.itss.dso.portal.domain.catalog.BitbucketType.SERVER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
 import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.APPBUNDLE
@@ -70,6 +75,8 @@ final class Fixtures {
     static final String KEY = '0f8fad5b-d9cb-469f-a165-70867728950e'
     static final Instant CREATED = Instant.parse('2026-10-01T08:00:00Z')
     static final Instant UPDATED = Instant.parse('2026-10-02T09:30:00Z')
+    static final String UTPLSQL_URL =
+            'https://tools.bbh.com/nexus/repository/raw-tools/utplsql/utPLSQL-cli/3.2.2/utPLSQL-cli.zip'
 
     private Fixtures() {
     }
@@ -80,7 +87,7 @@ final class Fixtures {
 
     static BuildSettings build(Map args = [:]) {
         BuildTool tool = args.tool as BuildTool ?: GRADLE
-        ToolCommand defaultCommand = tool == FLUTTER ? NONE
+        ToolCommand defaultCommand = tool in [FLUTTER, LIQUIBASE] ? NONE
                 : tool == MAVEN ? command(['clean', 'verify']) : command(['clean', 'build'])
         new BuildSettings(tool, args.sourceDir as String,
                 args.containsKey('javaPath') ? args.javaPath as String : JDK, args.autoSetup as Boolean,
@@ -124,7 +131,41 @@ final class Fixtures {
                 .scm(args.scm as ScmSettings).goldenFix(args.goldenFix as GoldenFixPolicy)
                 .versionCatalogs(args.versionCatalogs as List<String>)
                 .metrics(args.metrics as MetricsSettings).flutter(args.flutter as FlutterSettings)
+                .database(args.database as DatabaseSettings)
+                .databaseTargets(args.databaseTargets as Map<DatabaseTarget, DatabaseTargetSettings>)
                 .build()
+    }
+
+    /** The SQL and PL/SQL service orders-db of the library's layout (a), with the repositories left to the defaults. */
+    static ServiceSettings databaseSettings(Map args = [:]) {
+        settings([build: build(tool: LIQUIBASE), database: database(), databaseTargets: databaseTargets()] + args)
+    }
+
+    static DatabaseSettings database() {
+        DatabaseSettings.builder().changelogFile('db/changelog-master.xml').parameters(['app_role=orders_app_role'])
+                .groupId('com.bbh.orders').utplsql(true).utplsqlSourcePath('db/code').utplsqlTestPath('db/test').build()
+    }
+
+    static Map<DatabaseTarget, DatabaseTargetSettings> databaseTargets() {
+        [(DatabaseTarget.TEST): DatabaseTargetSettings.builder()
+                .url('jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI').credentialsId('orders-db-test').build(),
+         (DatabaseTarget.RD)  : DatabaseTargetSettings.builder()
+                 .url('jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD').credentialsId('orders-db-rd').build(),
+         (DatabaseTarget.QC)  : DatabaseTargetSettings.builder()
+                 .url('jdbc:oracle:thin:@tcps://qc-db.bbh.com:2484/ORDERS_QC?ssl_server_dn_match=true')
+                 .credentialsId('orders-db-qc').parameters(['app_role=orders_qc_role']).build()]
+    }
+
+    /** The Library defaults (SQL and PL/SQL) of the regression Global Settings. */
+    static DatabaseDefaults databaseDefaults() {
+        DatabaseDefaults.builder().liquibaseHome('/opt/liquibase/4.33.0').oracleJdbcPath('/opt/oracle/ojdbc11.jar')
+                .utplsqlUrl(UTPLSQL_URL)
+                .utplsqlSha256('15a3addd921b7f2e415537b47c18a4a9d3e0b70ff0e403943fd4c03b0ba02006')
+                .allowedTargets(['dev-db.bbh.com', 'rd-db.bbh.com', 'qc-db.bbh.com'])
+                .snapshotRepositoryId('bbh-db-snapshots')
+                .snapshotRepositoryUrl('https://tools.bbh.com/nexus/repository/db-snapshots')
+                .releaseRepositoryId('bbh-db-releases')
+                .releaseRepositoryUrl('https://tools.bbh.com/nexus/repository/db-releases').build()
     }
 
     static ServiceSettings fullSettings(String name = 'gui') {

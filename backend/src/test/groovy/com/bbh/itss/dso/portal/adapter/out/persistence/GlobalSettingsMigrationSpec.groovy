@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
+import com.bbh.itss.dso.portal.domain.settings.DatabaseDefaults
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -124,6 +125,34 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
 
         then:
         thrown(DataIntegrityViolationException)
+    }
+
+    def "034 adds the Library defaults (SQL and PL/SQL), empty for saved settings, and its rollback removes the columns"() {
+        given:
+        jdbc.execute('DROP ALL OBJECTS')
+        liquibase.update('')
+        settings.save(GlobalSettings.bbhDefaults())
+
+        when:
+        rollBackSince('034-')
+
+        then:
+        columns('DSO_GLOBAL_SETTINGS').findAll { it.startsWith('DB_') } == []
+        checks() == CHECKS
+
+        when:
+        liquibase.update('')
+
+        then:
+        settings.load().get().values().database() == DatabaseDefaults.NONE
+        columns('DSO_GLOBAL_SETTINGS').count { it.startsWith('DB_') } == 15
+        checks() == CHECKS
+
+        when:
+        jdbc.update("UPDATE DSO_GLOBAL_SETTINGS SET DEFAULT_BUILD_TOOL = 'LIQUIBASE'")
+
+        then:
+        jdbc.queryForObject('SELECT DEFAULT_BUILD_TOOL FROM DSO_GLOBAL_SETTINGS', String) == 'LIQUIBASE'
     }
 
     private List<String> checks() {

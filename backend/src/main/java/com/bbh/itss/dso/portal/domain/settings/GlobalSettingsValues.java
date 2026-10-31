@@ -11,17 +11,19 @@ import java.util.Map;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildSettings.DEFAULT_SOURCE_DIR;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
 import static com.bbh.itss.dso.portal.domain.settings.ReleaseGateSettings.STATE_FILE;
 import static com.bbh.itss.dso.portal.domain.settings.SeverityLimits.ZERO;
 import static java.util.Collections.unmodifiableMap;
 import static org.apache.commons.collections4.MapUtils.emptyIfNull;
 import static org.apache.commons.lang3.ObjectUtils.allNotNull;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 
 public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDefaults deployment,
                                    Map<Scanner, SeverityLimits> limits, ScanSettings scans,
                                    ReleaseGateSettings releaseGate, ServiceDefaults serviceDefaults,
-                                   GoldenFixPolicy goldenFix) {
+                                   GoldenFixPolicy goldenFix, DatabaseDefaults database) {
 
     public GlobalSettingsValues {
         Map<Scanner, SeverityLimits> ordered = new EnumMap<>(Scanner.class);
@@ -32,6 +34,7 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
         });
         limits = unmodifiableMap(ordered);
         goldenFix = goldenFix == null ? null : goldenFix.enabledByDefault();
+        database = getIfNull(database, DatabaseDefaults.NONE);
     }
 
     public static GlobalSettingsValues bbhDefaults() {
@@ -69,7 +72,8 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
                 .goldenVersionTypes(List.of("recommended-non-breaking-with-dependencies", "recommended-non-breaking"))
                 .excludeDirs(List.of()).verifyEnabled(true).verifyMaxAttempts(3).verifyTimeoutMinutes(20)
                 .commitAuthorName("DevSecOps GoldenFix").commitAuthorEmail("devsecops-goldenfix@noreply.local").build();
-        return new GlobalSettingsValues(platform, deployment, limits, scans, releaseGate, serviceDefaults, goldenFix);
+        return new GlobalSettingsValues(platform, deployment, limits, scans, releaseGate, serviceDefaults, goldenFix,
+                DatabaseDefaults.NONE);
     }
 
     public void validate(ValidationProblems problems) {
@@ -81,6 +85,11 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
         scans.validate(problems.at("scans"));
         releaseGate.validate(problems.at("releaseGate"));
         goldenFix.validateComplete(problems.at("goldenFix"));
+        if (serviceDefaults.buildTool() == LIQUIBASE) {
+            problems.add("serviceDefaults.buildTool", "must not be SQL and PL/SQL (Liquibase): a database service needs"
+                    + " its own changelog, so every new service starts with Gradle, Maven or Flutter");
+        }
+        database.validate(problems.at("database"));
     }
 
     public Map<String, Object> defaultsConfig() {
@@ -90,7 +99,8 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
         limits.forEach((scanner, value) -> value.writeTo(defaults, scanner.defaultsPath()));
         releaseGate.writeTo(defaults);
         goldenFix.writeTo(defaults);
+        database.writeTo(defaults);
         return defaults.toMap(List.of("buildTool", "deployTarget", "sourceDir", "build", "coverage", "tools",
-                "sast", "sca", "dast", "staticAnalysis", "tests", "releaseGate", "goldenFix"));
+                "sast", "sca", "dast", "staticAnalysis", "tests", "releaseGate", "goldenFix", "database"));
     }
 }

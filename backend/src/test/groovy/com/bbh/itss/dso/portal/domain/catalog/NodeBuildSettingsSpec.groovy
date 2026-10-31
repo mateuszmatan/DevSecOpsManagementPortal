@@ -4,6 +4,7 @@ import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.NodeBuildSettings.NONE
 import static com.bbh.itss.dso.portal.domain.shared.Sections.reported
@@ -63,6 +64,14 @@ class NodeBuildSettingsSpec extends Specification {
                 'must be off for Flutter: a Flutter build has no Gradle or Maven stage for the Node.js build to run before']]
         reported { both(true).validate(it, MAVEN) }.collect { [it.field, it.message] } ==
                 [['nodePath', 'give the Node.js installation or its home on the agent, not both']]
+    }
+
+    def "an enabled Node.js build is refused for SQL and PL/SQL, and a switched off one is not"() {
+        expect:
+        reported { FULL.validate(it, LIQUIBASE) }.collect { [it.field, it.message] } == [['enabled',
+                'must be off for SQL and PL/SQL (Liquibase): a database service has no build for a Node.js build to run'
+                        + ' before']]
+        reported { both(false).validate(it, LIQUIBASE) } == []
     }
 
     def "the folder of an enabled Node.js build is refused when it leaves the repository: '#directory'"() {

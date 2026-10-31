@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.in.web
 
 import com.bbh.itss.dso.portal.adapter.RecordMapper
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseSettings
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
@@ -34,6 +35,19 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PAT
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL_MESSAGE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CHANGELOG_PATH_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CHANGELOG_SUFFIX_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CONTEXTS_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.CREDENTIALS_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.IGNORE_OBJECT_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.MAVEN_HOME_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.MAVEN_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ORACLE_VERSION_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.REPOSITORY_URL_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SCHEMA_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SEARCH_PATH_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SEARCH_ROOT_PATH_MESSAGE
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.UTPLSQL_PATHS_MESSAGE
 import static com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform.WEB
 import static com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy.INHERITED
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
@@ -43,6 +57,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
 import static com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings.NONE
 import static com.bbh.itss.dso.portal.support.ApiJson.APP_ID
 import static com.bbh.itss.dso.portal.support.ApiJson.build as buildJson
+import static com.bbh.itss.dso.portal.support.ApiJson.databaseService as databaseJson
 import static com.bbh.itss.dso.portal.support.ApiJson.service as serviceJson
 import static com.bbh.itss.dso.portal.support.Json.toJson
 import static com.bbh.itss.dso.portal.support.Fixtures.appScan
@@ -181,6 +196,61 @@ class ServiceDtoSpec extends Specification {
         'more than 20 catalogs'       | [versionCatalogs: names(21)]                                  || 'versionCatalogs'                                | 'size must be between 0 and 20'
     }
 
+    def "bean validation rejects the database setting #description and says what it expects"() {
+        expect:
+        validator.validate(request(toJson(databaseJson(database: DATABASE + change)))).collect {
+            [it.propertyPath.toString(), it.message]
+        } == [['database.' + change.keySet()[0] + suffix, message]]
+
+        where:
+        description                   | change                                               | suffix                    || message
+        'a changelog above the root'  | [changelogFile: '../x.xml']                          | ''                        || CHANGELOG_PATH_MESSAGE
+        'an absolute changelog'       | [changelogFile: '/abs.xml']                          | ''                        || CHANGELOG_PATH_MESSAGE
+        'a changelog of text'         | [changelogFile: 'db/x.txt']                          | ''                        || CHANGELOG_SUFFIX_MESSAGE
+        'a search folder above'       | [searchPath: 'db/../..']                             | ''                        || SEARCH_PATH_MESSAGE
+        'contexts with an ampersand'  | [contexts: 'a & b']                                  | ''                        || CONTEXTS_MESSAGE
+        'an Oracle version 19c'       | [oracleVersion: '19c']                               | ''                        || ORACLE_VERSION_MESSAGE
+        'a schema with a dash'        | [defaultSchema: 'APP-1']                             | ''                        || SCHEMA_MESSAGE
+        'an object with a space'      | [ignoreObjects: ['PKG A']]                           | '[0].<list element>'      || IGNORE_OBJECT_MESSAGE
+        'an ignored file above'       | [ignoreFiles: ['../x.sql']]                          | '[0].<list element>'      || SEARCH_ROOT_PATH_MESSAGE
+        'a group ID with a space'     | [groupId: 'com bbh']                                 | ''                        || MAVEN_MESSAGE
+        'a relative Maven home'       | [mvnPath: 'opt/maven']                               | ''                        || MAVEN_HOME_MESSAGE
+        'a 501-character Maven home'  | [mvnPath: '/' + 'm' * 500]                           | ''                        || MAVEN_HOME_MESSAGE
+        'a repository over http'      | [snapshotRepositoryUrl: 'http://nexus.bbh.com/s']    | ''                        || REPOSITORY_URL_MESSAGE
+        'utPLSQL paths with a blank'  | [utplsqlPaths: 'orders tests']                       | ''                        || UTPLSQL_PATHS_MESSAGE
+        'a test folder above'         | [utplsqlTestPath: '../test']                         | ''                        || SEARCH_ROOT_PATH_MESSAGE
+        'a lock wait over an hour'    | [lockWaitMinutes: 61]                                | ''                        || 'must be less than or equal to 60'
+        'more than 50 parameters'     | [parameters: names(51).collect { "$it=1" as String }] | ''                       || 'size must be between 0 and 50'
+    }
+
+    def "bean validation rejects the database #description and says what it expects"() {
+        expect:
+        validator.validate(request(toJson(databaseJson(databaseTargets: [RD: TARGET + change])))).collect {
+            [it.propertyPath.toString(), it.message]
+        } == [['databaseTargets[RD].' + change.keySet()[0], message]]
+
+        where:
+        description                   | change                                 || message
+        '1001-character URL'          | [url: 'j' * 1001]                      || 'size must be between 0 and 1000'
+        'credentials ID with a blank' | [credentialsId: 'orders db']           || CREDENTIALS_MESSAGE
+        'labels with a semicolon'     | [labels: 'core;x']                     || CONTEXTS_MESSAGE
+        'Liquibase schema with a dot' | [liquibaseSchema: 'LB.X']              || SCHEMA_MESSAGE
+        'timeout of zero'             | [timeoutMinutes: 0]                    || 'must be greater than or equal to 1'
+    }
+
+    def "a database service accepts the values of the library's layouts, @ contexts and empty optional fields"() {
+        when:
+        def dto = request(toJson(databaseJson(database: DATABASE + [contexts: '@test, !rd', labels: '', searchPath: '.',
+                oracleVersion: '', groupId: '', mvnPath: '/opt/maven', ignoreFiles: ['db/legacy/old.sql'],
+                snapshotRepositoryUrl: 'https://tools.bbh.com/nexus/repository/db-snapshots', utplsqlPaths: 'orders:ut'])))
+
+        then:
+        validator.validate(dto).isEmpty()
+        dto.toDraft().settings().database().oracleVersion() == null
+        dto.toDraft().settings().databaseTargets().keySet()*.name() == ['TEST', 'RD', 'QC']
+        request(toJson(serviceJson())).toDraft().settings().database() == DatabaseSettings.NONE
+    }
+
     def "a Node.js build may run any command line from a Windows or Unix home and catalogs may be globs"() {
         expect:
         validator.validate(request(toJson(serviceJson(nodeBuild: [enabled: true, directory: 'web/app',
@@ -209,6 +279,9 @@ class ServiceDtoSpec extends Specification {
         validator.validate(request(toJson(serviceJson(appScan: [applicationId: APP_ID,
                 clientPath: '\\SAClientUtil\\bin\\appscan.bat'])))).isEmpty()
     }
+
+    static final Map DATABASE = databaseJson().database as Map
+    static final Map TARGET = [url: 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD', credentialsId: 'orders-db-rd']
 
     private ServiceDto request(String body) {
         RecordMapper.map(json.readValue(body, ServiceDto), ServiceDto)

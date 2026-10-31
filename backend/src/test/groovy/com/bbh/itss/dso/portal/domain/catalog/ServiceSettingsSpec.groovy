@@ -6,6 +6,7 @@ import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM
@@ -20,9 +21,13 @@ import static com.bbh.itss.dso.portal.domain.catalog.TestStage.REGRESSION
 import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE
 import static com.bbh.itss.dso.portal.support.Fixtures.APP_ID
+import static com.bbh.itss.dso.portal.support.Fixtures.JDK
+import static com.bbh.itss.dso.portal.support.Fixtures.KEY_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
+import static com.bbh.itss.dso.portal.support.Fixtures.database
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.deployment
 import static com.bbh.itss.dso.portal.support.Fixtures.fullSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
@@ -42,7 +47,8 @@ class ServiceSettingsSpec extends Specification {
         ServiceSettings.builder().build(build()).deployment(deployment()).appScan(appScan()).build() ==
                 new ServiceSettings(build(), NodeBuildSettings.NONE, UnitTestSettings.NONE, DEFAULTS, [], deployment(),
                         NONE, UrbanCodeSettings.DEFAULTS, [], [:], [:], appScan(), SonarSettings.NONE, NexusIqSettings.NONE,
-                        null, ScmSettings.NONE, INHERITED, null, MetricsSettings.DEFAULTS, FlutterSettings.NONE)
+                        null, ScmSettings.NONE, INHERITED, null, MetricsSettings.DEFAULTS, FlutterSettings.NONE,
+                        DatabaseSettings.NONE, [:])
     }
 
     def "deployment targets that set nothing, or have no region, are dropped and the rest kept in region order"() {
@@ -304,6 +310,51 @@ class ServiceSettingsSpec extends Specification {
         explicit.withDefaultMetricsProject('CERT', 'gui').is(explicit)
     }
 
+    def "a SQL and PL/SQL service renders only what the library reads for it, whatever else it stores"() {
+        when:
+        def tree = written(databaseSettings(STORED_ELSEWHERE + [scm: ScmSettings.of(REPO, 'bitbucket-http-credentials'),
+                testJobs: [TestJob.builder().stage(SMOKE).job('orders/smoke').build()]]))
+
+        then:
+        tree.toMap().keySet() == ['buildTool', 'sourceDir', 'javaPath', 'appId', 'asoc', 'dast', 'influx', 'tools', 'scm',
+                                  'tests', 'database'] as Set
+        tree.get('asoc') == [keyId: KEY_ID]
+        tree.get('dast') == [enabled: false]
+        tree.get('tools') == [sonar: [projectKey: 'bbh-orders-db']]
+        tree.get('tests.smoke.jobs')*.job == ['orders/smoke']
+        tree.get('database.changelogFile') == 'db/changelog-master.xml'
+        tree.get('database.test.utplsql.enabled') == true
+    }
+
+    def "a SQL and PL/SQL service checks its database block and nothing it neither renders nor uses"() {
+        expect:
+        reported(databaseSettings(STORED_ELSEWHERE)) == []
+        reported(settings(STORED_ELSEWHERE + [build: build()]))*.field.containsAll(['unitTests.command.tasks', 'deployment.appName',
+                'nexusIqApplications[0].scanPatterns', 'urbanCodeApplications[0].components'])
+        reported(databaseSettings(database: database().toBuilder().changelogFile(null).build(),
+                databaseTargets: [(DatabaseTarget.RD): DatabaseTargetSettings.builder().url('x').build()]))*.field ==
+                ['database.changelogFile', 'databaseTargets[RD].url', 'databaseTargets[RD].credentialsId',
+                 'database.utplsql']
+    }
+
+    def "a database that sets only the library's defaults is dropped, and the package named after the service too"() {
+        given:
+        def stored = databaseSettings(database: database().withArtifactId('orders-db'), databaseTargets: [
+                (DatabaseTarget.TEST): DatabaseTargetSettings.builder().contexts('test').timeoutMinutes(30).build(),
+                (DatabaseTarget.QC)  : DatabaseTargetSettings.builder().contexts('!test').build()])
+
+        expect:
+        stored.databaseTargets().keySet() as List == [DatabaseTarget.QC]
+        stored.withDefaultArtifact('orders-db').database().artifactId() == null
+        stored.withDefaultArtifact('orders').database().artifactId() == 'orders-db'
+        stored.changesDatabase()
+        stored.deployTarget() == null
+        !settings().changesDatabase()
+        settings().deployTarget() == VM
+        settings().database() == DatabaseSettings.NONE
+        settings().databaseTargets() == [:]
+    }
+
     def "a service cannot do without its #section settings"() {
         when:
         ServiceSettings.builder().build(section == 'build' ? null : build())
@@ -317,6 +368,23 @@ class ServiceSettingsSpec extends Specification {
         where:
         section << ['build', 'deployment', 'AppScan']
     }
+
+    /** What a SQL and PL/SQL service may keep from another build tool; invalid for a Gradle service. */
+    static final Map STORED_ELSEWHERE = [
+            build                : new BuildSettings(LIQUIBASE, null, JDK, false, 'target/*.jar',
+                    command(['clean', 'build'])),
+            unitTests            : UnitTestSettings.builder().resultPattern('**/TEST-*.xml').build(),
+            deployment           : deployment(target: OPENSHIFT, artifactName: 'orders.war'),
+            delivery             : command(['publish']),
+            urbanCodeApplications: [UrbanCodeApplicationSettings.of('Orders', 1, ['RD'], null, [])],
+            sshTargets           : [(RD): RD_HOST], openShiftTargets: [(QC): RD_PROJECT],
+            appScan              : appScan(compile: false, sourceCodeOnly: true, dastEnabled: true),
+            sonar                : SonarSettings.of(null, 'bbh-orders-db', null),
+            nexusIq              : new NexusIqSettings('https://iq.bbh.com', 'iq'),
+            nexusIqApplications  : [new NexusIqApplication('orders', [], null, null)],
+            goldenFix            : GoldenFixPolicy.builder().enabled(true).minThreatLevel(99).build(),
+            versionCatalogs      : ['gradle/libs.versions.toml'],
+            flutter              : FlutterSettings.builder().modules(['app']).build()]
 
     private static ConfigTree written(ServiceSettings settings) {
         def tree = new ConfigTree()

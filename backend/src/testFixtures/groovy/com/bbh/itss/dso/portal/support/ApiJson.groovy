@@ -7,6 +7,7 @@ final class ApiJson {
 
     static final String APP_ID = Fixtures.APP_ID
     static final String KEY_ID = Fixtures.KEY_ID
+    static final String ORDERS_APP_ID = '6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10'
 
     private ApiJson() {
     }
@@ -175,6 +176,35 @@ final class ApiJson {
          routeHostname      : "${project}.apps.bbh.com".toString(), deploymentPath: 'k8s',
          deploymentRepoUrl  : "https://bitbucket.bbh.com/scm/deploy/${project}.git".toString(), deploymentRepoBranch: 'main',
          deploymentRepoCredentialsId: 'bitbucket-http-credentials', buildTag: null, internalDockerUrl: null]
+    }
+
+    /** The service orders-db of the library's layout (a), with the repositories left to the Library defaults. */
+    static Map databaseService(Map overrides = [:]) {
+        [name           : 'orders-db',
+         build          : [tool: 'LIQUIBASE', sourceDir: '.', javaPath: JDK, autoSetup: false],
+         deployment     : [target: 'VM'],
+         appScan        : [applicationId      : ORDERS_APP_ID, keyId: 'bbh_' + ORDERS_APP_ID,
+                           secretCredentialsId: 'appscan-orders-key-secret'],
+         sonar          : [projectKey: 'bbh-orders-db'],
+         scm            : [repositoryUrl: 'https://bitbucket.bbh.com/projects/ORD/repos/orders',
+                           credentialsId: 'bitbucket-http-credentials'],
+         database       : [changelogFile    : 'db/changelog-master.xml', parameters: ['app_role=orders_app_role'],
+                           groupId          : 'com.bbh.orders', utplsql: true, utplsqlSourcePath: 'db/code',
+                           utplsqlTestPath  : 'db/test'],
+         databaseTargets: [TEST: [url: 'jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI', credentialsId: 'orders-db-test'],
+                           RD  : [url: 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD', credentialsId: 'orders-db-rd'],
+                           QC  : [url          : 'jdbc:oracle:thin:@tcps://qc-db.bbh.com:2484/ORDERS_QC?ssl_server_dn_match=true',
+                                  credentialsId: 'orders-db-qc', parameters: ['app_role=orders_qc_role']]]] + overrides
+    }
+
+    /** The Library defaults (SQL and PL/SQL) of the regression Global Settings. */
+    static Map databaseDefaults() {
+        [liquibaseHome        : '/opt/liquibase/4.33.0', oracleJdbcPath: '/opt/oracle/ojdbc11.jar',
+         utplsqlUrl           : Fixtures.UTPLSQL_URL,
+         utplsqlSha256        : '15a3addd921b7f2e415537b47c18a4a9d3e0b70ff0e403943fd4c03b0ba02006',
+         allowedTargets       : ['dev-db.bbh.com', 'rd-db.bbh.com', 'qc-db.bbh.com'],
+         snapshotRepositoryId : 'bbh-db-snapshots', snapshotRepositoryUrl: 'https://tools.bbh.com/nexus/repository/db-snapshots',
+         releaseRepositoryId  : 'bbh-db-releases', releaseRepositoryUrl: 'https://tools.bbh.com/nexus/repository/db-releases']
     }
 
     static Map pipeline(Map overrides = [:]) {

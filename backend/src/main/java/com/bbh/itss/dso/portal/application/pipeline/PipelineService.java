@@ -9,6 +9,7 @@ import com.bbh.itss.dso.portal.application.pipeline.port.in.ServicePipelinesView
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase;
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageServiceTemplateUseCase;
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseSettings;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
@@ -34,8 +35,10 @@ import java.util.Optional;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
 import static com.bbh.itss.dso.portal.domain.pipeline.Pipeline.UNKNOWN_KEY;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineKey.normalize;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.EXTENDED;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.FULL;
 import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.NEXUS_IQ;
+import static com.bbh.itss.dso.portal.domain.pipeline.PipelineType.SECURITY;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.groupingBy;
@@ -147,7 +150,7 @@ public class PipelineService implements PipelinesUseCase {
     @Override
     public void requireRunnablePipelines(Product product) {
         for (Service service : product.services()) {
-            for (PipelineType type : List.of(FULL, NEXUS_IQ)) {
+            for (PipelineType type : PipelineType.values()) {
                 Optional<String> refusal = refusal(service, type);
                 if (refusal.isPresent() && service.id() != null && pipelines.existsForService(service.id(), type)) {
                     throw new IllegalStateException(refusal.get());
@@ -168,8 +171,11 @@ public class PipelineService implements PipelinesUseCase {
         return agentLabels.isEmpty() ? settings : settings.toBuilder().agentLabels(agentLabels).build();
     }
 
-    private static Optional<String> refusal(Service service, PipelineType type) {
+    private Optional<String> refusal(Service service, PipelineType type) {
         ServiceSettings configured = service.settings();
+        if (configured.changesDatabase()) {
+            return databaseRefusal(service.name(), configured.database(), type);
+        }
         if (type == NEXUS_IQ && configured.nexusIqApplications().isEmpty()) {
             return Optional.of("Service " + service.name()
                     + " has no Nexus IQ application, so its Nexus IQ GoldenFix pipeline would scan nothing");
@@ -181,6 +187,23 @@ public class PipelineService implements PipelinesUseCase {
                     + " deployment");
         }
         return Optional.empty();
+    }
+
+    private Optional<String> databaseRefusal(String name, DatabaseSettings database, PipelineType type) {
+        if (type == NEXUS_IQ) {
+            return Optional.of("Service " + name + " changes a database with SQL and PL/SQL and has no open source"
+                    + " dependencies, so a Nexus IQ GoldenFix pipeline would scan nothing. Choose another pipeline"
+                    + " type, or delete the Nexus IQ GoldenFix pipeline of the service before you change its build"
+                    + " tool to SQL and PL/SQL (Liquibase)");
+        }
+        if (!database.delivers() || !(type == FULL || type == SECURITY || type == EXTENDED)) {
+            return Optional.empty();
+        }
+        return settings.current().values().database().missingForDelivery(database, type != SECURITY)
+                .map(missing -> "Service " + name + " delivers its database package to Nexus in the " + type.label()
+                        + " pipeline but has no " + missing + ". Set it under Database changes"
+                        + (missing.equals("group ID") ? "" : " or in the Library defaults (SQL and PL/SQL)")
+                        + ", or untick Deliver the package to Nexus");
     }
 
     @Override

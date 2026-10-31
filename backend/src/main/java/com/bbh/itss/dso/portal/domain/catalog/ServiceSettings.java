@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
@@ -25,6 +26,7 @@ import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
 import static lombok.AccessLevel.PRIVATE;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
+import static org.apache.commons.collections4.MapUtils.emptyIfNull;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 
 @Builder
@@ -36,7 +38,8 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
                               AppScanSettings appScan, SonarSettings sonar, NexusIqSettings nexusIq,
                               List<NexusIqApplication> nexusIqApplications, ScmSettings scm, GoldenFixPolicy goldenFix,
                               List<String> versionCatalogs, @With(PRIVATE) MetricsSettings metrics,
-                              FlutterSettings flutter) {
+                              FlutterSettings flutter, @With(PRIVATE) DatabaseSettings database,
+                              Map<DatabaseTarget, DatabaseTargetSettings> databaseTargets) {
 
     public ServiceSettings {
         requireNonNull(build, "a service needs its build settings");
@@ -49,8 +52,8 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         delivery = getIfNull(delivery, ToolCommand.NONE);
         urbanCode = getIfNull(urbanCode, UrbanCodeSettings.DEFAULTS);
         urbanCodeApplications = List.copyOf(emptyIfNull(urbanCodeApplications));
-        sshTargets = withoutEmpty(sshTargets, SshTarget::isEmpty);
-        openShiftTargets = withoutEmpty(openShiftTargets, OpenShiftTarget::isEmpty);
+        sshTargets = withoutEmpty(Region.class, sshTargets, SshTarget::isEmpty);
+        openShiftTargets = withoutEmpty(Region.class, openShiftTargets, OpenShiftTarget::isEmpty);
         sonar = getIfNull(sonar, SonarSettings.NONE);
         nexusIq = getIfNull(nexusIq, NexusIqSettings.NONE);
         nexusIqApplications = List.copyOf(emptyIfNull(nexusIqApplications));
@@ -59,15 +62,46 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         versionCatalogs = relativePaths(versionCatalogs);
         metrics = getIfNull(metrics, MetricsSettings.DEFAULTS);
         flutter = getIfNull(flutter, FlutterSettings.NONE);
+        database = getIfNull(database, DatabaseSettings.NONE);
+        Map<DatabaseTarget, DatabaseTargetSettings> databases = new EnumMap<>(DatabaseTarget.class);
+        emptyIfNull(databaseTargets).forEach((target, settings) -> {
+            if (target != null && settings != null) {
+                databases.put(target, settings.withoutDefaults(target));
+            }
+        });
+        databaseTargets = withoutEmpty(DatabaseTarget.class, databases, DatabaseTargetSettings::isEmpty);
     }
 
     public ServiceSettings withDefaultMetricsProject(String productCode, String serviceName) {
         return withMetrics(metrics.withDefaultProject(productCode, serviceName));
     }
 
+    public ServiceSettings withDefaultArtifact(String serviceName) {
+        return withDatabase(database.withDefaultArtifact(serviceName));
+    }
+
+    /** Whether the service is SQL and PL/SQL code that Liquibase deploys, which builds and deploys nothing else. */
+    public boolean changesDatabase() {
+        return build.tool() == LIQUIBASE;
+    }
+
+    /** The target the service deploys to; none for a database service, which Liquibase deploys. */
+    public DeployTarget deployTarget() {
+        return changesDatabase() ? null : deployment.target();
+    }
+
     public void writeTo(ConfigTree config) {
         BuildTool tool = build.tool();
         build.writeTo(config);
+        if (changesDatabase()) {
+            appScan.writeTo(config, tool);
+            metrics.writeTo(config);
+            sonar.writeTo(config, tool);
+            scm.writeTo(config);
+            tests.writeTo(config, testJobs);
+            database.writeTo(config, databaseTargets);
+            return;
+        }
         nodeBuild.writeTo(config);
         deployment.writeTo(config);
         appScan.writeTo(config, tool);
@@ -102,6 +136,14 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         BuildTool tool = build.tool();
         build.validate(problems.at("build"));
         nodeBuild.validate(problems.at("nodeBuild"), tool);
+        if (changesDatabase()) {
+            appScan.validate(problems.at("appScan"), tool);
+            sonar.validate(problems.at("sonar"), tool);
+            scm.validate(problems.at("scm"));
+            validateTestJobs(problems);
+            database.validate(problems, databaseTargets, build.sourceDir());
+            return;
+        }
         unitTests.validate(problems.at("unitTests"), tool);
         deployment.validate(problems.at("deployment"));
         if (deployment.target() == OPENSHIFT) {
@@ -126,11 +168,15 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
                     "add the Maven goals that upload the snapshot, for example deploy:deploy-file");
         }
         delivery.validate(problems.at("delivery"));
-        for (int i = 0; i < testJobs.size(); i++) {
-            testJobs.get(i).validate(problems.at("testJobs[" + i + "]"));
-        }
+        validateTestJobs(problems);
         for (int i = 0; i < urbanCodeApplications.size(); i++) {
             urbanCodeApplications.get(i).validate(problems.at("urbanCodeApplications[" + i + "]"));
+        }
+    }
+
+    private void validateTestJobs(ValidationProblems problems) {
+        for (int i = 0; i < testJobs.size(); i++) {
+            testJobs.get(i).validate(problems.at("testJobs[" + i + "]"));
         }
     }
 
@@ -138,11 +184,12 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         return "openShiftTargets[" + region.name() + "]";
     }
 
-    private static <T> Map<Region, T> withoutEmpty(Map<Region, T> targets, Predicate<T> empty) {
+    private static <K extends Enum<K>, T> Map<K, T> withoutEmpty(Class<K> keys, Map<K, T> targets,
+                                                                  Predicate<T> empty) {
         if (targets == null) {
             return Map.of();
         }
-        Map<Region, T> kept = new EnumMap<>(Region.class);
+        Map<K, T> kept = new EnumMap<>(keys);
         targets.forEach((region, target) -> {
             if (region != null && target != null && !empty.test(target)) {
                 kept.put(region, target);

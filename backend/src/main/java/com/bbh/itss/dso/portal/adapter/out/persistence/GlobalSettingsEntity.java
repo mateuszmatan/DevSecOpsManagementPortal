@@ -61,7 +61,8 @@ public class GlobalSettingsEntity extends SingletonEntity {
             ScanSettingsEmbeddable scans,
             @EmbeddedColumnNaming("RELEASE_GATE_%s") ReleaseGateSettingsEmbeddable releaseGate,
             ServiceDefaultsEmbeddable serviceDefaults,
-            @EmbeddedColumnNaming("GOLDEN_FIX_%s") GoldenFixPolicyEmbeddable goldenFix) {
+            @EmbeddedColumnNaming("GOLDEN_FIX_%s") GoldenFixPolicyEmbeddable goldenFix,
+            @EmbeddedColumnNaming("DB_%s") DatabaseDefaultsEmbeddable database) {
     }
 
     @Embeddable
@@ -114,5 +115,13 @@ public class GlobalSettingsEntity extends SingletonEntity {
             @Enumerated(STRING) @Column(name = "DEFAULT_DEPLOY_TARGET") DeployTarget deployTarget,
             @Column(name = "DEFAULT_SOURCE_DIR") String sourceDir,
             Integer testsMaxParallel, String nodeInstallationName, String npmRegistry, String npmrcCredentialsId) {
+    }
+
+    @Embeddable
+    public record DatabaseDefaultsEmbeddable(String liquibaseHome, String liquibaseUrl, String liquibaseSha256,
+            Integer liquibaseJavaVersion, String oracleJdbcPath, String oracleJdbcUrl, String oracleJdbcSha256,
+            String utplsqlHome, String utplsqlUrl, String utplsqlSha256, List<String> allowedTargets,
+            String snapshotRepositoryId, String snapshotRepositoryUrl, String releaseRepositoryId,
+            String releaseRepositoryUrl) {
     }
 }

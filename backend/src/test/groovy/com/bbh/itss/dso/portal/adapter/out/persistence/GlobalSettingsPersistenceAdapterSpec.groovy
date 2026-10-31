@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
+import com.bbh.itss.dso.portal.domain.settings.DatabaseDefaults
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettings
 import com.bbh.itss.dso.portal.domain.settings.SeverityLimits
 import org.springframework.beans.factory.annotation.Autowired
@@ -17,6 +18,7 @@ import static com.bbh.itss.dso.portal.domain.settings.Scanner.SAST
 import static com.bbh.itss.dso.portal.domain.settings.Scanner.SCA
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseDefaults
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
@@ -75,6 +77,30 @@ class GlobalSettingsPersistenceAdapterSpec extends Specification {
         jdbc.queryForMap('SELECT NODE_INSTALLATION_NAME, NPM_REGISTRY, NPMRC_CREDENTIALS_ID FROM DSO_GLOBAL_SETTINGS') ==
                 [NODE_INSTALLATION_NAME: 'NodeJS-20', NPM_REGISTRY: 'https://nexus.bbh.com/repository/npm-group/',
                  NPMRC_CREDENTIALS_ID  : 'npmrc-file']
+    }
+
+    def "the Library defaults (SQL and PL/SQL) are stored and read back, and an emptied block loads as none"() {
+        given:
+        def stored = adapter.save(GlobalSettings.bbhDefaults())
+
+        expect:
+        stored.values().database() == DatabaseDefaults.NONE
+
+        when:
+        def saved = adapter.save(stored.change(stored.version(), copy(bbh, database: databaseDefaults())))
+
+        then:
+        adapter.load().get().values().database() == databaseDefaults()
+        jdbc.queryForMap('SELECT DB_LIQUIBASE_HOME, DB_ALLOWED_TARGETS FROM DSO_GLOBAL_SETTINGS') ==
+                [DB_LIQUIBASE_HOME: '/opt/liquibase/4.33.0', DB_ALLOWED_TARGETS: 'dev-db.bbh.com\nrd-db.bbh.com\nqc-db.bbh.com']
+
+        when:
+        adapter.save(saved.change(saved.version(), bbh))
+
+        then:
+        adapter.load().get().values().database() == DatabaseDefaults.NONE
+        jdbc.queryForMap('SELECT DB_LIQUIBASE_HOME, DB_ALLOWED_TARGETS FROM DSO_GLOBAL_SETTINGS') ==
+                [DB_LIQUIBASE_HOME: null, DB_ALLOWED_TARGETS: null]
     }
 
     def "settings read at another version than the stored one are not written"() {

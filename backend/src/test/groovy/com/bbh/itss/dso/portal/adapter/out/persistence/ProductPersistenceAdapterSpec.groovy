@@ -1,5 +1,8 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseSettings
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget
+import com.bbh.itss.dso.portal.domain.catalog.DatabaseTargetSettings
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
 import com.bbh.itss.dso.portal.domain.catalog.NodeBuildSettings
 import com.bbh.itss.dso.portal.domain.catalog.Product
@@ -22,6 +25,8 @@ import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseSettings
+import static com.bbh.itss.dso.portal.support.Fixtures.databaseTargets
 import static com.bbh.itss.dso.portal.support.Fixtures.fullSettings
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
@@ -140,6 +145,60 @@ class ProductPersistenceAdapterSpec extends Specification {
                 GOLDEN_FIX_VERSION_CATALOGS FROM DSO_SERVICE WHERE ID = ?''', saved.services()[0].id()) ==
                 [NODE_ENABLED: 0, NODE_INSTALLATION_NAME: 'NodeJS-20', NODE_PATH: '/opt/node-20', NODE_NEXUS_IQ_SCAN: null,
                  GOLDEN_FIX_VERSION_CATALOGS: null]
+    }
+
+    def "a SQL and PL/SQL service with every database setting and three databases is stored and read back unchanged"() {
+        given:
+        def database = DatabaseSettings.builder().changelogFile('db/changelog-master.xml').searchPath('orders-db')
+                .oracleVersion('21.0').defaultSchema('ORDERS').liquibaseSchema('ORDERS_LB').contexts('!test and !perf')
+                .labels('release').parameters(['app_role=orders_app_role', 'tablespace=orders_data'])
+                .requireRollback(true).tag(false).lockWaitMinutes(10).compileCheck(false).recompile(false)
+                .ignoreObjects(['PKG_LEGACY']).ignoreFiles(['db/legacy/old.sql']).groupId('com.bbh.orders')
+                .artifactId('orders-schema').nexusDelivery(false).mvnPath('/opt/maven/bin/mvn')
+                .snapshotRepositoryId('orders-snapshots').snapshotRepositoryUrl('https://nexus.bbh.com/orders-snapshots')
+                .releaseRepositoryId('orders-releases').releaseRepositoryUrl('https://nexus.bbh.com/orders-releases')
+                .testReset(true).utplsql(true).utplsqlPaths('orders_app').utplsqlOwner('ORDERS_TEST')
+                .utplsqlSourcePath('db/code').utplsqlTestPath('db/test').utplsqlTimeoutMinutes(45).sonarSources('db')
+                .sonarScannerVersion('7.1.0.4889').build()
+        def test = new DatabaseTargetSettings('jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI', 'orders-db-test',
+                'test,ci', 'smoke', 'ORDERS_CI', 'ORDERS_CI_LB', ['app_role=orders_ci_role'], 20)
+        def targets = databaseTargets() + [(DatabaseTarget.TEST): test]
+
+        when:
+        def saved = adapter.save(Product.create(details(), [new ServiceDraft(null, 'orders-db', null,
+                databaseSettings(database: database, databaseTargets: targets)), draft('gui')], adapter))
+        entities.clear()
+        def loaded = adapter.load(saved.id()).get().services()*.settings()
+
+        then:
+        loaded[0].database() == database
+        loaded[0].databaseTargets() == targets
+        loaded[1].database() == DatabaseSettings.NONE
+        loaded[1].databaseTargets() == [:]
+        jdbc.queryForMap('''SELECT DB_TAG, DB_NEXUS_DELIVERY, DB_PARAMETERS, DB_UTPLSQL_TIMEOUT FROM DSO_SERVICE
+                WHERE NAME = ?''', 'orders-db') ==
+                [DB_TAG: 0, DB_NEXUS_DELIVERY: 0, DB_PARAMETERS: 'app_role=orders_app_role\ntablespace=orders_data',
+                 DB_UTPLSQL_TIMEOUT: 45]
+        jdbc.queryForList('SELECT TARGET FROM DSO_SERVICE_DATABASE_TARGET ORDER BY TARGET', String) == ['QC', 'RD', 'TEST']
+    }
+
+    def "a database that is removed from a kept service loses its row"() {
+        given:
+        def created = adapter.save(Product.create(details(), [new ServiceDraft(null, 'orders-db', null,
+                databaseSettings())], adapter))
+        entities.clear()
+        def stored = adapter.load(created.id()).get()
+        def kept = databaseTargets().subMap([DatabaseTarget.TEST])
+
+        when:
+        stored.update(stored.version(), details(), [new ServiceDraft(stored.services()[0].id(), 'orders-db', null,
+                databaseSettings(databaseTargets: kept))], adapter)
+        adapter.save(stored)
+        entities.clear()
+
+        then:
+        adapter.load(stored.id()).get().services()[0].settings().databaseTargets() == kept
+        jdbc.queryForList('SELECT TARGET FROM DSO_SERVICE_DATABASE_TARGET', String) == ['TEST']
     }
 
     def "an update replaces the details and the service list, keeping the ids of the services it keeps"() {
