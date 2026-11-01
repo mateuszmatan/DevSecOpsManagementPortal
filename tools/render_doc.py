@@ -386,11 +386,11 @@ def render_markdown_to_html(md_path, html_path, title, subtitle):
         content = re.sub(r'(?m)^>\s?', '', m.group(2)).strip()
         rendered_content = markdown.markdown(content)
         labels = {
-            'note': 'INFORMACJA',
-            'tip': 'WSKAZÓWKA',
-            'important': 'WAŻNE',
-            'warning': 'UWAGA',
-            'caution': 'OSTRZEŻENIE'
+            'note': 'NOTE',
+            'tip': 'TIP',
+            'important': 'IMPORTANT',
+            'warning': 'WARNING',
+            'caution': 'CAUTION'
         }
         lbl = labels.get(atype, atype.upper())
         return f'<div class="callout callout-{atype}"><div class="callout-header">{lbl}</div><div class="callout-body">{rendered_content}</div></div>\n'
@@ -415,7 +415,7 @@ def render_markdown_to_html(md_path, html_path, title, subtitle):
     toc_nav = "\n".join(toc_html_list)
 
     full_html = f"""<!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -443,8 +443,8 @@ def render_markdown_to_html(md_path, html_path, title, subtitle):
           <div class="doc-meta">
             <span class="meta-chip">Brown Brothers Harriman</span>
             <span class="meta-chip">DevSecOps Shared Library</span>
-            <span class="meta-chip">Wersja dla każdego użytkownika</span>
-            <span class="meta-chip">Zgodność: Enterprise Ready</span>
+            <span class="meta-chip">Non-Technical User Guide</span>
+            <span class="meta-chip">Enterprise Standard</span>
           </div>
         </header>
 
@@ -453,7 +453,7 @@ def render_markdown_to_html(md_path, html_path, title, subtitle):
         </div>
 
         <footer class="doc-footer">
-          <p>BBH DevSecOps Platform &bull; Dokumentacja Techniczna i Użytkowa &bull; Poufne / Do użytku wewnętrznego</p>
+          <p>BBH DevSecOps Platform &bull; Technical &amp; User Documentation &bull; Confidential / Internal Use Only</p>
         </footer>
       </div>
     </main>
