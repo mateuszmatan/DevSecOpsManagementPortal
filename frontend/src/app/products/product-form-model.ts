@@ -638,6 +638,9 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       reportOutDir: text(s?.unitTests?.reportOutDir, max(500)),
       allowEmptyResults: flag(s?.unitTests?.allowEmptyResults),
       coverageReportPath: text(s?.unitTests?.coverageReportPath, max(500)),
+      cypressEnabled: flag(s?.unitTests?.cypressEnabled),
+      cypressCommand: text(s?.unitTests?.cypressCommand, max(500)),
+      cypressReportsDir: text(s?.unitTests?.cypressReportsDir, max(500)),
     }),
     tests: new FormGroup({
       maxParallel: parallel(s?.tests?.maxParallel),
@@ -850,7 +853,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   );
   requireWhile(
     unitTests.controls.command.controls.tasks,
-    () => unitTestsConfigured(form) && tool.value !== 'LIQUIBASE',
+    () => unitTestsConfigured(form) && tool.value !== 'LIQUIBASE' && !unitTests.controls.cypressEnabled.value,
     unitTests,
     tool,
   );
@@ -1061,8 +1064,11 @@ export function unitTestsConfigured(form: ServiceForm): boolean {
   const v = form.controls.unitTests.getRawValue();
   return (
     commandEntered(form.controls.unitTests.controls.command) ||
-    [v.resultPattern, v.rootDir, v.reportOutDir].some((value) => !!optional(value)) ||
-    v.allowEmptyResults
+    [v.resultPattern, v.rootDir, v.reportOutDir, v.cypressCommand, v.cypressReportsDir].some(
+      (value) => !!optional(value),
+    ) ||
+    v.allowEmptyResults ||
+    v.cypressEnabled
   );
 }
 

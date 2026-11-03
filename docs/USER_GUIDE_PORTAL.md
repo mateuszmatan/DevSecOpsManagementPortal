@@ -119,9 +119,13 @@ The pipeline supports all standard BBH languages and build tools:
 The library automatically enforces test coverage across all project modules:
 
 - **Automatic Report Detection:**
-  - Scans all workspace subdirectories (`build/`, `target/`, `coverage/`, etc.).
+  - Scans all workspace subdirectories (`build/`, `target/`, `coverage/`, `cypress/`, etc.).
   - Parses **JaCoCo XML** reports for Java, Kotlin, and Groovy.
-  - Parses **LCOV (`lcov.info`)** reports for JavaScript, TypeScript, Angular, Python, and Flutter.
+  - Parses **LCOV (`lcov.info`)** reports for JavaScript, TypeScript, Angular, Python, Flutter, and Cypress.
+- **Node.js & Cypress Unit Testing:**
+  - Dedicated support for Node.js unit and component tests via Cypress (`tests.unitTests.cypress`).
+  - Seamless execution of Cypress tests (`npx cypress run --component` or custom command) within the Node.js environment.
+  - Ingestion of JUnit XML test results and automatic aggregation of Cypress LCOV coverage data (`coverage/lcov.info`).
 - **Granular Per-Module Reporting:**
   - Every discovered report receives its own line in the build log and HTML report with path, line count, and percentage.
 - **Project Run Summary:**
@@ -185,6 +189,24 @@ Nexus IQ identifies known open-source vulnerabilities (CVEs) and license complia
 - **Automated Remediation:** Opens a Bitbucket Pull Request upgrading dependencies in `pom.xml`, `build.gradle`, `package.json`, `requirements.txt`, or version catalogs (`libs.versions.toml`).
 - Groups updates by repository, opening a single consolidated Pull Request for multi-module projects.
 
+### External Version Catalog Repository:
+- When dependency versions and catalogs are managed in a separate, dedicated Git/Bitbucket repository:
+  - **Catalog Repository URL (`goldenFix.versionCatalogRepo.url`):** The clone address of the repository containing the version catalog.
+  - **Credentials ID (`goldenFix.versionCatalogRepo.credentialsId`):** Jenkins credentials for the catalog repository (falls back to SCM credentials if empty).
+  - **Branch (`goldenFix.versionCatalogRepo.branch`):** Target branch to update (falls back to default branch).
+  - **Path (`goldenFix.versionCatalogRepo.path`):** Relative file or directory path within the external repository (e.g., `catalogs/libs.versions.toml`).
+- GoldenFix checks out the external catalog repository, performs version upgrades, validates the build, and submits the remediation Pull Request directly to the catalog repository.
+
+### Decoupled Pipeline Execution Order:
+1. **Stage 1: Build Artifact (without tests):** The pipeline builds deployable artifacts without executing unit tests. If the optional Node.js build is enabled (`build.node.enabled: true`), npm commands run as step 0 at the start of this stage before compiling backend code.
+2. **Stage 2: Concurrent Verification (Unit Tests + SAST + Nexus IQ):**
+   - **Unit Tests:** Runs automated tests (including Node.js & Cypress tests) and aggregates JaCoCo & LCOV code coverage.
+   - **SAST (HCL AppScan):** Queues static application security analysis in the background and retrieves findings.
+   - **Nexus IQ:** Evaluates open-source dependencies against security policies and prepares GoldenFix remediation.
+3. **Stage 3: SonarQube (Static Code Analysis & Quality Gate):**
+   - Runs last after Unit tests, SAST, and Nexus IQ have concluded.
+   - Ingests test execution results and JaCoCo/LCOV/Cypress coverage reports to enforce the SonarQube Quality Gate.
+
 ---
 
 ## 11. Deployments & Delivery – OpenShift and Virtual Machines (VM)
@@ -234,6 +256,9 @@ Every pipeline execution streams performance and quality data to InfluxDB:
 | **Build Tool** | Technology build system | `maven`, `gradle`, `npm`, `pip` | Application runtime | <span class="badge badge-required">YES</span> |
 | **Build Tasks / Command** | Build invocation arguments | `clean package -DskipTests` | Build tool command | <span class="badge badge-required">YES</span> |
 | **Unit Test Tasks** | Test execution command | `test` or `test jacocoTestReport` | Build tool test task | <span class="badge badge-optional">OPTIONAL</span> |
+| **Cypress Tests Enabled** | Run Cypress unit/component tests | Checked `[X]` / Unchecked `[ ]` | Test suite config | <span class="badge badge-optional">OPTIONAL</span> |
+| **Cypress Command** | Cypress invocation command | `npx cypress run --component` | Project scripts | <span class="badge badge-optional">OPTIONAL</span> |
+| **Cypress Reports Dir** | JUnit test reports folder | `cypress/results` | Cypress reporter | <span class="badge badge-optional">OPTIONAL</span> |
 | **Coverage Minimum** | Enforced coverage percentage | `80` | BBH standard default (80) | <span class="badge badge-default">DEFAULT</span> |
 | **AppScan ASOC Key ID** | ASOC API key credential ID | `asoc-key-payments-api` | Jenkins Credentials store | <span class="badge badge-required">YES</span> |
 | **AppScan ASOC Token** | ASOC API secret credential ID | `asoc-secret-payments-api` | Jenkins Credentials store | <span class="badge badge-required">YES</span> |
@@ -243,6 +268,9 @@ Every pipeline execution streams performance and quality data to InfluxDB:
 | **Sonar Badge Token** | Project badge token (direct) | `sonar-badge-raw-token` | SonarQube Project Settings | <span class="badge badge-optional">1 OF 2</span> |
 | **Sonar Badge Creds ID** | Project badge secret in Jenkins | `sonar-badge-credentials-id` | Jenkins Credentials store | <span class="badge badge-optional">1 OF 2</span> |
 | **Nexus IQ Application ID** | Unique app ID in Nexus IQ | `payhub-backend-api` | Nexus IQ Server Dashboard | <span class="badge badge-required">YES</span> |
+| **External Catalog Repo URL** | Dedicated catalog repository | `ssh://git@bitbucket.bbh.com/shared/catalogs.git` | Bitbucket | <span class="badge badge-optional">OPTIONAL</span> |
+| **External Catalog Branch** | Branch of external catalog repo | `main` | Bitbucket | <span class="badge badge-optional">OPTIONAL</span> |
+| **External Catalog Path** | Relative path to catalog file | `catalogs/libs.versions.toml` | Bitbucket | <span class="badge badge-optional">OPTIONAL</span> |
 | **Disable Nexus Delivery** | Toggle off Nexus artifact push | Checked `[X]` / Unchecked `[ ]` | Check if no artifact needed | <span class="badge badge-optional">OPTIONAL</span> |
 | **OpenShift Namespace** | Target cluster project/namespace | `payhub-dev` | OpenShift web console | <span class="badge badge-optional">OpenShift</span> |
 | **VM Application Name** | UrbanCode Deploy application | `PAYHUB_CORE` | IBM UrbanCode Deploy console | <span class="badge badge-optional">VM</span> |

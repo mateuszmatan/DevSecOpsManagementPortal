@@ -179,7 +179,15 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "UNIT_TEST_ROOT_DIR") String rootDir,
             @Column(name = "UNIT_TEST_REPORT_DIR") String reportOutDir,
             @Column(name = "UNIT_TEST_ALLOW_EMPTY") Boolean allowEmptyResults,
-            String coverageReportPath) {
+            String coverageReportPath,
+            @Column(name = "UNIT_TEST_CYPRESS_ENABLED") Boolean cypressEnabled,
+            @Column(name = "UNIT_TEST_CYPRESS_COMMAND") String cypressCommand,
+            @Column(name = "UNIT_TEST_CYPRESS_REPORTS_DIR") String cypressReportsDir) {
+
+        public UnitTestSettingsEmbeddable(ToolCommandEmbeddable command, String resultPattern, String rootDir,
+                                          String reportOutDir, Boolean allowEmptyResults, String coverageReportPath) {
+            this(command, resultPattern, rootDir, reportOutDir, allowEmptyResults, coverageReportPath, false, null, null);
+        }
     }
 
     @Embeddable

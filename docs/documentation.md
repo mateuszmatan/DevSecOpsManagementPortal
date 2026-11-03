@@ -647,9 +647,14 @@ A Jenkinsfile without a key does not read this page. The values written under `d
 
 The block "Node.js build" in Service defaults has three fields: Node.js installation, npm registry and .npmrc credentials ID. A new service shows them as its "Library default". A service that leaves them empty takes them later as well, through `defaults.build.node` in `devsecops_config.yaml`. A service that names its own installation or a Node.js home on the agent uses that instead. The BBH seed leaves all three empty.
 
-### Nexus IQ and SonarQube while AppScan scans
+### Decoupled build, concurrent scans, and SonarQube running last
 
-The block "Speed" in Scans and coverage has one checkbox, "Run Nexus IQ and SonarQube while AppScan scans". It is ticked by default. The full and security pipelines then send the code of every service to AppScan first, run Nexus IQ and SonarQube while AppScan scans it, and read the SAST results last. The findings and the release gate are the same as one after another, and the run is shorter; in the report and the metrics, the SAST duration covers the whole Static analysis stage. Jenkins shows the three scans as one stage, Static analysis. If SAST stops before the code is sent, Nexus IQ and SonarQube do not run in that build. A service whose SAST compile command differs from its build command makes the pipelines run the three scans one after another, and the build log says so. Unticked, they run one after another, in the order Nexus IQ, SAST, SonarQube. The Jenkins environment variable `DSO_STATIC_ANALYSIS_PARALLEL`, when set to `true` or `false`, overrides this checkbox. A Jenkinsfile without a key does not follow this checkbox: it runs the three scans one after another unless `DSO_STATIC_ANALYSIS_PARALLEL` is `true` or every service of the run sets `staticAnalysis.parallel: true` in devsecops_config.yaml.
+The pipeline executes stages in an optimized sequence:
+1. **Build without tests**: The primary build artifact is compiled first (with optional Node.js build executing as step 0).
+2. **Concurrent Scans and Tests**: SAST scan submission queues while Unit tests (including Cypress tests) and Nexus IQ dependency scans run concurrently. Once testing and dependency evaluation finish, the pipeline retrieves the SAST analysis results.
+3. **SonarQube**: SonarQube runs last, ensuring that all Unit test reports and JaCoCo / LCOV / Cypress code coverage files are available for ingestion into the SonarQube quality gate.
+
+The block "Speed" in Scans and coverage provides the checkbox "Run Nexus IQ and SonarQube while AppScan scans" (`staticAnalysis.parallel`, ticked by default). When enabled, SAST submission, unit tests, and Nexus IQ run concurrently before SonarQube runs last. Unticked, scans run sequentially. The Jenkins environment variable `DSO_STATIC_ANALYSIS_PARALLEL`, when set to `true` or `false`, overrides this setting. A Jenkinsfile without a key follows `staticAnalysis.parallel: true` in `devsecops_config.yaml`.
 
 ### Which values follow later changes
 
@@ -775,11 +780,16 @@ Five steps share the same command fields: the build, the unit tests, the SonarQu
 |-------|-----|-------|
 | Test results | `tests.unitTests.unitTestResult` | Gradle builds |
 | Coverage reports | `coverage.reportPath` | Usually left empty; one path or pattern per line |
+| Enable Cypress unit tests | `tests.unitTests.cypress.enabled` | Runs Cypress tests and collects coverage |
+| Cypress command | `tests.unitTests.cypress.command` | Defaults to `npx cypress run --component` |
+| Cypress reports folder | `tests.unitTests.cypress.reportsDir` | Directory containing JUnit results |
 | Root folder (Advanced) | `tests.unitTests.rootDir` | Maven builds |
 | Report folder (Advanced) | `tests.unitTests.reportOutDir` | Maven builds |
 | Accept a run without test results (Advanced) | `tests.unitTests.allowEmptyResults` | Maven builds |
 
 Leave Coverage reports empty unless the pipeline reads the wrong reports. Empty, the Unit tests stage finds every JaCoCo XML and LCOV report of the service by itself: in the Directory of its unit test command, otherwise of its build command, otherwise in the Source folder; also in the Folder with package.json of its Node.js build; and, when it finds none there, in the whole repository. On Windows agents the stage does not look for LCOV reports: it reads the usual JaCoCo report of the build tool, and when that is missing every `jacoco.xml` of the workspace, or `total_lcov.info` for Flutter, so a service on a Windows agent names every report in Coverage reports, the LCOV report of the frontend included. A JaCoCo report needs `python3` on the agent. In a folder that several services share, each service takes the reports of its own build tool, and the report of the run says when a report also counts for another service. The line coverage of the service is the average of its reports. The report of the run lists every report it found, and says why a report is not counted, for example because it is a copy of another one or combines other reports.
+
+For Node.js frontends or fullstack applications using Cypress, ticking **Enable Cypress unit tests** (`tests.unitTests.cypress.enabled`) runs Cypress unit and component tests during the Unit tests stage. You can configure a custom command in **Cypress command** (`tests.unitTests.cypress.command`) and the test report folder in **Cypress reports folder** (`tests.unitTests.cypress.reportsDir`). Code coverage is automatically collected from `coverage/lcov.info` generated by Cypress instrumentation.
 
 Filled in, only the reports named in the field count. Name the report of the frontend too, and for a Flutter service the `lcov.info` of each package: the library now reads the field for Flutter as well, where it ignored it before. Paths are relative to the repository root; `*`, `?` and `**` are allowed. When none of them exists, the stage searches as if the field were empty. An imported `coverage.reportPath` longer than the 500 characters the portal keeps is left out with a note.
 

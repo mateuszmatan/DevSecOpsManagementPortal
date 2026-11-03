@@ -49,7 +49,7 @@ class TestSectionsSpec extends Specification {
         written { unitTests.writeTo(it, tool) } == config
 
         where:
-        tool << [MAVEN, LIQUIBASE, FLUTTER, FLUTTER, GRADLE, MAVEN, LIQUIBASE, FLUTTER]
+        tool << [MAVEN, LIQUIBASE, FLUTTER, FLUTTER, GRADLE, MAVEN, LIQUIBASE, FLUTTER, GRADLE]
         unitTests << [UnitTestSettings.builder()
                               .command(ToolCommand.builder().tasks(['test', 'jacoco:report']).mavenHome('/opt/maven').build())
                               .coverageReportPath('target/site/jacoco/jacoco.xml').build(),
@@ -59,13 +59,16 @@ class TestSectionsSpec extends Specification {
                       UnitTestSettings.builder().command(ToolCommand.of(['test'], []))
                               .resultPattern('test-results/*.xml').build(),
                       UnitTestSettings.builder().coverageReportPath(' coverage/lcov.info\nplugins/*/coverage/lcov.info ').build(),
-                      NONE, NONE, NONE, NONE]
+                      NONE, NONE, NONE, NONE,
+                      UnitTestSettings.builder().cypressEnabled(true).cypressCommand('npx cypress run --component')
+                              .cypressReportsDir('cypress/results').build()]
         config << [[tests   : [unitTests: [maven: [goals: ['test', 'jacoco:report'], mvnPath: '/opt/maven']]],
                     coverage: [reportPath: 'target/site/jacoco/jacoco.xml']],
                    [tests   : [unitTests: [liquibase: [commands: ['validate'], flags: ['--changelog-file=changelog.xml']],
                                            unitTestResult: 'build/test-results/utplsql/*.xml']]],
                    [tests: [unitTests: [unitTestResult: 'test-results/*.xml']]],
-                   [coverage: [reportPath: 'coverage/lcov.info\nplugins/*/coverage/lcov.info']], [:], [:], [:], [:]]
+                   [coverage: [reportPath: 'coverage/lcov.info\nplugins/*/coverage/lcov.info']], [:], [:], [:], [:],
+                   [tests: [unitTests: [cypress: [enabled: true, command: 'npx cypress run --component', reportsDir: 'cypress/results']]]]]
     }
 
     def "a #tool unit tests stage that sets #description reports #fields"() {
@@ -86,6 +89,7 @@ class TestSectionsSpec extends Specification {
         'tasks'                    | GRADLE    | UnitTestSettings.builder().command(ToolCommand.of(['test'], [])).resultPattern('**/*.xml').build() || []
         'tasks'                    | LIQUIBASE | UnitTestSettings.builder().command(ToolCommand.of(['validate'], [])).build()                       || []
         'a result pattern'         | FLUTTER   | UnitTestSettings.builder().resultPattern('**/TEST-*.xml').allowEmptyResults(true).build()          || []
+        'cypress enabled'          | GRADLE    | UnitTestSettings.builder().cypressEnabled(true).build()                                             || []
     }
 
     def "a unit tests stage without a command is explained in the words of the build tool"() {

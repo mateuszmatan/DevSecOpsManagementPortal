@@ -89,6 +89,9 @@ export interface UnitTestSettings {
   reportOutDir: string | null;
   allowEmptyResults: boolean;
   coverageReportPath: string | null;
+  cypressEnabled: boolean;
+  cypressCommand: string | null;
+  cypressReportsDir: string | null;
 }
 
 export interface TestSettings {

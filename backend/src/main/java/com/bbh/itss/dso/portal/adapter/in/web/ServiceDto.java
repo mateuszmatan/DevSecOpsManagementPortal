@@ -130,7 +130,15 @@ public record ServiceDto(
             @Size(max = 500) String rootDir,
             @Size(max = 500) String reportOutDir,
             Boolean allowEmptyResults,
-            @Size(max = 500) String coverageReportPath) implements Mirrors<UnitTestSettings> {
+            @Size(max = 500) String coverageReportPath,
+            Boolean cypressEnabled,
+            @Size(max = 500) String cypressCommand,
+            @Size(max = 500) String cypressReportsDir) implements Mirrors<UnitTestSettings> {
+
+        public UnitTestSettingsDto(ToolCommandDto command, String resultPattern, String rootDir, String reportOutDir,
+                                   Boolean allowEmptyResults, String coverageReportPath) {
+            this(command, resultPattern, rootDir, reportOutDir, allowEmptyResults, coverageReportPath, false, null, null);
+        }
     }
 
     public record TestSettingsDto(

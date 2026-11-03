@@ -317,6 +317,27 @@ class ServiceConfigReaderSpec extends Specification {
         ]
     }
 
+    def "Cypress unit test settings are imported from tests.unitTests.cypress"() {
+        when:
+        def imported = read('''
+            projects:
+              frontend:
+                buildTool: maven
+                deployTarget: openshift
+                tests:
+                  unitTests:
+                    cypress:
+                      enabled: true
+                      command: npx cypress run --component
+                      reportsDir: cypress/results
+        '''.stripIndent()).services()[0].service()
+
+        then:
+        imported.unitTests().cypressEnabled()
+        imported.unitTests().cypressCommand() == 'npx cypress run --component'
+        imported.unitTests().cypressReportsDir() == 'cypress/results'
+    }
+
     def "a hand-written config.yaml gives a service per project, inherits the global values and notes what it leaves out"() {
         when:
         def result = imported(getClass().getResource('/config-import/CertScanner-config.yaml').text)

@@ -450,6 +450,14 @@ final class ServiceConfigReader {
         rules.addAll(prefixed("asoc.", "appScan.", same(FLAG, "sourceCodeOnly", "insecureTls")));
         rules.addAll(prefixed("tests.unitTests.", "unitTests.", concat(same(TEXT, "rootDir", "reportOutDir"),
                 same(FLAG, "allowEmptyResults"))));
+        List<Rule> cypressRules = List.of(
+                rule("enabled", "cypressEnabled", FLAG),
+                rule("command", "cypressCommand", TEXT),
+                rule("reportsDir", "cypressReportsDir", TEXT));
+        rules.addAll(prefixed("tests.unitTests.cypress.", "unitTests.", cypressRules));
+        rules.addAll(prefixed("unitTests.cypress.", "unitTests.", cypressRules));
+        rules.addAll(prefixed("build.node.cypress.", "unitTests.", cypressRules));
+        rules.addAll(prefixed("cypress.", "unitTests.", cypressRules));
         rules.addAll(prefixed("tools.sonar.", "sonar.", concat(same(TEXT, "serverUrl", "projectName", "projectKey",
                 "installationName", "credentialsId", "badgeToken", "badgeCredentialsId"),
                 same(FLAG, "addBadges", "fullBadges"))));
