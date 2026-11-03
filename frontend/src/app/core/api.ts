@@ -10,6 +10,7 @@ import {
   MonitoringStatus,
   Pipeline,
   PipelineMonitoring,
+  PipelineReport,
   PipelineRequest,
   PipelineType,
   PortfolioActivity,
@@ -116,6 +117,15 @@ export class PipelinesApi {
 
   config(id: number): Observable<string> {
     return this.http.get(`/api/pipelines/${id}/config`, { responseType: 'text' });
+  }
+
+  report(id: number, build?: number): Observable<PipelineReport | null> {
+    const params = build ? new HttpParams().set('build', build) : undefined;
+    return this.http.get<PipelineReport | null>(`/api/pipelines/${id}/report`, { params });
+  }
+
+  reportHtmlUrl(id: number, build?: number): string {
+    return build ? `/api/pipelines/${id}/runs/${build}/report/html` : `/api/pipelines/${id}/report/html`;
   }
 }
 

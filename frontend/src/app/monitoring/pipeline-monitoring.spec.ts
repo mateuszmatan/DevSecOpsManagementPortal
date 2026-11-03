@@ -219,4 +219,17 @@ describe('PipelineMonitoringPage', () => {
       /^Not recovered yet: a deployment failed on 4 Oct, \d\d:00 \S+ and its pipeline has not deployed successfully since$/,
     );
   });
+
+  it('embeds the pipeline report iframe and links to it', async () => {
+    await load();
+
+    const reportCard = page().querySelector('.pipeline-report');
+    expect(reportCard?.querySelector('h2')?.textContent?.trim()).toBe('Pipeline Report');
+    expect(reportCard?.querySelector('iframe')?.getAttribute('src')).toBe(
+      '/api/pipelines/100/runs/42/report/html',
+    );
+    expect(reportCard?.querySelector('a')?.getAttribute('href')).toBe(
+      '/api/pipelines/100/runs/42/report/html',
+    );
+  });
 });

@@ -427,6 +427,7 @@ pre code {
 <li><a href='#which-values-follow-later-changes' style='padding-left: 20px; font-size: 0.8rem;'>Which values follow later changes</a></li>
 <li><a href='#portal-monitoring' style='padding-left: 20px; font-size: 0.8rem;'>Portal monitoring</a></li>
 <li><a href='#13-pipeline-monitoring-and-dora' ><span style='color:#94a3b8;font-weight:600;'>13.</span> Pipeline Monitoring and DORA</a></li>
+<li><a href='#execution-report-pipeline-reporthtml' style='padding-left: 20px; font-size: 0.8rem;'>Execution Report (pipeline-report.html)</a></li>
 <li><a href='#14-business-services' ><span style='color:#94a3b8;font-weight:600;'>14.</span> Business Services</a></li>
 <li><a href='#15-action-history' ><span style='color:#94a3b8;font-weight:600;'>15.</span> Action history</a></li>
 <li><a href='#16-field-reference-from-the-portal-to-devsecops_configyaml' ><span style='color:#94a3b8;font-weight:600;'>16.</span> Field reference: from the portal to devsecops_config.yaml</a></li>
@@ -1526,6 +1527,18 @@ devSecOpsPipeline(projectNames: 'gateway', agentNames: ['linux-agent'])
 </table></div>
 <p>A pipeline that has not deployed successfully since a failed deployment shows "Not recovered yet".</p>
 <p>The results of a pipeline are stored under the tags of the Monitoring section of its service: the project tag (<code>influx.project</code>, by default <code>&lt;CODE&gt;-&lt;service&gt;</code>) and the environment tag (<code>influx.env</code>, by default <code>test</code>). Pipelines other than Full add their type to the project tag, for example <code>CERT-guisecurity</code>. The pipeline page shows them as Monitoring tags. Without an InfluxDB, the monitoring status says that the metrics store is not configured and the runs stay empty.</p>
+<h3 id="execution-report-pipeline-reporthtml">Execution Report (pipeline-report.html)</h3>
+<p>After each pipeline execution, the DevSecOps pipeline automatically sends the complete build status (build number, job, branch, commit, duration, stage tallies) and the full HTML content of <code>pipeline-report.html</code> to the portal via <code>POST /api/dso/reports</code>.</p>
+<p>The Pipeline Monitoring page embeds this report directly in an interactive card, displaying:
+- Complete visual stage flow, step tallies, and execution times.
+- Status badges (PASS, FAIL, WARN) for each development, scanning, testing, and deployment stage.
+- Direct clickable links to Nexus IQ policy evaluations, HCL AppScan SAST/DAST reports, SonarQube dashboards, remote Jenkins test jobs, and delivery artifacts, identical to the Jenkins report view.
+- A button to open the full HTML report in a separate browser tab.</p>
+<p>The portal provides the following endpoints for pipeline reports:
+- <code>POST /api/dso/reports</code>: Ingests build status and HTML report from the pipeline.
+- <code>GET /api/pipelines/{id}/report</code>: Returns report metadata and execution summary as JSON.
+- <code>GET /api/pipelines/{id}/report/html</code>: Renders the latest HTML execution report directly in the browser.
+- <code>GET /api/pipelines/{id}/runs/{build}/report/html</code>: Renders the HTML execution report for a specific build.</p>
 <h2 id="14-business-services">14. Business Services</h2>
 <p>Admin, Business Services lists the groups of products with their product, service and pipeline counts.</p>
 <ul>

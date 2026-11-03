@@ -26,4 +26,7 @@ databaseChangeLog:
   - include:
       file: oracle/035-cypress-unit-tests.sql
       relativeToChangelogFile: true
+  - include:
+      file: oracle/036-pipeline-reports.sql
+      relativeToChangelogFile: true
 

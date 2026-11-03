@@ -576,6 +576,26 @@ export interface GlobalSettingsRequest extends GlobalSettingsValues {
   version: number | null;
 }
 
+export interface PipelineReport {
+  id: number;
+  pipelineId: number;
+  pipelineKey: string | null;
+  jobName: string | null;
+  buildNumber: number | null;
+  result: RunResult;
+  branch: string | null;
+  commitHash: string | null;
+  durationSeconds: number | null;
+  finishedAt: string;
+  stagesTotal: number | null;
+  passed: number | null;
+  warned: number | null;
+  failed: number | null;
+  blocked: number | null;
+  skipped: number | null;
+  reportHtml?: string | null;
+}
+
 export interface PipelineRun {
   time: string;
   result: RunResult;

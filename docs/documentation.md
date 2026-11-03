@@ -686,6 +686,22 @@ A pipeline that has not deployed successfully since a failed deployment shows "N
 
 The results of a pipeline are stored under the tags of the Monitoring section of its service: the project tag (`influx.project`, by default `<CODE>-<service>`) and the environment tag (`influx.env`, by default `test`). Pipelines other than Full add their type to the project tag, for example `CERT-guisecurity`. The pipeline page shows them as Monitoring tags. Without an InfluxDB, the monitoring status says that the metrics store is not configured and the runs stay empty.
 
+### Execution Report (pipeline-report.html)
+
+After each pipeline execution, the DevSecOps pipeline automatically sends the complete build status (build number, job, branch, commit, duration, stage tallies) and the full HTML content of `pipeline-report.html` to the portal via `POST /api/dso/reports`.
+
+The Pipeline Monitoring page embeds this report directly in an interactive card, displaying:
+- Complete visual stage flow, step tallies, and execution times.
+- Status badges (PASS, FAIL, WARN) for each development, scanning, testing, and deployment stage.
+- Direct clickable links to Nexus IQ policy evaluations, HCL AppScan SAST/DAST reports, SonarQube dashboards, remote Jenkins test jobs, and delivery artifacts, identical to the Jenkins report view.
+- A button to open the full HTML report in a separate browser tab.
+
+The portal provides the following endpoints for pipeline reports:
+- `POST /api/dso/reports`: Ingests build status and HTML report from the pipeline.
+- `GET /api/pipelines/{id}/report`: Returns report metadata and execution summary as JSON.
+- `GET /api/pipelines/{id}/report/html`: Renders the latest HTML execution report directly in the browser.
+- `GET /api/pipelines/{id}/runs/{build}/report/html`: Renders the HTML execution report for a specific build.
+
 ## 14. Business Services
 
 Admin, Business Services lists the groups of products with their product, service and pipeline counts.
