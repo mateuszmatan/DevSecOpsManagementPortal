@@ -382,6 +382,17 @@ Use the field "Shared version catalogs" in the GoldenFix section of the service.
 
 A listed path that matches nothing gives the run note `version catalog <path> not found in the repository`. A path that leaves the repository gives `version catalog <path> is outside the repository`.
 
+### External version catalog repository
+
+When version catalog files or BOMs are maintained in an external Bitbucket or Git repository shared across multiple projects, configure the repository in the GoldenFix section:
+
+- `goldenFix.versionCatalogRepo.url`: The browser or clone address of the repository that holds the shared version catalog files or Gradle/Maven BOMs.
+- `goldenFix.versionCatalogRepo.credentialsId`: The Jenkins credential used to sign in and push dependency updates to the external repository. Left empty, GoldenFix uses the credential configured in the Bitbucket (SCM) section.
+- `goldenFix.versionCatalogRepo.branch`: The branch of the external catalog repository to check out, upgrade and open pull requests against. Left empty, the default branch is used.
+- `goldenFix.versionCatalogRepo.path`: The relative path to the catalog file or directory within the external repository (for example `catalogs/libs.versions.toml`).
+
+GoldenFix checks out the external catalog repository into an isolated workspace directory, applies version upgrades to the specified catalog, verifies the changes, and submits pull requests directly to the external repository.
+
 ### What the pull request contains
 
 - The version is raised in the catalog, once. A declaration of the same dependency elsewhere is raised to at least the catalog version. The pull request lists it as `declared outside the catalog <file> (<alias>)`, so that reviewers can move it into the catalog.
@@ -436,6 +447,18 @@ In one run, the first service with fixes opens the pull request. Each further se
 | Nexus IQ GoldenFix | OSA | `devSecOpsNexusIqGoldenFixPipeline` | `nexusiq` | The Nexus IQ scan; GoldenFix opens a pull request with safe versions in the Bitbucket repository |
 
 `pipeline.type` holds the value in the fourth column (`full` for the Full pipeline) and `pipeline.entryPoint` the entry point.
+
+### Pipeline execution flow and stages
+
+The Full and Security pipelines follow an optimized, decoupled execution order:
+
+1. **Build artifact (Stage 1)**: As the initial active stage after pipeline initialization, the pipeline builds the deployable service artifacts without running unit tests (e.g. `clean assemble -x test` or `compile`). If a Node.js build is configured (`build.node.enabled: true`), npm commands run as step 0 at the start of this stage before compiling the main application.
+2. **Parallel verification stages**: Four verification stages execute simultaneously:
+   - **Nexus IQ**: Evaluates open-source dependencies against security and license policies.
+   - **SonarQube**: Performs code analysis and verifies quality gate standards.
+   - **Unit tests**: Executes automated unit tests and aggregates JaCoCo / LCOV code coverage reports.
+   - **SAST**: Initiates and monitors static security analysis in HCL AppScan on Cloud asynchronously.
+3. **Deployment and automated test stages** (Full pipeline): Following successful verification, the pipeline deploys the artifact to the lower test environment (RD), executes Smoke, Regression, and Performance test jobs, runs DAST against the deployed application, and proceeds to QC deployment and release delivery.
 
 ### Pipeline settings
 
@@ -965,6 +988,10 @@ A service scans one Nexus IQ application, written under `tools.nexusIq.applicati
 |-------|-----|-------|
 | Run GoldenFix | `goldenFix.enabled` | Library default, On or Off |
 | Shared version catalogs | `goldenFix.versionCatalogs` | the service's own list, outside the inherited policy |
+| External catalog repository URL | `goldenFix.versionCatalogRepo.url` | optional separate Git/Bitbucket repository |
+| External catalog credentials ID | `goldenFix.versionCatalogRepo.credentialsId` | left empty: uses SCM credentials |
+| External catalog branch | `goldenFix.versionCatalogRepo.branch` | left empty: default branch |
+| External catalog path | `goldenFix.versionCatalogRepo.path` | relative path to catalog file or directory |
 | Ecosystems | `goldenFix.ecosystems` | Override only |
 | Minimum threat level | `minThreatLevel` | `goldenFix.minThreatLevel` |
 | Dependencies | `onlyDirectDependencies` | `goldenFix.onlyDirectDependencies` |

@@ -460,6 +460,19 @@ final class ServiceConfigReader {
                 same(LIST, "ecosystems", "goldenVersionTypes", "excludeDirs"),
                 same(TEXT, "commitAuthorName", "commitAuthorEmail", "timeZone"))));
         rules.add(rule("goldenFix.versionCatalogs", "versionCatalogs", FILES));
+        rules.add(rule("versionCatalogs", "versionCatalogs", FILES));
+        rules.addAll(prefixed("goldenFix.versionCatalogRepo.", "versionCatalogRepo.", same(TEXT, "repositoryUrl", "credentialsId", "branch", "path")));
+        rules.addAll(prefixed("goldenFix.versionCatalogRepository.", "versionCatalogRepo.", same(TEXT, "repositoryUrl", "credentialsId", "branch", "path")));
+        rules.addAll(prefixed("versionCatalogRepo.", "versionCatalogRepo.", same(TEXT, "repositoryUrl", "credentialsId", "branch", "path")));
+        rules.addAll(prefixed("versionCatalogRepository.", "versionCatalogRepo.", same(TEXT, "repositoryUrl", "credentialsId", "branch", "path")));
+        rules.add(rule("goldenFix.versionCatalogRepo.url", "versionCatalogRepo.repositoryUrl", TEXT));
+        rules.add(rule("goldenFix.versionCatalogRepository.url", "versionCatalogRepo.repositoryUrl", TEXT));
+        rules.add(rule("versionCatalogRepo.url", "versionCatalogRepo.repositoryUrl", TEXT));
+        rules.add(rule("versionCatalogRepository.url", "versionCatalogRepo.repositoryUrl", TEXT));
+        rules.add(rule("goldenFix.versionCatalogRepo.targetBranch", "versionCatalogRepo.branch", TEXT));
+        rules.add(rule("goldenFix.versionCatalogRepository.targetBranch", "versionCatalogRepo.branch", TEXT));
+        rules.add(rule("versionCatalogRepo.targetBranch", "versionCatalogRepo.branch", TEXT));
+        rules.add(rule("versionCatalogRepository.targetBranch", "versionCatalogRepo.branch", TEXT));
         for (String tool : List.of("maven", "gradle", "npm", "pip", "pub")) {
             rules.add(rule("goldenFix.verify.commands." + tool, "goldenFix.verify" + capitalize(tool) + "Command",
                     TEXT));

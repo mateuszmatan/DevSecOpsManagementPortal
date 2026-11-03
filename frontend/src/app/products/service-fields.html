@@ -334,6 +334,8 @@
         <div class="form-fields">
           <dso-fields [group]="f.controls.goldenFix" [fields]="goldenFixField()" />
           <dso-fields [group]="f" [fields]="versionCatalogs" />
+          <h4 class="sub-heading span-12">External version catalog repository</h4>
+          <dso-fields [group]="f.controls.versionCatalogRepo" [fields]="versionCatalogRepo" />
           <div class="span-8 choice">
             <dso-toggle-group
               [formControl]="f.controls.goldenFix.controls.inherit"

@@ -238,6 +238,31 @@ const VERSION_CATALOGS: Field[] = [
   }),
 ];
 
+const VERSION_CATALOG_REPO: Field[] = [
+  line('repositoryUrl', 'Repository URL', 'goldenFix.versionCatalogRepo.url', 8, {
+    placeholder: 'https://bitbucket.bbh.com/projects/TA/repos/shared-catalogs',
+    hint: 'optional external repository with version catalogs',
+    help: 'An external Git or Bitbucket repository holding the version catalog files or Gradle/Maven BOMs. GoldenFix checks it out and applies dependency upgrades directly there.',
+    error: HTTP_URL_ERROR,
+  }),
+  mono('credentialsId', 'Credentials ID', 'goldenFix.versionCatalogRepo.credentialsId', 4, {
+    placeholder: 'bitbucket-http-credentials',
+    hint: 'left empty: uses SCM credentials',
+    help: 'The Jenkins credential used to authenticate with the external version catalog repository. If not specified, the repository credentials from the SCM section are used.',
+  }),
+  mono('branch', 'Branch', 'goldenFix.versionCatalogRepo.branch', 6, {
+    placeholder: 'main',
+    hint: 'left empty: default branch',
+    help: 'The branch of the external catalog repository to check out and update.',
+  }),
+  mono('path', 'Path', 'goldenFix.versionCatalogRepo.path', 6, {
+    placeholder: 'catalogs/libs.versions.toml',
+    hint: 'path within the external repository',
+    help: 'Relative path to the version catalog file or directory within the external repository.',
+    error: "A path relative to the repository root, without a '..' folder, with letters, digits and . _ / * + @ : = , ~ - only",
+  }),
+];
+
 const SCM: Field[] = [
   line('repositoryUrl', 'Repository URL', 'scm.bitbucket.url', 8, {
     placeholder: 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
@@ -457,6 +482,7 @@ export class ServiceFields {
   protected readonly flutterSonar = FLUTTER_SONAR;
   protected readonly flutterPlatform = FLUTTER_PLATFORM;
   protected readonly versionCatalogs = VERSION_CATALOGS;
+  protected readonly versionCatalogRepo = VERSION_CATALOG_REPO;
 
   protected readonly sections = computed(() => {
     this.changes();
@@ -605,6 +631,7 @@ export class ServiceFields {
       [c.nexusIq, this.nexusIqFields()],
       [c.scm, [...SCM, ...SCM_OPTIONS, ...BITBUCKET_REPOSITORY]],
       [c.goldenFix, this.goldenFixField()],
+      [c.versionCatalogRepo, VERSION_CATALOG_REPO],
       [c.metrics, [...this.metricsFields(), ...this.metricsOptions()]],
       [c.flutter, [...FLUTTER_PLATFORM, ...FLUTTER_MODULES, ...FLUTTER_CREDENTIALS]],
       [c.flutter, [...FLUTTER_SONAR, ...this.flutterDelivery()]],

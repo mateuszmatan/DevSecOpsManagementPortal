@@ -37,6 +37,7 @@ import {
   ToolCommand,
   UrbanCodeApplicationSettings,
   UrbanCodeComponent,
+  VersionCatalogRepo,
 } from '../core/models';
 import { FieldProblem, PRODUCT_CODE } from '@common/core/models';
 import {
@@ -764,6 +765,12 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       eachItem(lines, upTo(300), 'At most 300 characters per path'),
       fitsColumn(lines, '\n', 2000),
     ),
+    versionCatalogRepo: new FormGroup({
+      repositoryUrl: url(s?.versionCatalogRepo?.repositoryUrl),
+      credentialsId: text(s?.versionCatalogRepo?.credentialsId, max(200)),
+      branch: text(s?.versionCatalogRepo?.branch, max(200)),
+      path: text(s?.versionCatalogRepo?.path, Validators.pattern(REPOSITORY_PATH), max(300)),
+    }),
     metrics: new FormGroup({
       enabled: flag(s?.metrics?.enabled, true),
       influxProject: text(s?.metrics?.influxProject, max(200)),
@@ -1341,9 +1348,17 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
     },
     goldenFix: toServiceGoldenFixPolicy(v.goldenFix),
     versionCatalogs: passesValidators(c.versionCatalogs) ? relativePaths(v.versionCatalogs) : [],
+    versionCatalogRepo: toVersionCatalogRepo(v.versionCatalogRepo),
     metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
   };
+}
+
+function toVersionCatalogRepo(
+  v: ReturnType<ServiceForm['controls']['versionCatalogRepo']['getRawValue']>,
+): VersionCatalogRepo | null {
+  const r = sent(v);
+  return r.repositoryUrl || r.credentialsId || r.branch || r.path ? r : null;
 }
 
 /** The Node.js build as the form value holds it, without what fails its rules while hidden. */
@@ -1453,7 +1468,7 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   section('sonar', 'SonarQube', 'analytics', ['sonar']),
   section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq', 'nexusIqApplications']),
   section('scm', 'Bitbucket', 'merge', ['scm']),
-  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix', 'versionCatalogs']),
+  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix', 'versionCatalogs', 'versionCatalogRepo']),
   section('metrics', 'Monitoring', 'insights', ['metrics']),
   section('flutter', 'Flutter', 'phone_iphone', ['flutter'], onFlutter),
 ];

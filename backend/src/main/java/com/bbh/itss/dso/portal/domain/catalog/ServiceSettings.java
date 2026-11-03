@@ -34,9 +34,9 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
                               List<UrbanCodeApplicationSettings> urbanCodeApplications,
                               Map<Region, SshTarget> sshTargets, Map<Region, OpenShiftTarget> openShiftTargets,
                               AppScanSettings appScan, SonarSettings sonar, NexusIqSettings nexusIq,
-                              List<NexusIqApplication> nexusIqApplications, ScmSettings scm, GoldenFixPolicy goldenFix,
-                              List<String> versionCatalogs, @With(PRIVATE) MetricsSettings metrics,
-                              FlutterSettings flutter) {
+                               List<NexusIqApplication> nexusIqApplications, ScmSettings scm, GoldenFixPolicy goldenFix,
+                              List<String> versionCatalogs, VersionCatalogRepo versionCatalogRepo,
+                              @With(PRIVATE) MetricsSettings metrics, FlutterSettings flutter) {
 
     public ServiceSettings {
         requireNonNull(build, "a service needs its build settings");
@@ -57,6 +57,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         scm = getIfNull(scm, ScmSettings.NONE);
         goldenFix = getIfNull(goldenFix, INHERITED);
         versionCatalogs = relativePaths(versionCatalogs);
+        versionCatalogRepo = getIfNull(versionCatalogRepo, VersionCatalogRepo.NONE);
         metrics = getIfNull(metrics, MetricsSettings.DEFAULTS);
         flutter = getIfNull(flutter, FlutterSettings.NONE);
     }
@@ -78,6 +79,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         scm.writeTo(config);
         goldenFix.writeTo(config);
         config.set("goldenFix.versionCatalogs", versionCatalogs);
+        versionCatalogRepo.writeTo(config);
         tests.writeTo(config, testJobs);
         if (deployment.target() == VM) {
             if (tool == MAVEN) {
@@ -116,6 +118,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         scm.validate(problems.at("scm"));
         goldenFix.validate(problems.at("goldenFix"));
         LINES_2000.check(problems, "versionCatalogs", versionCatalogs);
+        versionCatalogRepo.validate(problems.at("versionCatalogRepo"));
         if (tool == FLUTTER) {
             flutter.validate(problems.at("flutter"), deployment);
         }

@@ -42,7 +42,7 @@ class ServiceSettingsSpec extends Specification {
         ServiceSettings.builder().build(build()).deployment(deployment()).appScan(appScan()).build() ==
                 new ServiceSettings(build(), NodeBuildSettings.NONE, UnitTestSettings.NONE, DEFAULTS, [], deployment(),
                         NONE, UrbanCodeSettings.DEFAULTS, [], [:], [:], appScan(), SonarSettings.NONE, NexusIqSettings.NONE,
-                        null, ScmSettings.NONE, INHERITED, null, MetricsSettings.DEFAULTS, FlutterSettings.NONE)
+                        null, ScmSettings.NONE, INHERITED, null, VersionCatalogRepo.NONE, MetricsSettings.DEFAULTS, FlutterSettings.NONE)
     }
 
     def "deployment targets that set nothing, or have no region, are dropped and the rest kept in region order"() {

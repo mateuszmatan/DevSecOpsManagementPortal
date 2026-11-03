@@ -151,6 +151,7 @@ public class ServiceEntity extends AuditedEntity {
             ScmSettingsEmbeddable scm,
             @EmbeddedColumnNaming("GOLDEN_FIX_%s") GoldenFixPolicyEmbeddable goldenFix,
             @Column(name = "GOLDEN_FIX_VERSION_CATALOGS") List<String> versionCatalogs,
+            VersionCatalogRepoEmbeddable versionCatalogRepo,
             MetricsSettingsEmbeddable metrics,
             @EmbeddedColumnNaming("FLUTTER_%s") FlutterSettingsEmbeddable flutter) {
     }
@@ -316,6 +317,14 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "AUTHOR_NAME") String commitAuthorName,
             @Column(name = "AUTHOR_EMAIL") String commitAuthorEmail,
             String timeZone) {
+    }
+
+    @Embeddable
+    public record VersionCatalogRepoEmbeddable(
+            @Column(name = "VC_REPO_URL") String repositoryUrl,
+            @Column(name = "VC_CREDENTIALS_ID") String credentialsId,
+            @Column(name = "VC_BRANCH") String branch,
+            @Column(name = "VC_PATH") String path) {
     }
 
     @Embeddable

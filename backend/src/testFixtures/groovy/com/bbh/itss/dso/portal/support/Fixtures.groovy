@@ -30,6 +30,7 @@ import com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeSettings
+import com.bbh.itss.dso.portal.domain.catalog.VersionCatalogRepo
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings
@@ -125,6 +126,7 @@ final class Fixtures {
                 .nexusIqApplications(args.nexusIqApplications as List<NexusIqApplication>)
                 .scm(args.scm as ScmSettings).goldenFix(args.goldenFix as GoldenFixPolicy)
                 .versionCatalogs(args.versionCatalogs as List<String>)
+                .versionCatalogRepo(args.versionCatalogRepo as VersionCatalogRepo)
                 .metrics(args.metrics as MetricsSettings).flutter(args.flutter as FlutterSettings)
                 .build()
     }

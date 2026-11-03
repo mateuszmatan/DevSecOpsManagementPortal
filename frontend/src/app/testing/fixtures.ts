@@ -240,6 +240,7 @@ export function service(overrides: Partial<Service> = {}): Service {
       timeZone: null,
     },
     versionCatalogs: [],
+    versionCatalogRepo: null,
     metrics: {
       enabled: true,
       influxProject: 'CERT-gui',

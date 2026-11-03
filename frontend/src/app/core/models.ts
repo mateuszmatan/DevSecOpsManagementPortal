@@ -318,6 +318,13 @@ export interface FlutterSettings {
   sonarScannerVersion: string | null;
 }
 
+export interface VersionCatalogRepo {
+  repositoryUrl: string | null;
+  credentialsId: string | null;
+  branch: string | null;
+  path: string | null;
+}
+
 export interface ServiceSettings {
   build: BuildSettings;
   nodeBuild: NodeBuildSettings;
@@ -337,6 +344,7 @@ export interface ServiceSettings {
   scm: ScmSettings;
   goldenFix: GoldenFixPolicy;
   versionCatalogs: string[];
+  versionCatalogRepo: VersionCatalogRepo | null;
   metrics: MetricsSettings;
   flutter: FlutterSettings | null;
 }
