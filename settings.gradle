@@ -1,5 +1,4 @@
 pluginManagement {
-  // Portal builds inside the BBH network only: plugins and libraries come from the BBH Nexus.
   gradle.ext.bbhNexus = { RepositoryHandler repositories ->
     repositories.maven {
       url = uri('http://tools.bbh.com/nexus/content/groups/public')

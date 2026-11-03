@@ -1,19 +1,11 @@
-// Renders the user and administrator guide docs/documentation.md to docs/documentation.html, in the style of the
-// documentation of the DevSecOps Jenkins shared library. Plain Groovy: no plugin, no dependency and no network, so it
-// runs the same offline on Windows and Linux. The page is written in UTF-8 with LF line endings on every system.
-//
-//   gradle documentation        writes docs/documentation.html
-//   gradle checkDocumentation   fails when docs/documentation.html is not the page the Markdown renders to;
-//                               check, and so build, runs it
-
 import java.nio.charset.StandardCharsets
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 /**
- * The subset of GitHub Markdown the guide uses: one title, numbered chapters, headings, paragraphs, nested lists,
- * tables, fenced code, GitHub alerts ({@code > [!NOTE]}), inline code, bold, italic, links and images. Headings get
- * the anchors GitHub gives them, so a link such as {@code #6-build-the-frontend} works on both. A link to a heading
+ * The subset of Markdown the guide uses: one title, numbered chapters, headings, paragraphs, nested lists,
+ * tables, fenced code, alerts ({@code > [!NOTE]}), inline code, bold, italic, links and images. Headings get
+ * standard URL anchors, so a link such as {@code #6-build-the-frontend} works on both. A link to a heading
  * or a file that does not exist, and Markdown the page cannot show, fail the render with the line that holds it.
  */
 class DocumentationPage {
@@ -58,7 +50,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 
     static final String FOOTER = 'DevSecOps Management Portal'
 
-    /** GitHub alert, its callout class and its label. The callout without a class is the amber warning. */
+    /** Alert, its callout class and its label. The callout without a class is the amber warning. */
     static final Map<String, List<String>> ALERTS = [
         NOTE     : ['callout info', 'Note.'],
         TIP      : ['callout ok', 'Tip.'],
@@ -160,7 +152,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
         out.toString()
     }
 
-    /** The anchor of every heading, made the way GitHub makes them, so that links can be checked before use. */
+    /** The anchor of every heading, made as URL-friendly slug, so that links can be checked before use. */
     private void collectAnchors() {
         Map<String, Integer> seen = [:]
         boolean fenced = false
@@ -253,7 +245,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
             RULE.matcher(line).matches() || line.startsWith('>') || ITEM.matcher(line).matches()
     }
 
-    /** A quote as a callout: a GitHub alert such as {@code > [!WARNING]} chooses its colour and label. */
+    /** A quote as a callout: an alert such as {@code > [!WARNING]} chooses its colour and label. */
     private String callout(List<String> src, List<Integer> at) {
         String type = 'callout info'
         String label = null
@@ -277,7 +269,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
         "<div class=\"${type}\">${text}</div>\n"
     }
 
-    /** A GitHub table; returns the index of the line after it. */
+    /** A Markdown table; returns the index of the line after it. */
     private int table(List<String> src, List<Integer> at, int start, StringBuilder out) {
         List<String> header = cells(src[start])
         List<String> aligns = cells(src[start + 1]).collect { String cell ->
@@ -432,7 +424,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
         target
     }
 
-    /** The text of a heading without its Markdown, as GitHub reads it for the anchor and the page title. */
+    /** The text of a heading without its Markdown, as used for the anchor and the page title. */
     private static String plain(String text) {
         replace(text, PLAIN) { Matcher m -> m.group(2) ?: m.group(3) ?: m.group(4) ?: '' }
     }

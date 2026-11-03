@@ -376,11 +376,9 @@ def render_markdown_to_html(md_path, html_path, title, subtitle):
         if m:
             level = len(m.group(1))
             h_text = m.group(2).strip()
-            # clean anchor
             anchor = re.sub(r'[^\w\- ]', '', h_text).strip().lower().replace(' ', '-')
             toc_items.append((level, h_text, anchor))
 
-    # Transform GitHub alerts: > [!NOTE] etc.
     def alert_sub(m):
         atype = m.group(1).lower()
         content = re.sub(r'(?m)^>\s?', '', m.group(2)).strip()
