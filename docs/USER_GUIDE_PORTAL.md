@@ -101,7 +101,7 @@ The platform natively supports complex enterprise project structures:
 
 ## 5. Supported Languages, Build Tools, and Frameworks
 
-The pipeline supports all standard BBH languages and build tools:
+The pipelines know these languages and build tools; the Portal offers Gradle, Maven, Flutter and Liquibase:
 
 | Language / Stack | Build Tool | Standard Build Command | Use Case |
 |---|---|---|---|
@@ -114,7 +114,7 @@ The pipeline supports all standard BBH languages and build tools:
 | **SQL / PL-SQL** | Liquibase | `liquibase update` | Oracle & PostgreSQL migrations |
 | **Flutter / Dart** | flutter / pub | `flutter build` | Mobile & desktop applications |
 
-In the Portal the **Build Tool** of a service is Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL); npm runs as the Stage 0 Node.js build of such a service.
+In the Portal the **Build Tool** of a service is Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL); npm can run as the Stage 0 Node.js build of such a service, except a service with database changes.
 
 ### Stage 0 Frontend Pre-Build:
 - For full-stack applications where Java/Kotlin packages serve Angular/Node.js assets, Stage 0 compiles the frontend before backend packaging.

@@ -26,7 +26,7 @@ export function commandFields(
         ? 'The Liquibase command run during the Unit tests stage (for example validate or status). Line coverage and JUnit XML checks are skipped automatically when empty.'
         : path === 'asoc'
           ? 'The Liquibase command run before AppScan SAST packaging (for example updateSQL or validate) so rendered SQL and changelog scripts are scanned together with PL/SQL sources.'
-          : 'The commands passed to liquibase, for example updateSQL, validate, or status. When left empty, the library runs updateSQL, with --changelog-file= and the changelog it finds when Flags is empty too; for a service with database changes it runs validate when Flags is set, else nothing. A new service is prefilled with updateSQL.'
+          : 'The commands passed to liquibase, for example updateSQL, validate, or status. When left empty, the library runs updateSQL, with --changelog-file= and the changelog it finds at the repository root (else src/main/resources/changelog.xml) when Flags is empty too; for a service with database changes it runs validate when Flags is set, else nothing. A new service is prefilled with updateSQL.'
     : maven
       ? 'The goals the step passes to Maven: the mvn of the Maven home, otherwise ./mvnw when the repository has it, otherwise the mvn of the agent.'
       : 'The tasks the step passes to the Gradle wrapper (./gradlew) of the repository.';

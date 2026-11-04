@@ -882,7 +882,7 @@ describe('ServiceFields', () => {
         await open('Build');
 
         expect(helpFor('Liquibase commands')).toBe(
-          'The commands passed to liquibase, for example updateSQL, validate, or status. When left empty, the library runs updateSQL, with --changelog-file= and the changelog it finds when Flags is empty too; for a service with database changes it runs validate when Flags is set, else nothing. A new service is prefilled with updateSQL.',
+          'The commands passed to liquibase, for example updateSQL, validate, or status. When left empty, the library runs updateSQL, with --changelog-file= and the changelog it finds at the repository root (else src/main/resources/changelog.xml) when Flags is empty too; for a service with database changes it runs validate when Flags is set, else nothing. A new service is prefilled with updateSQL.',
         );
       },
     );

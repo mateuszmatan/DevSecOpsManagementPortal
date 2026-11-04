@@ -518,7 +518,7 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 </ul>
 <hr />
 <h2 id="5-supported-languages-build-tools-and-frameworks">5. Supported Languages, Build Tools, and Frameworks</h2>
-<p>The pipeline supports all standard BBH languages and build tools:</p>
+<p>The pipelines know these languages and build tools; the Portal offers Gradle, Maven, Flutter and Liquibase:</p>
 <div class="table-wrapper"><table>
 <thead>
 <tr>
@@ -579,7 +579,7 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 </tr>
 </tbody>
 </table></div>
-<p>In the Portal the <strong>Build Tool</strong> of a service is Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL); npm runs as the Stage 0 Node.js build of such a service.</p>
+<p>In the Portal the <strong>Build Tool</strong> of a service is Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL); npm can run as the Stage 0 Node.js build of such a service, except a service with database changes.</p>
 <h3 id="stage-0-frontend-pre-build">Stage 0 Frontend Pre-Build:</h3>
 <ul>
 <li>For full-stack applications where Java/Kotlin packages serve Angular/Node.js assets, Stage 0 compiles the frontend before backend packaging.</li>
