@@ -25,6 +25,7 @@ import {
   OWN_TEST_DATABASE,
   QC_GETS_TESTS,
   NODE_TWICE,
+  notHeldBySonarFolder,
   NO_COMMAND,
   ONE_APPLICATION,
   OPENSHIFT_RD_REQUIRED,
@@ -69,6 +70,7 @@ import {
   visibleSectionsForPipeline,
   withDatabaseRules,
 } from './product-form-model';
+import { SEARCH_PATH_MESSAGE } from '../shared/database-rules';
 
 const DEFAULTS: ServiceDefaults = {
   buildTool: 'MAVEN',
@@ -1929,6 +1931,66 @@ describe('Liquibase services with and without database changes', () => {
     form.controls.database.controls.searchPath.setValue('.');
     form.controls.build.controls.sourceDir.setValue('db');
     expect(changelog.valid).toBe(true);
+
+    form.controls.build.controls.sourceDir.setValue('./.');
+    expect(changelog.errors).toEqual({ rule: CHANGELOG_AT_ROOT });
+  });
+
+  it('runs the SonarQube analysis of a service with database changes in a folder that holds its package and tests', () => {
+    const form = database({
+      changelogFile: 'db/changelog.xml',
+      utplsql: true,
+      utplsqlTestPath: 'db/test',
+    });
+    const d = form.controls.database.controls;
+    const folder = form.controls.sonar.controls.command.controls.directory;
+    const problem = (value: string) => {
+      folder.setValue(value);
+      return folder.errors;
+    };
+
+    expect(['', '.', 'db', './db', ' db ', 'db/.'].map(problem)).toEqual(Array(6).fill(null));
+    expect(problem('db/test')).toEqual({ rule: notHeldBySonarFolder('db') });
+    expect(problem('web')).toEqual({ rule: notHeldBySonarFolder('db') });
+    ['../db', '/db', 'db/', 'db folder', 'db/../web'].forEach((value) =>
+      expect(problem(value), value).toEqual({ rule: SEARCH_PATH_MESSAGE }),
+    );
+
+    d.utplsqlTestPath.setValue('test');
+    expect(problem('db')).toEqual({ rule: notHeldBySonarFolder('test', true) });
+    d.utplsql.setValue(false);
+    expect(folder.valid).toBe(true);
+
+    d.utplsql.setValue(true);
+    form.controls.build.controls.sourceDir.setValue('orders-db');
+    d.searchPath.setValue('src');
+    expect(problem('orders-db/src')).toBeNull();
+    expect(problem('orders-db/src/db')).toEqual({
+      rule: notHeldBySonarFolder('orders-db/src/test', true),
+    });
+    expect(problem('db')).toEqual({ rule: notHeldBySonarFolder('orders-db/src/db') });
+
+    d.changelogFile.setValue('changelog.xml');
+    expect(problem('orders-db/src')).toBeNull();
+    expect(problem('orders-db/src/test')).toEqual({ rule: notHeldBySonarFolder('orders-db/src') });
+  });
+
+  it('leaves the SonarQube directory of every other service as it is', () => {
+    const java = gradle();
+    const plain = createServiceForm(databaseService({ database: null, databaseTargets: {} }));
+    const changes = database();
+    const folder = (form: ReturnType<typeof gradle>) =>
+      form.controls.sonar.controls.command.controls.directory;
+    [java, plain, changes].forEach((form) => folder(form).setValue('../web'));
+
+    expect(folder(java).valid && folder(plain).valid).toBe(true);
+    expect(folder(changes).errors).toEqual({ rule: SEARCH_PATH_MESSAGE });
+
+    changes.controls.database.controls.changelogFile.setValue(' ');
+    expect(folder(changes).valid).toBe(true);
+    changes.controls.database.controls.changelogFile.setValue('db/changelog.xml');
+    changes.controls.build.controls.tool.setValue('GRADLE');
+    expect(folder(changes).valid).toBe(true);
   });
 
   it('needs the test database for the utPLSQL tests and for the reset, and a credentials ID with each URL', () => {

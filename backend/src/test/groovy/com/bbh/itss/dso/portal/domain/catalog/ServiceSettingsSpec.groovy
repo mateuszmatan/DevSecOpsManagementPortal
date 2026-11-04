@@ -122,6 +122,28 @@ class ServiceSettingsSpec extends Specification {
         reported(settings(build: build(tool: LIQUIBASE, command: NONE), nodeBuild: node)) == []
     }
 
+    def "only a Liquibase service with database changes checks the folder of its SonarQube command: #folder"() {
+        given:
+        def sonar = SonarSettings.of(null, 'bbh-orders-db', ToolCommand.builder().directory(folder).build())
+
+        expect:
+        reported(databaseSettings(sonar: sonar)).collect { [it.field, it.message] } == problems
+        reported(databaseSettings(sonar: sonar, database: DatabaseSettings.NONE, databaseTargets: [:])) == []
+        reported(settings(sonar: SonarSettings.of(null, null, ToolCommand.builder().tasks(['sonar']).directory(folder)
+                .build()))) == []
+
+        where:
+        folder   || problems
+        'db'     || []
+        '../db'  || [['sonar.command.directory', 'must be "." or a relative path inside the repository, without ".."']]
+        'db/sql' || [['sonar.command.directory', 'does not hold the package folder db: sonar-scanner runs in that folder,'
+                + ' and SonarQube analyses only the files under it: set the directory to a folder that holds the package'
+                + ' folder and the folder of the test packages, or empty it'],
+                     ['sonar.command.directory', 'does not hold the folder of the test packages db/test: sonar-scanner'
+                + ' runs in that folder, and SonarQube analyses only the files under it: set the directory to a folder'
+                + ' that holds the package folder and the folder of the test packages, or empty it']]
+    }
+
     def "a Liquibase service with database changes writes no test stage as not required"() {
         given:
         def tests = TestSettings.builder().smokeRequired(false).build()

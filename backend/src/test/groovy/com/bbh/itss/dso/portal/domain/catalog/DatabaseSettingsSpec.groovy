@@ -147,6 +147,7 @@ class DatabaseSettingsSpec extends Specification {
         problems(VALID.toBuilder().changelogFile('./x.xml').build())*.field() == ['database.changelogFile']
         problems(VALID.toBuilder().changelogFile('./db/x.xml').build())*.field() == ['database.changelogFile']
         problems(VALID.toBuilder().changelogFile('db/./x.xml').build()) == []
+        problems(VALID.toBuilder().changelogFile('x.xml').build(), [:], './.')*.field() == ['database.changelogFile']
     }
 
     def "a build in #sourceDir with java path #javaPath and auto setup #autoSetup reports #fields (V3, V23, V26)"() {
@@ -165,6 +166,56 @@ class DatabaseSettingsSpec extends Specification {
         'db/../..'  | null                           | true      || [['build.sourceDir', SOURCE_FOLDER]]
         'db folder' | null                           | true      || [['build.sourceDir', SOURCE_FOLDER]]
         '/db'       | null                           | true      || [['build.sourceDir', SOURCE_FOLDER]]
+    }
+
+    def "SonarQube directory #folder, source folder #sourceDir, search folder #searchPath, changelog #changelog, utPLSQL tests in #testPath (V3, V46)"() {
+        given:
+        def settings = VALID.toBuilder().changelogFile(changelog).searchPath(searchPath).utplsql(testPath != null)
+                .utplsqlTestPath(testPath).build()
+
+        expect:
+        problems(settings, [(TEST): target(TEST_URL)], build(tool: LIQUIBASE, sourceDir: sourceDir, command: NONE),
+                folder).findAll { it.field().startsWith('sonar.') }.collect { [it.field(), it.message()] } ==
+                messages.collect { ['sonar.command.directory', it] }
+
+        where:
+        folder           | sourceDir   | searchPath | changelog               | testPath || messages
+        null             | '.'         | null       | 'db/changelog.xml'      | 'test'   || []
+        '.'              | '.'         | null       | 'db/changelog.xml'      | 'test'   || []
+        'db'             | '.'         | null       | 'db/changelog.xml'      | null     || []
+        './db'           | '.'         | null       | 'db/changelog.xml'      | 'db/test' || []
+        'db'             | '.'         | null       | 'db/changelog.xml'      | 'db/test' || []
+        'orders-db/src'  | 'orders-db' | 'src'      | 'db/changelog.xml'      | 'test'   || []
+        'orders-db'      | 'orders-db' | null       | 'changelog.xml'         | 'test'   || []
+        'db'             | '.'         | 'db'       | 'changelog.xml'         | null     || []
+        'db'             | '.'         | null       | './db/changelog.xml'    | null     || [PACKAGE + ' .: ' + WHY]
+        'web'            | '.'         | null       | 'db/changelog.xml'      | null     || [PACKAGE + ' db: ' + WHY]
+        'db/test'        | '.'         | null       | 'db/changelog.xml'      | 'db/test' || [PACKAGE + ' db: ' + WHY]
+        'db'             | '.'         | null       | 'db/changelog.xml'      | 'test'   || [TESTS + ' test: ' + WHY]
+        'orders-db/src/db' | 'orders-db' | 'src'    | 'db/changelog.xml'      | 'test'   ||
+                [TESTS + ' orders-db/src/test: ' + WHY]
+        'db'             | 'orders-db' | null       | 'db/changelog.xml'      | 'test'   ||
+                [PACKAGE + ' orders-db/db: ' + WHY, TESTS + ' orders-db/test: ' + WHY]
+        '../db'          | '.'         | null       | 'db/changelog.xml'      | null     || [SOURCE_FOLDER]
+        '/db'            | '.'         | null       | 'db/changelog.xml'      | null     || [SOURCE_FOLDER]
+        'db folder'      | '.'         | null       | 'db/changelog.xml'      | null     || [SOURCE_FOLDER]
+        'db/'            | '.'         | null       | 'db/changelog.xml'      | null     || [SOURCE_FOLDER]
+    }
+
+    def "the SonarQube directory needs the folder of the test packages only while the utPLSQL tests run (V46)"() {
+        given:
+        def settings = VALID.toBuilder().changelogFile('db/changelog.xml').utplsqlTestPath('test').build()
+
+        expect:
+        problems(settings, [:], build(tool: LIQUIBASE, command: NONE), 'db') == []
+        problems(settings.toBuilder().utplsql(true).build(), [(TEST): target(TEST_URL)],
+                build(tool: LIQUIBASE, command: NONE), 'db')*.field() == ['sonar.command.directory']
+    }
+
+    def "a block without a changelog file does not check the SonarQube directory"() {
+        expect:
+        problems(VALID.toBuilder().changelogFile(null).tag(false).build(), [:], build(tool: LIQUIBASE, command: NONE),
+                '../web')*.field() == ['database.changelogFile']
     }
 
     def "#url is refused as #problem (V5, V6)"() {
@@ -274,6 +325,10 @@ class DatabaseSettingsSpec extends Specification {
     }
 
     static final String SOURCE_FOLDER = 'must be "." or a relative path inside the repository, without ".."'
+    static final String PACKAGE = 'does not hold the package folder'
+    static final String TESTS = 'does not hold the folder of the test packages'
+    static final String WHY = 'sonar-scanner runs in that folder, and SonarQube analyses only the files under it: set' +
+            ' the directory to a folder that holds the package folder and the folder of the test packages, or empty it'
     static final Map CASES = new JsonSlurper().parse(DatabaseSettingsSpec.getResource('/database-rules-cases.json')) as Map
     static final String SECRET_URL = 'must not contain a user or a password: keep them in the Jenkins credentials of' +
             ' the credentials ID'
@@ -303,9 +358,9 @@ class DatabaseSettingsSpec extends Specification {
     }
 
     static List<FieldProblem> problems(DatabaseSettings settings, Map<DatabaseTarget, DatabaseTargetSettings> targets,
-                                       BuildSettings build) {
+                                       BuildSettings build, String sonarFolder = null) {
         def problems = new ValidationProblems()
-        settings.validate(problems, targets.sort { it.key }, build)
+        settings.validate(problems, targets.sort { it.key }, build, sonarFolder)
         problems.list()
     }
 

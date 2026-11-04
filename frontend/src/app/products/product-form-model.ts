@@ -573,6 +573,11 @@ export const QC_GETS_TESTS =
   'Deploys the test changesets: QC needs a context filter such as "!test"';
 export const CHANGELOG_AT_ROOT =
   'Has no folder and the search root is the repository root: put the changelog in a folder, or set the search folder or the source folder to the folder of the changelog';
+const SONAR_FOLDER =
+  'sonar-scanner runs in that folder, and SonarQube analyses only the files under it: set the directory to a folder that holds the package folder and the folder of the test packages, or empty it';
+/** Why the SonarQube directory of a service with database changes is refused: it does not hold the folder. */
+export const notHeldBySonarFolder = (folder: string, tests = false) =>
+  `Does not hold the ${tests ? 'folder of the test packages' : 'package folder'} ${folder}: ${SONAR_FOLDER}`;
 const NO_URL = 'Is set without a JDBC URL';
 
 const schema = (value: string | null | undefined) => text(value, matching(SCHEMA, SCHEMA_MESSAGE));
@@ -664,6 +669,20 @@ export function createDatabaseTargetForm(t?: Partial<DatabaseTargetSettings> | n
 
 type DatabaseTargetForm = ReturnType<typeof createDatabaseTargetForm>;
 
+/** Adds a rule to the target that fails with the message problem() gives, checked again whenever a source changes. */
+function addProblem(
+  target: AbstractControl,
+  problem: () => string | null,
+  ...sources: AbstractControl[]
+): void {
+  target.addValidators(() => {
+    const message = problem();
+    return message ? { rule: message } : null;
+  });
+  sources.forEach((source) => revalidateOnChange(source, target));
+  target.updateValueAndValidity({ emitEvent: false });
+}
+
 /** Adds a rule to the target that fails while broken() holds, checked again whenever a source changes. */
 function addRule(
   target: AbstractControl,
@@ -671,30 +690,73 @@ function addRule(
   broken: () => boolean,
   ...sources: AbstractControl[]
 ): void {
-  target.addValidators(() => (broken() ? { rule: message } : null));
-  sources.forEach((source) => revalidateOnChange(source, target));
-  target.updateValueAndValidity({ emitEvent: false });
+  addProblem(target, () => (broken() ? message : null), ...sources);
 }
+
+/** The folders joined as the library joins them, relative to the repository root; null for the root itself. */
+const joinFolders = (...folders: (string | null | undefined)[]) =>
+  relativePath(
+    folders
+      .map(optional)
+      .filter((folder) => folder !== null)
+      .join('/'),
+  );
+
+/** The first folder of the changelog path, which the package holds; null for a changelog without a folder. */
+function packageFolder(changelog: string): string | null {
+  const slash = changelog.indexOf('/');
+  const first = slash > 0 ? changelog.slice(0, slash) : null;
+  return first === '.' ? null : first;
+}
+
+/** Whether the folder, null for the repository root, is the path or a folder above it. */
+const holds = (folder: string | null, path: string | null) =>
+  folder === null || folder === path || (path !== null && path.startsWith(`${folder}/`));
 
 /** The rules of the database changes that read more than one field. */
 function requireDatabaseRules(form: ServiceForm): void {
   const d = form.controls.database.controls;
   const { TEST, RD, QC } = form.controls.databaseTargets.controls;
   const sourceDir = form.controls.build.controls.sourceDir;
+  const searchRoot = () => joinFolders(sourceDir.value, d.searchPath.value);
   addRule(
     d.changelogFile,
     CHANGELOG_AT_ROOT,
     () => {
       const file = optional(d.changelogFile.value);
-      return (
-        !!file &&
-        (!file.includes('/') || file.startsWith('./')) &&
-        (optional(sourceDir.value) ?? '.') === '.' &&
-        relativePath(d.searchPath.value) === null
-      );
+      return !!file && packageFolder(file) === null && searchRoot() === null;
     },
     sourceDir,
     d.searchPath,
+  );
+  const sonarFolder = form.controls.sonar.controls.command.controls.directory;
+  addProblem(
+    sonarFolder,
+    () => {
+      const folder = optional(sonarFolder.value);
+      const file = optional(d.changelogFile.value);
+      if (!folder || !file || !formChangesDatabase(form)) {
+        return null;
+      }
+      if (!SEARCH_PATH.test(folder)) {
+        return SEARCH_PATH_MESSAGE;
+      }
+      const held = joinFolders(folder);
+      const sources = joinFolders(searchRoot(), packageFolder(file));
+      const testPath = d.utplsql.value ? optional(d.utplsqlTestPath.value) : null;
+      const tests = joinFolders(searchRoot(), testPath);
+      return !holds(held, sources)
+        ? notHeldBySonarFolder(sources ?? '.')
+        : testPath && !holds(held, tests)
+          ? notHeldBySonarFolder(tests ?? '.', true)
+          : null;
+    },
+    form.controls.build.controls.tool,
+    d.changelogFile,
+    sourceDir,
+    d.searchPath,
+    d.utplsql,
+    d.utplsqlTestPath,
   );
   const url = (target: DatabaseTargetForm) => optional(target.controls.url.value)?.toLowerCase();
   addRule(

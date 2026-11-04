@@ -45,7 +45,10 @@ export function commandFields(
     mono('directory', 'Directory', `${key}.dir`, maven ? 3 : 6, {
       placeholder: '.',
       hint: 'for a service in a subfolder: that folder',
-      help: 'The folder of the workspace in which the command runs. Left empty: the workspace root.',
+      help:
+        liquibase && path === 'tools.sonar'
+          ? 'The folder of the workspace in which sonar-scanner runs; SonarQube analyses only the files under it. For a service with database changes it must be "." or a folder that holds the package folder and, while the utPLSQL tests run, the folder of the test packages. Left empty: the workspace root.'
+          : 'The folder of the workspace in which the command runs. Left empty: the workspace root.',
     }),
     ...(maven
       ? [

@@ -180,7 +180,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
             problems.add("database", "is set for a service that does not build with Liquibase: only a Liquibase"
                     + " service changes a database");
         } else if (database.isSet(databaseTargets)) {
-            database.validate(problems, databaseTargets, build);
+            database.validate(problems, databaseTargets, build, sonar.command().directory());
         }
     }
 

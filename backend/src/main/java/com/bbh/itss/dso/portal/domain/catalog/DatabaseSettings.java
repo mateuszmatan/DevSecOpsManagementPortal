@@ -27,6 +27,7 @@ import static com.bbh.itss.dso.portal.domain.shared.Text.relativePath;
 import static com.bbh.itss.dso.portal.domain.shared.Text.trimmed;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
+import static java.util.stream.Collectors.joining;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -48,6 +49,9 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
     public static final DatabaseSettings NONE = builder().build();
 
     static final String TEST_URL = "needs the JDBC URL of the test database";
+    static final String SONAR_FOLDER = "sonar-scanner runs in that folder, and SonarQube analyses only the files under"
+            + " it: set the directory to a folder that holds the package folder and the folder of the test packages, or"
+            + " empty it";
 
     public DatabaseSettings {
         changelogFile = trimToNull(changelogFile);
@@ -142,18 +146,21 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
 
     /**
      * The rules that are not a single format, among them the JDK and the source folder of the build that Liquibase and
-     * utPLSQL need; the problems of the databases go to databaseTargets[...].
+     * utPLSQL need, and the folder of the SonarQube analysis (tools.sonar.liquibase.dir); the problems of the
+     * databases go to databaseTargets[...].
      */
     public void validate(ValidationProblems problems, Map<DatabaseTarget, DatabaseTargetSettings> targets,
-                         BuildSettings build) {
+                         BuildSettings build, String sonarFolder) {
         ValidationProblems database = problems.at("database");
         database.require("changelogFile", changelogFile, "is required once a database setting or database is set");
         validateBuild(problems.at("build"), build);
-        if (changelogFile != null && (!changelogFile.contains("/") || changelogFile.startsWith("./"))
-                && DEFAULT_SOURCE_DIR.equals(build.sourceDir()) && searchPath == null) {
+        if (changelogFile != null && packageFolder() == null && searchRoot(build) == null) {
             database.add("changelogFile", "has no folder and the search root is the repository root: put the"
                     + " changelog in a folder, or set the search folder or the source folder to the folder of the"
                     + " changelog");
+        }
+        if (changelogFile != null && sonarFolder != null) {
+            validateSonarFolder(problems.at("sonar.command"), build, sonarFolder);
         }
         checkParameters(database, "parameters", parameters);
         LINES_4000.check(database, "ignoreObjects", ignoreObjects);
@@ -178,6 +185,53 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
                 database.add("testReset", TEST_URL);
             }
         }
+    }
+
+    /**
+     * The folder sonar-scanner runs in: SonarQube analyses only the files under it, so it must hold the package folder
+     * and, while the utPLSQL tests run, the folder of the test packages, as the library checks them (V3, V46).
+     */
+    private void validateSonarFolder(ValidationProblems problems, BuildSettings build, String sonarFolder) {
+        if (!sonarFolder.equals(".") && !sonarFolder.matches(PATH)) {
+            problems.add("directory", SEARCH_PATH_MESSAGE);
+            return;
+        }
+        String folder = join(sonarFolder);
+        String sources = join(searchRoot(build), packageFolder());
+        if (!holds(folder, sources)) {
+            problems.add("directory", "does not hold the package folder " + shown(sources) + ": " + SONAR_FOLDER);
+        }
+        String tests = join(searchRoot(build), utplsqlTestPath);
+        if (utplsql != null && utplsqlTestPath != null && !holds(folder, tests)) {
+            problems.add("directory", "does not hold the folder of the test packages " + shown(tests) + ": "
+                    + SONAR_FOLDER);
+        }
+    }
+
+    /** The folder Liquibase searches, the search folder inside the source folder; null for the repository root. */
+    private String searchRoot(BuildSettings build) {
+        return join(build.sourceDir(), searchPath);
+    }
+
+    /** The first folder of the changelog path, which the package holds; null for a changelog without a folder. */
+    private String packageFolder() {
+        int slash = changelogFile.indexOf('/');
+        String first = slash > 0 ? changelogFile.substring(0, slash) : null;
+        return ".".equals(first) ? null : first;
+    }
+
+    /** The folders joined as the library joins them, relative to the repository root; null for the root itself. */
+    private static String join(String... folders) {
+        return relativePath(Stream.of(folders).filter(Objects::nonNull).collect(joining("/")));
+    }
+
+    /** Whether the folder, null for the repository root, is the path or a folder above it. */
+    private static boolean holds(String folder, String path) {
+        return folder == null || folder.equals(path) || path != null && path.startsWith(folder + "/");
+    }
+
+    private static String shown(String folder) {
+        return Objects.toString(folder, DEFAULT_SOURCE_DIR);
     }
 
     private static void validateBuild(ValidationProblems problems, BuildSettings build) {
