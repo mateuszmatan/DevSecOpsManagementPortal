@@ -24,6 +24,10 @@ class StubResponse {
         new StubResponse(status: 200, contentType: 'application/yaml', body: text)
     }
 
+    static StubResponse html(String text) {
+        new StubResponse(status: 200, contentType: 'text/html', body: text)
+    }
+
     static StubResponse empty(int status = 204) {
         new StubResponse(status: status, contentType: 'application/json', body: '')
     }

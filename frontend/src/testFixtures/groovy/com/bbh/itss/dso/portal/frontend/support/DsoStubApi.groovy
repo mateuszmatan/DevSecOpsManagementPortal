@@ -1,10 +1,13 @@
 package com.bbh.itss.dso.portal.frontend.support
 
+import static com.bbh.itss.dso.portal.frontend.support.StubResponse.html
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.json
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.yaml
 
 class DsoStubApi extends StubApi {
+
+    static final String REPORT_HTML = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Pipeline report</title></head><body><p>No report has been uploaded for this pipeline yet.</p></body></html>'
 
     @Override
     void install() {
@@ -24,6 +27,8 @@ class DsoStubApi extends StubApi {
         get('/api/products/(\\d+)/config') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}-config.yaml", "Product ${ids[0]} does not exist") }
         get('/api/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
         get('/api/pipelines/(\\d+)/config') { RecordedRequest request, List<String> ids -> fixtureOr404("pipeline-${ids[0]}-config.yaml", "Pipeline ${ids[0]} does not exist") }
+        get('/api/pipelines/(\\d+)/report/html') { html(REPORT_HTML) }
+        get('/api/pipelines/(\\d+)/runs/(\\d+)/report/html') { html(REPORT_HTML) }
         get('/api/pipelines') { RecordedRequest request ->
             def departmentId = request.params().departmentId as Integer
             if (!departments.any { it.id == departmentId }) {

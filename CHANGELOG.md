@@ -95,7 +95,9 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
 ### Fixed
 - **Liquibase Services**:
   - Changeset 037 recreates the build tool checks of `DSO_SERVICE` and `DSO_GLOBAL_SETTINGS` with `LIQUIBASE`, which they lacked, so a Liquibase service can be saved.
-  - The help of the Liquibase commands says that the library runs `validate` when they are empty, and that a new service is prefilled with `updateSQL`.
+  - The help of the Liquibase commands says what the library runs when they are empty: `updateSQL` with the changelog it finds, through the run-time auto-resolve, and for a service with database changes `validate` only when Flags is set. A new service is prefilled with `updateSQL`.
   - The guide no longer says that the library reads `tests.unitTests.unitTestResult` and `coverage.reportPath` for the utPLSQL tests of a Liquibase service: utPLSQL results and coverage come with the database changes.
+- **GUI specs**:
+  - The menu that the smoke spec expects names OWASP SAMM, and the stub API answers the HTML report of a pipeline with an empty report, as the backend does, so the pipeline pages of the monitoring and smoke specs no longer log a 404.
 - **OpenShift Targets QC Region Validation**:
   - Fixed validation in the OpenShift targets section so the QC region is completely optional when left empty, and only validates required QC deployment fields when at least one QC field is populated.
