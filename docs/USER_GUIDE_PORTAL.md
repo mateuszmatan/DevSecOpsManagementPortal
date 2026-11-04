@@ -20,6 +20,7 @@
 - [11. Deployments & Delivery – OpenShift and Virtual Machines (VM)](#11-deployments--delivery--openshift-and-virtual-machines-vm)
 - [12. Telemetry, DORA Metrics, InfluxDB, and Grafana](#12-telemetry-dora-metrics-influxdb-and-grafana)
 - [13. Step-by-Step Form Reference: What to Enter Where](#13-step-by-step-form-reference-what-to-enter-where)
+- [14. OWASP SAMM Software Assurance Maturity Model](#14-owasp-samm-software-assurance-maturity-model)
 
 ---
 
@@ -292,3 +293,17 @@ Every pipeline execution streams performance and quality data to InfluxDB:
    - Check *Disable Nexus Delivery* if you do not publish jars/wars to Nexus.
 5. **Save:** The *Add service* button activates once all required fields are valid.
 6. **Deploy Jenkinsfile:** Copy the generated single-line `Jenkinsfile` with its `pipelineKey` into your Git repository. The pipeline is ready to run!
+
+---
+
+## 14. OWASP SAMM Software Assurance Maturity Model
+
+The DevSecOps Management Portal includes a dedicated **OWASP SAMM** section assessing software assurance maturity across all applications and business services.
+
+### Core Capabilities:
+- **Continuous Maturity Assessment:** SAMM v2.0 posture across 5 business functions (Governance, Design, Implementation, Verification, Operations) and 11 automated practices.
+- **Automated Evidence-Based Scoring:** Derived from active pipeline configuration (SAST, DAST, SCA Nexus IQ, SonarQube, unit tests, Cypress, coverage >= 60%, GoldenFix, InfluxDB telemetry).
+- **Executive & Departmental Dashboards:** Organization-level overview, maturity distribution across Levels 0–3, and departmental benchmarking.
+- **Application Scorecards:** Practice-level scores (0.0 to 3.0), criteria checklists, and concrete remediation roadmaps.
+- **Pipeline Monitoring Integration:** One-click drill-down directly from any pipeline card in Pipeline Monitoring into its SAMM scorecard.
+

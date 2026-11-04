@@ -12,6 +12,7 @@ import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPor
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
+import com.bbh.itss.dso.portal.application.report.port.out.PipelineReportPort
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageGlobalSettingsUseCase
 import com.bbh.itss.dso.portal.application.settings.port.in.ManageServiceTemplateUseCase
 import com.bbh.itss.dso.portal.application.settings.port.out.GlobalSettingsRepositoryPort
@@ -66,6 +67,7 @@ class UseCaseConfigurationSpec extends Specification {
     DashboardLinksPort dashboards = Mock()
     ServiceTemplateRepositoryPort templates = Mock()
     ActionLogRepositoryPort actionLogs = Mock()
+    PipelineReportPort reports = Mock()
 
     def runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(AopAutoConfiguration, TransactionAutoConfiguration))
@@ -81,6 +83,7 @@ class UseCaseConfigurationSpec extends Specification {
             .withBean(DashboardLinksPort, { dashboards } as Supplier<DashboardLinksPort>)
             .withBean(ServiceTemplateRepositoryPort, { templates } as Supplier<ServiceTemplateRepositoryPort>)
             .withBean(ActionLogRepositoryPort, { actionLogs } as Supplier<ActionLogRepositoryPort>)
+            .withBean(PipelineReportPort, { reports } as Supplier<PipelineReportPort>)
             .withBean(KeyGenerator, { { -> 'key' } as KeyGenerator } as Supplier<KeyGenerator>)
             .withBean(Clock, { systemUTC() } as Supplier<Clock>)
 
@@ -90,7 +93,8 @@ class UseCaseConfigurationSpec extends Specification {
             def useCases = context.getBeansWithAnnotation(UseCase)
             assert useCases.keySet() == ['globalSettingsService', 'productCatalogService', 'departmentService',
                                          'pipelineService', 'pipelineConfigService', 'pipelineMonitoringService',
-                                         'monitoringTargetsService', 'serviceTemplateService', 'actionLogService'] as Set
+                                         'monitoringTargetsService', 'serviceTemplateService', 'actionLogService',
+                                         'pipelineReportService', 'sammMaturityService'] as Set
             useCases.values().each { useCase ->
                 assert isAopProxy(useCase)
                 assert (useCase as Advised).advisors*.advice.any { it instanceof TransactionInterceptor }

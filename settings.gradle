@@ -1,5 +1,6 @@
 pluginManagement {
   gradle.ext.bbhNexus = { RepositoryHandler repositories ->
+    repositories.mavenLocal()
     repositories.maven {
       url = uri('http://tools.bbh.com/nexus/content/groups/public')
       allowInsecureProtocol = true

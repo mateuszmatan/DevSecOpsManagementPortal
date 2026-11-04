@@ -137,7 +137,7 @@ OpenShift targets, Bitbucket repository and InfluxDB tags). It names Jenkins cre
 BOM `bom/pom.xml` in `goldenFix.versionCatalogs`. Its build is delivered to Nexus, so the document has no
 `deploy.openshift.rd.nexusDeliveryEnabled`; a service that is not delivered renders it as `false`.
 `platform.jenkinsUrl` is the Jenkins URL of the library defaults. Run `api/dso-config.sh` to see the configuration
-of the portal you run. The [user and administrator guide](../docs/documentation.md#16-field-reference-from-the-portal-to-devsecops_configyaml)
+of the portal you run. The [user and administrator guide](../docs/documentation.md#17-field-reference-from-the-portal-to-devsecops_configyaml)
 lists every key with the field that sets it.
 
 ## Screenshots

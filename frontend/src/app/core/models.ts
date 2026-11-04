@@ -766,3 +766,73 @@ export interface ActionLog {
   details?: string;
   status: 'SUCCESS' | 'FAILURE' | string;
 }
+
+export type SammBusinessFunction =
+  | 'GOVERNANCE'
+  | 'DESIGN'
+  | 'IMPLEMENTATION'
+  | 'VERIFICATION'
+  | 'OPERATIONS';
+
+export interface SammPracticeScore {
+  practice: string;
+  practiceName: string;
+  practiceTitle: string;
+  practiceCode: string;
+  businessFunction: SammBusinessFunction;
+  score: number;
+  maturityLevel: number;
+  criteriaMet: string[];
+  recommendations: string[];
+}
+
+export interface SammDomainScore {
+  function: SammBusinessFunction;
+  title: string;
+  description: string;
+  score: number;
+  maturityLevel: number;
+  practices: SammPracticeScore[];
+}
+
+export interface SammApplicationScore {
+  pipelineId: number;
+  pipelineKey: string | null;
+  jobName: string | null;
+  productId: number;
+  productName: string;
+  serviceId: number;
+  serviceName: string;
+  departmentId: number | null;
+  departmentName: string;
+  overallScore: number;
+  maturityLevel: number;
+  maturityTier: string;
+  domainScores: SammDomainScore[];
+  practiceScores: SammPracticeScore[];
+  assessedAt: string;
+}
+
+export interface SammDepartmentScore {
+  departmentId: number;
+  departmentName: string;
+  applicationCount: number;
+  overallScore: number;
+  maturityLevel: number;
+  maturityTier: string;
+  domainScores: SammDomainScore[];
+  levelDistribution: Record<number, number>;
+}
+
+export interface SammOrganizationOverview {
+  totalApplications: number;
+  totalDepartments: number;
+  overallScore: number;
+  maturityLevel: number;
+  maturityTier: string;
+  domainScores: SammDomainScore[];
+  departments: SammDepartmentScore[];
+  applications: SammApplicationScore[];
+  levelDistribution: Record<number, number>;
+  generatedAt: string;
+}

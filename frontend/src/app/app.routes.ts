@@ -10,6 +10,7 @@ import {
   DEVSECOPS_ADMIN,
   MONITORING,
   PIPELINES,
+  SAMM_MATURITY,
   SELF_SERVICE,
 } from './core/sections';
 
@@ -48,6 +49,11 @@ export const routes: Routes = [
     title: 'Pipeline details',
     loadComponent: () =>
       import('./monitoring/pipeline-monitoring').then((m) => m.PipelineMonitoringPage),
+  },
+  {
+    path: 'samm',
+    title: SAMM_MATURITY.heading,
+    loadComponent: () => import('./samm/samm-overview').then((m) => m.SammOverviewPage),
   },
   {
     path: 'history',

@@ -319,7 +319,7 @@ class ServiceConfigReaderSpec extends Specification {
 
     def "Cypress unit test settings are imported from tests.unitTests.cypress"() {
         when:
-        def imported = read('''
+        def imported = imported('''
             projects:
               frontend:
                 buildTool: maven

@@ -1,0 +1,443 @@
+<div class="samm-page">
+  <header class="page-header">
+    <div class="header-content">
+      <div class="title-row">
+        <h1>{{ section.heading }}</h1>
+        <span class="standard-pill">OWASP SAMM v2.0</span>
+      </div>
+      <p class="page-description">{{ section.description }}</p>
+    </div>
+
+    <div class="tab-toggles" role="tablist">
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="activeTab() === 'overview'"
+        (click)="setTab('overview')"
+        role="tab"
+        [attr.aria-selected]="activeTab() === 'overview'"
+      >
+        Executive Summary & Departments
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="activeTab() === 'applications'"
+        (click)="setTab('applications')"
+        role="tab"
+        [attr.aria-selected]="activeTab() === 'applications'"
+      >
+        Applications Scoring
+        @if (overview.value(); as data) {
+          <span class="count-pill">{{ data.totalApplications }}</span>
+        }
+      </button>
+    </div>
+  </header>
+
+  @if (overview.isLoading()) {
+    <div class="loading-state">
+      <dso-loading label="Calculating OWASP SAMM maturity posture across BBH applications..." />
+    </div>
+  } @else if (overview.error(); as error) {
+    <dso-load-error what="The OWASP SAMM overview" [error]="error" (retry)="overview.reload()" />
+  } @else if (overview.value(); as data) {
+
+    @if (activeTab() === 'overview') {
+      <section class="overview-section">
+        <div class="global-banner">
+          <div class="score-card">
+            <span class="score-label">BBH Organization Maturity</span>
+            <div class="score-number-row">
+              <span class="big-score">{{ data.overallScore | number: '1.1-1' }}</span>
+              <span class="score-max">/ 3.0</span>
+            </div>
+            <div class="tier-pill" [class]="levelBadgeClass(data.maturityLevel)">
+              Level {{ data.maturityLevel }} · {{ data.maturityTier }}
+            </div>
+            <p class="tier-desc">{{ tierDescription(data.maturityTier) }}</p>
+          </div>
+
+          <div class="stats-card">
+            <div class="stat-item">
+              <span class="stat-value">{{ data.totalApplications }}</span>
+              <span class="stat-label">Applications Assessed</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ data.totalDepartments }}</span>
+              <span class="stat-label">Business Services Covered</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ data.levelDistribution[3] || 0 }}</span>
+              <span class="stat-label">Level 3 (Optimized)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ data.levelDistribution[2] || 0 }}</span>
+              <span class="stat-label">Level 2 (Defined)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ data.levelDistribution[1] || 0 }}</span>
+              <span class="stat-label">Level 1 (Foundational)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ data.levelDistribution[0] || 0 }}</span>
+              <span class="stat-label">Level 0 (Initial)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title-row">
+          <h2>5 Business Functions Posture</h2>
+          <span class="section-subtitle">Average score across all {{ data.totalApplications }} BBH applications</span>
+        </div>
+
+        <div class="domains-grid">
+          @for (domain of data.domainScores; track domain.function) {
+            <div class="domain-card">
+              <div class="domain-header">
+                <div>
+                  <h3 class="domain-title">{{ domain.title }}</h3>
+                  <span class="domain-desc">{{ domain.description }}</span>
+                </div>
+                <div class="domain-score-pill" [class]="levelBadgeClass(domain.maturityLevel)">
+                  {{ domain.score | number: '1.1-1' }}
+                </div>
+              </div>
+
+              <div class="domain-meter">
+                <div
+                  class="meter-fill"
+                  [class]="levelBadgeClass(domain.maturityLevel)"
+                  [style.width.%]="scorePercent(domain.score)"
+                ></div>
+              </div>
+
+              <div class="domain-practices-preview">
+                @for (practice of domain.practices; track practice.practice) {
+                  <div class="practice-chip">
+                    <span class="chip-code">{{ practice.practiceCode }}</span>
+                    <span class="chip-title">{{ practice.practiceTitle }}</span>
+                    <span class="chip-score">{{ practice.score | number: '1.1-1' }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="section-title-row">
+          <h2>Business Services Maturity Summary</h2>
+          <span class="section-subtitle">Aggregated SAMM scoring per department</span>
+        </div>
+
+        <div class="departments-grid">
+          @for (dept of data.departments; track dept.departmentId) {
+            <div class="department-card">
+              <div class="dept-header">
+                <div>
+                  <h3 class="dept-name">{{ dept.departmentName }}</h3>
+                  <span class="dept-apps-count">{{ dept.applicationCount }} applications</span>
+                </div>
+                <div class="dept-score-box">
+                  <span class="dept-score-value">{{ dept.overallScore | number: '1.1-1' }}</span>
+                  <span class="tier-badge" [class]="levelBadgeClass(dept.maturityLevel)">
+                    Level {{ dept.maturityLevel }} · {{ dept.maturityTier }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="dept-domain-bars">
+                @for (domain of dept.domainScores; track domain.function) {
+                  <div class="dept-bar-row">
+                    <span class="bar-name">{{ domain.title }}</span>
+                    <div class="mini-bar-track">
+                      <div
+                        class="mini-bar-fill"
+                        [class]="levelBadgeClass(domain.maturityLevel)"
+                        [style.width.%]="scorePercent(domain.score)"
+                      ></div>
+                    </div>
+                    <span class="bar-val">{{ domain.score | number: '1.1-1' }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="dept-footer">
+                <button
+                  type="button"
+                  class="btn-inspect-dept"
+                  (click)="departmentFilter.setValue(dept.departmentId.toString()); setTab('applications')"
+                >
+                  View {{ dept.departmentName }} Applications &rarr;
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    @if (activeTab() === 'applications') {
+      <section class="applications-section">
+        <div class="filter-toolbar">
+          <div class="search-box">
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Search by product, service, pipeline key or department..."
+              [formControl]="search"
+            />
+          </div>
+
+          <div class="filters-row">
+            <div class="select-wrapper">
+              <label for="dept-select">Business Service:</label>
+              <select id="dept-select" class="form-select" [formControl]="departmentFilter">
+                <option value="ALL">All Business Services ({{ data.totalDepartments }})</option>
+                @for (dept of departmentsList(); track dept.departmentId) {
+                  <option [value]="dept.departmentId">{{ dept.departmentName }} ({{ dept.applicationCount }})</option>
+                }
+              </select>
+            </div>
+
+            <div class="select-wrapper">
+              <label for="lvl-select">Maturity Level:</label>
+              <select id="lvl-select" class="form-select" [formControl]="levelFilter">
+                <option value="ALL">All Levels</option>
+                <option value="3">Level 3 (Optimized)</option>
+                <option value="2">Level 2 (Defined)</option>
+                <option value="1">Level 1 (Foundational)</option>
+                <option value="0">Level 0 (Initial)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="applications-table">
+            <thead>
+              <tr>
+                <th (click)="setSort('name')" class="sortable">
+                  Application
+                  @if (sortColumn() === 'name') {
+                    <span class="sort-indicator">{{ sortAsc() ? '▲' : '▼' }}</span>
+                  }
+                </th>
+                <th (click)="setSort('department')" class="sortable">
+                  Business Service
+                  @if (sortColumn() === 'department') {
+                    <span class="sort-indicator">{{ sortAsc() ? '▲' : '▼' }}</span>
+                  }
+                </th>
+                <th (click)="setSort('overall')" class="sortable text-center">
+                  Overall Score
+                  @if (sortColumn() === 'overall') {
+                    <span class="sort-indicator">{{ sortAsc() ? '▲' : '▼' }}</span>
+                  }
+                </th>
+                <th (click)="setSort('level')" class="sortable text-center">
+                  Maturity Tier
+                  @if (sortColumn() === 'level') {
+                    <span class="sort-indicator">{{ sortAsc() ? '▲' : '▼' }}</span>
+                  }
+                </th>
+                <th (click)="setSort('gov')" class="sortable text-center">Gov</th>
+                <th (click)="setSort('design')" class="sortable text-center">Design</th>
+                <th (click)="setSort('impl')" class="sortable text-center">Impl</th>
+                <th (click)="setSort('verif')" class="sortable text-center">Verif</th>
+                <th (click)="setSort('ops')" class="sortable text-center">Ops</th>
+                <th class="text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (app of filteredApplications(); track app.pipelineId) {
+                <tr class="app-row" (click)="selectApplication(app)">
+                  <td>
+                    <div class="app-name-block">
+                      <span class="product-name">{{ app.productName }}</span>
+                      <span class="service-name">/ {{ app.serviceName }}</span>
+                    </div>
+                    @if (app.pipelineKey) {
+                      <span class="key-hint">{{ app.pipelineKey }}</span>
+                    }
+                  </td>
+                  <td>
+                    <span class="dept-badge">{{ app.departmentName }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="score-value">{{ app.overallScore | number: '1.1-1' }}</span>
+                    <span class="score-denom">/ 3.0</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="tier-pill" [class]="levelBadgeClass(app.maturityLevel)">
+                      Level {{ app.maturityLevel }} · {{ app.maturityTier }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="domain-num" [class]="levelBadgeClass(levelFor(domainScore(app, 'GOVERNANCE')))">
+                      {{ domainScore(app, 'GOVERNANCE') | number: '1.1-1' }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="domain-num" [class]="levelBadgeClass(levelFor(domainScore(app, 'DESIGN')))">
+                      {{ domainScore(app, 'DESIGN') | number: '1.1-1' }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="domain-num" [class]="levelBadgeClass(levelFor(domainScore(app, 'IMPLEMENTATION')))">
+                      {{ domainScore(app, 'IMPLEMENTATION') | number: '1.1-1' }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="domain-num" [class]="levelBadgeClass(levelFor(domainScore(app, 'VERIFICATION')))">
+                      {{ domainScore(app, 'VERIFICATION') | number: '1.1-1' }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="domain-num" [class]="levelBadgeClass(levelFor(domainScore(app, 'OPERATIONS')))">
+                      {{ domainScore(app, 'OPERATIONS') | number: '1.1-1' }}
+                    </span>
+                  </td>
+                  <td class="text-right" (click)="$event.stopPropagation()">
+                    <button
+                      type="button"
+                      class="btn-inspect"
+                      (click)="selectApplication(app)"
+                      title="Inspect detailed OWASP SAMM scorecard"
+                    >
+                      Inspect Scorecard
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="10" class="empty-cell">
+                    No applications match the selected search or filter criteria.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  }
+
+  @if (selectedApp(); as app) {
+    <div class="modal-backdrop" (click)="closeModal()">
+      <div class="scorecard-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+        <header class="modal-header">
+          <div>
+            <div class="modal-title-row">
+              <h2>{{ app.productName }} / {{ app.serviceName }}</h2>
+              <span class="tier-pill" [class]="levelBadgeClass(app.maturityLevel)">
+                Level {{ app.maturityLevel }} · {{ app.maturityTier }}
+              </span>
+            </div>
+            <div class="modal-sub-row">
+              <span class="modal-dept">{{ app.departmentName }}</span>
+              @if (app.jobName) {
+                <span class="modal-job">Job: {{ app.jobName }}</span>
+              }
+              <span class="modal-time">Assessed: {{ app.assessedAt | date: 'medium' }}</span>
+            </div>
+          </div>
+          <button type="button" class="btn-close" (click)="closeModal()" aria-label="Close scorecard">
+            &times;
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="modal-summary-banner">
+            <div class="overall-box">
+              <span class="lbl">SAMM Maturity Score</span>
+              <div class="val-row">
+                <span class="val">{{ app.overallScore | number: '1.1-1' }}</span>
+                <span class="max">/ 3.0</span>
+              </div>
+            </div>
+
+            <div class="domain-pills-row">
+              @for (domain of app.domainScores; track domain.function) {
+                <div class="domain-pill-card">
+                  <span class="domain-pill-name">{{ domain.title }}</span>
+                  <span class="domain-pill-score" [class]="levelBadgeClass(domain.maturityLevel)">
+                    {{ domain.score | number: '1.1-1' }} (L{{ domain.maturityLevel }})
+                  </span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="practices-section">
+            <h3>Assurance Practices & Actionable Recommendations</h3>
+
+            <div class="practices-accordion">
+              @for (practice of app.practiceScores; track practice.practice) {
+                <div class="practice-card">
+                  <div class="practice-card-header">
+                    <div class="practice-meta">
+                      <span class="practice-badge">{{ practice.practiceCode }}</span>
+                      <div>
+                        <h4 class="practice-title">{{ practice.practiceTitle }}</h4>
+                        <span class="practice-func">{{ practice.businessFunction }}</span>
+                      </div>
+                    </div>
+
+                    <div class="practice-score-box">
+                      <span class="practice-score-num">{{ practice.score | number: '1.1-1' }} / 3.0</span>
+                      <span class="tier-tag" [class]="levelBadgeClass(practice.maturityLevel)">
+                        Level {{ practice.maturityLevel }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="practice-card-content">
+                    <div class="criteria-met-col">
+                      <h5>Criteria Met</h5>
+                      @if (practice.criteriaMet.length > 0) {
+                        <ul class="criteria-list">
+                          @for (item of practice.criteriaMet; track item) {
+                            <li class="met-item">
+                              <span class="check-icon">&#10003;</span>
+                              <span>{{ item }}</span>
+                            </li>
+                          }
+                        </ul>
+                      } @else {
+                        <p class="none-text">No baseline criteria satisfied yet.</p>
+                      }
+                    </div>
+
+                    <div class="recommendations-col">
+                      <h5>Maturity Growth Recommendations</h5>
+                      @if (practice.recommendations.length > 0) {
+                        <ul class="rec-list">
+                          @for (rec of practice.recommendations; track rec) {
+                            <li class="rec-item">
+                              <span class="arrow-icon">&bull;</span>
+                              <span>{{ rec }}</span>
+                            </li>
+                          }
+                        </ul>
+                      } @else {
+                        <p class="perfect-text">Maturity criteria fully satisfied for this practice.</p>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <a [routerLink]="['/monitoring/pipelines', app.pipelineId]" class="btn-goto-pipeline">
+            Go to Pipeline Monitoring &rarr;
+          </a>
+          <button type="button" class="btn-done" (click)="closeModal()">Close</button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>

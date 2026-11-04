@@ -40,6 +40,9 @@
         <a class="btn btn-outline-primary" [routerLink]="pipelinePage(d.pipeline.id)"
           >Manage pipeline</a
         >
+        <a class="btn btn-outline-primary samm" [routerLink]="['/samm']" [queryParams]="{ pipelineId: d.pipeline.id }"
+          >OWASP SAMM Scorecard</a
+        >
         @if (d.pipeline.jenkinsJobUrl; as job) {
           <a
             class="btn btn-outline-primary jenkins"
