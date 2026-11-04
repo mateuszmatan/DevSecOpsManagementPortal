@@ -11,5 +11,5 @@ databaseChangeLog:
       file: oracle/033-parallel-static-analysis.sql
       relativeToChangelogFile: true
   - include:
-      file: oracle/034-sql-plsql-services.sql
+      file: oracle/037-sql-plsql-services.sql
       relativeToChangelogFile: true

@@ -1819,16 +1819,16 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <p>Every service starts with the Node.js build off and no catalogs, so every configuration stays as it was. A rollback drops the columns with whatever they hold.</p>
 <h3 id="upgrade-note-changeset-033">Upgrade note: changeset 033</h3>
 <p>Changeset <code>033-parallel-static-analysis</code> adds <code>PARALLEL_STATIC_ANALYSIS</code> (0 or 1, 1 by default) to <code>DSO_GLOBAL_SETTINGS</code>, with the check <code>CK_DSO_GLOBAL_PARALLEL_SCANS</code>. The saved settings get 1, so &quot;Run Nexus IQ and SonarQube while AppScan scans&quot; is ticked after the upgrade and the settings sent to Jenkins hold <code>defaults.staticAnalysis.parallel: true</code>. A library version without this order ignores the key. Untick the box before the next runs to keep the order Nexus IQ, SAST, SonarQube. A rollback drops the column.</p>
-<h3 id="upgrade-note-changeset-034">Upgrade note: changeset 034</h3>
-<p>Changeset 034 adds SQL and PL/SQL services. It has eight changesets, one DDL statement each:</p>
+<h3 id="upgrade-note-changeset-037">Upgrade note: changeset 037</h3>
+<p>Changeset 037 adds SQL and PL/SQL services. It has eight changesets, one DDL statement each:</p>
 <ul>
-<li><code>034-service-database</code> adds the <code>DB_</code> columns of the Database changes section to <code>DSO_SERVICE</code>, and <code>034-service-database-flags</code> adds their check <code>CK_DSO_SERVICE_DB_FLAGS</code>.</li>
-<li><code>034-service-database-target</code> creates <code>DSO_SERVICE_DATABASE_TARGET</code>, with one row for each test, RD or QC database of a service.</li>
-<li><code>034-global-database</code> adds the <code>DB_</code> columns of the SQL and PL/SQL section to <code>DSO_GLOBAL_SETTINGS</code>.</li>
-<li><code>034-service-build-tool-old</code> and <code>034-service-build-tool-new</code> recreate <code>CK_DSO_SERVICE_BUILD_TOOL</code> with <code>LIQUIBASE</code>; <code>034-global-build-tool-old</code> and <code>034-global-build-tool-new</code> do the same for <code>CK_DSO_GLOBAL_BUILD_TOOL</code>.</li>
+<li><code>037-service-database</code> adds the <code>DB_</code> columns of the Database changes section to <code>DSO_SERVICE</code>, and <code>037-service-database-flags</code> adds their check <code>CK_DSO_SERVICE_DB_FLAGS</code>.</li>
+<li><code>037-service-database-target</code> creates <code>DSO_SERVICE_DATABASE_TARGET</code>, with one row for each test, RD or QC database of a service.</li>
+<li><code>037-global-database</code> adds the <code>DB_</code> columns of the SQL and PL/SQL section to <code>DSO_GLOBAL_SETTINGS</code>.</li>
+<li><code>037-service-build-tool-old</code> and <code>037-service-build-tool-new</code> recreate <code>CK_DSO_SERVICE_BUILD_TOOL</code> with <code>LIQUIBASE</code>; <code>037-global-build-tool-old</code> and <code>037-global-build-tool-new</code> do the same for <code>CK_DSO_GLOBAL_BUILD_TOOL</code>.</li>
 </ul>
 <p>Every service keeps its build tool, and its settings sent to Jenkins stay as they were. The SQL and PL/SQL section of the Library defaults starts empty, so set the allowed databases and the Nexus repositories of the database packages before the first SQL and PL/SQL service is saved. The Full, Security and Extended pipelines of a SQL and PL/SQL service that delivers its package need a group ID and the repositories of <a href="#what-the-pipelines-do-with-a-sql-and-plsql-service">chapter 7</a>.</p>
-<div class="callout"><strong>Warning.</strong> A rollback of 034 stops at the build tool checks while a service has the build tool SQL and PL/SQL (Liquibase). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.</div>
+<div class="callout"><strong>Warning.</strong> A rollback of 037 stops at the build tool checks while a service has the build tool SQL and PL/SQL (Liquibase). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.</div>
 </div>
 
 <div class="section" id="19-troubleshooting">

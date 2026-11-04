@@ -1719,19 +1719,19 @@ Every service starts with the Node.js build off and no catalogs, so every config
 
 Changeset `033-parallel-static-analysis` adds `PARALLEL_STATIC_ANALYSIS` (0 or 1, 1 by default) to `DSO_GLOBAL_SETTINGS`, with the check `CK_DSO_GLOBAL_PARALLEL_SCANS`. The saved settings get 1, so "Run Nexus IQ and SonarQube while AppScan scans" is ticked after the upgrade and the settings sent to Jenkins hold `defaults.staticAnalysis.parallel: true`. A library version without this order ignores the key. Untick the box before the next runs to keep the order Nexus IQ, SAST, SonarQube. A rollback drops the column.
 
-### Upgrade note: changeset 034
+### Upgrade note: changeset 037
 
-Changeset 034 adds SQL and PL/SQL services. It has eight changesets, one DDL statement each:
+Changeset 037 adds SQL and PL/SQL services. It has eight changesets, one DDL statement each:
 
-- `034-service-database` adds the `DB_` columns of the Database changes section to `DSO_SERVICE`, and `034-service-database-flags` adds their check `CK_DSO_SERVICE_DB_FLAGS`.
-- `034-service-database-target` creates `DSO_SERVICE_DATABASE_TARGET`, with one row for each test, RD or QC database of a service.
-- `034-global-database` adds the `DB_` columns of the SQL and PL/SQL section to `DSO_GLOBAL_SETTINGS`.
-- `034-service-build-tool-old` and `034-service-build-tool-new` recreate `CK_DSO_SERVICE_BUILD_TOOL` with `LIQUIBASE`; `034-global-build-tool-old` and `034-global-build-tool-new` do the same for `CK_DSO_GLOBAL_BUILD_TOOL`.
+- `037-service-database` adds the `DB_` columns of the Database changes section to `DSO_SERVICE`, and `037-service-database-flags` adds their check `CK_DSO_SERVICE_DB_FLAGS`.
+- `037-service-database-target` creates `DSO_SERVICE_DATABASE_TARGET`, with one row for each test, RD or QC database of a service.
+- `037-global-database` adds the `DB_` columns of the SQL and PL/SQL section to `DSO_GLOBAL_SETTINGS`.
+- `037-service-build-tool-old` and `037-service-build-tool-new` recreate `CK_DSO_SERVICE_BUILD_TOOL` with `LIQUIBASE`; `037-global-build-tool-old` and `037-global-build-tool-new` do the same for `CK_DSO_GLOBAL_BUILD_TOOL`.
 
 Every service keeps its build tool, and its settings sent to Jenkins stay as they were. The SQL and PL/SQL section of the Library defaults starts empty, so set the allowed databases and the Nexus repositories of the database packages before the first SQL and PL/SQL service is saved. The Full, Security and Extended pipelines of a SQL and PL/SQL service that delivers its package need a group ID and the repositories of [chapter 7](#what-the-pipelines-do-with-a-sql-and-plsql-service).
 
 > [!WARNING]
-> A rollback of 034 stops at the build tool checks while a service has the build tool SQL and PL/SQL (Liquibase). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.
+> A rollback of 037 stops at the build tool checks while a service has the build tool SQL and PL/SQL (Liquibase). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.
 
 ## 19. Troubleshooting
 

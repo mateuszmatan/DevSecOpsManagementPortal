@@ -127,14 +127,14 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
         thrown(DataIntegrityViolationException)
     }
 
-    def "034 adds the Library defaults (SQL and PL/SQL), empty for saved settings, and its rollback removes the columns"() {
+    def "037 adds the Library defaults (SQL and PL/SQL), empty for saved settings, and its rollback removes the columns"() {
         given:
         jdbc.execute('DROP ALL OBJECTS')
         liquibase.update('')
         settings.save(GlobalSettings.bbhDefaults())
 
         when:
-        rollBackSince('034-')
+        rollBackSince('037-')
 
         then:
         columns('DSO_GLOBAL_SETTINGS').findAll { it.startsWith('DB_') } == []

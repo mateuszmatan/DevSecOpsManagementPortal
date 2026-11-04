@@ -24,10 +24,10 @@ class SqlPlsqlMigrationSpec extends MigrationSpecification {
         'db/changelog/db.changelog-master.yaml'
     }
 
-    def "034 adds the database settings, empty for the existing services, and its rollback waits until no service uses LIQUIBASE"() {
+    def "037 adds the database settings, empty for the existing services, and its rollback waits until no service uses LIQUIBASE"() {
         given:
         liquibase.update('')
-        rollBackSince('034-')
+        rollBackSince('037-')
         long product = insert('DSO_PRODUCT', [CODE: 'ORD', NAME: 'Orders'])
         service(product, 'orders-app', 'GRADLE')
 
@@ -68,19 +68,19 @@ class SqlPlsqlMigrationSpec extends MigrationSpecification {
         thrown(DataIntegrityViolationException)
 
         when:
-        rollBackSince('034-')
+        rollBackSince('037-')
 
         then:
         thrown(LiquibaseException)
-        jdbc.queryForList("SELECT ID FROM DATABASECHANGELOG WHERE ID LIKE '034-%' ORDER BY ORDEREXECUTED", String) ==
-                ['034-service-database', '034-service-database-flags', '034-service-database-target',
-                 '034-global-database', '034-service-build-tool-old']
+        jdbc.queryForList("SELECT ID FROM DATABASECHANGELOG WHERE ID LIKE '037-%' ORDER BY ORDEREXECUTED", String) ==
+                ['037-service-database', '037-service-database-flags', '037-service-database-target',
+                 '037-global-database', '037-service-build-tool-old']
         databaseColumns() == [32, 15]
         jdbc.queryForObject("SELECT COUNT(*) FROM $TARGETS" as String, Integer) == 3
 
         when:
         jdbc.update("UPDATE DSO_SERVICE SET BUILD_TOOL = 'GRADLE' WHERE ID = ?", database)
-        rollBackSince('034-')
+        rollBackSince('037-')
 
         then:
         databaseColumns() == [0, 0]
