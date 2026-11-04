@@ -60,7 +60,10 @@
         "rootDir": null,
         "reportOutDir": null,
         "allowEmptyResults": false,
-        "coverageReportPath": null
+        "coverageReportPath": null,
+        "cypressEnabled": false,
+        "cypressCommand": null,
+        "cypressReportsDir": null
       },
       "tests": {
         "maxParallel": null,
@@ -231,6 +234,7 @@
         "timeZone": null
       },
       "versionCatalogs": [],
+      "versionCatalogRepo": null,
       "metrics": {
         "enabled": true,
         "influxProject": null,
@@ -289,7 +293,10 @@
         "rootDir": null,
         "reportOutDir": null,
         "allowEmptyResults": false,
-        "coverageReportPath": null
+        "coverageReportPath": null,
+        "cypressEnabled": false,
+        "cypressCommand": null,
+        "cypressReportsDir": null
       },
       "tests": {
         "maxParallel": null,
@@ -462,6 +469,7 @@
         "timeZone": null
       },
       "versionCatalogs": [],
+      "versionCatalogRepo": null,
       "metrics": {
         "enabled": true,
         "influxProject": null,
