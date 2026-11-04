@@ -154,6 +154,10 @@
           "serverUrl": "https://tools.bbh.com/sonar",
           "installationName": "SonarQube",
           "projectKey": "bbh-orders-db"
+        },
+        "nexusIq": {
+          "serverUrl": "https://tools.bbh.com/IQ",
+          "credentialsId": "nexusiqP"
         }
       },
       "dast": {
