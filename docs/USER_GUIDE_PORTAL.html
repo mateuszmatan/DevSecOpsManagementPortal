@@ -934,22 +934,22 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <ol>
 <li>When creating or updating a service in the Self-service wizard or Admin editor, specify the <strong>Bitbucket Repo URL</strong> and target <strong>Branch</strong>.</li>
 <li>Click <strong>Scan &amp; Auto-fill</strong>.</li>
-<li>The Portal executes an inspection via the Bitbucket REST API (<code>/api/catalog/inspect-repo</code>), recursively traverses workspace manifests, and pre-populates all form inputs with optimal configurations.</li>
+<li>The Portal executes an inspection (<code>/api/catalog/inspect-repo</code>) that reads only the root folder of the branch through the Bitbucket REST API, and fills in the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key; every other field keeps its value. A marker in a subfolder, such as <code>frontend/package.json</code> or <code>gradle/wrapper/gradle-wrapper.properties</code>, is never found through Bitbucket. A Liquibase service with database changes keeps its build tool, its commands and its deployment settings; the scan fills in only an empty SonarQube project key.</li>
 <li>Developers review the suggestions, make any project-specific adjustments, and click <strong>Save</strong>.</li>
 </ol>
 <h3 id="stack-detection-matrix">Stack Detection Matrix:</h3>
 <ul>
-<li><strong>Maven (<code>pom.xml</code>)</strong>: Identifies Maven build tool, extracts Java JDK version from <code>&lt;java.version&gt;</code>, <code>&lt;maven.compiler.source&gt;</code>, or <code>&lt;release&gt;</code>, detects Kotlin plugins, and preconfigures JaCoCo XML reports.</li>
-<li><strong>Gradle (<code>build.gradle</code>, <code>build.gradle.kts</code>, <code>gradle/wrapper/gradle-wrapper.properties</code>)</strong>: Identifies Gradle build tool, extracts exact Gradle wrapper version and compatible JDK, detects Kotlin DSL, and sets up test reporting.</li>
-<li><strong>Node.js Stage 0 (<code>package.json</code>)</strong>: Identifies root or frontend subdirectories (<code>frontend/</code>, <code>web/</code>, <code>client/</code>, <code>ui/</code>), enables Stage 0 pre-build (<code>build.node.enabled: true</code>), reads <code>engines.node</code> for Node version, and detects Cypress or Jest runners.</li>
-<li><strong>Liquibase (<code>changelog.xml</code>, <code>liquibase.properties</code>)</strong>: Configures Liquibase for database schema migrations (<code>updateSQL</code>, <code>validate</code>).</li>
-<li><strong>Flutter / Dart (<code>pubspec.yaml</code>)</strong>: Configures Flutter toolchain and Dart test runner.</li>
-<li><strong>Python / pip (<code>requirements.txt</code>, <code>pyproject.toml</code>, <code>setup.py</code>, <code>Pipfile</code>)</strong>: Configures isolated Python virtual environment.</li>
-<li><strong>OpenShift Target</strong>: Detects <code>Dockerfile</code>, <code>Containerfile</code>, or manifests in <code>openshift/</code>, <code>k8s/</code>, or <code>helm/</code> and sets the target to OpenShift.</li>
+<li><strong>Maven (<code>pom.xml</code>)</strong>: Identifies the Maven build tool and fills in the goals <code>clean verify</code> and <code>test</code>, or <code>test jacoco:report</code> when the <code>pom.xml</code> mentions JaCoCo. It names the Java version of <code>&lt;java.version&gt;</code>, <code>&lt;maven.compiler.source&gt;</code>, <code>&lt;maven.compiler.target&gt;</code>, <code>&lt;maven.compiler.release&gt;</code> or <code>&lt;jdk.version&gt;</code> and the Kotlin plugins in the scan message, and sets no JDK and no coverage reports.</li>
+<li><strong>Gradle (<code>build.gradle</code>, <code>build.gradle.kts</code>, <code>gradlew</code>)</strong>: Identifies the Gradle build tool and fills in the tasks <code>clean build</code> and <code>test</code>, or <code>test jacocoTestReport</code> when the build file mentions JaCoCo. It names Kotlin DSL and a Java version in the scan message, and sets no JDK and no test reports. The Gradle wrapper version is in <code>gradle/wrapper/gradle-wrapper.properties</code>, a subfolder, so the scan never reads it through Bitbucket.</li>
+<li><strong>Node.js Stage 0 (<code>package.json</code>)</strong>: Ticks the Stage 0 pre-build (<code>build.node.enabled: true</code>) when the root of the branch holds a <code>package.json</code>; a <code>package.json</code> in <code>frontend/</code>, <code>web/</code>, <code>client/</code> or <code>ui/</code> is never found through Bitbucket. It names Cypress or Jest in the scan message, and sets no Node.js version, no folder of the <code>package.json</code> and no test runner.</li>
+<li><strong>Liquibase (<code>changelog.xml</code>, <code>liquibase.properties</code>)</strong>: Selects Liquibase when the repository has no <code>pubspec.yaml</code>, <code>pom.xml</code> or Gradle build, with the build command <code>validate</code> and the unit test commands <code>updateSQL validate</code>. A service with database changes keeps its build tool, its commands and its deployment settings, also when the scan finds Gradle or Maven at the root of the repository.</li>
+<li><strong>Flutter / Dart (<code>pubspec.yaml</code>)</strong>: Selects the Flutter build tool. It fills in no commands and no Flutter field, such as the platform.</li>
+<li><strong>Python / pip (<code>requirements.txt</code>, <code>pyproject.toml</code>, <code>setup.py</code>, <code>Pipfile</code>)</strong>: Recognised, but the Portal has no Python build tool, so the scan sets no build tool and no commands.</li>
+<li><strong>OpenShift Target</strong>: Detects <code>Dockerfile</code>, <code>Containerfile</code>, or an <code>openshift/</code>, <code>k8s/</code> or <code>helm/</code> folder at the root by its name, and sets the target to OpenShift, else to Virtual machine. It fills in no OpenShift target, and a service with database changes keeps its deployment settings.</li>
 </ul>
 <hr />
 <h2 id="16-auto-resolved-parameters-reference">16. Auto-Resolved Parameters Reference</h2>
-<p>When auto-resolution is active (<code>autoresolve parameters: true</code>), the pipeline automatically evaluates workspace files at execution time. Any parameters omitted from the Portal or configuration file are dynamically resolved:</p>
+<p>When auto-resolution is active (<code>autoresolve parameters: true</code>), the pipeline automatically evaluates workspace files at execution time. This is not <strong>Scan &amp; Auto-fill</strong>, which fills in only the fields named in <a href="#15-repo-auto-discovery-and-smart-wizard-one-click-inspect">chapter 15</a>. Every service of the Portal has a build tool, and the Portal has no Python (pip) build tool, so the Build Tool rows apply only to a <code>devsecops_config.yaml</code> without <code>buildTool</code>. A Liquibase service with database changes has no Deployment section: the Portal writes no deployment target and no deployment settings for it, because its database changes replace the deployment. Any parameters omitted from the Portal or configuration file are dynamically resolved:</p>
 <div class="table-wrapper"><table>
 <thead>
 <tr>
@@ -1120,12 +1120,12 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <h3 id="mode-1-with-portal-main-branch">Mode 1: With Portal (<code>main</code> branch)</h3>
 <ul>
 <li><strong>Configuration Source:</strong> Centrally managed in DevSecOps Management Portal.</li>
-<li><strong>Onboarding:</strong> Use <strong>Scan &amp; Auto-fill</strong> in the service editor to auto-populate fields from Bitbucket.</li>
+<li><strong>Onboarding:</strong> Use <strong>Scan &amp; Auto-fill</strong> in the service editor to auto-populate fields from Bitbucket: the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key. A service with database changes keeps all of them except the SonarQube project key.</li>
 <li><strong>Pipeline Execution:</strong> Application repository requires only a single-line <code>Jenkinsfile</code>:
   <code>groovy
   @Library('DSOEnhanced@main') _
   devSecOpsPipeline(pipelineKey: '5e0f0001-8c2b-4f6a-9d3e-1a7b2c4d0001')</code></li>
-<li><strong>Dynamic Resolution:</strong> Any fields left blank in the Portal are auto-resolved at pipeline runtime by <code>RepoStackAutoResolver</code>.</li>
+<li><strong>Dynamic Resolution:</strong> Any fields left blank in the Portal are auto-resolved at pipeline runtime by <code>RepoStackAutoResolver</code>. A Liquibase service with database changes has no Deployment section: its database changes replace the deployment.</li>
 </ul>
 <h3 id="mode-2-standalone-without-portal-dsoenhancedwithoutportal-dsoenhancedappscanapionly">Mode 2: Standalone Without Portal (<code>DSOEnhancedWithoutPortal</code> &amp; <code>DSOEnhancedAppScanApiOnly</code>)</h3>
 <ul>

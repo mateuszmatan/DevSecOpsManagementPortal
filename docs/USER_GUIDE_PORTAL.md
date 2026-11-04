@@ -327,23 +327,23 @@ The **Repo Auto-Discovery / Smart Wizard** removes over 80% of onboarding fricti
 ### How it Works:
 1. When creating or updating a service in the Self-service wizard or Admin editor, specify the **Bitbucket Repo URL** and target **Branch**.
 2. Click **Scan & Auto-fill**.
-3. The Portal executes an inspection via the Bitbucket REST API (`/api/catalog/inspect-repo`), recursively traverses workspace manifests, and pre-populates all form inputs with optimal configurations.
+3. The Portal executes an inspection (`/api/catalog/inspect-repo`) that reads only the root folder of the branch through the Bitbucket REST API, and fills in the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key; every other field keeps its value. A marker in a subfolder, such as `frontend/package.json` or `gradle/wrapper/gradle-wrapper.properties`, is never found through Bitbucket. A Liquibase service with database changes keeps its build tool, its commands and its deployment settings; the scan fills in only an empty SonarQube project key.
 4. Developers review the suggestions, make any project-specific adjustments, and click **Save**.
 
 ### Stack Detection Matrix:
-- **Maven (`pom.xml`)**: Identifies Maven build tool, extracts Java JDK version from `<java.version>`, `<maven.compiler.source>`, or `<release>`, detects Kotlin plugins, and preconfigures JaCoCo XML reports.
-- **Gradle (`build.gradle`, `build.gradle.kts`, `gradle/wrapper/gradle-wrapper.properties`)**: Identifies Gradle build tool, extracts exact Gradle wrapper version and compatible JDK, detects Kotlin DSL, and sets up test reporting.
-- **Node.js Stage 0 (`package.json`)**: Identifies root or frontend subdirectories (`frontend/`, `web/`, `client/`, `ui/`), enables Stage 0 pre-build (`build.node.enabled: true`), reads `engines.node` for Node version, and detects Cypress or Jest runners.
-- **Liquibase (`changelog.xml`, `liquibase.properties`)**: Configures Liquibase for database schema migrations (`updateSQL`, `validate`).
-- **Flutter / Dart (`pubspec.yaml`)**: Configures Flutter toolchain and Dart test runner.
-- **Python / pip (`requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile`)**: Configures isolated Python virtual environment.
-- **OpenShift Target**: Detects `Dockerfile`, `Containerfile`, or manifests in `openshift/`, `k8s/`, or `helm/` and sets the target to OpenShift.
+- **Maven (`pom.xml`)**: Identifies the Maven build tool and fills in the goals `clean verify` and `test`, or `test jacoco:report` when the `pom.xml` mentions JaCoCo. It names the Java version of `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, `<maven.compiler.release>` or `<jdk.version>` and the Kotlin plugins in the scan message, and sets no JDK and no coverage reports.
+- **Gradle (`build.gradle`, `build.gradle.kts`, `gradlew`)**: Identifies the Gradle build tool and fills in the tasks `clean build` and `test`, or `test jacocoTestReport` when the build file mentions JaCoCo. It names Kotlin DSL and a Java version in the scan message, and sets no JDK and no test reports. The Gradle wrapper version is in `gradle/wrapper/gradle-wrapper.properties`, a subfolder, so the scan never reads it through Bitbucket.
+- **Node.js Stage 0 (`package.json`)**: Ticks the Stage 0 pre-build (`build.node.enabled: true`) when the root of the branch holds a `package.json`; a `package.json` in `frontend/`, `web/`, `client/` or `ui/` is never found through Bitbucket. It names Cypress or Jest in the scan message, and sets no Node.js version, no folder of the `package.json` and no test runner.
+- **Liquibase (`changelog.xml`, `liquibase.properties`)**: Selects Liquibase when the repository has no `pubspec.yaml`, `pom.xml` or Gradle build, with the build command `validate` and the unit test commands `updateSQL validate`. A service with database changes keeps its build tool, its commands and its deployment settings, also when the scan finds Gradle or Maven at the root of the repository.
+- **Flutter / Dart (`pubspec.yaml`)**: Selects the Flutter build tool. It fills in no commands and no Flutter field, such as the platform.
+- **Python / pip (`requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile`)**: Recognised, but the Portal has no Python build tool, so the scan sets no build tool and no commands.
+- **OpenShift Target**: Detects `Dockerfile`, `Containerfile`, or an `openshift/`, `k8s/` or `helm/` folder at the root by its name, and sets the target to OpenShift, else to Virtual machine. It fills in no OpenShift target, and a service with database changes keeps its deployment settings.
 
 ---
 
 ## 16. Auto-Resolved Parameters Reference
 
-When auto-resolution is active (`autoresolve parameters: true`), the pipeline automatically evaluates workspace files at execution time. Any parameters omitted from the Portal or configuration file are dynamically resolved:
+When auto-resolution is active (`autoresolve parameters: true`), the pipeline automatically evaluates workspace files at execution time. This is not **Scan & Auto-fill**, which fills in only the fields named in [chapter 15](#15-repo-auto-discovery-and-smart-wizard-one-click-inspect). Every service of the Portal has a build tool, and the Portal has no Python (pip) build tool, so the Build Tool rows apply only to a `devsecops_config.yaml` without `buildTool`. A Liquibase service with database changes has no Deployment section: the Portal writes no deployment target and no deployment settings for it, because its database changes replace the deployment. Any parameters omitted from the Portal or configuration file are dynamically resolved:
 
 | Setting / Field | Target Key / Form Field | Workspace Indicator / Manifest | Resolved Default Value |
 |---|---|---|---|
@@ -394,13 +394,13 @@ Direct feedback in developer pull requests accelerates remediation and prevents 
 
 ### Mode 1: With Portal (`main` branch)
 * **Configuration Source:** Centrally managed in DevSecOps Management Portal.
-* **Onboarding:** Use **Scan & Auto-fill** in the service editor to auto-populate fields from Bitbucket.
+* **Onboarding:** Use **Scan & Auto-fill** in the service editor to auto-populate fields from Bitbucket: the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key. A service with database changes keeps all of them except the SonarQube project key.
 * **Pipeline Execution:** Application repository requires only a single-line `Jenkinsfile`:
   ```groovy
   @Library('DSOEnhanced@main') _
   devSecOpsPipeline(pipelineKey: '5e0f0001-8c2b-4f6a-9d3e-1a7b2c4d0001')
   ```
-* **Dynamic Resolution:** Any fields left blank in the Portal are auto-resolved at pipeline runtime by `RepoStackAutoResolver`.
+* **Dynamic Resolution:** Any fields left blank in the Portal are auto-resolved at pipeline runtime by `RepoStackAutoResolver`. A Liquibase service with database changes has no Deployment section: its database changes replace the deployment.
 
 ### Mode 2: Standalone Without Portal (`DSOEnhancedWithoutPortal` & `DSOEnhancedAppScanApiOnly`)
 * **Configuration Source:** `devsecops_config.yaml` in the application Git repository.
