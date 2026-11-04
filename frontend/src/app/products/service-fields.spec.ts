@@ -681,7 +681,7 @@ describe('ServiceFields', () => {
       await open('Database changes');
 
       expect(helpFor('Tag each deployment')).toBe(
-        'After a deployment that applied changes, tags the RD or QC database with the artifact ID and the version. A DBA can roll the database back to a tag by hand: that undoes the changes that have a rollback, while PL/SQL code keeps its new version, because its changes have an empty rollback.',
+        'After a deployment that applied changes, tags the RD or QC database with the artifact ID and the version. A DBA can roll the database back to a tag by hand: that undoes the changes after the tag, newest first, and stops at the first change without a rollback. Give every change a rollback, an empty one for PL/SQL code, which then keeps its new version, and require a rollback for every change to have this checked.',
       );
     });
 

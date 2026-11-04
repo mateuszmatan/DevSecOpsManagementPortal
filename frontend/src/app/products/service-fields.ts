@@ -478,7 +478,7 @@ const DATABASE_OPTIONS: Field[] = [
     help: 'Ticked, the Build artifact stage checks that every change can be rolled back, and a change without a working rollback turns the stage orange. Unticked, this check does not run.',
   }),
   check('tag', 'Tag each deployment', 'database.tag', 6, {
-    help: 'After a deployment that applied changes, tags the RD or QC database with the artifact ID and the version. A DBA can roll the database back to a tag by hand: that undoes the changes that have a rollback, while PL/SQL code keeps its new version, because its changes have an empty rollback.',
+    help: 'After a deployment that applied changes, tags the RD or QC database with the artifact ID and the version. A DBA can roll the database back to a tag by hand: that undoes the changes after the tag, newest first, and stops at the first change without a rollback. Give every change a rollback, an empty one for PL/SQL code, which then keeps its new version, and require a rollback for every change to have this checked.',
   }),
   check(
     'compileCheck',
@@ -1237,7 +1237,7 @@ export class ServiceFields {
         help: `${SECRET_TEXT} with a SonarQube token. The pipeline reads the open vulnerability counts with it; the report shows them and the SCA security limits are checked against them.`,
       }),
       mono('credentialsId', 'Scanner credentials ID', 'tools.sonar.credentialsId', 6, {
-        help: `${SECRET_TEXT} that replaces the server token of the Jenkins installation for Gradle and Maven analyses.`,
+        help: `${SECRET_TEXT} that replaces the server token of the Jenkins installation for Gradle, Maven and Liquibase analyses. A service with database changes also asks SonarQube for its languages with it.`,
       }),
       line('serverUrl', 'Server URL', 'tools.sonar.serverUrl', 12, {
         ...defaulted(platform?.sonarServerUrl, this.form().controls.sonar.controls.serverUrl.value),
