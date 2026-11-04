@@ -94,7 +94,7 @@ class UseCaseConfigurationSpec extends Specification {
             assert useCases.keySet() == ['globalSettingsService', 'productCatalogService', 'departmentService',
                                          'pipelineService', 'pipelineConfigService', 'pipelineMonitoringService',
                                          'monitoringTargetsService', 'serviceTemplateService', 'actionLogService',
-                                         'pipelineReportService'] as Set
+                                         'pipelineReportService', 'sammMaturityService'] as Set
             useCases.values().each { useCase ->
                 assert isAopProxy(useCase)
                 assert (useCase as Advised).advisors*.advice.any { it instanceof TransactionInterceptor }

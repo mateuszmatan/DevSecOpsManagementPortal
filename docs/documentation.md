@@ -20,11 +20,12 @@ The guide is written in `docs/documentation.md`. The page `docs/documentation.ht
 - [12. The service template](#12-the-service-template)
 - [13. Library defaults (Global Settings)](#13-library-defaults-global-settings)
 - [14. Pipeline Monitoring and DORA](#14-pipeline-monitoring-and-dora)
-- [15. Business Services](#15-business-services)
-- [16. Action history](#16-action-history)
-- [17. Field reference: from the portal to devsecops_config.yaml](#17-field-reference-from-the-portal-to-devsecops_configyaml)
-- [18. Database and environments](#18-database-and-environments)
-- [19. Troubleshooting](#19-troubleshooting)
+- [15. OWASP SAMM Software Assurance Maturity Model](#15-owasp-samm-software-assurance-maturity-model)
+- [16. Business Services](#16-business-services)
+- [17. Action history](#17-action-history)
+- [18. Field reference: from the portal to devsecops_config.yaml](#18-field-reference-from-the-portal-to-devsecops_configyaml)
+- [19. Database and environments](#19-database-and-environments)
+- [20. Troubleshooting](#20-troubleshooting)
 
 ## 1. What the portal does
 
@@ -66,19 +67,20 @@ The portal does five things:
 
 ## 2. The pages of the portal
 
-The menu at the top has five entries.
+The menu at the top has six entries.
 
 | Menu | What you do there |
 |------|-------------------|
 | Pipelines | Choose your Business Service and see every pipeline of its products, with its key state, its Jenkins job and its last run. Open a pipeline to see its key, its settings, its Jenkinsfile and its latest runs. |
 | Self-service | Set up the pipelines of a product, or change them, in five guided steps. See [chapter 4](#4-add-a-service-in-the-self-service-wizard). |
 | Pipeline Monitoring | See whether the latest runs passed and how often and how safely changes reach production. See [chapter 14](#14-pipeline-monitoring-and-dora). |
-| Action history | See who changed what and when, with the result. See [chapter 16](#16-action-history). |
+| OWASP SAMM | Software Assurance Maturity Model (OWASP SAMM v2.0) posture across BBH applications and business services. Continuous maturity evaluation across 5 domains and 11 practices, scorecards, and improvement roadmaps. See [chapter 15](#15-owasp-samm-software-assurance-maturity-model). |
+| Action history | See who changed what and when, with the result. See [chapter 17](#17-action-history). |
 | Admin | The DevSecOps administration with four tabs: Business Services, Products, Service template and Library defaults. |
 
 ### The help icons and the key chips
 
-Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as `build.node.enabled`. The chip is the key the field writes in `devsecops_config.yaml`. [Chapter 17](#17-field-reference-from-the-portal-to-devsecops_configyaml) lists every chip.
+Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as `build.node.enabled`. The chip is the key the field writes in `devsecops_config.yaml`. [Chapter 18](#18-field-reference-from-the-portal-to-devsecops_configyaml) lists every chip.
 
 A hint that says "Library default: X" shows the value the service takes from the Library defaults page. A hint that says "Library default" alone shows that the field still holds that value.
 
@@ -831,7 +833,7 @@ The portal refuses the settings that the pipelines would refuse. While you type,
 | `Service <service> delivers its database package to Nexus in the <type> pipeline but has no <item>` | the save | Set the item under Database changes or in the Library defaults, or untick "Deliver the package to Nexus". |
 | `Service <service> is a Liquibase service with database changes, for which the library runs no Nexus IQ GoldenFix pipeline` | Add pipeline, the save | Choose another pipeline type, or delete the Nexus IQ GoldenFix pipeline before you set the changelog file. |
 
-The library checks the settings again when a pipeline starts, together with what the portal cannot see: whether the changelog file and the utPLSQL folders exist in the checkout, and whether the allowed databases have changed. Its messages, and the messages of Liquibase and utPLSQL, are explained in chapter 14 of the library guide, under "Troubleshooting". [Chapter 19](#19-troubleshooting) of this guide describes the portal refusals in more detail.
+The library checks the settings again when a pipeline starts, together with what the portal cannot see: whether the changelog file and the utPLSQL folders exist in the checkout, and whether the allowed databases have changed. Its messages, and the messages of Liquibase and utPLSQL, are explained in chapter 14 of the library guide, under "Troubleshooting". [Chapter 20](#20-troubleshooting) of this guide describes the portal refusals in more detail.
 
 ## 8. Shared version catalogs and the combined Jenkinsfile
 
@@ -1196,7 +1198,78 @@ The portal provides the following endpoints for pipeline reports:
 - `GET /api/pipelines/{id}/report/html`: Renders the latest HTML execution report directly in the browser.
 - `GET /api/pipelines/{id}/runs/{build}/report/html`: Renders the HTML execution report for a specific build.
 
-## 15. Business Services
+## 15. OWASP SAMM Software Assurance Maturity Model
+
+The OWASP SAMM (Software Assurance Maturity Model v2.0) page provides continuous security posture and software assurance maturity evaluation for all BBH applications and business services.
+
+The portal evaluates maturity objectively based on the pipeline's configuration, enforced security verification gates, scan results, and runtime telemetry.
+
+### The Five Business Functions (Domains)
+
+SAMM v2.0 defines five core business functions. The portal measures 11 automated practices across these functions:
+
+1. **Governance**:
+   - *Strategy & Metrics*: Application onboarding, pipeline tracking, and telemetry emission to InfluxDB.
+   - *Policy & Compliance*: Automated policy verification, mandatory gating, and GoldenFix dependency upgrades.
+2. **Design**:
+   - *Security Requirements*: SAST scanning configuration (HCL AppScan) and mandatory unit test pass criteria.
+   - *Security Architecture*: Containerized and secured deployment definitions (OpenShift, VM).
+3. **Implementation**:
+   - *Secure Build*: Standardized, automated build tools (Maven, Gradle, npm, Liquibase) with isolated agent execution.
+   - *Secure Deployment*: Automated deployment pipelines with environment segregation and artifact verification.
+   - *Defect Management*: Software Composition Analysis (Nexus IQ) and SonarQube quality gates.
+4. **Verification**:
+   - *Security Testing*: Deep static analysis (AppScan SAST) and dynamic testing (AppScan DAST).
+   - *Requirements-Driven Testing*: Automated unit tests, Cypress component/E2E test suites, and JaCoCo/LCOV code coverage enforcement (>= 60%).
+5. **Operations**:
+   - *Environment Management*: Version catalog dependency pinning and infrastructure target segregation (RD, QC).
+   - *Operational Monitoring*: Real-time pipeline execution reports, build status reporting, and DORA telemetry.
+
+### Scoring Model and Maturity Levels
+
+Each practice receives a score from 0.0 to 3.0 based on criteria met:
+- **Level 0 (0.0 to 0.7 - Initial)**: Ad-hoc security and build processes with minimal or manual validation.
+- **Level 1 (0.8 to 1.5 - Foundational)**: Baseline automated scans (SAST or SCA), automated builds, and standard unit tests in place.
+- **Level 2 (1.6 to 2.4 - Defined)**: Multi-gate security verification with SAST, SCA, SonarQube, coverage thresholds, GoldenFix remediation, and containerized deployment.
+- **Level 3 (2.5 to 3.0 - Optimized)**: Full DevSecOps maturity including comprehensive SAST, DAST, SCA with GoldenFix, SonarQube, unit and Cypress testing with >= 60% coverage, automated deployment, and continuous InfluxDB telemetry.
+
+A domain score is the arithmetic mean of its practice scores. The application overall score is the mean of all five domains, rounded to one decimal place.
+
+### The OWASP SAMM Overview Page
+
+The OWASP SAMM page (`/samm`) has two main tabs:
+
+- **Executive Overview**:
+  - Organization posture card displaying BBH-wide average maturity score, overall level badge, assessed application count, and level distribution (Levels 0 through 3).
+  - 5 Domain cards with visual progress meters and individual practice score badges.
+  - Department breakdown grid showing each business service's average score, maturity tier, and application count.
+- **Applications Inventory**:
+  - Searchable, filterable list of all onboarded applications.
+  - Filter by business service / department, minimum maturity level, or free-text search.
+  - Columns for Application, Department, Build Tool, Domain scores (Governance, Design, Implementation, Verification, Operations), and Overall Score.
+  - Clicking any application opens the detailed **Application Scorecard Modal**.
+
+### Application Scorecard Modal
+
+The scorecard modal displays:
+- Overall maturity score, level badge, and tier description.
+- Practice-by-practice breakdown with exact numerical scores (0.0 to 3.0).
+- Checklist of criteria met (green checks) and criteria not met (muted crosses).
+- Prioritized, actionable recommendations for leveling up (e.g., enabling GoldenFix, adding Cypress tests, enforcing code coverage >= 60%, or configuring DAST).
+
+### Deep Link from Pipeline Monitoring
+
+Every application card in **Pipeline Monitoring** includes an **OWASP SAMM Scorecard** action button. Clicking it navigates directly to the SAMM page and automatically opens the application's detailed scorecard modal (`/samm?pipelineId=<id>`).
+
+### REST API Endpoints
+
+The portal exposes the following REST endpoints under `/api/samm`:
+- `GET /api/samm/overview`: BBH organization overview, domain scores, department summaries, and all application maturity scores.
+- `GET /api/samm/departments`: List of department summaries with maturity scores and application tallies.
+- `GET /api/samm/departments/{id}`: Department summary and its application scores.
+- `GET /api/samm/pipelines/{id}`: Detailed application scorecard for a single pipeline, including practice scores, criteria checklist, and recommendations.
+
+## 16. Business Services
 
 Admin, Business Services lists the groups of products with their product, service and pipeline counts.
 
@@ -1206,7 +1279,7 @@ Admin, Business Services lists the groups of products with their product, servic
 
 The Pipelines page shows the pipelines of one Business Service at a time. Its first table counts the pipelines of each Business Service, active and with an invalidated key.
 
-## 16. Action history
+## 17. Action history
 
 The Action history records every change made in the portal: who did it, when, what was done, on which resource and with which result. Search by user, resource or details, and filter by action, resource and status.
 
@@ -1214,7 +1287,7 @@ The recorded actions are: create, update and delete a product; create, update an
 
 The portal has no sign-in yet. Every action is recorded as the default administrator until BBH single sign-on is added.
 
-## 17. Field reference: from the portal to devsecops_config.yaml
+## 18. Field reference: from the portal to devsecops_config.yaml
 
 This chapter lists every field that writes to `devsecops_config.yaml`. The column "Key" shows the key in the code chip of the field. Service keys sit under `projects.<service>`. A chip that shows only the last part of a key is listed with its full key. A field that is empty writes nothing, and a checkbox that is off writes nothing unless the table says otherwise.
 
@@ -1707,7 +1780,7 @@ The Portal monitoring block sets the portal itself and is not written to `devsec
 
 Some headings of the service form name the section they write to: `deploy.vm.rd` and `deploy.vm.qc` (SSH targets), `deploy.openshift.rd` and `deploy.openshift.qc` (OpenShift targets), `tools.nexusIq.application` (Nexus IQ), `deploy.vm.dod.applications` and `components` (UrbanCode Deploy), `build.credentialsId` (Flutter credentials) and `database.test`, `database.rd` and `database.qc` (Database changes).
 
-## 18. Database and environments
+## 19. Database and environments
 
 ### Where the portal runs
 
@@ -1778,7 +1851,7 @@ Before 037 these checks refused the build tool Liquibase, which the form and the
 > [!WARNING]
 > A rollback of 037 stops at the build tool checks while a service has the build tool Liquibase (SQL / PL/SQL). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.
 
-## 19. Troubleshooting
+## 20. Troubleshooting
 
 ### "Add service" stays disabled
 

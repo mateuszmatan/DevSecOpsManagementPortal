@@ -5,6 +5,23 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
 ## [Unreleased]
 
 ### Added
+- **OWASP SAMM (Software Assurance Maturity Model v2.0) Scoring & Dashboard**:
+  - Implemented continuous software assurance maturity evaluation across all BBH applications and business services.
+  - Objective scoring engine (`SammCalculator`) evaluating 11 automated practices across 5 SAMM business functions:
+    - Governance: Strategy & Metrics (telemetry, pipeline tracking), Policy & Compliance (gating, GoldenFix).
+    - Design: Security Requirements (SAST configuration, test gates), Security Architecture (containerized targets).
+    - Implementation: Secure Build (standardized build tools, agent isolation), Secure Deployment (automated delivery, segregation), Defect Management (Nexus IQ SCA, SonarQube).
+    - Verification: Security Testing (AppScan SAST & DAST), Requirements-Driven Testing (unit tests, Cypress, code coverage >= 60%).
+    - Operations: Environment Management (version catalog pinning, environment segregation), Operational Monitoring (execution reports, InfluxDB telemetry).
+  - Practice scoring (0.0 to 3.0), domain scoring, overall scoring, and maturity levels: Level 0 (Initial), Level 1 (Foundational), Level 2 (Defined), Level 3 (Optimized).
+  - Hexagonal backend architecture: domain model (`com.bbh.itss.dso.portal.domain.samm`), inbound use case port (`GetSammMaturityUseCase`), application service (`SammMaturityService`), and REST controller (`SammMaturityController`) exposing `/api/samm/overview`, `/api/samm/departments`, `/api/samm/departments/{id}`, and `/api/samm/pipelines/{id}`.
+  - Dedicated global OWASP SAMM section in the frontend navigation (`/samm`, `samm-overview` component):
+    - Executive overview card: organization average score, level badge, total applications, and maturity level distribution.
+    - 5 Domain posture cards with visual meters and practice scores.
+    - Business service / department summary grid with average scores and maturity tiers.
+    - Application inventory table with real-time text search, department filtering, level filtering, and column sorting.
+    - Detailed application scorecard modal displaying practice scores, criteria checklists, and remediation roadmaps.
+    - Deep linking from Pipeline Monitoring cards ("OWASP SAMM Scorecard" button) directly opening the application's scorecard modal.
 - **SQL / PL/SQL Build Tool Support via Liquibase (`buildTool: liquibase`)**:
   - Added `LIQUIBASE` to the `BuildTool` enum in the backend catalog domain (`com.bbh.itss.dso.portal.domain.catalog.BuildTool`) and frontend TypeScript models (`BuildTool` in `models.ts`).
   - Full command mapping for Liquibase across all pipeline stages:

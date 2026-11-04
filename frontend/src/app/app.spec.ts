@@ -52,6 +52,7 @@ describe('App', () => {
       'Pipelines',
       'Self-service',
       'Pipeline Monitoring',
+      'OWASP SAMM',
       'Action history',
       'Admin',
     ]);
@@ -59,6 +60,7 @@ describe('App', () => {
       '/pipelines',
       '/self-service',
       '/monitoring',
+      '/samm',
       '/history',
       '/admin',
     ]);
@@ -81,6 +83,10 @@ describe('App', () => {
         'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.',
       ],
       [
+        'DevSecOps OWASP SAMM',
+        'Software Assurance Maturity Model (OWASP SAMM v2.0) across BBH applications and business services. Continuous security posture scoring derived from pipeline health and verification gates.',
+      ],
+      [
         'DevSecOps Action History',
         'History and audit log of all operations in the portal: who, when, what was done and the result.',
       ],
@@ -97,6 +103,7 @@ describe('App', () => {
     ['/admin/products/2/edit', 'Admin'],
     ['/pipelines/100', 'Pipelines'],
     ['/self-service', 'Self-service'],
+    ['/samm', 'OWASP SAMM'],
     ['/history', 'Action history'],
   ])('marks the section of %s', async (url, label) => {
     await TestBed.inject(Router).navigateByUrl(url);

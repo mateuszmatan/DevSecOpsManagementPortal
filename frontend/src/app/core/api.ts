@@ -23,6 +23,9 @@ import {
   ServiceTemplate,
   ServiceTemplateRequest,
   UserProfile,
+  SammApplicationScore,
+  SammDepartmentScore,
+  SammOrganizationOverview,
 } from './models';
 
 function typeParam(pipelineType?: PipelineType): HttpParams | undefined {
@@ -206,3 +209,25 @@ export class UserApi {
     return this.http.get<UserProfile>('/api/user/me');
   }
 }
+
+@Injectable({ providedIn: 'root' })
+export class SammApi {
+  private readonly http = inject(HttpClient);
+
+  overview(): Observable<SammOrganizationOverview> {
+    return this.http.get<SammOrganizationOverview>('/api/samm/overview');
+  }
+
+  departments(): Observable<SammDepartmentScore[]> {
+    return this.http.get<SammDepartmentScore[]>('/api/samm/departments');
+  }
+
+  department(id: number): Observable<SammDepartmentScore> {
+    return this.http.get<SammDepartmentScore>(`/api/samm/departments/${id}`);
+  }
+
+  application(pipelineId: number): Observable<SammApplicationScore> {
+    return this.http.get<SammApplicationScore>(`/api/samm/pipelines/${pipelineId}`);
+  }
+}
+

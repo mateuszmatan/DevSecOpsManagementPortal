@@ -463,7 +463,7 @@ class ServiceConfigReaderSpec extends Specification {
 
     def "Cypress unit test settings are imported from tests.unitTests.cypress"() {
         when:
-        def frontend = imported('''
+        def imported = imported('''
             projects:
               frontend:
                 buildTool: maven
@@ -477,9 +477,9 @@ class ServiceConfigReaderSpec extends Specification {
         '''.stripIndent()).services()[0].service()
 
         then:
-        frontend.unitTests().cypressEnabled()
-        frontend.unitTests().cypressCommand() == 'npx cypress run --component'
-        frontend.unitTests().cypressReportsDir() == 'cypress/results'
+        imported.unitTests().cypressEnabled()
+        imported.unitTests().cypressCommand() == 'npx cypress run --component'
+        imported.unitTests().cypressReportsDir() == 'cypress/results'
     }
 
     def "a hand-written config.yaml gives a service per project, inherits the global values and notes what it leaves out"() {

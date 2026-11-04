@@ -24,6 +24,14 @@ export const MONITORING: PortalSection = {
     'How the pipelines of every product are doing: whether their latest runs passed, and how often and how safely changes reach production.',
 };
 
+export const SAMM_MATURITY: PortalSection = {
+  path: '/samm',
+  label: 'OWASP SAMM',
+  heading: 'DevSecOps OWASP SAMM',
+  description:
+    'Software Assurance Maturity Model (OWASP SAMM v2.0) across BBH applications and business services. Continuous security posture scoring derived from pipeline health and verification gates.',
+};
+
 export const ACTION_HISTORY: PortalSection = {
   path: '/history',
   label: 'Action history',
@@ -44,6 +52,7 @@ export const SECTIONS: readonly PortalSection[] = [
   PIPELINES,
   SELF_SERVICE,
   MONITORING,
+  SAMM_MATURITY,
   ACTION_HISTORY,
   ADMIN,
 ];
@@ -76,3 +85,8 @@ export function monitoringProduct(id: number | string): (string | number)[] {
 export function monitoringPipeline(id: number | string): (string | number)[] {
   return [`${MONITORING.path}/pipelines`, id];
 }
+
+export function sammPage(): (string | number)[] {
+  return [SAMM_MATURITY.path];
+}
+

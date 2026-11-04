@@ -17,6 +17,7 @@ import { SelfService } from './self-service/self-service';
 import { ActionHistoryPage } from './history/action-history';
 import { GlobalSettingsPage } from './settings/global-settings';
 import { ServiceTemplatePage } from './settings/service-template-page';
+import { SammOverviewPage } from './samm/samm-overview';
 
 @Component({ template: '' })
 class Blank {}
@@ -49,6 +50,7 @@ describe('routes', () => {
       monitoring: MonitoringOverview,
       'monitoring/products/:id': ProductMonitoringPage,
       'monitoring/pipelines/:id': PipelineMonitoringPage,
+      samm: SammOverviewPage,
       history: ActionHistoryPage,
       'admin/products/new': ProductEditor,
       'admin/products/:id': ProductDetail,

@@ -67,11 +67,12 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li><a href="#12-the-service-template">12. The service template</a></li>
 <li><a href="#13-library-defaults-global-settings">13. Library defaults (Global Settings)</a></li>
 <li><a href="#14-pipeline-monitoring-and-dora">14. Pipeline Monitoring and DORA</a></li>
-<li><a href="#15-business-services">15. Business Services</a></li>
-<li><a href="#16-action-history">16. Action history</a></li>
-<li><a href="#17-field-reference-from-the-portal-to-devsecops_configyaml">17. Field reference: from the portal to devsecops_config.yaml</a></li>
-<li><a href="#18-database-and-environments">18. Database and environments</a></li>
-<li><a href="#19-troubleshooting">19. Troubleshooting</a></li>
+<li><a href="#15-owasp-samm-software-assurance-maturity-model">15. OWASP SAMM Software Assurance Maturity Model</a></li>
+<li><a href="#16-business-services">16. Business Services</a></li>
+<li><a href="#17-action-history">17. Action history</a></li>
+<li><a href="#18-field-reference-from-the-portal-to-devsecops_configyaml">18. Field reference: from the portal to devsecops_config.yaml</a></li>
+<li><a href="#19-database-and-environments">19. Database and environments</a></li>
+<li><a href="#20-troubleshooting">20. Troubleshooting</a></li>
 </ul>
 </div>
 
@@ -117,7 +118,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 
 <div class="section" id="2-the-pages-of-the-portal">
 <h2><span class="num">2</span> The pages of the portal</h2>
-<p>The menu at the top has five entries.</p>
+<p>The menu at the top has six entries.</p>
 <table>
 <thead>
 <tr><th>Menu</th><th>What you do there</th></tr>
@@ -126,12 +127,13 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><td>Pipelines</td><td>Choose your Business Service and see every pipeline of its products, with its key state, its Jenkins job and its last run. Open a pipeline to see its key, its settings, its Jenkinsfile and its latest runs.</td></tr>
 <tr><td>Self-service</td><td>Set up the pipelines of a product, or change them, in five guided steps. See <a href="#4-add-a-service-in-the-self-service-wizard">chapter 4</a>.</td></tr>
 <tr><td>Pipeline Monitoring</td><td>See whether the latest runs passed and how often and how safely changes reach production. See <a href="#14-pipeline-monitoring-and-dora">chapter 14</a>.</td></tr>
-<tr><td>Action history</td><td>See who changed what and when, with the result. See <a href="#16-action-history">chapter 16</a>.</td></tr>
+<tr><td>OWASP SAMM</td><td>Software Assurance Maturity Model (OWASP SAMM v2.0) posture across BBH applications and business services. Continuous maturity evaluation across 5 domains and 11 practices, scorecards, and improvement roadmaps. See <a href="#15-owasp-samm-software-assurance-maturity-model">chapter 15</a>.</td></tr>
+<tr><td>Action history</td><td>See who changed what and when, with the result. See <a href="#17-action-history">chapter 17</a>.</td></tr>
 <tr><td>Admin</td><td>The DevSecOps administration with four tabs: Business Services, Products, Service template and Library defaults.</td></tr>
 </tbody>
 </table>
 <h3 id="the-help-icons-and-the-key-chips">The help icons and the key chips</h3>
-<p>Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as <code>build.node.enabled</code>. The chip is the key the field writes in <code>devsecops_config.yaml</code>. <a href="#17-field-reference-from-the-portal-to-devsecops_configyaml">Chapter 17</a> lists every chip.</p>
+<p>Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as <code>build.node.enabled</code>. The chip is the key the field writes in <code>devsecops_config.yaml</code>. <a href="#18-field-reference-from-the-portal-to-devsecops_configyaml">Chapter 18</a> lists every chip.</p>
 <p>A hint that says &quot;Library default: X&quot; shows the value the service takes from the Library defaults page. A hint that says &quot;Library default&quot; alone shows that the field still holds that value.</p>
 </div>
 
@@ -871,7 +873,7 @@ liquibase --defaults-file=dso-deploy.properties --search-path=orders-db-341-2026
 <tr><td><code>Service &lt;service&gt; is a Liquibase service with database changes, for which the library runs no Nexus IQ GoldenFix pipeline</code></td><td>Add pipeline, the save</td><td>Choose another pipeline type, or delete the Nexus IQ GoldenFix pipeline before you set the changelog file.</td></tr>
 </tbody>
 </table>
-<p>The library checks the settings again when a pipeline starts, together with what the portal cannot see: whether the changelog file and the utPLSQL folders exist in the checkout, and whether the allowed databases have changed. Its messages, and the messages of Liquibase and utPLSQL, are explained in chapter 14 of the library guide, under &quot;Troubleshooting&quot;. <a href="#19-troubleshooting">Chapter 19</a> of this guide describes the portal refusals in more detail.</p>
+<p>The library checks the settings again when a pipeline starts, together with what the portal cannot see: whether the changelog file and the utPLSQL folders exist in the checkout, and whether the allowed databases have changed. Its messages, and the messages of Liquibase and utPLSQL, are explained in chapter 14 of the library guide, under &quot;Troubleshooting&quot;. <a href="#20-troubleshooting">Chapter 20</a> of this guide describes the portal refusals in more detail.</p>
 </div>
 
 <div class="section" id="8-shared-version-catalogs-and-the-combined-jenkinsfile">
@@ -1235,8 +1237,95 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 </ul>
 </div>
 
-<div class="section" id="15-business-services">
-<h2><span class="num">15</span> Business Services</h2>
+<div class="section" id="15-owasp-samm-software-assurance-maturity-model">
+<h2><span class="num">15</span> OWASP SAMM Software Assurance Maturity Model</h2>
+<p>The OWASP SAMM (Software Assurance Maturity Model v2.0) page provides continuous security posture and software assurance maturity evaluation for all BBH applications and business services.</p>
+<p>The portal evaluates maturity objectively based on the pipeline's configuration, enforced security verification gates, scan results, and runtime telemetry.</p>
+<h3 id="the-five-business-functions-domains">The Five Business Functions (Domains)</h3>
+<p>SAMM v2.0 defines five core business functions. The portal measures 11 automated practices across these functions:</p>
+<ol>
+<li><strong>Governance</strong>:
+<ul>
+<li><em>Strategy &amp; Metrics</em>: Application onboarding, pipeline tracking, and telemetry emission to InfluxDB.</li>
+<li><em>Policy &amp; Compliance</em>: Automated policy verification, mandatory gating, and GoldenFix dependency upgrades.</li>
+</ul>
+</li>
+<li><strong>Design</strong>:
+<ul>
+<li><em>Security Requirements</em>: SAST scanning configuration (HCL AppScan) and mandatory unit test pass criteria.</li>
+<li><em>Security Architecture</em>: Containerized and secured deployment definitions (OpenShift, VM).</li>
+</ul>
+</li>
+<li><strong>Implementation</strong>:
+<ul>
+<li><em>Secure Build</em>: Standardized, automated build tools (Maven, Gradle, npm, Liquibase) with isolated agent execution.</li>
+<li><em>Secure Deployment</em>: Automated deployment pipelines with environment segregation and artifact verification.</li>
+<li><em>Defect Management</em>: Software Composition Analysis (Nexus IQ) and SonarQube quality gates.</li>
+</ul>
+</li>
+<li><strong>Verification</strong>:
+<ul>
+<li><em>Security Testing</em>: Deep static analysis (AppScan SAST) and dynamic testing (AppScan DAST).</li>
+<li><em>Requirements-Driven Testing</em>: Automated unit tests, Cypress component/E2E test suites, and JaCoCo/LCOV code coverage enforcement (&gt;= 60%).</li>
+</ul>
+</li>
+<li><strong>Operations</strong>:
+<ul>
+<li><em>Environment Management</em>: Version catalog dependency pinning and infrastructure target segregation (RD, QC).</li>
+<li><em>Operational Monitoring</em>: Real-time pipeline execution reports, build status reporting, and DORA telemetry.</li>
+</ul>
+</li>
+</ol>
+<h3 id="scoring-model-and-maturity-levels">Scoring Model and Maturity Levels</h3>
+<p>Each practice receives a score from 0.0 to 3.0 based on criteria met:</p>
+<ul>
+<li><strong>Level 0 (0.0 to 0.7 - Initial)</strong>: Ad-hoc security and build processes with minimal or manual validation.</li>
+<li><strong>Level 1 (0.8 to 1.5 - Foundational)</strong>: Baseline automated scans (SAST or SCA), automated builds, and standard unit tests in place.</li>
+<li><strong>Level 2 (1.6 to 2.4 - Defined)</strong>: Multi-gate security verification with SAST, SCA, SonarQube, coverage thresholds, GoldenFix remediation, and containerized deployment.</li>
+<li><strong>Level 3 (2.5 to 3.0 - Optimized)</strong>: Full DevSecOps maturity including comprehensive SAST, DAST, SCA with GoldenFix, SonarQube, unit and Cypress testing with &gt;= 60% coverage, automated deployment, and continuous InfluxDB telemetry.</li>
+</ul>
+<p>A domain score is the arithmetic mean of its practice scores. The application overall score is the mean of all five domains, rounded to one decimal place.</p>
+<h3 id="the-owasp-samm-overview-page">The OWASP SAMM Overview Page</h3>
+<p>The OWASP SAMM page (<code>/samm</code>) has two main tabs:</p>
+<ul>
+<li><strong>Executive Overview</strong>:
+<ul>
+<li>Organization posture card displaying BBH-wide average maturity score, overall level badge, assessed application count, and level distribution (Levels 0 through 3).</li>
+<li>5 Domain cards with visual progress meters and individual practice score badges.</li>
+<li>Department breakdown grid showing each business service's average score, maturity tier, and application count.</li>
+</ul>
+</li>
+<li><strong>Applications Inventory</strong>:
+<ul>
+<li>Searchable, filterable list of all onboarded applications.</li>
+<li>Filter by business service / department, minimum maturity level, or free-text search.</li>
+<li>Columns for Application, Department, Build Tool, Domain scores (Governance, Design, Implementation, Verification, Operations), and Overall Score.</li>
+<li>Clicking any application opens the detailed <strong>Application Scorecard Modal</strong>.</li>
+</ul>
+</li>
+</ul>
+<h3 id="application-scorecard-modal">Application Scorecard Modal</h3>
+<p>The scorecard modal displays:</p>
+<ul>
+<li>Overall maturity score, level badge, and tier description.</li>
+<li>Practice-by-practice breakdown with exact numerical scores (0.0 to 3.0).</li>
+<li>Checklist of criteria met (green checks) and criteria not met (muted crosses).</li>
+<li>Prioritized, actionable recommendations for leveling up (e.g., enabling GoldenFix, adding Cypress tests, enforcing code coverage &gt;= 60%, or configuring DAST).</li>
+</ul>
+<h3 id="deep-link-from-pipeline-monitoring">Deep Link from Pipeline Monitoring</h3>
+<p>Every application card in <strong>Pipeline Monitoring</strong> includes an <strong>OWASP SAMM Scorecard</strong> action button. Clicking it navigates directly to the SAMM page and automatically opens the application's detailed scorecard modal (<code>/samm?pipelineId=&lt;id&gt;</code>).</p>
+<h3 id="rest-api-endpoints">REST API Endpoints</h3>
+<p>The portal exposes the following REST endpoints under <code>/api/samm</code>:</p>
+<ul>
+<li><code>GET /api/samm/overview</code>: BBH organization overview, domain scores, department summaries, and all application maturity scores.</li>
+<li><code>GET /api/samm/departments</code>: List of department summaries with maturity scores and application tallies.</li>
+<li><code>GET /api/samm/departments/{id}</code>: Department summary and its application scores.</li>
+<li><code>GET /api/samm/pipelines/{id}</code>: Detailed application scorecard for a single pipeline, including practice scores, criteria checklist, and recommendations.</li>
+</ul>
+</div>
+
+<div class="section" id="16-business-services">
+<h2><span class="num">16</span> Business Services</h2>
 <p>Admin, Business Services lists the groups of products with their product, service and pipeline counts.</p>
 <ul>
 <li>&quot;Add business service&quot; creates one. A name must be unique.</li>
@@ -1246,15 +1335,15 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <p>The Pipelines page shows the pipelines of one Business Service at a time. Its first table counts the pipelines of each Business Service, active and with an invalidated key.</p>
 </div>
 
-<div class="section" id="16-action-history">
-<h2><span class="num">16</span> Action history</h2>
+<div class="section" id="17-action-history">
+<h2><span class="num">17</span> Action history</h2>
 <p>The Action history records every change made in the portal: who did it, when, what was done, on which resource and with which result. Search by user, resource or details, and filter by action, resource and status.</p>
 <p>The recorded actions are: create, update and delete a product; create, update and delete a pipeline; issue a new key; invalidate a key; create, rename and delete a business service; update the service template; update the library defaults; initialize the portal. An import of a devsecops_config.yaml or config.yaml stores nothing and is not recorded.</p>
 <p>The portal has no sign-in yet. Every action is recorded as the default administrator until BBH single sign-on is added.</p>
 </div>
 
-<div class="section" id="17-field-reference-from-the-portal-to-devsecops_configyaml">
-<h2><span class="num">17</span> Field reference: from the portal to devsecops_config.yaml</h2>
+<div class="section" id="18-field-reference-from-the-portal-to-devsecops_configyaml">
+<h2><span class="num">18</span> Field reference: from the portal to devsecops_config.yaml</h2>
 <p>This chapter lists every field that writes to <code>devsecops_config.yaml</code>. The column &quot;Key&quot; shows the key in the code chip of the field. Service keys sit under <code>projects.&lt;service&gt;</code>. A chip that shows only the last part of a key is listed with its full key. A field that is empty writes nothing, and a checkbox that is off writes nothing unless the table says otherwise.</p>
 <h3 id="product-and-pipeline">Product and pipeline</h3>
 <table>
@@ -1806,8 +1895,8 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <p>Some headings of the service form name the section they write to: <code>deploy.vm.rd</code> and <code>deploy.vm.qc</code> (SSH targets), <code>deploy.openshift.rd</code> and <code>deploy.openshift.qc</code> (OpenShift targets), <code>tools.nexusIq.application</code> (Nexus IQ), <code>deploy.vm.dod.applications</code> and <code>components</code> (UrbanCode Deploy), <code>build.credentialsId</code> (Flutter credentials) and <code>database.test</code>, <code>database.rd</code> and <code>database.qc</code> (Database changes).</p>
 </div>
 
-<div class="section" id="18-database-and-environments">
-<h2><span class="num">18</span> Database and environments</h2>
+<div class="section" id="19-database-and-environments">
+<h2><span class="num">19</span> Database and environments</h2>
 <h3 id="where-the-portal-runs">Where the portal runs</h3>
 <table>
 <thead>
@@ -1862,8 +1951,8 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <div class="callout"><strong>Warning.</strong> A rollback of 037 stops at the build tool checks while a service has the build tool Liquibase (SQL / PL/SQL). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.</div>
 </div>
 
-<div class="section" id="19-troubleshooting">
-<h2><span class="num">19</span> Troubleshooting</h2>
+<div class="section" id="20-troubleshooting">
+<h2><span class="num">20</span> Troubleshooting</h2>
 <h3 id="add-service-stays-disabled">&quot;Add service&quot; stays disabled</h3>
 <p>The text next to the button names the missing fields, for example &quot;Complete these fields first: AppScan API key ID&quot;. Click a field name. The form opens its section, under Advanced settings if needed, and puts the cursor in the field.</p>
 <h3 id="a-service-shows-needs-attention">A service shows &quot;Needs attention&quot;</h3>
