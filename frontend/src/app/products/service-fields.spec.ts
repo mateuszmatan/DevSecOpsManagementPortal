@@ -871,6 +871,21 @@ describe('ServiceFields', () => {
         'The schema that owns the packages and their tests. Empty: the default schema of the test database, else the schema of the database user.',
       );
     });
+
+    it.each([
+      ['without', liquibase],
+      ['with', databaseService],
+    ])(
+      'says where sonar-scanner runs and what the folder holds with database changes, %s database changes (library V46)',
+      async (_, stored) => {
+        await render(stored());
+        await open('SonarQube');
+
+        expect(helpFor('Directory')).toBe(
+          'The folder of the workspace in which sonar-scanner runs; SonarQube analyses only the files under it. For a service with database changes it must be "." or a folder that holds the package folder and, while the utPLSQL tests run, the folder of the test packages. Left empty: the workspace root.',
+        );
+      },
+    );
   });
 
   describe('Unit tests and coverage', () => {

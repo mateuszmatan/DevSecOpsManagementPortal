@@ -195,11 +195,32 @@ class DatabaseSettingsSpec extends Specification {
         'orders-db/src/db' | 'orders-db' | 'src'    | 'db/changelog.xml'      | 'test'   ||
                 [TESTS + ' orders-db/src/test: ' + WHY]
         'db'             | 'orders-db' | null       | 'db/changelog.xml'      | 'test'   ||
-                [PACKAGE + ' orders-db/db: ' + WHY, TESTS + ' orders-db/test: ' + WHY]
+                [PACKAGE + ' orders-db/db and the folder of the test packages orders-db/test: ' + WHY]
         '../db'          | '.'         | null       | 'db/changelog.xml'      | null     || [SOURCE_FOLDER]
         '/db'            | '.'         | null       | 'db/changelog.xml'      | null     || [SOURCE_FOLDER]
         'db folder'      | '.'         | null       | 'db/changelog.xml'      | null     || [SOURCE_FOLDER]
         'db/'            | '.'         | null       | 'db/changelog.xml'      | null     || [SOURCE_FOLDER]
+    }
+
+    def "source folder #sourceDir, search folder #searchPath: the SonarQube directory is compared only with folders of the repository (V3, V46)"() {
+        given:
+        def settings = VALID.toBuilder().changelogFile('db/changelog.xml').searchPath(searchPath).utplsql(true)
+                .utplsqlTestPath('test').build()
+
+        expect:
+        problems(settings, [(TEST): target(TEST_URL)], build(tool: LIQUIBASE, sourceDir: sourceDir, command: NONE),
+                'orders-db/db').collect { [it.field(), it.message()] } == fields
+
+        where:
+        sourceDir      | searchPath   || fields
+        '/orders-db'   | null         || [['build.sourceDir', SOURCE_FOLDER]]
+        'orders db'    | null         || [['build.sourceDir', SOURCE_FOLDER]]
+        'orders-db/..' | null         || [['build.sourceDir', SOURCE_FOLDER]]
+        'orders-db'    | '/src'       || []
+        'orders-db'    | '../src'     || []
+        'orders-db'    | 'src folder' || []
+        'orders-db'    | 'src'        || [['sonar.command.directory', PACKAGE + ' orders-db/src/db and the folder of'
+                + ' the test packages orders-db/src/test: ' + WHY]]
     }
 
     def "the SonarQube directory needs the folder of the test packages only while the utPLSQL tests run (V46)"() {

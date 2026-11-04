@@ -136,12 +136,10 @@ class ServiceSettingsSpec extends Specification {
         folder   || problems
         'db'     || []
         '../db'  || [['sonar.command.directory', 'must be "." or a relative path inside the repository, without ".."']]
-        'db/sql' || [['sonar.command.directory', 'does not hold the package folder db: sonar-scanner runs in that folder,'
-                + ' and SonarQube analyses only the files under it: set the directory to a folder that holds the package'
-                + ' folder and the folder of the test packages, or empty it'],
-                     ['sonar.command.directory', 'does not hold the folder of the test packages db/test: sonar-scanner'
-                + ' runs in that folder, and SonarQube analyses only the files under it: set the directory to a folder'
-                + ' that holds the package folder and the folder of the test packages, or empty it']]
+        'db/sql' || [['sonar.command.directory', 'does not hold the package folder db and the folder of the test'
+                + ' packages db/test: sonar-scanner runs in that folder, and SonarQube analyses only the files under'
+                + ' it: set the directory to a folder that holds the package folder and the folder of the test'
+                + ' packages, or empty it']]
     }
 
     def "a Liquibase service with database changes writes no test stage as not required"() {

@@ -189,23 +189,33 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
 
     /**
      * The folder sonar-scanner runs in: SonarQube analyses only the files under it, so it must hold the package folder
-     * and, while the utPLSQL tests run, the folder of the test packages, as the library checks them (V3, V46).
+     * and, while the utPLSQL tests run, the folder of the test packages, as the library checks them (V3, V46). One
+     * problem names every folder it leaves out. While the source folder or the search folder is not a folder of the
+     * repository, only that folder is refused: the search root it would give is no folder to compare with.
      */
     private void validateSonarFolder(ValidationProblems problems, BuildSettings build, String sonarFolder) {
-        if (!sonarFolder.equals(".") && !sonarFolder.matches(PATH)) {
+        if (!isFolder(sonarFolder)) {
             problems.add("directory", SEARCH_PATH_MESSAGE);
+            return;
+        }
+        if (!isFolder(build.sourceDir()) || searchPath != null && !isFolder(searchPath)) {
             return;
         }
         String folder = join(sonarFolder);
         String sources = join(searchRoot(build), packageFolder());
-        if (!holds(folder, sources)) {
-            problems.add("directory", "does not hold the package folder " + shown(sources) + ": " + SONAR_FOLDER);
-        }
         String tests = join(searchRoot(build), utplsqlTestPath);
-        if (utplsql != null && utplsqlTestPath != null && !holds(folder, tests)) {
-            problems.add("directory", "does not hold the folder of the test packages " + shown(tests) + ": "
-                    + SONAR_FOLDER);
+        String leftOut = Stream.of(holds(folder, sources) ? null : "the package folder " + shown(sources),
+                        utplsql == null || utplsqlTestPath == null || holds(folder, tests) ? null
+                                : "the folder of the test packages " + shown(tests))
+                .filter(Objects::nonNull).collect(joining(" and "));
+        if (!leftOut.isEmpty()) {
+            problems.add("directory", "does not hold " + leftOut + ": " + SONAR_FOLDER);
         }
+    }
+
+    /** Whether the path is "." or a relative path inside the repository without "..", as the library checks it (V3). */
+    private static boolean isFolder(String path) {
+        return DEFAULT_SOURCE_DIR.equals(path) || path.matches(PATH);
     }
 
     /** The folder Liquibase searches, the search folder inside the source folder; null for the repository root. */
@@ -241,7 +251,7 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
         } else if (build.javaPath() != null && !build.javaPath().matches(ABSOLUTE)) {
             problems.add("javaPath", JDK_MESSAGE);
         }
-        if (!build.sourceDir().equals(DEFAULT_SOURCE_DIR) && !build.sourceDir().matches(PATH)) {
+        if (!isFolder(build.sourceDir())) {
             problems.add("sourceDir", SEARCH_PATH_MESSAGE);
         }
     }

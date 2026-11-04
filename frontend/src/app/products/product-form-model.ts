@@ -575,9 +575,17 @@ export const CHANGELOG_AT_ROOT =
   'Has no folder and the search root is the repository root: put the changelog in a folder, or set the search folder or the source folder to the folder of the changelog';
 const SONAR_FOLDER =
   'sonar-scanner runs in that folder, and SonarQube analyses only the files under it: set the directory to a folder that holds the package folder and the folder of the test packages, or empty it';
-/** Why the SonarQube directory of a service with database changes is refused: it does not hold the folder. */
-export const notHeldBySonarFolder = (folder: string, tests = false) =>
-  `Does not hold the ${tests ? 'folder of the test packages' : 'package folder'} ${folder}: ${SONAR_FOLDER}`;
+/**
+ * Why the SonarQube directory of a service with database changes is refused: it leaves out the package folder, the
+ * folder of the test packages or both, each named from the repository root; null for a folder it holds.
+ */
+export function notHeldBySonarFolder(packages: string | null, tests: string | null = null): string {
+  const folders = [
+    packages && `the package folder ${packages}`,
+    tests && `the folder of the test packages ${tests}`,
+  ].filter(Boolean);
+  return `Does not hold ${folders.join(' and ')}: ${SONAR_FOLDER}`;
+}
 const NO_URL = 'Is set without a JDBC URL';
 
 const schema = (value: string | null | undefined) => text(value, matching(SCHEMA, SCHEMA_MESSAGE));
@@ -719,6 +727,15 @@ function requireDatabaseRules(form: ServiceForm): void {
   const { TEST, RD, QC } = form.controls.databaseTargets.controls;
   const sourceDir = form.controls.build.controls.sourceDir;
   const searchRoot = () => joinFolders(sourceDir.value, d.searchPath.value);
+  /** Whether the value is "." or a relative path inside the repository without "..". */
+  const isFolder = (value: string | null | undefined) => SEARCH_PATH.test(optional(value) ?? '.');
+  addRule(
+    sourceDir,
+    SEARCH_PATH_MESSAGE,
+    () => formChangesDatabase(form) && !isFolder(sourceDir.value),
+    form.controls.build.controls.tool,
+    d.changelogFile,
+  );
   addRule(
     d.changelogFile,
     CHANGELOG_AT_ROOT,
@@ -738,18 +755,24 @@ function requireDatabaseRules(form: ServiceForm): void {
       if (!folder || !file || !formChangesDatabase(form)) {
         return null;
       }
-      if (!SEARCH_PATH.test(folder)) {
+      if (!isFolder(folder)) {
         return SEARCH_PATH_MESSAGE;
+      }
+      if (!isFolder(sourceDir.value) || !isFolder(d.searchPath.value)) {
+        return null;
       }
       const held = joinFolders(folder);
       const sources = joinFolders(searchRoot(), packageFolder(file));
       const testPath = d.utplsql.value ? optional(d.utplsqlTestPath.value) : null;
       const tests = joinFolders(searchRoot(), testPath);
-      return !holds(held, sources)
-        ? notHeldBySonarFolder(sources ?? '.')
-        : testPath && !holds(held, tests)
-          ? notHeldBySonarFolder(tests ?? '.', true)
-          : null;
+      const packagesOut = !holds(held, sources);
+      const testsOut = !!testPath && !holds(held, tests);
+      return packagesOut || testsOut
+        ? notHeldBySonarFolder(
+            packagesOut ? (sources ?? '.') : null,
+            testsOut ? (tests ?? '.') : null,
+          )
+        : null;
     },
     form.controls.build.controls.tool,
     d.changelogFile,
@@ -1182,7 +1205,10 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   );
   requireWhile(
     unitTests.controls.command.controls.tasks,
-    () => unitTestsConfigured(form) && tool.value !== 'LIQUIBASE' && !unitTests.controls.cypressEnabled.value,
+    () =>
+      unitTestsConfigured(form) &&
+      tool.value !== 'LIQUIBASE' &&
+      !unitTests.controls.cypressEnabled.value,
     unitTests,
     tool,
   );
@@ -1884,7 +1910,11 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   section('sonar', 'SonarQube', 'analytics', ['sonar']),
   section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq', 'nexusIqApplications']),
   section('scm', 'Bitbucket', 'merge', ['scm']),
-  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix', 'versionCatalogs', 'versionCatalogRepo']),
+  section('goldenFix', 'GoldenFix', 'auto_fix_high', [
+    'goldenFix',
+    'versionCatalogs',
+    'versionCatalogRepo',
+  ]),
   section('metrics', 'Monitoring', 'insights', ['metrics']),
   section('flutter', 'Flutter', 'phone_iphone', ['flutter'], onFlutter),
 ];

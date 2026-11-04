@@ -1951,13 +1951,16 @@ describe('Liquibase services with and without database changes', () => {
 
     expect(['', '.', 'db', './db', ' db ', 'db/.'].map(problem)).toEqual(Array(6).fill(null));
     expect(problem('db/test')).toEqual({ rule: notHeldBySonarFolder('db') });
-    expect(problem('web')).toEqual({ rule: notHeldBySonarFolder('db') });
+    expect(problem('web')).toEqual({ rule: notHeldBySonarFolder('db', 'db/test') });
+    expect(problem('web')).toEqual({
+      rule: 'Does not hold the package folder db and the folder of the test packages db/test: sonar-scanner runs in that folder, and SonarQube analyses only the files under it: set the directory to a folder that holds the package folder and the folder of the test packages, or empty it',
+    });
     ['../db', '/db', 'db/', 'db folder', 'db/../web'].forEach((value) =>
       expect(problem(value), value).toEqual({ rule: SEARCH_PATH_MESSAGE }),
     );
 
     d.utplsqlTestPath.setValue('test');
-    expect(problem('db')).toEqual({ rule: notHeldBySonarFolder('test', true) });
+    expect(problem('db')).toEqual({ rule: notHeldBySonarFolder(null, 'test') });
     d.utplsql.setValue(false);
     expect(folder.valid).toBe(true);
 
@@ -1966,13 +1969,71 @@ describe('Liquibase services with and without database changes', () => {
     d.searchPath.setValue('src');
     expect(problem('orders-db/src')).toBeNull();
     expect(problem('orders-db/src/db')).toEqual({
-      rule: notHeldBySonarFolder('orders-db/src/test', true),
+      rule: notHeldBySonarFolder(null, 'orders-db/src/test'),
     });
-    expect(problem('db')).toEqual({ rule: notHeldBySonarFolder('orders-db/src/db') });
+    expect(problem('db')).toEqual({
+      rule: notHeldBySonarFolder('orders-db/src/db', 'orders-db/src/test'),
+    });
 
     d.changelogFile.setValue('changelog.xml');
     expect(problem('orders-db/src')).toBeNull();
     expect(problem('orders-db/src/test')).toEqual({ rule: notHeldBySonarFolder('orders-db/src') });
+  });
+
+  it('refuses a source or search folder that is no folder of the repository there, not under the SonarQube directory', () => {
+    const form = database({
+      changelogFile: 'db/changelog.xml',
+      utplsql: true,
+      utplsqlTestPath: 'test',
+    });
+    const sourceDir = form.controls.build.controls.sourceDir;
+    const searchPath = form.controls.database.controls.searchPath;
+    const folder = form.controls.sonar.controls.command.controls.directory;
+    folder.setValue('orders-db/db');
+    sourceDir.setValue('orders-db');
+    expect(sourceDir.valid).toBe(true);
+    expect(folder.errors).toEqual({ rule: notHeldBySonarFolder(null, 'orders-db/test') });
+
+    ['/orders-db', 'orders db', 'orders-db/..', 'orders-db/'].forEach((value) => {
+      sourceDir.setValue(value);
+      expect(sourceDir.errors, value).toEqual({ rule: SEARCH_PATH_MESSAGE });
+      expect(folder.valid, value).toBe(true);
+    });
+    folder.setValue('../db');
+    expect(folder.errors).toEqual({ rule: SEARCH_PATH_MESSAGE });
+    folder.setValue('orders-db/db');
+
+    ['', ' . ', './orders-db'].forEach((value) => {
+      sourceDir.setValue(value);
+      expect(sourceDir.valid, value).toBe(true);
+    });
+    ['/src', '../src', 'src/', 'src folder'].forEach((value) => {
+      searchPath.setValue(value);
+      expect(searchPath.errors, value).toEqual({ rule: SEARCH_PATH_MESSAGE });
+      expect(folder.valid, value).toBe(true);
+    });
+    searchPath.setValue('src');
+    expect(folder.errors).toEqual({
+      rule: notHeldBySonarFolder('orders-db/src/db', 'orders-db/src/test'),
+    });
+  });
+
+  it('checks the source folder only for a service with database changes', () => {
+    const java = gradle();
+    const plain = createServiceForm(databaseService({ database: null, databaseTargets: {} }));
+    const changes = database();
+    const sourceDir = (form: ReturnType<typeof gradle>) => form.controls.build.controls.sourceDir;
+    [java, plain, changes].forEach((form) => sourceDir(form).setValue('/orders-db'));
+
+    expect(sourceDir(java).valid && sourceDir(plain).valid).toBe(true);
+    expect(sourceDir(changes).errors).toEqual({ rule: SEARCH_PATH_MESSAGE });
+
+    changes.controls.database.controls.changelogFile.setValue(' ');
+    expect(sourceDir(changes).valid).toBe(true);
+    changes.controls.database.controls.changelogFile.setValue('db/changelog.xml');
+    expect(sourceDir(changes).valid).toBe(false);
+    changes.controls.build.controls.tool.setValue('GRADLE');
+    expect(sourceDir(changes).valid).toBe(true);
   });
 
   it('leaves the SonarQube directory of every other service as it is', () => {
