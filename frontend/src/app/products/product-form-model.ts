@@ -1568,6 +1568,7 @@ export function copiedService(source: Partial<ServiceRequest>): Partial<ServiceR
     sonar: source.sonar && { ...source.sonar, projectKey: null, projectName: null },
     metrics: source.metrics && { ...source.metrics, influxProject: null },
     nexusIqApplications: source.nexusIqApplications?.map((app) => ({ ...app, application: '' })),
+    database: source.database && { ...source.database, artifactId: null },
   };
 }
 

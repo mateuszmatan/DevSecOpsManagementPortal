@@ -1043,7 +1043,7 @@ Database passwords, users inside JDBC URLs and production databases are never im
 "Copy values from existing service" (admin editor), "Duplicate service" (service panel) and "Copy values from" (Self-service dialog) copy every setting of another service of the product, the Node.js build and the shared version catalogs included. What identifies the source service is not copied:
 
 - The name. A duplicate is named `<source>-copy`.
-- The SonarQube project name and key, the monitoring project tag and the SAST scan name stay empty.
+- The SonarQube project name and key, the monitoring project tag, the SAST scan name and the artifact ID of the database package stay empty.
 - The OpenShift application name, the image repositories and the Nexus IQ application follow the name you type.
 - The repository URL follows the name too while it is the URL the service template gives for the name of the source. When both services build from one repository, set the repository URL of the copy back to that of its source.
 

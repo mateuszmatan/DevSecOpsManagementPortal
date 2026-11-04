@@ -1440,6 +1440,18 @@ describe('product form', () => {
     );
   });
 
+  it('duplicates a service with database changes without the artifact ID of its package', () => {
+    const source = createServiceForm(
+      databaseService({ database: databaseSettings({ artifactId: 'orders-db-package' }) }),
+    );
+    const copy = duplicateService(source, null);
+
+    expect(copy.controls.database.controls.artifactId.value).toBe('');
+    expect(copy.controls.database.controls.changelogFile.value).toBe(
+      source.controls.database.controls.changelogFile.value,
+    );
+  });
+
   it('gives a copy the Library defaults for what the source inherits', () => {
     const copy = duplicateService(createServiceForm(service()), globalSettings());
 
