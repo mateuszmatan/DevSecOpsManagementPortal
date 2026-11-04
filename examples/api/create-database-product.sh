@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # The Library defaults must allow the databases of both products (dev-db.bbh.com, rd-db.bbh.com and qc-db.bbh.com)
-# and name the Nexus repositories of the database packages (Admin, Library defaults, SQL and PL/SQL (Liquibase)),
+# and name the Nexus repositories of the database packages (Admin, Library defaults, Liquibase database changes),
 # or the portal refuses the JDBC URLs and the Full pipelines.
 PORTAL_URL="${PORTAL_URL:-http://localhost:8080}"
 DEPARTMENT="${1:-Custody}"

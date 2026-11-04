@@ -59,7 +59,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li><a href="#4-add-a-service-in-the-self-service-wizard">4. Add a service in the Self-service wizard</a></li>
 <li><a href="#5-add-a-service-in-the-admin-editor">5. Add a service in the admin editor</a></li>
 <li><a href="#6-build-the-frontend-with-nodejs-first-stage-0">6. Build the frontend with Node.js first (stage 0)</a></li>
-<li><a href="#7-sql-and-plsql-changes-with-liquibase">7. SQL and PL/SQL changes with Liquibase</a></li>
+<li><a href="#7-liquibase-services-with-database-changes">7. Liquibase services with database changes</a></li>
 <li><a href="#8-shared-version-catalogs-and-the-combined-jenkinsfile">8. Shared version catalogs and the combined Jenkinsfile</a></li>
 <li><a href="#9-pipeline-types-pipeline-keys-the-jenkinsfile-and-the-jenkins-jobs">9. Pipeline types, pipeline keys, the Jenkinsfile and the Jenkins jobs</a></li>
 <li><a href="#10-import-a-devsecops_configyaml-and-copy-a-service">10. Import a devsecops_config.yaml and copy a service</a></li>
@@ -162,8 +162,8 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 </thead>
 <tbody>
 <tr><td>General</td><td>The service name and a description.</td></tr>
-<tr><td>Build</td><td>The build tool (Gradle, Maven, Flutter or SQL and PL/SQL (Liquibase), see <a href="#7-sql-and-plsql-changes-with-liquibase">chapter 7</a> for the last), its tasks, the artifact, the JDK and the optional Node.js build (stage 0).</td></tr>
-<tr><td>Database changes</td><td>SQL and PL/SQL services only: the Liquibase changelog, the test, RD and QC databases and the package in Nexus.</td></tr>
+<tr><td>Build</td><td>The build tool, its tasks, the artifact, the JDK and the optional Node.js build (stage 0).</td></tr>
+<tr><td>Database changes</td><td>Liquibase services only: the changelog file and, once it is set, the test, RD and QC databases and the package in Nexus; see <a href="#7-liquibase-services-with-database-changes">chapter 7</a>.</td></tr>
 <tr><td>Unit tests and coverage</td><td>The unit test command, the test reports and the coverage reports.</td></tr>
 <tr><td>Test jobs</td><td>The smoke, regression and performance test jobs after a deployment.</td></tr>
 <tr><td>Deployment</td><td>Virtual machines or OpenShift, the application and artifact names, and the Nexus delivery.</td></tr>
@@ -185,19 +185,19 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><th>Pipeline</th><th>Sections</th></tr>
 </thead>
 <tbody>
-<tr><td>SAST</td><td>General, Build, AppScan SAST and DAST, Bitbucket (and Flutter for a Flutter service, Database changes for a SQL and PL/SQL service)</td></tr>
-<tr><td>OSA (Nexus IQ GoldenFix)</td><td>General, Build, AppScan SAST and DAST, Nexus IQ, Bitbucket, GoldenFix (and Flutter); not for a SQL and PL/SQL service</td></tr>
-<tr><td>Security</td><td>General, Build, Unit tests and coverage, Deployment, OpenShift targets, AppScan SAST and DAST, SonarQube, Nexus IQ, Bitbucket, GoldenFix, Monitoring (and Flutter for a Flutter service, Database changes for a SQL and PL/SQL service)</td></tr>
+<tr><td>SAST</td><td>General, Build, AppScan SAST and DAST, Bitbucket (and Flutter for a Flutter service, Database changes for a Liquibase service)</td></tr>
+<tr><td>OSA (Nexus IQ GoldenFix)</td><td>General, Build, AppScan SAST and DAST, Nexus IQ, Bitbucket, GoldenFix (and Flutter); not for a Liquibase service with database changes</td></tr>
+<tr><td>Security</td><td>General, Build, Unit tests and coverage, Deployment, OpenShift targets, AppScan SAST and DAST, SonarQube, Nexus IQ, Bitbucket, GoldenFix, Monitoring (and Flutter for a Flutter service, Database changes for a Liquibase service)</td></tr>
 <tr><td>Full</td><td>Every section that applies to the build tool and the deployment target</td></tr>
 </tbody>
 </table>
-<p>A section that does not apply to the build tool is never shown. For a SQL and PL/SQL service, the Security pipeline therefore shows General, Build, Database changes, AppScan SAST and DAST, SonarQube, Bitbucket and Monitoring.</p>
-<p>The admin editor always shows every section that applies. A SQL and PL/SQL service has no Unit tests and coverage, Deployment, UrbanCode Deploy, SSH targets, OpenShift targets, Nexus IQ, GoldenFix or Flutter section.</p>
+<p>A section that does not apply to the service is never shown: a Liquibase service with database changes has no Deployment and no OpenShift targets section.</p>
+<p>The admin editor always shows every section that applies. Once the changelog file of a Liquibase service is set, its Deployment, UrbanCode Deploy, SSH targets and OpenShift targets sections disappear.</p>
 <h3 id="required-fields">Required fields</h3>
 <p>Fields marked * are required. Some fields are required only in a situation:</p>
 <ul>
 <li>The service name, the AppScan application ID and the AppScan API key ID are always required. Every pipeline, the Nexus IQ GoldenFix pipeline included, signs in to AppScan with the key of the service.</li>
-<li>The Gradle tasks or Maven goals of the build are required, except for Flutter and SQL and PL/SQL services.</li>
+<li>The Gradle tasks or Maven goals of the build are required, except for Flutter and Liquibase.</li>
 <li>The JDK path is required for Flutter and while &quot;Set up the build tool automatically&quot; is off.</li>
 <li>The artifact path is required for a Maven service on virtual machines that delivers to Nexus.</li>
 <li>On OpenShift, the application name, the artifact name and the RD build fields are required. The QC region is optional; once one of its fields is set, the fields its deployment needs are required.</li>
@@ -205,7 +205,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>A Nexus IQ GoldenFix pipeline needs a Nexus IQ application and a Bitbucket repository.</li>
 <li>The Bitbucket credentials ID is required once a repository URL is set.</li>
 <li>A Flutter service needs its modules, its tested modules and its three credentials.</li>
-<li>A SQL and PL/SQL service needs its changelog file and a credentials ID for each JDBC URL. While it delivers its package to Nexus, its Full, Security and Extended pipelines need the group ID and the Nexus repositories of <a href="#what-the-pipelines-do-with-a-sql-and-plsql-service">chapter 7</a>.</li>
+<li>A Liquibase service with database changes needs a credentials ID for each JDBC URL. While it delivers its package to Nexus, its Full, Security and Extended pipelines need the group ID and the Nexus repositories of <a href="#what-the-pipelines-do-with-a-database-service">chapter 7</a>.</li>
 </ul>
 <h3 id="advanced-settings">Advanced settings</h3>
 <p>Fields that experts change are under &quot;Advanced settings&quot; at the end of a section. The panel is closed at first. Its summary line names what it holds. When a field inside it needs attention, the panel opens by itself.</p>
@@ -224,7 +224,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>The folder of its <code>package.json</code> when Node.js builds its frontend first.</li>
 <li>For the OSA pipeline: the Nexus IQ application and the Bitbucket repository of each service.</li>
 <li>For the Security and Full pipelines: whether each service runs on virtual machines or on OpenShift.</li>
-<li>For a SQL and PL/SQL service: its changelog file, the JDBC URL of each database with the ID of its Jenkins credential, and the Maven group ID of its package. The DBA and the DevSecOps team provide them; see <a href="#before-you-add-a-sql-and-plsql-service">chapter 7</a>.</li>
+<li>For a Liquibase service with database changes: its changelog file, the JDBC URL of each database with the ID of its Jenkins credential, and the Maven group ID of its package. The DBA and the DevSecOps team provide them; see <a href="#before-you-add-a-database-service">chapter 7</a>.</li>
 </ul>
 <h3 id="step-1-product">Step 1: Product</h3>
 <ol>
@@ -242,12 +242,12 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>Click Next.</li>
 </ol>
 <h3 id="step-3-services">Step 3: Services</h3>
-<p>In a repository with Java and database code, add the SQL and PL/SQL service first.</p>
+<p>In a repository with Java and database code, add the Liquibase service with database changes first.</p>
 <ol>
 <li>Click &quot;Add a service&quot;. The dialog &quot;Add a service&quot; opens. Its tag shows the pipeline.</li>
 <li>To start from another service of the product, choose it in &quot;Copy values from&quot;. To start from a file, click &quot;Import devsecops_config.yaml&quot;. Both are optional. See <a href="#10-import-a-devsecops_configyaml-and-copy-a-service">chapter 10</a>.</li>
 <li>In General, type the service name, for example <code>backend-api</code>. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.</li>
-<li>In Build, choose the build tool. The hint tells you how to recognise it: &quot;The code has a build.gradle file&quot; means Gradle, &quot;The code has a pom.xml file&quot; means Maven, &quot;The code has a pubspec.yaml file&quot; means Flutter and &quot;The code is SQL and PL/SQL with a Liquibase changelog, such as db/changelog-master.xml&quot; means SQL and PL/SQL (Liquibase), described in <a href="#add-a-sql-and-plsql-service-in-the-wizard">chapter 7</a>. The tasks and the artifact path come from the service template. Leave &quot;Set up the build tool automatically&quot; on.</li>
+<li>In Build, choose the build tool. The hint tells you how to recognise it: &quot;The code has a build.gradle file&quot; means Gradle, &quot;The code has a pom.xml file&quot; means Maven, &quot;The code has a pubspec.yaml file&quot; means Flutter and &quot;The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties&quot; means Liquibase (SQL / PL/SQL); for its database changes see <a href="#add-a-database-service-in-the-wizard">chapter 7</a>. The tasks and the artifact path come from the service template. Leave &quot;Set up the build tool automatically&quot; on.</li>
 <li>If the repository holds a frontend that npm builds, for example an Angular application, tick &quot;Build the frontend with Node.js first&quot;. Type the &quot;Folder with package.json&quot;, for example <code>frontend</code>. Leave the other Node.js fields as they are. See <a href="#6-build-the-frontend-with-nodejs-first-stage-0">chapter 6</a>.</li>
 <li>In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.</li>
 <li>For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.</li>
@@ -281,7 +281,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>The dialog &quot;Add product&quot; asks for the product name and the Business Service. Click Continue.</li>
 <li>The editor opens with the suggested product code, the Jenkins agents of the service template and one new service.</li>
 <li>Fill in the product fields: Owner team, Description and Contact e-mail are optional.</li>
-<li>Open the service panel (&quot;Edit settings&quot;) and fill in the service as in <a href="#step-3-services">step 3 of chapter 4</a>. A new service starts with &quot;Set up the build tool automatically&quot; on; a Flutter service starts with it off, because Flutter needs the JDK path, and turns it on when you choose Gradle or Maven while you have not changed the checkbox. Typing its name fills in the repository URL, the Bitbucket credentials ID, the Nexus IQ application and its scan pattern from the service template. A SQL and PL/SQL service gets no Nexus IQ application; it has no Nexus IQ section.</li>
+<li>Open the service panel (&quot;Edit settings&quot;) and fill in the service as in <a href="#step-3-services">step 3 of chapter 4</a>. A new service starts with &quot;Set up the build tool automatically&quot; on; a Flutter service starts with it off, because Flutter needs the JDK path, and turns it on when you choose Gradle or Maven while you have not changed the checkbox. Typing its name fills in the repository URL, the Bitbucket credentials ID, the Nexus IQ application and its scan pattern from the service template.</li>
 <li>Every new service gets a Full pipeline. A service on virtual machines therefore needs an UrbanCode Deploy application for DV.</li>
 <li>Click &quot;Add product&quot;. Each service gets a Full pipeline with its own key. The product page opens with the notice &quot;Pipeline keys generated for ...&quot; and asks you to copy each key into the Jenkinsfile of its service; services whose pipelines share a Jenkins job share one Jenkinsfile, shown below the notice. &quot;Show key&quot; and &quot;Copy key&quot; give a key at any time.</li>
 </ol>
@@ -305,7 +305,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <h4 id="single-module-sql--plsql-repository">Single-module SQL / PL/SQL repository</h4>
 <p>When a repository contains only database scripts and Liquibase changelogs:</p>
 <ul>
-<li><strong>Build (<code>build.liquibase.*</code>)</strong>: Set the Liquibase commands (by default <code>updateSQL</code>) and flags (for example <code>--changelog-file=changelog.xml --url=offline:oracle</code>). No JDK path (<code>javaPath</code>) or automatic build tool setup (<code>buildToolAutoSetup</code>) is required unless a custom Java runtime is needed by the Liquibase CLI or JDBC drivers.</li>
+<li><strong>Build (<code>build.liquibase.*</code>)</strong>: Set the Liquibase commands (a new service gets <code>updateSQL</code>; left empty, the library runs <code>validate</code>) and flags (for example <code>--changelog-file=changelog.xml --url=offline:oracle</code>). No JDK path (<code>javaPath</code>) or automatic build tool setup (<code>buildToolAutoSetup</code>) is required unless a custom Java runtime is needed by the Liquibase CLI or JDBC drivers.</li>
 <li><strong>Unit tests and coverage (<code>tests.unitTests.liquibase.*</code>)</strong>: Run changelog verification (<code>validate</code>, <code>status</code>) or PL/SQL unit tests (such as utPLSQL exporting JUnit XML to <code>tests.unitTests.unitTestResult</code> and JaCoCo/LCOV coverage to <code>coverage.reportPath</code>).</li>
 <li><strong>Static analysis (<code>tools.sonar.liquibase.*</code> and <code>asoc.liquibase.*</code>)</strong>:
 <ul>
@@ -332,6 +332,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 </ul>
 </li>
 </ol>
+<p>Set its changelog file to let the pipelines deploy the changes to the test, RD and QC databases, package them and test them with utPLSQL: see <a href="#7-liquibase-services-with-database-changes">chapter 7</a>.</p>
 </div>
 
 <div class="section" id="6-build-the-frontend-with-nodejs-first-stage-0">
@@ -414,9 +415,9 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 </ul>
 </div>
 
-<div class="section" id="7-sql-and-plsql-changes-with-liquibase">
-<h2><span class="num">7</span> SQL and PL/SQL changes with Liquibase</h2>
-<p>Many products keep Oracle SQL and PL/SQL code in a repository: tables, views, packages, triggers and types. A Liquibase changelog lists the changes of that code. The portal sets up such code as a service with the build tool &quot;SQL and PL/SQL (Liquibase)&quot;, written as <code>buildTool: liquibase</code>. The pipelines then check the changes, install them in a test database for the utPLSQL tests, scan the source files with AppScan and SonarQube, package them into a zip in Nexus and deploy them to the RD and QC databases. They never deploy to production and never roll a database back.</p>
+<div class="section" id="7-liquibase-services-with-database-changes">
+<h2><span class="num">7</span> Liquibase services with database changes</h2>
+<p>Many products keep Oracle SQL and PL/SQL code in a repository: tables, views, packages, triggers and types. A Liquibase changelog lists the changes of that code. A service with the build tool &quot;Liquibase (SQL / PL/SQL)&quot;, written as <code>buildTool: liquibase</code>, builds, tests and scans with its Liquibase commands as <a href="#sql-and-plsql-services-with-liquibase-single-module-and-multi-module">chapter 5</a> describes. Once its changelog file is set, it is a Liquibase service with database changes, in this chapter a database service: the pipelines then also check the changes, install them in a test database for the utPLSQL tests, package them into a zip in Nexus and deploy them to the RD and QC databases, in place of the deployment of the service. They never deploy to production and never roll a database back.</p>
 <p>This chapter describes the portal steps. The guide of the DevSecOps library DSOEnhanced describes every stage, message and setting of the library in its chapter 14, &quot;Integration Guide: SQL and PL/SQL with Liquibase&quot;.</p>
 <table>
 <thead>
@@ -432,11 +433,11 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><td>Package (zip)</td><td>The zip of the changelog and the files it includes, which the pipelines upload to Nexus. It is not a PL/SQL package.</td></tr>
 </tbody>
 </table>
-<h3 id="when-a-service-is-a-sql-and-plsql-service">When a service is a SQL and PL/SQL service</h3>
+<h3 id="when-a-liquibase-service-has-database-changes">When a Liquibase service has database changes</h3>
 <p>One rule decides which build tool a folder gets:</p>
 <ul>
-<li>A folder of Liquibase changelogs is its own SQL and PL/SQL service. This holds also when the folder is a module of a Gradle or Maven multi-module build.</li>
-<li>A Gradle or Maven service whose build applies a Liquibase plugin stays a Gradle or Maven service. The pipelines never deploy its changesets. To have them deployed by the pipelines, move the changelog folder into a SQL and PL/SQL service of its own.</li>
+<li>A folder of Liquibase changelogs that the pipelines deploy is its own database service. This holds also when the folder is a module of a Gradle or Maven multi-module build.</li>
+<li>A Gradle or Maven service whose build applies a Liquibase plugin stays a Gradle or Maven service. The pipelines never deploy its changesets. To have them deployed by the pipelines, move the changelog folder into a database service of its own.</li>
 </ul>
 <p>The three usual repositories give these services:</p>
 <table>
@@ -444,21 +445,21 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><th>Repository</th><th>Services, in this order</th><th>Example product</th></tr>
 </thead>
 <tbody>
-<tr><td>Only SQL and PL/SQL, with the changelog <code>db/changelog-master.xml</code></td><td><code>orders-db</code>: SQL and PL/SQL (Liquibase), Source folder <code>.</code></td><td><code>ORDERSDB</code></td></tr>
-<tr><td>A Gradle multi-module build with the Liquibase module <code>orders-db</code> and a Node.js frontend in <code>frontend</code></td><td><code>orders-db</code>: SQL and PL/SQL, Source folder <code>orders-db</code>, Search folder <code>src/main/resources</code>; then <code>orders-app</code>: Gradle, Source folder <code>.</code>, AppScan excludes <code>orders-db</code>, Node.js build of <code>frontend</code></td><td><code>ORDERSGRADLE</code></td></tr>
-<tr><td>Independent folders: <code>orders-db</code> with a YAML changelog, a Maven API in <code>api</code> and a Node.js frontend in <code>web</code></td><td><code>orders-db</code>: SQL and PL/SQL, Source folder <code>orders-db</code>; then <code>orders-api</code>: Maven, Directory <code>api</code>, AppScan excludes <code>orders-db</code>, Node.js build of <code>web</code></td><td><code>ORDERSMAVEN</code></td></tr>
+<tr><td>Only SQL and PL/SQL, with the changelog <code>db/changelog-master.xml</code></td><td><code>orders-db</code>: Liquibase (SQL / PL/SQL), Changelog file <code>db/changelog-master.xml</code>, Source folder <code>.</code></td><td><code>ORDERSDB</code></td></tr>
+<tr><td>A Gradle multi-module build with the Liquibase module <code>orders-db</code> and a Node.js frontend in <code>frontend</code></td><td><code>orders-db</code>: Liquibase, Source folder <code>orders-db</code>, Search folder <code>src/main/resources</code>; then <code>orders-app</code>: Gradle, Source folder <code>.</code>, AppScan excludes <code>orders-db</code>, Node.js build of <code>frontend</code></td><td><code>ORDERSGRADLE</code></td></tr>
+<tr><td>Independent folders: <code>orders-db</code> with a YAML changelog, a Maven API in <code>api</code> and a Node.js frontend in <code>web</code></td><td><code>orders-db</code>: Liquibase, Source folder <code>orders-db</code>; then <code>orders-api</code>: Maven, Directory <code>api</code>, AppScan excludes <code>orders-db</code>, Node.js build of <code>web</code></td><td><code>ORDERSMAVEN</code></td></tr>
 </tbody>
 </table>
 <p>Follow these rules in every repository:</p>
 <ul>
-<li><strong>Add the SQL and PL/SQL service first.</strong> The services of one repository run in their order, so the database changes reach RD before the application that needs them. The library warns when a database service comes after an application of the same run.</li>
+<li><strong>Add the database service first.</strong> The services of one repository run in their order, so the database changes reach RD before the application that needs them. The library warns when a database service comes after an application of the same run.</li>
 <li><strong>Give every folder to exactly one AppScan scope.</strong> Add the database folder to &quot;Excluded folders&quot; (<code>excludedDirs</code>) of the Java service. AppScan compares an excluded folder with every path as a part of it: <code>db</code> would also leave out <code>src/main/java/com/bbh/orders/db/</code>. Give the database folder a distinctive name with a hyphen, such as <code>orders-db</code>. A Java package name cannot contain a hyphen.</li>
 <li><strong>Keep Spring Boot away from the changelog.</strong> A Spring Boot application with <code>liquibase-core</code> on its classpath runs the changelog itself when it starts, with its own database user, and then competes with the pipelines in RD and QC. Set <code>spring.liquibase.enabled=false</code> in the application, or keep the changelog out of its jar.</li>
-<li><strong>Use Linux or macOS agents.</strong> A SQL and PL/SQL service does not run on Windows agents. The portal does not check the operating system behind an agent label, so give every pipeline of the service the labels of Linux or macOS agents. The services of a combined Jenkinsfile share their agents.</li>
+<li><strong>Use Linux or macOS agents.</strong> A database service does not run on Windows agents. The portal does not check the operating system behind an agent label, so give every pipeline of the service the labels of Linux or macOS agents. The services of a combined Jenkinsfile share their agents.</li>
 <li><strong>Use Oracle.</strong> The pipelines support Oracle databases only.</li>
 </ul>
-<h3 id="before-you-add-a-sql-and-plsql-service">Before you add a SQL and PL/SQL service</h3>
-<p>Four parties prepare a SQL and PL/SQL service.</p>
+<h3 id="before-you-add-a-database-service">Before you add a database service</h3>
+<p>Four parties prepare a database service.</p>
 <p><strong>The team of the product</strong> provides:</p>
 <ul>
 <li>the path of the changelog file, relative to its search folder, such as <code>db/changelog-master.xml</code>;</li>
@@ -474,20 +475,20 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>For coverage of code that another schema owns: <code>CREATE ANY PROCEDURE</code> for the test user. Code compiled as <code>NATIVE</code> has no coverage.</li>
 <li>Network access from the Jenkins agents to the database ports, usually 1521, or 2484 for TCPS.</li>
 </ul>
-<p><strong>The DevSecOps team</strong> sets, in the Library defaults (see <a href="#library-defaults-for-sql-and-plsql-services">Library defaults for SQL and PL/SQL services</a>):</p>
+<p><strong>The DevSecOps team</strong> sets, in the Library defaults (see <a href="#library-defaults-for-database-services">Library defaults for database services</a>):</p>
 <ul>
 <li>the allowed databases. Until the list allows the host of a database, no service can be saved with its JDBC URL;</li>
 <li>where the agents find Liquibase, the Oracle JDBC driver and utPLSQL-cli;</li>
 <li>the Nexus repositories of the database packages.</li>
 </ul>
 <p><strong>The Jenkins administrator</strong> adds, in the Jenkins folder of the product, one credential of the kind <em>Username with password</em> for each database, with the user and the password of its deploy user. The folder holds no production credentials.</p>
-<h3 id="add-a-sql-and-plsql-service-in-the-wizard">Add a SQL and PL/SQL service in the wizard</h3>
+<h3 id="add-a-database-service-in-the-wizard">Add a database service in the wizard</h3>
 <ol>
-<li>In Step 1, choose the product. In Step 2, choose the Full, Security or SAST pipeline. The OSA pipeline (Nexus IQ GoldenFix) takes no SQL and PL/SQL service: it scans open source dependencies, which such a service does not have.</li>
-<li>In Step 3, click &quot;Add a service&quot;. In a repository with Java and database code, add the SQL and PL/SQL service first.</li>
-<li>In General, type the service name, such as <code>orders-db</code>. The service template fills in the Bitbucket repository URL. It gives a SQL and PL/SQL service no Nexus IQ application.</li>
-<li>In Build, choose &quot;SQL and PL/SQL (Liquibase)&quot;. Its hint reads &quot;The code is SQL and PL/SQL with a Liquibase changelog, such as db/changelog-master.xml&quot;. Type the Source folder: the folder of the changelogs, such as <code>orders-db</code>, or <code>.</code> when the repository holds only the database code. Leave &quot;Set up the build tool automatically&quot; on: it selects a JDK of the Java version in the Library defaults, 17 unless the DevSecOps team set another. With it off, type the JDK path of a JDK 17 or newer on the agent.</li>
-<li>Open Database changes. Type the Changelog file, such as <code>db/changelog-master.xml</code>. For a module of a Gradle or Maven build, also type the Search folder, such as <code>src/main/resources</code>.</li>
+<li>In Step 1, choose the product. In Step 2, choose the Full, Security or SAST pipeline. The OSA pipeline (Nexus IQ GoldenFix) takes no database service: the library runs no Nexus IQ GoldenFix pipeline for it.</li>
+<li>In Step 3, click &quot;Add a service&quot;. In a repository with Java and database code, add the database service first.</li>
+<li>In General, type the service name, such as <code>orders-db</code>. As for every service, the service template fills in the Bitbucket repository URL and the Nexus IQ application. An application without a scan pattern cannot be saved: type one under Nexus IQ, or remove the application.</li>
+<li>In Build, choose &quot;Liquibase (SQL / PL/SQL)&quot;. Its hint reads &quot;The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties&quot;. The Liquibase commands come from the service template, as for every Liquibase service. Type the Source folder: the folder of the changelogs, such as <code>orders-db</code>, or <code>.</code> when the repository holds only the database code. Leave &quot;Set up the build tool automatically&quot; on: it selects a JDK of the Java version in the Library defaults, 17 unless the DevSecOps team set another. With it off, type the JDK path of a JDK 17 or newer on the agent.</li>
+<li>Open Database changes. Type the Changelog file, such as <code>db/changelog-master.xml</code>. The other fields of the section appear once it is set, and the Deployment section disappears. For a module of a Gradle or Maven build, also type the Search folder, such as <code>src/main/resources</code>.</li>
 <li>Under &quot;Test database, for the utPLSQL tests&quot;, &quot;RD, the lower test region&quot; and &quot;QC, the higher test region&quot;, type the JDBC URL and the Credentials ID of each database the pipelines deploy to. Leave a database empty when the pipelines do not deploy to it.</li>
 <li>To run the utPLSQL tests, tick &quot;Run the utPLSQL tests&quot; under the test database. Type the &quot;Folder of the packages&quot; and the &quot;Folder of the test packages&quot;, such as <code>db/code</code> and <code>db/test</code>.</li>
 <li>Under &quot;Package and Nexus delivery&quot;, type the Group ID, such as <code>com.bbh.orders</code>. The Full and Security pipelines need it while &quot;Deliver the package to Nexus&quot; is ticked. While the Library defaults name no Nexus repositories for database packages, the repository fields appear here as well and need values; otherwise they are under Advanced settings.</li>
@@ -495,38 +496,38 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>For the Security and Full pipelines, type the SonarQube project key when the SonarQube server analyses PL/SQL.</li>
 <li>When nothing is missing, click &quot;Add service&quot;.</li>
 </ol>
-<p>The wizard checks the database settings while you type. A JDBC URL that the Library defaults do not allow, a test database that is also the RD or QC database, and a QC context filter that selects the test changesets are refused under their field; <a href="#when-a-sql-and-plsql-service-stops">When a SQL and PL/SQL service stops</a> lists every message.</p>
-<p>Under each SQL and PL/SQL service the list of Step 3 shows &quot;SQL and PL/SQL changes with Liquibase&quot; and its repository. With the OSA pipeline, Step 3 says &quot;A Nexus IQ GoldenFix pipeline scans open source dependencies, which SQL and PL/SQL services do not have. Remove these services from this pipeline:&quot; followed by their names, and Next stays disabled.</p>
-<p>The Review step warns when a SQL and PL/SQL service comes after a Gradle or Maven service of the same repository: &quot;It comes after <code>&lt;service&gt;</code> of the same repository, but the services of one repository run in their order, so the database changes reach RD before the application that needs them. Ask the DevSecOps team to move it up in the admin editor.&quot; The wizard cannot change the order of saved services.</p>
-<h3 id="add-a-sql-and-plsql-service-in-the-admin-editor">Add a SQL and PL/SQL service in the admin editor</h3>
+<p>The wizard checks the database settings while you type. A JDBC URL that the Library defaults do not allow, a test database that is also the RD or QC database, and a QC context filter that selects the test changesets are refused under their field; <a href="#when-a-database-service-stops">When a database service stops</a> lists every message.</p>
+<p>Under each database service the list of Step 3 shows &quot;Built with Liquibase (SQL / PL/SQL), deploys its changes to its databases&quot; and its repository. With the OSA pipeline, Step 3 says &quot;The library runs no Nexus IQ GoldenFix pipeline for a Liquibase service with database changes. Remove these services from this pipeline:&quot; followed by their names, and Next stays disabled.</p>
+<p>The Review step warns when a database service comes after a Gradle or Maven service of the same repository: &quot;It comes after <code>&lt;service&gt;</code> of the same repository, but the services of one repository run in their order, so the database changes reach RD before the application that needs them. Ask the DevSecOps team to move it up in the admin editor.&quot; The wizard cannot change the order of saved services.</p>
+<h3 id="add-a-database-service-in-the-admin-editor">Add a database service in the admin editor</h3>
 <ol>
 <li>Open the product page and click &quot;Edit product&quot;. Under Services, click &quot;Add service&quot;. For a new product, use &quot;Add product&quot; as in <a href="#a-new-product">chapter 5</a>.</li>
-<li>Fill in the service as in <a href="#add-a-sql-and-plsql-service-in-the-wizard">Add a SQL and PL/SQL service in the wizard</a>. The admin editor shows the sections General, Build, Database changes, Test jobs, AppScan SAST and DAST, SonarQube, Bitbucket and Monitoring. A SQL and PL/SQL service has no Unit tests and coverage, Deployment, UrbanCode Deploy, SSH targets, OpenShift targets, Nexus IQ, GoldenFix or Flutter section.</li>
+<li>Fill in the service as in <a href="#add-a-database-service-in-the-wizard">Add a database service in the wizard</a>. The admin editor shows the sections of every Liquibase service and Database changes. Once the changelog file is set, it shows General, Build, Database changes, Unit tests and coverage, Test jobs, AppScan SAST and DAST, SonarQube, Nexus IQ, Bitbucket, GoldenFix and Monitoring: a database service has no Deployment, UrbanCode Deploy, SSH targets, OpenShift targets or Flutter section.</li>
 <li>Every new service gets a Full pipeline. A service that delivers its package to Nexus therefore needs its group ID and the Nexus repositories.</li>
 <li>When the service comes after a Gradle or Maven service of the same repository, its panel says &quot;Move this service up, before <code>&lt;service&gt;</code>: the services of one repository run in their order, so the database changes reach RD before the application that needs them.&quot; Click &quot;Move up&quot; until the note disappears.</li>
 <li>Click &quot;Save changes&quot;. The services of one repository that share a Jenkins job get one combined Jenkinsfile, with their keys in the order of the services.</li>
 </ol>
-<p>Before you save, a service whose build tool changes to SQL and PL/SQL keeps its other values in the form, hidden, so a change back loses nothing. The save drops what a SQL and PL/SQL service does not use, such as its build command, its Node.js build, its Nexus IQ application and its deployment targets. A service with a Nexus IQ GoldenFix pipeline cannot change to SQL and PL/SQL: delete that pipeline first.</p>
-<h3 id="the-fields-of-a-sql-and-plsql-service">The fields of a SQL and PL/SQL service</h3>
-<p><strong>Build.</strong> A SQL and PL/SQL service has no build command, no artifact path, no Node.js build and no Advanced settings in Build: the pipelines package the changelog and the files it includes into a zip.</p>
+<p>A service whose changelog file is set keeps its deployment values, hidden and unchecked, so emptying the changelog file brings them back. The settings sent to Jenkins leave them out: a database service writes no <code>deployTarget</code>, <code>appName</code>, <code>artifactName</code>, <code>baseArtifactName</code>, <code>deploy</code> or <code>delivery</code>. A service with a Nexus IQ GoldenFix pipeline cannot get a changelog file: delete that pipeline first.</p>
+<h3 id="the-fields-of-a-database-service">The fields of a database service</h3>
+<p><strong>Build.</strong> A database service keeps the Build section of every Liquibase service (<a href="#sql-and-plsql-services-with-liquibase-single-module-and-multi-module">chapter 5</a>): its Liquibase commands and flags, its artifact path, its Node.js build and its Advanced settings. The pipelines also package the changelog and the files it includes into a zip.</p>
 <table>
 <thead>
 <tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
 </thead>
 <tbody>
-<tr><td>Build tool</td><td>the build tool of the Library defaults</td><td>Choose &quot;SQL and PL/SQL (Liquibase)&quot;.</td></tr>
-<tr><td>Source folder</td><td><code>.</code>, the repository root</td><td>The folder of the SQL and PL/SQL code, such as <code>orders-db</code>. The AppScan scan and the search folder start from it. Choose it once, before the first deployment: Liquibase records every change under a path that depends on this folder and on the search folder, so a later change makes Liquibase treat every change as new.</td></tr>
+<tr><td>Build tool</td><td>the build tool of the Library defaults</td><td>Choose &quot;Liquibase (SQL / PL/SQL)&quot;.</td></tr>
+<tr><td>Source folder</td><td><code>.</code>, the repository root</td><td>The folder of the Liquibase code, such as <code>orders-db</code>. The AppScan scan and the search folder start from it. Choose it once, before the first deployment: Liquibase records every change under a path that depends on this folder and on the search folder, so a later change makes Liquibase treat every change as new.</td></tr>
 <tr><td>Set up the build tool automatically</td><td>on</td><td>Selects a JDK of the Java version of the Library defaults, 17 unless set there, installed on the agent.</td></tr>
 <tr><td>JDK path</td><td>none</td><td>Shown while the automatic setup is off, and then required: the absolute path of a JDK 17 or newer on the agent. Liquibase and utPLSQL run with it.</td></tr>
 </tbody>
 </table>
-<p><strong>Database changes.</strong> The section starts with the changelog:</p>
+<p><strong>Database changes.</strong> The section starts with the changelog; the other fields appear once it is set:</p>
 <table>
 <thead>
 <tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
 </thead>
 <tbody>
-<tr><td>Changelog file</td><td>none, required</td><td>The main Liquibase changelog, relative to the search folder. It ends with <code>.xml</code>, <code>.yaml</code>, <code>.yml</code>, <code>.json</code> or <code>.sql</code>. Its path is part of the identity of every change in the database, so it must not change after the first deployment.</td></tr>
+<tr><td>Changelog file</td><td>none</td><td>The main Liquibase changelog, relative to the search folder. It ends with <code>.xml</code>, <code>.yaml</code>, <code>.yml</code>, <code>.json</code> or <code>.sql</code>. Set, it makes the service a database service; empty, the service builds with its Liquibase commands as any other Liquibase service. Its path is part of the identity of every change in the database, so it must not change after the first deployment.</td></tr>
 <tr><td>Search folder</td><td><code>.</code>, the source folder</td><td>Liquibase looks for the changelog and every file it includes in this folder, relative to the source folder, and reads nothing outside it. Like the changelog path, it must not change after the first deployment.</td></tr>
 <tr><td>Changelog parameters</td><td>none</td><td>Values that the changelog uses as <code>${name}</code>, one <code>name=value</code> per line, such as <code>app_role=orders_app_role</code>. They are written into the package, so they must not hold a secret: a name that contains password, passwd, pwd, secret, token or credential is refused.</td></tr>
 </tbody>
@@ -576,7 +577,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><td>Snapshot repository ID and URL, Release repository ID and URL</td><td>the Library defaults</td><td>The Nexus repositories of the zip. A field is shown here while the Library defaults have no value for it, and under Advanced settings otherwise. The ID is the server ID in the Maven settings of the agents, which supplies the upload credentials.</td></tr>
 </tbody>
 </table>
-<p>Advanced settings, with the summary &quot;Maven home, contexts, labels, schemas, the checks after a deployment, the options of each database and SonarQube&quot;, holds:</p>
+<p>Advanced settings, with the summary &quot;Maven home, contexts, labels, schemas, the checks after a deployment and the options of each database&quot;, holds:</p>
 <table>
 <thead>
 <tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
@@ -611,24 +612,20 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><td>Timeout (minutes)</td><td>30</td><td>How long each step that connects to this database may take, from 1 to 240 minutes.</td></tr>
 </tbody>
 </table>
-<p>&quot;SonarQube analysis of SQL and PL/SQL&quot;, the last block of Advanced settings, holds Sources, the folders SonarQube analyses, by default the folder the package is made of, and SonarScanner version. A SonarScanner version selects the Jenkins tool installation named <code>sonar-scanner-cli-</code> followed by the version; left empty, the <code>sonar-scanner</code> on the path of the agent runs.</p>
-<p><strong>The other sections.</strong> Test jobs works as for every service, without the &quot;Required&quot; box: a test stage without jobs is not required, so it never turns the run orange. AppScan SAST and DAST sends the source files to the static scan without compiling them, so it has no &quot;Compile before preparing the IRX&quot;, no &quot;Scan source code only&quot; and no dynamic scan. SonarQube has no analysis command: the analysis runs only when the SonarQube server has a PL/SQL analyzer and the service has a project key. Bitbucket and Monitoring work as for every service.</p>
-<h3 id="what-the-pipelines-do-with-a-sql-and-plsql-service">What the pipelines do with a SQL and PL/SQL service</h3>
+<p><strong>The other sections.</strong> Unit tests and coverage, AppScan SAST and DAST, SonarQube, Nexus IQ and GoldenFix work as for every Liquibase service (<a href="#sql-and-plsql-services-with-liquibase-single-module-and-multi-module">chapter 5</a>); SonarQube reads the folders it analyses from <code>-Dsonar.sources=</code> in the flags of its command. Test jobs works as for every service, without the &quot;Required&quot; box: a test stage without jobs is not required, so it never turns the run orange. Bitbucket and Monitoring work as for every service.</p>
+<h3 id="what-the-pipelines-do-with-a-database-service">What the pipelines do with a database service</h3>
+<p>The Node.js build, the Liquibase commands of the build, the unit tests and AppScan, the Nexus IQ scan, GoldenFix and DAST run as for every Liquibase service (<a href="#sql-and-plsql-services-with-liquibase-single-module-and-multi-module">chapter 5</a>). The table lists what the database changes add.</p>
 <table>
 <thead>
-<tr><th>Stage</th><th>What happens for a SQL and PL/SQL service</th><th>Full</th><th>Security</th><th>Extended</th><th>SAST</th></tr>
+<tr><th>Stage</th><th>What happens for a database service</th><th>Full</th><th>Security</th><th>Extended</th><th>SAST</th></tr>
 </thead>
 <tbody>
 <tr><td>Monitor source changes</td><td>Checks the settings of the service and, in the Full and Security pipelines, that the changelog file and the utPLSQL folders exist. A wrong setting stops the run with a message that names its key.</td><td>yes</td><td>yes</td><td>yes</td><td>yes</td></tr>
-<tr><td>Node.js build</td><td>Never runs for a SQL and PL/SQL service.</td><td></td><td></td><td></td><td></td></tr>
-<tr><td>Unit tests</td><td>Checks the changelog offline, runs the static checks of the source files, writes the SQL that RD and QC would receive, and builds and checks the zip. With a test database, installs the changes there with the context <code>test</code>, after emptying the schema when &quot;Empty the test schema&quot; is ticked; with utPLSQL, runs the tests and reads their results and coverage. Without a test database or without utPLSQL, the coverage is not required.</td><td>yes</td><td>yes</td><td></td><td></td></tr>
-<tr><td>Dependencies scan (Nexus IQ)</td><td>Not required: the service has no open source dependencies.</td><td>yes</td><td>yes</td><td></td><td></td></tr>
-<tr><td>SAST</td><td>AppScan scans the SQL and PL/SQL source files without compiling them.</td><td>yes</td><td>yes</td><td></td><td>yes</td></tr>
+<tr><td>Unit tests</td><td>Besides the unit test commands of the service, checks the changelog offline, runs the static checks of the source files, writes the SQL that RD and QC would receive, and builds and checks the zip. With a test database, installs the changes there with the context <code>test</code>, after emptying the schema when &quot;Empty the test schema&quot; is ticked; with utPLSQL, runs the tests and reads their results and coverage. Without a test database or without utPLSQL, the coverage is not required.</td><td>yes</td><td>yes</td><td></td><td></td></tr>
 <tr><td>SCA (SonarQube)</td><td>Runs the SonarScanner when the SonarQube server analyses PL/SQL and the service has a project key; otherwise not required.</td><td>yes</td><td>yes</td><td></td><td></td></tr>
 <tr><td>Nexus delivery (Static analysis passed)</td><td>Uploads the zip to the snapshot repository. Not required while &quot;Deliver the package to Nexus&quot; is unticked.</td><td>yes</td><td>yes</td><td></td><td></td></tr>
-<tr><td>Lower test region deployment</td><td>Deploys to RD: lists the pending changes, runs the update with the contexts of RD, checks for invalid objects, checks that nothing is left pending and tags the database. Not required without an RD JDBC URL.</td><td>yes</td><td></td><td>yes</td><td></td></tr>
+<tr><td>Lower test region deployment</td><td>Deploys to RD in place of the deployment of the service: lists the pending changes, runs the update with the contexts of RD, checks for invalid objects, checks that nothing is left pending and tags the database. Not required without an RD JDBC URL.</td><td>yes</td><td></td><td>yes</td><td></td></tr>
 <tr><td>Regression, Smoke, Performance tests</td><td>The test jobs of the service; not required without jobs.</td><td>yes</td><td></td><td>yes</td><td></td></tr>
-<tr><td>DAST</td><td>Not required.</td><td>yes</td><td></td><td>yes</td><td></td></tr>
 <tr><td>Nexus delivery - Safe Artifact</td><td>After the release gate allows it, uploads the same zip to the release repository.</td><td>yes</td><td></td><td>yes</td><td></td></tr>
 <tr><td>Higher test environment deployment</td><td>Deploys to QC as to RD, only with the run parameter <code>DEPLOY_HIGHER_ENV</code> and after the release gate allows it. Not required without a QC JDBC URL.</td><td>yes</td><td></td><td>yes</td><td></td></tr>
 </tbody>
@@ -637,7 +634,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li><strong>Security</strong> runs up to the snapshot delivery and can then start its Extended pipeline, as for every service.</li>
 <li><strong>Extended</strong> fetches the zip that its Security pipeline delivered last, deploys exactly that zip to RD and QC, and releases it. With &quot;Deliver the package to Nexus&quot; unticked, it packages the changes of its own checkout instead.</li>
 <li><strong>SAST</strong> checks the settings and runs the static scan. It runs no Liquibase step, so its agents need no Liquibase.</li>
-<li><strong>Nexus IQ GoldenFix</strong> is refused for a SQL and PL/SQL service: the portal does not offer it in the pipeline dialog, and the API answers 409 Conflict.</li>
+<li><strong>Nexus IQ GoldenFix</strong> is refused for a database service, because the library runs none for it: the API answers 409 Conflict, and the wizard asks you to remove the service from the pipeline.</li>
 </ul>
 <p><strong>The version and the package.</strong> Each run that packages the changes gives them a version made of the build number and the UTC time of the build, such as <code>341-20261031-101500</code>. The zip is named <code>&lt;artifact ID&gt;-&lt;version&gt;.zip</code>, such as <code>orders-db-341-20261031-101500.zip</code>. The snapshot delivery uploads it as <code>com.bbh.orders:orders-db:341-20261031-101500-SNAPSHOT</code>, the release delivery as <code>com.bbh.orders:orders-db:341-20261031-101500</code>, and the tag of RD and QC is <code>orders-db-341-20261031-101500</code>. The zip holds the first folder of the changelog path, <code>db</code> for <code>db/changelog-master.xml</code>, or the whole search folder when the changelog has no folder. It holds no <code>liquibase*.properties</code> file. At its root it holds the manifest <code>dso-deploy.properties</code>, which names the changelog, the context filter, the label filter and the schemas of QC, and the names of the changelog parameters. The manifest holds no URL, user or password.</p>
 <p><strong>What the delivery needs.</strong> While &quot;Deliver the package to Nexus&quot; is ticked, each pipeline type needs:</p>
@@ -652,8 +649,8 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><td>SAST</td><td>not needed</td><td>not needed</td><td>not needed</td></tr>
 </tbody>
 </table>
-<p>Each repository value is taken from the service, else from the Library defaults. The form names the first missing item under its field: &quot;Add the group ID of the package, or untick Deliver the package to Nexus: the Full pipeline delivers it&quot;, or &quot;Add the snapshot repository ID, set it in the Library defaults (SQL and PL/SQL), or untick Deliver the package to Nexus&quot;. A save through the API is refused with 409 Conflict and, for example, &quot;Service orders-db delivers its database package to Nexus in the Full pipeline but has no group ID. Set it under Database changes, or untick Deliver the package to Nexus&quot;.</p>
-<h3 id="rules-for-the-changelog-of-a-sql-and-plsql-service">Rules for the changelog of a SQL and PL/SQL service</h3>
+<p>Each repository value is taken from the service, else from the Library defaults. The form names the first missing item under its field: &quot;Add the group ID of the package, or untick Deliver the package to Nexus: the Full pipeline delivers it&quot;, or &quot;Add the snapshot repository ID, set it in the Library defaults (Liquibase database changes), or untick Deliver the package to Nexus&quot;. A save through the API is refused with 409 Conflict and, for example, &quot;Service orders-db delivers its database package to Nexus in the Full pipeline but has no group ID. Set it under Database changes, or untick Deliver the package to Nexus&quot;.</p>
+<h3 id="rules-for-the-changelog-of-a-database-service">Rules for the changelog of a database service</h3>
 <p>The pipelines deploy what Liquibase Community deploys. The library guide explains each rule in its chapter 14, &quot;Writing a changelog for PL/SQL&quot;.</p>
 <ol>
 <li>Put one PL/SQL unit in each file, deployed by a <code>sqlFile</code> changeset with <code>splitStatements=&quot;false&quot;</code> and <code>stripComments=&quot;false&quot;</code>, and end the file with a <code>/</code> on a line of its own. A file with the package specification and body together also works with <code>endDelimiter=&quot;\n/&quot;</code>.</li>
@@ -680,7 +677,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <h3 id="a-repository-with-java-nodejs-and-a-database">A repository with Java, Node.js and a database</h3>
 <p>The product <code>ORDERSGRADLE</code> keeps a Gradle multi-module build in one repository. The module <code>orders-db</code> holds the changelog <code>orders-db/src/main/resources/db/changelog/db.changelog-master.xml</code>, and Node.js builds the frontend in <code>frontend</code>. The product has two services in this order:</p>
 <ol>
-<li><code>orders-db</code>: SQL and PL/SQL (Liquibase), Source folder <code>orders-db</code>, Search folder <code>src/main/resources</code>, Changelog file <code>db/changelog/db.changelog-master.xml</code>.</li>
+<li><code>orders-db</code>: Liquibase (SQL / PL/SQL), Source folder <code>orders-db</code>, Search folder <code>src/main/resources</code>, Changelog file <code>db/changelog/db.changelog-master.xml</code>.</li>
 <li><code>orders-app</code>: Gradle, Source folder <code>.</code>, Excluded folders <code>orders-db</code>, Node.js build of <code>frontend</code>.</li>
 </ol>
 <p>The settings sent to Jenkins hold, shortened:</p>
@@ -689,6 +686,12 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
     <span class="k">buildTool</span>: liquibase
     <span class="k">sourceDir</span>: orders-db
     <span class="k">buildToolAutoSetup</span>: <span class="v">true</span>
+    <span class="k">tools</span>:
+      <span class="k">sonar</span>:
+        <span class="k">projectKey</span>: bbh-orders-db
+      <span class="k">nexusIq</span>:
+        <span class="k">serverUrl</span>: https://tools.bbh.com/IQ
+        <span class="k">credentialsId</span>: nexusiqP
     <span class="k">dast</span>:
       <span class="k">enabled</span>: <span class="v">false</span>
     <span class="k">database</span>:
@@ -722,7 +725,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
       <span class="k">node</span>:
         <span class="k">enabled</span>: <span class="v">true</span>
         <span class="k">dir</span>: frontend</code></pre>
-<p>The SQL and PL/SQL service has no <code>deploy</code>, <code>delivery</code>, <code>goldenFix</code> or <code>tools.nexusIq</code> settings, and <code>orders-app</code> keeps every setting of a Gradle service, its UrbanCode Deploy application included. Both services name the same Bitbucket repository, so they share one Jenkins job and one combined Jenkinsfile, with the key of <code>orders-db</code> first:</p>
+<p>The database service has no <code>deployTarget</code>, <code>deploy</code> or <code>delivery</code> settings, and <code>orders-app</code> keeps every setting of a Gradle service, its UrbanCode Deploy application included. Both services name the same Bitbucket repository, so they share one Jenkins job and one combined Jenkinsfile, with the key of <code>orders-db</code> first:</p>
 <pre><code><span class="kw">@Library</span>(<span class="s">'DevSecOpsJenkinsLibrary'</span>) _
 
 devSecOpsPipeline(<span class="k">pipelineKeys</span>: [
@@ -730,7 +733,7 @@ devSecOpsPipeline(<span class="k">pipelineKeys</span>: [
     <span class="s">'&lt;pipeline key of orders-app&gt;'</span>,
 ])</code></pre>
 <p>A Full run then builds and tests both services, scans both, deploys the database changes to RD and then the application, and releases both after the release gate.</p>
-<p>The product <code>ORDERSMAVEN</code> keeps independent folders: <code>orders-db</code> with the YAML changelog <code>orders-db/changelog-master.yaml</code>, a Maven API in <code>api</code> and its frontend in <code>web</code>. Its services are <code>orders-db</code> (SQL and PL/SQL, Source folder <code>orders-db</code>, Changelog file <code>changelog-master.yaml</code>) and <code>orders-api</code> (Maven, Source folder <code>.</code>, Excluded folders <code>orders-db</code>, Directory <code>api</code>, Node.js build of <code>web</code>), in this order. That changelog has no folder, so the zip holds the whole folder <code>orders-db</code>. The service <code>orders-api</code> writes <code>build.maven.dir: api</code>: Maven runs in the folder that holds the <code>pom.xml</code>. The AppScan scope of <code>orders-api</code> is the repository without <code>orders-db</code>, so <code>api</code> and <code>web</code> are scanned once by <code>orders-api</code>, and the SQL and PL/SQL code once by <code>orders-db</code>.</p>
+<p>The product <code>ORDERSMAVEN</code> keeps independent folders: <code>orders-db</code> with the YAML changelog <code>orders-db/changelog-master.yaml</code>, a Maven API in <code>api</code> and its frontend in <code>web</code>. Its services are <code>orders-db</code> (Liquibase, Source folder <code>orders-db</code>, Changelog file <code>changelog-master.yaml</code>) and <code>orders-api</code> (Maven, Source folder <code>.</code>, Excluded folders <code>orders-db</code>, Directory <code>api</code>, Node.js build of <code>web</code>), in this order. That changelog has no folder, so the zip holds the whole folder <code>orders-db</code>. The service <code>orders-api</code> writes <code>build.maven.dir: api</code>: Maven runs in the folder that holds the <code>pom.xml</code>. The AppScan scope of <code>orders-api</code> is the repository without <code>orders-db</code>, so <code>api</code> and <code>web</code> are scanned once by <code>orders-api</code>, and the Liquibase code once by <code>orders-db</code>.</p>
 <h3 id="database-credentials-stay-in-jenkins">Database credentials stay in Jenkins</h3>
 <ul>
 <li>The portal stores only the credentials IDs of the databases. It has no field for a user or a password.</li>
@@ -740,8 +743,8 @@ devSecOpsPipeline(<span class="k">pipelineKeys</span>: [
 <li>The import of a devsecops_config.yaml never takes a database password, a JDBC URL with a user or a password, or a production database; see <a href="#10-import-a-devsecops_configyaml-and-copy-a-service">chapter 10</a>.</li>
 <li>The pipelines pass the password to Liquibase and utPLSQL without writing it to the console, the report or the archived files.</li>
 </ul>
-<h3 id="library-defaults-for-sql-and-plsql-services">Library defaults for SQL and PL/SQL services</h3>
-<p>The section &quot;SQL and PL/SQL (Liquibase)&quot; of the Library defaults page has five blocks. Every value applies to every SQL and PL/SQL service. A tool left empty is taken from the path of the agent.</p>
+<h3 id="library-defaults-for-database-services">Library defaults for database services</h3>
+<p>The section &quot;Liquibase database changes&quot; of the Library defaults page has five blocks. Every value applies to every database service. A tool left empty is taken from the path of the agent.</p>
 <table>
 <thead>
 <tr><th>Block</th><th>Field</th><th>Meaning</th></tr>
@@ -786,7 +789,7 @@ devSecOpsPipeline(<span class="k">pipelineKeys</span>: [
 </table>
 <p>The portal checks every JDBC URL against the list when a product is saved, and the library checks it again at every run. The list is a guard against mistakes, not an access control: an IP address or a name that is not listed is refused, but a listed name that points to production is not detected. The real control is that the Jenkins folder of a product holds no production credentials. A line removed later is not checked against the saved services at that moment: the next run of such a service stops, and the next save of its product is refused.</p>
 <h3 id="a-database-service-in-a-jenkinsfile-without-a-key">A database service in a Jenkinsfile without a key</h3>
-<p>A Jenkinsfile without a key reads devsecops_config.yaml from the repository and takes the Library defaults from the copy kept in the library (see <a href="#a-jenkinsfile-without-a-key">A Jenkinsfile without a key</a>). That copy holds the SQL and PL/SQL block with empty values in this release. Until the DevSecOps team ships the allowed databases in a library release, a SQL and PL/SQL service without a key therefore cannot deploy to any database. Such a service needs:</p>
+<p>A Jenkinsfile without a key reads devsecops_config.yaml from the repository and takes the Library defaults from the copy kept in the library (see <a href="#a-jenkinsfile-without-a-key">A Jenkinsfile without a key</a>). That copy holds the block of Liquibase database changes with empty values in this release. Until the DevSecOps team ships the allowed databases in a library release, a database service without a key therefore cannot deploy to any database. Such a service needs:</p>
 <ul>
 <li>no <code>database.test</code>, <code>database.rd</code> or <code>database.qc</code> block. Remove them from the downloaded file: a JDBC URL that the copy does not allow stops the run at its start. Without them, the deployment stages are not required;</li>
 <li>Liquibase, and utPLSQL-cli when tests run, on the path of the agent, or <code>tools.liquibase</code>, <code>tools.oracleJdbc</code> and <code>tools.utplsql</code> added by hand under the service in the file;</li>
@@ -820,14 +823,14 @@ liquibase --defaults-file=dso-deploy.properties --search-path=orders-db-341-2026
 <li>After the approval, run <code>update</code>, then <code>tag</code> with the artifact ID and the version.</li>
 </ol>
 <p>Set the production values of the changelog parameters that the manifest lists. The changelog path and the search folder must be exactly those of the manifest, or Liquibase treats every change as new.</p>
-<h3 id="when-a-sql-and-plsql-service-stops">When a SQL and PL/SQL service stops</h3>
+<h3 id="when-a-database-service-stops">When a database service stops</h3>
 <p>The portal refuses the settings that the pipelines would refuse. While you type, the form shows the problem under its field, in most cases with the text below starting with a capital letter. A save through the API answers with the field and the text.</p>
 <table>
 <thead>
 <tr><th>Message</th><th>Field</th><th>What to do</th></tr>
 </thead>
 <tbody>
-<tr><td>&quot;is required for the build tool SQL and PL/SQL (Liquibase)&quot;</td><td>Changelog file</td><td>Type the path of the changelog.</td></tr>
+<tr><td>&quot;is required once a database setting or database is set&quot;</td><td>Changelog file</td><td>Type the path of the changelog, or remove the other database settings.</td></tr>
 <tr><td>&quot;has no folder and the search root is the repository root: put the changelog in a folder, or set the search folder or the source folder to the folder of the changelog&quot;</td><td>Changelog file</td><td>The zip would hold the whole repository. Do one of the three.</td></tr>
 <tr><td>&quot;set the JDK path or enable automatic build tool setup: Liquibase and utPLSQL need Java 17 or newer&quot;</td><td>JDK path</td><td>Tick &quot;Set up the build tool automatically&quot;, or type the path of a JDK 17 or newer.</td></tr>
 <tr><td>&quot;must not contain a user or a password: keep them in the Jenkins credentials of the credentials ID&quot;</td><td>JDBC URL</td><td>Remove the user and the password from the URL.</td></tr>
@@ -843,7 +846,7 @@ liquibase --defaults-file=dso-deploy.properties --search-path=orders-db-341-2026
 <tr><td>&quot;holds a name that looks like a secret: ...&quot;</td><td>Changelog parameters</td><td>Remove the parameter, and keep the secret in a Jenkins credential.</td></tr>
 <tr><td>&quot;holds a value that is not printable ASCII of at most 500 characters, ...&quot;</td><td>Changelog parameters</td><td>Use plain ASCII without blanks at the start or the end and without <code>${</code>.</td></tr>
 <tr><td><code>Service &lt;service&gt; delivers its database package to Nexus in the &lt;type&gt; pipeline but has no &lt;item&gt;</code></td><td>the save</td><td>Set the item under Database changes or in the Library defaults, or untick &quot;Deliver the package to Nexus&quot;.</td></tr>
-<tr><td><code>Service &lt;service&gt; changes a database with SQL and PL/SQL and has no open source dependencies</code></td><td>Add pipeline, the save</td><td>Choose another pipeline type.</td></tr>
+<tr><td><code>Service &lt;service&gt; is a Liquibase service with database changes, for which the library runs no Nexus IQ GoldenFix pipeline</code></td><td>Add pipeline, the save</td><td>Choose another pipeline type, or delete the Nexus IQ GoldenFix pipeline before you set the changelog file.</td></tr>
 </tbody>
 </table>
 <p>The library checks the settings again when a pipeline starts, together with what the portal cannot see: whether the changelog file and the utPLSQL folders exist in the checkout, and whether the allowed databases have changed. Its messages, and the messages of Liquibase and utPLSQL, are explained in chapter 14 of the library guide, under &quot;Troubleshooting&quot;. <a href="#19-troubleshooting">Chapter 19</a> of this guide describes the portal refusals in more detail.</p>
@@ -924,7 +927,6 @@ devSecOpsNexusIqGoldenFixPipeline(<span class="k">pipelineKeys</span>: [
 </tbody>
 </table>
 <p><code>pipeline.type</code> holds the value in the fourth column (<code>full</code> for the Full pipeline) and <code>pipeline.entryPoint</code> the entry point.</p>
-<p>A SQL and PL/SQL service takes the Full, Security, Extended and SAST pipelines. The Nexus IQ GoldenFix pipeline is refused for it, because it has no open source dependencies to scan; see <a href="#what-the-pipelines-do-with-a-sql-and-plsql-service">chapter 7</a>.</p>
 <h3 id="pipeline-execution-flow-and-stages">Pipeline execution flow and stages</h3>
 <p>The Full and Security pipelines follow an optimized, decoupled execution order:</p>
 <ol>
@@ -939,6 +941,7 @@ devSecOpsNexusIqGoldenFixPipeline(<span class="k">pipelineKeys</span>: [
 </li>
 <li><strong>Deployment and automated test stages</strong> (Full pipeline): Following successful verification, the pipeline deploys the artifact to the lower test environment (RD), executes Smoke, Regression, and Performance test jobs, runs DAST against the deployed application, and proceeds to QC deployment and release delivery.</li>
 </ol>
+<p>A Liquibase service with database changes takes the Full, Security, Extended and SAST pipelines; the Nexus IQ GoldenFix pipeline is refused for it, see <a href="#what-the-pipelines-do-with-a-database-service">chapter 7</a>.</p>
 <h3 id="pipeline-settings">Pipeline settings</h3>
 <p>&quot;Add pipeline&quot; on the product page and &quot;Edit pipeline settings&quot; open the pipeline dialog:</p>
 <table>
@@ -946,7 +949,7 @@ devSecOpsNexusIqGoldenFixPipeline(<span class="k">pipelineKeys</span>: [
 <tr><th>Field</th><th>Meaning</th></tr>
 </thead>
 <tbody>
-<tr><td>Pipeline type</td><td>Fixed once the pipeline exists. A service has at most one pipeline of each type. The dialog does not offer Nexus IQ GoldenFix for a SQL and PL/SQL service.</td></tr>
+<tr><td>Pipeline type</td><td>Fixed once the pipeline exists. A service has at most one pipeline of each type.</td></tr>
 <tr><td>Jenkins agents</td><td>Agent labels or label expressions, separated by commas. The first is the default. A run uses the one chosen in its AGENT_NAME parameter. Written as <code>pipeline.agentNames</code>.</td></tr>
 <tr><td>Jenkins job</td><td>The path of the job, for example <code>DevSecOps/CERT/backend-api-full</code>, or its full address. The portal links the pipeline and its runs to it. It is not written to <code>devsecops_config.yaml</code>.</td></tr>
 <tr><td>Extended pipeline job</td><td>Security only, optional: the Extended pipeline started after the scans. Written as <code>jenkins.pipeline.extendedPipeline</code>.</td></tr>
@@ -1015,7 +1018,7 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <li><code>build.node</code> without <code>enabled: true</code> comes back switched off, with its values kept.</li>
 <li>A Flutter file with <code>build.node.enabled: true</code> comes back switched off with the note &quot;Check: the Node.js build is not used with Flutter&quot;.</li>
 <li><code>goldenFix.versionCatalogs</code> fills &quot;Shared version catalogs&quot;.</li>
-<li>A project with <code>buildTool: liquibase</code> imports its <code>database</code> block, <code>tools.sonar.sources</code> and <code>tools.sonar.sonarScannerVersion</code>. <code>build.maven.mvnPath</code> fills &quot;Maven home&quot; under Database changes when the file has no <code>database.package.mvnPath</code>. Repositories equal to the Library defaults, and an artifact ID equal to the service name, come back empty. The notes of the database keys are in the table below.</li>
+<li>A project with <code>buildTool: liquibase</code> and a <code>database.changelogFile</code> imports its <code>database</code> block and every key it shares with the other Liquibase services, its Liquibase commands included. <code>build.maven.mvnPath</code> fills &quot;Maven home&quot; under Database changes when the file has no <code>database.package.mvnPath</code>. Repositories equal to the Library defaults, and an artifact ID equal to the service name, come back empty. The notes of the database keys are in the table below.</li>
 <li>In the admin editor, the imported service keeps what the file gives: an empty repository URL, Bitbucket credentials ID or Nexus IQ application stays empty, also when you change its name. So a service without a repository does not come to need a Bitbucket credentials ID. A new name only replaces the values that still hold what the service template gives for the old name, such as the repository URL, the Nexus IQ application and the OpenShift names, and on OpenShift it fills in an empty application name. In the Self-service dialog, the imported service follows its name like a new service: the service template fills in an empty repository URL and Nexus IQ application, and a repository URL filled in that way makes the Bitbucket credentials ID required. In both, the Bitbucket credentials ID stays as the file gives it, even when it is empty. The notes do not list the values filled in, so check them in the Bitbucket and Nexus IQ sections.</li>
 <li>The Jenkins agents of the imported pipeline fill the Jenkins agents of the product while you have not changed them.</li>
 <li>The file may hold at most 262,144 characters and 50 projects.</li>
@@ -1031,9 +1034,9 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tr><td>A JDBC URL with a user or a password, such as <code>jdbc:oracle:thin:scott/tiger@//qc-db.bbh.com:1521/ORDERS_QC</code></td><td>&quot;not imported: the URL holds a user or a password; the portal keeps only the ID of the Jenkins credentials&quot;</td></tr>
 <tr><td><code>database.prod</code>, <code>database.production</code>, <code>database.prd</code> or <code>database.live</code></td><td>&quot;not imported: the pipelines never deploy to production&quot;</td></tr>
 <tr><td><code>database.allowedTargets</code> under a project</td><td>&quot;not imported: a global setting, the same for every service&quot;</td></tr>
-<tr><td><code>tools.liquibase</code>, <code>tools.oracleJdbc</code> or <code>tools.utplsql</code> under a project</td><td>&quot;not imported: the portal sets the SQL and PL/SQL tools for every service in the Library defaults&quot;</td></tr>
-<tr><td><code>database</code> under a Gradle, Maven or Flutter project</td><td>&quot;not imported: database settings belong to a service with buildTool liquibase&quot;</td></tr>
-<tr><td><code>deploy</code>, <code>delivery</code>, <code>build.node</code>, <code>goldenFix</code>, <code>tools.nexusIq</code> or another key a SQL and PL/SQL project does not use</td><td>&quot;not imported: a SQL and PL/SQL service (buildTool liquibase) does not use it&quot;</td></tr>
+<tr><td><code>tools.liquibase</code>, <code>tools.oracleJdbc</code> or <code>tools.utplsql</code> under a project</td><td>&quot;not imported: the portal sets the tools of Liquibase database changes for every service in the Library defaults&quot;</td></tr>
+<tr><td><code>database</code> under a Gradle, Maven or Flutter project, or under a Liquibase project without <code>database.changelogFile</code></td><td>&quot;not imported: only a Liquibase service with a database.changelogFile has database settings&quot;</td></tr>
+<tr><td><code>deployTarget</code>, <code>appName</code>, <code>artifactName</code>, <code>baseArtifactName</code>, <code>deploy</code> or <code>delivery</code> of a project with <code>database.changelogFile</code></td><td>&quot;not imported: a Liquibase service with database changes has no deployment of its own&quot;</td></tr>
 </tbody>
 </table>
 <h3 id="copy-a-service">Copy a service</h3>
@@ -1142,15 +1145,15 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tr><td>Scans and coverage</td><td>The minimum line coverage, how long the pipelines wait for each scan, and the order of the static scans</td></tr>
 <tr><td>Release gate</td><td>Which scans the release gate checks, whether it requires the coverage, and its result file</td></tr>
 <tr><td>Service defaults</td><td>The build tool (Gradle, Maven or Flutter), deployment target and source folder a new service starts with; the test jobs at the same time; the Node.js build defaults</td></tr>
-<tr><td>SQL and PL/SQL (Liquibase)</td><td>Liquibase, the Oracle JDBC driver and utPLSQL-cli, the allowed databases and the Nexus repositories of the database packages</td></tr>
+<tr><td>Liquibase database changes</td><td>Liquibase, the Oracle JDBC driver and utPLSQL-cli, the allowed databases and the Nexus repositories of the database packages</td></tr>
 <tr><td>GoldenFix defaults</td><td>Whether GoldenFix runs by default and the GoldenFix policy</td></tr>
 </tbody>
 </table>
 <p>A Jenkinsfile without a key does not read this page. The values written under <code>defaults</code> reach it through the copy the DevSecOps library keeps of them, which the DevSecOps team updates from &quot;Shared settings sent to Jenkins (devsecops_config.yaml format)&quot; before each library release. That copy leaves out <code>staticAnalysis.parallel</code>, the order of the static scans, so such a Jenkinsfile does not follow the box &quot;Run Nexus IQ and SonarQube while AppScan scans&quot;. The per-service servers and the Deployment defaults reach it in devsecops_config.yaml, once the file is downloaded and committed again. The values written to <code>platform</code>, such as the AppScan on Cloud URL of the scans, the scan client downloads, the proxy, the OIS host, the Nexus snapshot repository and the iOS build agent, never reach it: the library takes them from the environment of the Jenkins agent or uses its own.</p>
 <h3 id="nodejs-build-defaults">Node.js build defaults</h3>
 <p>The block &quot;Node.js build&quot; in Service defaults has three fields: Node.js installation, npm registry and .npmrc credentials ID. A new service shows them as its &quot;Library default&quot;. A service that leaves them empty takes them later as well, through <code>defaults.build.node</code> in <code>devsecops_config.yaml</code>. A service that names its own installation or a Node.js home on the agent uses that instead. The BBH seed leaves all three empty.</p>
-<h3 id="sql-and-plsql-defaults">SQL and PL/SQL defaults</h3>
-<p>The section &quot;SQL and PL/SQL (Liquibase)&quot; gives every SQL and PL/SQL service the locations of Liquibase, the Oracle JDBC driver and utPLSQL-cli, the databases its pipelines may deploy to and the Nexus repositories of its package. The portal writes these values under <code>defaults.tools.liquibase</code>, <code>defaults.tools.oracleJdbc</code>, <code>defaults.tools.utplsql</code> and <code>defaults.database</code>, and only while they are set, so the settings of every other service stay as they were. The allowed databases apply to every service; a service cannot set its own. A service may name its own Nexus repositories. The BBH seed leaves the section empty, so set the allowed databases and the repositories before the first SQL and PL/SQL service is saved. <a href="#library-defaults-for-sql-and-plsql-services">Chapter 7</a> describes each field, the licences, the checksums and the allowed databases.</p>
+<h3 id="liquibase-database-change-defaults">Liquibase database change defaults</h3>
+<p>The section &quot;Liquibase database changes&quot; gives every Liquibase service with database changes the locations of Liquibase, the Oracle JDBC driver and utPLSQL-cli, the databases its pipelines may deploy to and the Nexus repositories of its package. The portal writes these values under <code>defaults.tools.liquibase</code>, <code>defaults.tools.oracleJdbc</code>, <code>defaults.tools.utplsql</code> and <code>defaults.database</code>, and only while they are set, so the settings of every other service stay as they were. The allowed databases apply to every service; a service cannot set its own. A service may name its own Nexus repositories. The BBH seed leaves the section empty, so set the allowed databases and the repositories before the first service with database changes is saved. <a href="#library-defaults-for-database-services">Chapter 7</a> describes each field, the licences, the checksums and the allowed databases.</p>
 <h3 id="decoupled-build-concurrent-scans-and-sonarqube-running-last">Decoupled build, concurrent scans, and SonarQube running last</h3>
 <p>The pipeline executes stages in an optimized sequence:</p>
 <ol>
@@ -1161,7 +1164,7 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <p>The block &quot;Speed&quot; in Scans and coverage provides the checkbox &quot;Run Nexus IQ and SonarQube while AppScan scans&quot; (<code>staticAnalysis.parallel</code>, ticked by default). When enabled, SAST submission, unit tests, and Nexus IQ run concurrently before SonarQube runs last. Unticked, scans run sequentially. The Jenkins environment variable <code>DSO_STATIC_ANALYSIS_PARALLEL</code>, when set to <code>true</code> or <code>false</code>, overrides this setting. A Jenkinsfile without a key follows <code>staticAnalysis.parallel: true</code> in <code>devsecops_config.yaml</code>.</p>
 <h3 id="which-values-follow-later-changes">Which values follow later changes</h3>
 <ul>
-<li>Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the order of the static scans, the release gate, the test jobs at the same time, the Node.js build defaults, the SQL and PL/SQL defaults and the GoldenFix policy of services that inherit it.</li>
+<li>Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the order of the static scans, the release gate, the test jobs at the same time, the Node.js build defaults, the Liquibase database change defaults and the GoldenFix policy of services that inherit it.</li>
 <li>The build tool, the deployment target and the source folder only prefill a new service.</li>
 </ul>
 <h3 id="portal-monitoring">Portal monitoring</h3>
@@ -1263,7 +1266,7 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tr><td>Artifact path</td><td><code>build.buildPath</code></td><td></td></tr>
 <tr><td>Set up the build tool automatically</td><td><code>buildToolAutoSetup</code></td><td></td></tr>
 <tr><td>JDK path</td><td><code>javaPath</code></td><td></td></tr>
-<tr><td>Source folder (Advanced)</td><td><code>sourceDir</code></td><td>the folder the AppScan static scan prepares; for a SQL and PL/SQL service a main field, the folder of its code</td></tr>
+<tr><td>Source folder (Advanced)</td><td><code>sourceDir</code></td><td>the folder the AppScan static scan prepares; for a Liquibase service with database changes a main field, the folder of its code</td></tr>
 <tr><td>Build the frontend with Node.js first</td><td><code>build.node.enabled</code></td><td>written as <code>true</code> only; nothing under <code>build.node</code> is written while it is off</td></tr>
 <tr><td>Folder with package.json</td><td><code>build.node.dir</code></td><td></td></tr>
 <tr><td>Commands</td><td><code>build.node.commands</code></td><td></td></tr>
@@ -1306,13 +1309,13 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 </tbody>
 </table>
 <h3 id="database-changes">Database changes</h3>
-<p>Only a SQL and PL/SQL service writes <code>database</code>, right after <code>build</code>. A value equal to its library default is not written.</p>
+<p>Only a Liquibase service with a changelog file writes <code>database</code>, right after <code>build</code>. A value equal to its library default is not written.</p>
 <table>
 <thead>
 <tr><th>Field</th><th>Key</th><th>Notes</th></tr>
 </thead>
 <tbody>
-<tr><td>Changelog file</td><td><code>database.changelogFile</code></td><td>required</td></tr>
+<tr><td>Changelog file</td><td><code>database.changelogFile</code></td><td>the other keys of <code>database</code> are written only with it</td></tr>
 <tr><td>Search folder</td><td><code>database.searchPath</code></td><td>written unless <code>.</code></td></tr>
 <tr><td>Changelog parameters</td><td><code>database.parameters</code></td><td>a map of <code>name: value</code></td></tr>
 <tr><td>Deliver the package to Nexus</td><td><code>database.package.nexusDelivery</code></td><td>written only as <code>false</code></td></tr>
@@ -1335,8 +1338,6 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tr><td>Recompile invalid objects first (Advanced)</td><td><code>database.compileCheck.recompile</code></td><td>written only as <code>false</code></td></tr>
 <tr><td>Objects the check ignores (Advanced)</td><td><code>database.compileCheck.ignoreObjects</code></td><td>a list</td></tr>
 <tr><td>Files the static checks ignore (Advanced)</td><td><code>database.checks.ignoreFiles</code></td><td>a list</td></tr>
-<tr><td>Sources (Advanced)</td><td><code>tools.sonar.sources</code></td><td></td></tr>
-<tr><td>SonarScanner version (Advanced)</td><td><code>tools.sonar.sonarScannerVersion</code></td><td></td></tr>
 </tbody>
 </table>
 <p>Each database has its own section: <code>database.test</code> for the test database, <code>database.rd</code> for RD and <code>database.qc</code> for QC.</p>
@@ -1370,7 +1371,7 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tr><td>utPLSQL timeout (minutes)</td><td><code>utplsql.timeoutMinutes</code></td><td><code>database.test.utplsql.timeoutMinutes</code>, written unless 30</td></tr>
 </tbody>
 </table>
-<p>A SQL and PL/SQL service also writes <code>dast.enabled: false</code>. It writes no <code>deployTarget</code>, <code>build.buildPath</code>, <code>build.gradle</code>, <code>build.maven</code>, <code>build.node</code>, <code>coverage</code>, <code>tests.unitTests</code>, <code>deploy</code>, <code>delivery</code>, <code>goldenFix</code>, <code>flutter</code> or <code>tools.nexusIq</code>.</p>
+<p>A Liquibase service with database changes writes every other key of a Liquibase service, but no deployment: no <code>deployTarget</code>, <code>appName</code>, <code>artifactName</code>, <code>baseArtifactName</code>, <code>deploy</code> or <code>delivery</code>.</p>
 <h3 id="unit-tests-and-coverage">Unit tests and coverage</h3>
 <table>
 <thead>
@@ -1758,7 +1759,7 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tr><td>The GoldenFix policy fields</td><td>as in the GoldenFix table above</td><td>under <code>defaults.goldenFix</code></td></tr>
 </tbody>
 </table>
-<p>The SQL and PL/SQL values are written only while they are set.</p>
+<p>The values of Liquibase database changes are written only while they are set.</p>
 <p>The Portal monitoring block sets the portal itself and is not written to <code>devsecops_config.yaml</code>:</p>
 <table>
 <thead>
@@ -1820,15 +1821,15 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <h3 id="upgrade-note-changeset-033">Upgrade note: changeset 033</h3>
 <p>Changeset <code>033-parallel-static-analysis</code> adds <code>PARALLEL_STATIC_ANALYSIS</code> (0 or 1, 1 by default) to <code>DSO_GLOBAL_SETTINGS</code>, with the check <code>CK_DSO_GLOBAL_PARALLEL_SCANS</code>. The saved settings get 1, so &quot;Run Nexus IQ and SonarQube while AppScan scans&quot; is ticked after the upgrade and the settings sent to Jenkins hold <code>defaults.staticAnalysis.parallel: true</code>. A library version without this order ignores the key. Untick the box before the next runs to keep the order Nexus IQ, SAST, SonarQube. A rollback drops the column.</p>
 <h3 id="upgrade-note-changeset-037">Upgrade note: changeset 037</h3>
-<p>Changeset 037 adds SQL and PL/SQL services. It has eight changesets, one DDL statement each:</p>
+<p>Changeset 037 adds the database changes of Liquibase services. It has eight changesets, one DDL statement each:</p>
 <ul>
 <li><code>037-service-database</code> adds the <code>DB_</code> columns of the Database changes section to <code>DSO_SERVICE</code>, and <code>037-service-database-flags</code> adds their check <code>CK_DSO_SERVICE_DB_FLAGS</code>.</li>
 <li><code>037-service-database-target</code> creates <code>DSO_SERVICE_DATABASE_TARGET</code>, with one row for each test, RD or QC database of a service.</li>
-<li><code>037-global-database</code> adds the <code>DB_</code> columns of the SQL and PL/SQL section to <code>DSO_GLOBAL_SETTINGS</code>.</li>
+<li><code>037-global-database</code> adds the <code>DB_</code> columns of the section Liquibase database changes to <code>DSO_GLOBAL_SETTINGS</code>.</li>
 <li><code>037-service-build-tool-old</code> and <code>037-service-build-tool-new</code> recreate <code>CK_DSO_SERVICE_BUILD_TOOL</code> with <code>LIQUIBASE</code>; <code>037-global-build-tool-old</code> and <code>037-global-build-tool-new</code> do the same for <code>CK_DSO_GLOBAL_BUILD_TOOL</code>.</li>
 </ul>
-<p>Every service keeps its build tool, and its settings sent to Jenkins stay as they were. The SQL and PL/SQL section of the Library defaults starts empty, so set the allowed databases and the Nexus repositories of the database packages before the first SQL and PL/SQL service is saved. The Full, Security and Extended pipelines of a SQL and PL/SQL service that delivers its package need a group ID and the repositories of <a href="#what-the-pipelines-do-with-a-sql-and-plsql-service">chapter 7</a>.</p>
-<div class="callout"><strong>Warning.</strong> A rollback of 037 stops at the build tool checks while a service has the build tool SQL and PL/SQL (Liquibase). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.</div>
+<p>Before 037 the checks allowed only Gradle, Maven and Flutter, so no Liquibase service could be saved; the recreated checks let every Liquibase service be saved, with or without database changes. Every service keeps its build tool, and its settings sent to Jenkins stay as they were. The section Liquibase database changes of the Library defaults starts empty, so set the allowed databases and the Nexus repositories of the database packages before the first service with database changes is saved. The Full, Security and Extended pipelines of such a service that delivers its package need a group ID and the repositories of <a href="#what-the-pipelines-do-with-a-database-service">chapter 7</a>.</p>
+<div class="callout"><strong>Warning.</strong> A rollback of 037 stops at the build tool checks while a service has the build tool Liquibase (SQL / PL/SQL). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.</div>
 </div>
 
 <div class="section" id="19-troubleshooting">
@@ -1841,8 +1842,6 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <p>The service names a Node.js installation and a Node.js home on the agent. Empty one of them. The Library default installation that a new service, a copy or an import shows as prefilled does not count while you leave it unchanged. The home wins in the library, so keep the home when the agent has a fixed Node.js folder.</p>
 <h3 id="must-be-off-for-flutter-a-flutter-build-has-no-gradle-or-maven-stage-for-the-nodejs-build-to-run-before">&quot;must be off for Flutter: a Flutter build has no Gradle or Maven stage for the Node.js build to run before&quot;</h3>
 <p>A Flutter service cannot use the Node.js build. Switch it off, or choose Gradle or Maven when the service is not a Flutter app.</p>
-<h3 id="must-be-off-for-sql-and-plsql-liquibase-a-database-service-has-no-build-for-a-nodejs-build-to-run-before">&quot;must be off for SQL and PL/SQL (Liquibase): a database service has no build for a Node.js build to run before&quot;</h3>
-<p>A request to the API asked for the Node.js build of a SQL and PL/SQL service. Such a service has no Gradle or Maven build that could package a frontend. Send the Node.js build switched off, as the form does, and build the frontend in the Gradle or Maven service of the repository.</p>
 <h3 id="the-nodejs-build-does-not-run">The Node.js build does not run</h3>
 <ul>
 <li>The report shows no &quot;Node.js build&quot; stage and the log has no <code>[NODE]</code> line: no service of the run needs the build. Tick &quot;Build the frontend with Node.js first&quot; for the service. In SAST scanning, also turn on &quot;Compile before preparing the IRX&quot;, and run the pipeline on an agent that is not Windows.</li>
@@ -1864,18 +1863,18 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 </ul>
 <h3 id="the-nexus-iq-stage-turns-orange-after-the-nodejs-build-was-switched-on">The Nexus IQ stage turns orange after the Node.js build was switched on</h3>
 <p>Nexus IQ now scans the npm dependencies of <code>package-lock.json</code>. Fix them with GoldenFix, or untick &quot;Scan the npm dependencies with Nexus IQ&quot; when another pipeline scans them.</p>
-<h3 id="service-service-changes-a-database-with-sql-and-plsql-and-has-no-open-source-dependencies"><code>Service &lt;service&gt; changes a database with SQL and PL/SQL and has no open source dependencies</code></h3>
-<p>The message goes on: &quot;so a Nexus IQ GoldenFix pipeline would scan nothing. Choose another pipeline type, or delete the Nexus IQ GoldenFix pipeline of the service before you change its build tool to SQL and PL/SQL (Liquibase)&quot;. The portal refuses a Nexus IQ GoldenFix pipeline for a SQL and PL/SQL service, also when a saved service with such a pipeline changes its build tool to SQL and PL/SQL. Choose the Full, Security, Extended or SAST pipeline. To change the build tool, delete the Nexus IQ GoldenFix pipeline of the service on the product page first. In the Self-service wizard, the OSA pipeline asks you to remove such services instead.</p>
+<h3 id="service-service-is-a-liquibase-service-with-database-changes-for-which-the-library-runs-no-nexus-iq-goldenfix-pipeline"><code>Service &lt;service&gt; is a Liquibase service with database changes, for which the library runs no Nexus IQ GoldenFix pipeline</code></h3>
+<p>The message goes on: &quot;Choose another pipeline type, or delete the Nexus IQ GoldenFix pipeline of the service before you set its changelog file&quot;. The portal refuses a Nexus IQ GoldenFix pipeline for a Liquibase service with database changes, also when a saved service with such a pipeline gets a changelog file. A Liquibase service without a changelog file takes the Nexus IQ GoldenFix pipeline as any other service. Choose the Full, Security, Extended or SAST pipeline. To set the changelog file, delete the Nexus IQ GoldenFix pipeline of the service on the product page first. In the Self-service wizard, the OSA pipeline asks you to remove such services instead.</p>
 <h3 id="service-service-delivers-its-database-package-to-nexus-in-the-type-pipeline-but-has-no-item"><code>Service &lt;service&gt; delivers its database package to Nexus in the &lt;type&gt; pipeline but has no &lt;item&gt;</code></h3>
-<p>The item is the group ID, the snapshot repository ID or URL, or the release repository ID or URL. The Full and Extended pipelines need all five, the Security pipeline the group ID and the snapshot repository; see <a href="#what-the-pipelines-do-with-a-sql-and-plsql-service">chapter 7</a>. Set the group ID under Database changes, &quot;Package and Nexus delivery&quot;. Set a repository there, or ask the DevSecOps team to set it in the Library defaults, section &quot;SQL and PL/SQL (Liquibase)&quot;. When the package need not reach Nexus, untick &quot;Deliver the package to Nexus&quot;.</p>
+<p>The item is the group ID, the snapshot repository ID or URL, or the release repository ID or URL. The Full and Extended pipelines need all five, the Security pipeline the group ID and the snapshot repository; see <a href="#what-the-pipelines-do-with-a-database-service">chapter 7</a>. Set the group ID under Database changes, &quot;Package and Nexus delivery&quot;. Set a repository there, or ask the DevSecOps team to set it in the Library defaults, section &quot;Liquibase database changes&quot;. When the package need not reach Nexus, untick &quot;Deliver the package to Nexus&quot;.</p>
 <h3 id="is-set-but-the-library-defaults-allow-no-database-yet">&quot;is set, but the Library defaults allow no database yet&quot;</h3>
 <p>The message goes on: &quot;the pipelines deploy only to the databases the DevSecOps team allows in the Global Settings&quot;. The list &quot;Allowed databases&quot; of the Library defaults is empty, so no JDBC URL can be saved. Ask the DevSecOps team to add the hosts of the test, RD and QC databases. Until then, leave the JDBC URLs empty: the service can be saved, and its deployment stages are not required.</p>
 <h3 id="names-a-database-that-the-library-defaults-do-not-allow">&quot;names a database that the Library defaults do not allow&quot;</h3>
 <p>The JDBC URL names a host or a service that no line of &quot;Allowed databases&quot; matches. Check the URL for a typing error; every host of a URL with several hosts must be allowed. When the database is right, ask the DevSecOps team to add it. The library refuses the same URL when a pipeline starts, also when the line was removed after the service was saved.</p>
 <h3 id="must-not-contain-a-user-or-a-password-keep-them-in-the-jenkins-credentials-of-the-credentials-id">&quot;must not contain a user or a password: keep them in the Jenkins credentials of the credentials ID&quot;</h3>
 <p>The JDBC URL holds a user or a password, such as <code>scott/tiger@</code> or <code>password=</code>. Remove them from the URL. The user and the password belong in the <em>Username with password</em> credential that the Credentials ID names. An import never takes such a URL; its note says that the URL holds a user or a password.</p>
-<h3 id="must-not-be-sql-and-plsql-liquibase-a-database-service-needs-its-own-changelog-so-every-new-service-starts-with-gradle-maven-or-flutter">&quot;must not be SQL and PL/SQL (Liquibase): a database service needs its own changelog, so every new service starts with Gradle, Maven or Flutter&quot;</h3>
-<p>The build tool of Service defaults in the Library defaults cannot be SQL and PL/SQL. The page offers only Gradle, Maven and Flutter, and the API refuses the value. Choose SQL and PL/SQL (Liquibase) on each service instead.</p>
+<h3 id="must-not-be-liquibase-sql--plsql-a-liquibase-service-needs-its-own-changelog-so-every-new-service-starts-with-gradle-maven-or-flutter">&quot;must not be Liquibase (SQL / PL/SQL): a Liquibase service needs its own changelog, so every new service starts with Gradle, Maven or Flutter&quot;</h3>
+<p>The build tool of Service defaults in the Library defaults cannot be Liquibase. The page offers only Gradle, Maven and Flutter, and the API refuses the value. Choose Liquibase (SQL / PL/SQL) on each service instead.</p>
 <h3 id="goldenfix-the-branch-branch-already-exists-in-repository"><code>[GOLDENFIX] The branch &lt;branch&gt; already exists in &lt;repository&gt;</code></h3>
 <p>Two GoldenFix jobs of one repository ran in the same minute. Run one job for all services of the repository with the combined Jenkinsfile. See <a href="#one-jenkins-job-for-each-repository">chapter 8</a>.</p>
 <h3 id="version-catalog-path-not-found-in-the-repository"><code>version catalog &lt;path&gt; not found in the repository</code></h3>

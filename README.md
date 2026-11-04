@@ -116,10 +116,10 @@ enabled, which Flutter refuses, and the Global Settings may give every service a
 `.npmrc` credentials ID under `defaults.build.node`. `goldenFix.versionCatalogs` lists the shared version catalogs
 GoldenFix raises once for every service of a repository; it is the service's own list, outside the inherited GoldenFix
 policy. A product saved with `agentLabels` runs the pipelines that save creates on those Jenkins agents instead of the
-service template's. A service may change a database with SQL and PL/SQL through Liquibase (`buildTool: liquibase`): its
-`database` block is rendered after `build`, it renders no `deploy`, `delivery`, `goldenFix` or `tools.nexusIq`, and its
-Nexus IQ GoldenFix pipeline is refused. The Global Settings give every such service its tools, its allowed databases and
-its Nexus repositories under `defaults.tools.liquibase`, `defaults.tools.oracleJdbc`, `defaults.tools.utplsql` and
+service template's. A Liquibase service (`buildTool: liquibase`) with a `database.changelogFile` changes a database: its
+`database` block is rendered after `build`, it renders no deployment (`deployTarget`, `appName`, `artifactName`,
+`baseArtifactName`, `deploy`, `delivery`), and its Nexus IQ GoldenFix pipeline is refused. The Global Settings give
+every such service its tools, its allowed databases and its Nexus repositories under `defaults.tools.liquibase`, `defaults.tools.oracleJdbc`, `defaults.tools.utplsql` and
 `defaults.database`, rendered only while they are set; chapter 7 of the guide describes it.
 
 ## Importing a service from a config file
@@ -169,10 +169,10 @@ with who, what, when and the result, and shown under Action history.
   the Static analysis stage with a library version that knows the key. Untick it before the next runs to keep the
   order Nexus IQ, SAST, SonarQube; a rollback drops the column. A Jenkinsfile without a key does not follow the box,
   because the library's copy of the defaults leaves the key out.
-- Changeset 037 adds SQL and PL/SQL services: the `DB_` columns of `DSO_SERVICE` and `DSO_GLOBAL_SETTINGS`, the table
-  `DSO_SERVICE_DATABASE_TARGET` and the build tool `LIQUIBASE` in `CK_DSO_SERVICE_BUILD_TOOL` and
-  `CK_DSO_GLOBAL_BUILD_TOOL`. Every service keeps its build tool and renders as before. The SQL and PL/SQL Global
-  Settings start empty, so set the allowed databases and the Nexus repositories of the database packages before the
+- Changeset 037 adds the database changes of Liquibase services: the `DB_` columns of `DSO_SERVICE` and
+  `DSO_GLOBAL_SETTINGS`, the table `DSO_SERVICE_DATABASE_TARGET` and the build tool `LIQUIBASE` in
+  `CK_DSO_SERVICE_BUILD_TOOL` and `CK_DSO_GLOBAL_BUILD_TOOL`, which before 037 refused every Liquibase service. Every
+  service keeps its build tool and renders as before. The Global Settings of Liquibase database changes start empty, so set the allowed databases and the Nexus repositories of the database packages before the
   first such service is saved; the Full, Security and Extended pipelines of a service that delivers its package need a
   group ID and those repositories. A rollback stops at the build tool checks while a service has the build tool
   `LIQUIBASE`: change or delete those services, then run the same rollback again.

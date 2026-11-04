@@ -16,6 +16,11 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
   - Tailored validation rules: `javaPath` and `buildToolAutoSetup` are not required when `buildTool` is `LIQUIBASE`.
   - Support for both standalone (single-module) SQL / PL/SQL repositories and multi-module / polyglot repositories combining SQL / PL/SQL services with Java, Gradle, Maven, Node.js / Angular (including Stage 0 `build.node`), Python, and Kotlin services in a combined `Jenkinsfile`.
   - Complete YAML/JSON import (`ServiceConfigReader`) and export (`DsoConfigBuilder`) round-trip support for `liquibase` services.
+- **Database changes of Liquibase services (`database.changelogFile`)**:
+  - A Liquibase service with a changelog file gets the Database changes section: the pipelines check the changes, run the utPLSQL tests in a test database, package the changes into a zip in Nexus and deploy them to the RD and QC databases in place of the deployment of the service. A Liquibase service without a changelog file works as before.
+  - The `database` block is rendered after `build`. A service with database changes renders no `deployTarget`, `appName`, `artifactName`, `baseArtifactName`, `deploy` or `delivery`, and its Nexus IQ GoldenFix pipeline is refused.
+  - Global Settings section "Liquibase database changes": the tools, the allowed databases and the Nexus repositories of the database packages (`defaults.tools.liquibase`, `defaults.tools.oracleJdbc`, `defaults.tools.utplsql`, `defaults.database`).
+  - Changeset `037-sql-plsql-services.sql` adds the database columns and table.
 - **Service Creation & Configuration Import / Copy Workflows**:
   - **Import `devsecops_config.yaml` / `config.yaml`**: Added "Import devsecops_config.yaml" in both the Self-service wizard and the Admin product editor, parsing YAML or JSON configurations (`ServiceConfigReader`), pre-filling all matching service fields, and reporting any unimported keys or missing required fields.
   - **Copy Values from Existing Service**: Added "Copy values from existing service" when adding a service in the Self-service wizard and Admin editor, plus "Duplicate service" on existing service cards.
@@ -46,5 +51,8 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
   - Added help icons (`dso-help`) with descriptive tooltips across all form fields in the portal.
 
 ### Fixed
+- **Saving Liquibase Services**:
+  - Changeset 037 recreates the build tool checks of `DSO_SERVICE` and `DSO_GLOBAL_SETTINGS` with `LIQUIBASE`, which they lacked, so a Liquibase service can be saved.
+  - The help of the Liquibase commands says that the library runs `validate` when they are empty, and that a new service is prefilled with `updateSQL`.
 - **OpenShift Targets QC Region Validation**:
   - Fixed validation in the OpenShift targets section so the QC region is completely optional when left empty, and only validates required QC deployment fields when at least one QC field is populated.
