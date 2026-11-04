@@ -855,7 +855,7 @@ liquibase --defaults-file=dso-deploy.properties --search-path=orders-db-341-2026
 </thead>
 <tbody>
 <tr><td>&quot;is required once a database setting or database is set&quot;</td><td>Changelog file</td><td>Type the path of the changelog, or remove the other database settings. The form hides them while the changelog file is empty; an import or a request through the API may still carry them.</td></tr>
-<tr><td>&quot;has no folder and the search root is the repository root: put the changelog in a folder, or set the search folder or the source folder to the folder of the changelog&quot;</td><td>Changelog file</td><td>The zip would hold the whole repository. Do one of the three.</td></tr>
+<tr><td>&quot;has no folder and the search root is the repository root: put the changelog in a folder, or set the search folder or the source folder to the folder of the changelog&quot;</td><td>Changelog file</td><td>The zip would hold the whole repository. A leading <code>./</code> does not count as a folder. Do one of the three.</td></tr>
 <tr><td>&quot;set the JDK path or enable automatic build tool setup: Liquibase and utPLSQL need Java 17 or newer&quot;</td><td>JDK path</td><td>Tick &quot;Set up the build tool automatically&quot;, or type the path of a JDK 17 or newer.</td></tr>
 <tr><td>&quot;must not contain a user or a password: keep them in the Jenkins credentials of the credentials ID&quot;</td><td>JDBC URL</td><td>Remove the user and the password from the URL.</td></tr>
 <tr><td>&quot;must be an Oracle thin URL: jdbc:oracle:thin:@//host:1521/SERVICE, @host:1521:SID, @tcps://host:2484/SERVICE?ssl_server_dn_match=true or @(DESCRIPTION=...)&quot;</td><td>JDBC URL</td><td>Use one of these forms. TNS aliases and wallets are not supported.</td></tr>

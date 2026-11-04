@@ -144,6 +144,9 @@ class DatabaseSettingsSpec extends Specification {
         problems(VALID.toBuilder().changelogFile(null).tag(false).build()) == [problem('database.changelogFile',
                 'is required once a database setting or database is set')]
         problems(VALID.toBuilder().changelogFile('x.xml').build())*.field() == ['database.changelogFile']
+        problems(VALID.toBuilder().changelogFile('./x.xml').build())*.field() == ['database.changelogFile']
+        problems(VALID.toBuilder().changelogFile('./db/x.xml').build())*.field() == ['database.changelogFile']
+        problems(VALID.toBuilder().changelogFile('db/./x.xml').build()) == []
     }
 
     def "a build in #sourceDir with java path #javaPath and auto setup #autoSetup reports #fields (V3, V23, V26)"() {

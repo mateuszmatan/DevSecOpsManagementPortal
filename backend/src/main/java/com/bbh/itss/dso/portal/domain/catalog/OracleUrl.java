@@ -63,7 +63,7 @@ public record OracleUrl(List<String> hosts, String service) {
         if (!url.startsWith(PREFIX)) {
             return url.startsWith(THIN) && url.indexOf('@') > THIN.length();
         }
-        String lower = url.toLowerCase(ROOT);
+        String lower = url.toLowerCase(ROOT).replaceAll("\\s+", "");
         return url.indexOf('@', PREFIX.length()) >= 0 || SECRETS.stream().anyMatch(lower::contains);
     }
 
@@ -119,8 +119,8 @@ public record OracleUrl(List<String> hosts, String service) {
     }
 
     private static List<String> values(String descriptor, String key) {
-        return Pattern.compile("(?i)\\(" + key + "=([^()]*)\\)").matcher(descriptor).results()
-                .map(match -> match.group(1)).toList();
+        return Pattern.compile("(?i)\\(" + key + "=([^()]*)\\)").matcher(descriptor.replaceAll("\\s+", ""))
+                .results().map(match -> match.group(1)).toList();
     }
 
     private static String glob(String entry, String any) {

@@ -162,7 +162,7 @@ function holdsSecret(url: string): boolean {
   if (!url.startsWith(PREFIX)) {
     return url.startsWith(THIN) && url.indexOf('@') > THIN.length;
   }
-  const lower = url.toLowerCase();
+  const lower = url.toLowerCase().replace(/\s+/g, '');
   return url.indexOf('@', PREFIX.length) >= 0 || SECRETS.some((secret) => lower.includes(secret));
 }
 
@@ -221,7 +221,9 @@ function balanced(text: string): boolean {
 }
 
 const values = (descriptor: string, key: string) =>
-  [...descriptor.matchAll(new RegExp(`\\(${key}=([^()]*)\\)`, 'gi'))].map((match) => match[1]);
+  [...descriptor.replace(/\s+/g, '').matchAll(new RegExp(`\\(${key}=([^()]*)\\)`, 'gi'))].map(
+    (match) => match[1],
+  );
 
 const glob = (entry: string, any: string) =>
   new RegExp(
@@ -245,7 +247,7 @@ export function selectsTest(filter: string | null | undefined): boolean {
   }
   for (let close = text.indexOf(')'); close >= 0; close = text.indexOf(')')) {
     const open = text.lastIndexOf('(', close);
-    if (open < 0 || !text.slice(open + 1, close).trim()) {
+    if (open < 0 || close === open + 1) {
       return true;
     }
     const inner = matches(text.slice(open + 1, close)) ? TRUE : FALSE;
@@ -274,12 +276,15 @@ function split(text: string, separator: RegExp): string[] {
 
 function item(text: string): boolean {
   let item = text.trim();
+  if (/^@\s*(!|not )./.test(item)) {
+    item = item.slice(1).trim();
+  }
   const negated = item.startsWith('!') || item.toLowerCase().startsWith('not ');
   if (negated) {
     item = item.slice(item.startsWith('!') ? 1 : 4).trim();
   }
   if (item.startsWith('@')) {
-    item = item.slice(1);
+    item = item.slice(1).trim();
   }
   const value =
     item === 'nocontexts'

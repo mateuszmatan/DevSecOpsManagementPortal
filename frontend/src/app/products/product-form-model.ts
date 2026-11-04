@@ -688,7 +688,7 @@ function requireDatabaseRules(form: ServiceForm): void {
       const file = optional(d.changelogFile.value);
       return (
         !!file &&
-        !file.includes('/') &&
+        (!file.includes('/') || file.startsWith('./')) &&
         (optional(sourceDir.value) ?? '.') === '.' &&
         relativePath(d.searchPath.value) === null
       );

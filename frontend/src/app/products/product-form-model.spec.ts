@@ -1889,6 +1889,9 @@ describe('Liquibase services with and without database changes', () => {
     const changelog = form.controls.database.controls.changelogFile;
     expect(changelog.errors).toEqual({ rule: CHANGELOG_AT_ROOT });
 
+    changelog.setValue('./db/changelog.xml');
+    expect(changelog.errors).toEqual({ rule: CHANGELOG_AT_ROOT });
+
     form.controls.database.controls.searchPath.setValue('db');
     expect(changelog.valid).toBe(true);
 

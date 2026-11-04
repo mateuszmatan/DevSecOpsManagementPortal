@@ -149,8 +149,8 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
         ValidationProblems database = problems.at("database");
         database.require("changelogFile", changelogFile, "is required once a database setting or database is set");
         validateBuild(problems.at("build"), build);
-        if (changelogFile != null && !changelogFile.contains("/") && DEFAULT_SOURCE_DIR.equals(build.sourceDir())
-                && searchPath == null) {
+        if (changelogFile != null && (!changelogFile.contains("/") || changelogFile.startsWith("./"))
+                && DEFAULT_SOURCE_DIR.equals(build.sourceDir()) && searchPath == null) {
             database.add("changelogFile", "has no folder and the search root is the repository root: put the"
                     + " changelog in a folder, or set the search folder or the source folder to the folder of the"
                     + " changelog");

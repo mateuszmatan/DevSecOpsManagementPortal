@@ -816,7 +816,7 @@ The portal refuses the settings that the pipelines would refuse. While you type,
 | Message | Field | What to do |
 |---------|-------|------------|
 | "is required once a database setting or database is set" | Changelog file | Type the path of the changelog, or remove the other database settings. The form hides them while the changelog file is empty; an import or a request through the API may still carry them. |
-| "has no folder and the search root is the repository root: put the changelog in a folder, or set the search folder or the source folder to the folder of the changelog" | Changelog file | The zip would hold the whole repository. Do one of the three. |
+| "has no folder and the search root is the repository root: put the changelog in a folder, or set the search folder or the source folder to the folder of the changelog" | Changelog file | The zip would hold the whole repository. A leading `./` does not count as a folder. Do one of the three. |
 | "set the JDK path or enable automatic build tool setup: Liquibase and utPLSQL need Java 17 or newer" | JDK path | Tick "Set up the build tool automatically", or type the path of a JDK 17 or newer. |
 | "must not contain a user or a password: keep them in the Jenkins credentials of the credentials ID" | JDBC URL | Remove the user and the password from the URL. |
 | "must be an Oracle thin URL: jdbc:oracle:thin:@//host:1521/SERVICE, @host:1521:SID, @tcps://host:2484/SERVICE?ssl_server_dn_match=true or @(DESCRIPTION=...)" | JDBC URL | Use one of these forms. TNS aliases and wallets are not supported. |
