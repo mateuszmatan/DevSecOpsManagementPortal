@@ -91,6 +91,9 @@ export interface UnitTestSettings {
   reportOutDir: string | null;
   allowEmptyResults: boolean;
   coverageReportPath: string | null;
+  cypressEnabled: boolean;
+  cypressCommand: string | null;
+  cypressReportsDir: string | null;
 }
 
 export interface TestSettings {
@@ -320,6 +323,13 @@ export interface FlutterSettings {
   sonarScannerVersion: string | null;
 }
 
+export interface VersionCatalogRepo {
+  repositoryUrl: string | null;
+  credentialsId: string | null;
+  branch: string | null;
+  path: string | null;
+}
+
 export interface DatabaseSettings {
   changelogFile: string | null;
   searchPath: string | null;
@@ -385,6 +395,7 @@ export interface ServiceSettings {
   scm: ScmSettings;
   goldenFix: GoldenFixPolicy;
   versionCatalogs: string[];
+  versionCatalogRepo: VersionCatalogRepo | null;
   metrics: MetricsSettings;
   flutter: FlutterSettings | null;
   database?: DatabaseSettings | null;
@@ -632,6 +643,26 @@ export interface GlobalSettings extends GlobalSettingsValues {
 
 export interface GlobalSettingsRequest extends GlobalSettingsValues {
   version: number | null;
+}
+
+export interface PipelineReport {
+  id: number;
+  pipelineId: number;
+  pipelineKey: string | null;
+  jobName: string | null;
+  buildNumber: number | null;
+  result: RunResult;
+  branch: string | null;
+  commitHash: string | null;
+  durationSeconds: number | null;
+  finishedAt: string;
+  stagesTotal: number | null;
+  passed: number | null;
+  warned: number | null;
+  failed: number | null;
+  blocked: number | null;
+  skipped: number | null;
+  reportHtml?: string | null;
 }
 
 export interface PipelineRun {

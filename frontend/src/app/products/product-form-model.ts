@@ -40,6 +40,7 @@ import {
   ToolCommand,
   UrbanCodeApplicationSettings,
   UrbanCodeComponent,
+  VersionCatalogRepo,
   pipelineTypeLabel,
 } from '../core/models';
 import { FieldProblem, PRODUCT_CODE } from '@common/core/models';
@@ -901,6 +902,9 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       reportOutDir: text(s?.unitTests?.reportOutDir, max(500)),
       allowEmptyResults: flag(s?.unitTests?.allowEmptyResults),
       coverageReportPath: text(s?.unitTests?.coverageReportPath, max(500)),
+      cypressEnabled: flag(s?.unitTests?.cypressEnabled),
+      cypressCommand: text(s?.unitTests?.cypressCommand, max(500)),
+      cypressReportsDir: text(s?.unitTests?.cypressReportsDir, max(500)),
     }),
     tests: new FormGroup({
       maxParallel: parallel(s?.tests?.maxParallel),
@@ -1028,6 +1032,12 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       eachItem(lines, upTo(300), 'At most 300 characters per path'),
       fitsColumn(lines, '\n', 2000),
     ),
+    versionCatalogRepo: new FormGroup({
+      repositoryUrl: url(s?.versionCatalogRepo?.repositoryUrl),
+      credentialsId: text(s?.versionCatalogRepo?.credentialsId, max(200)),
+      branch: text(s?.versionCatalogRepo?.branch, max(200)),
+      path: text(s?.versionCatalogRepo?.path, Validators.pattern(REPOSITORY_PATH), max(300)),
+    }),
     metrics: new FormGroup({
       enabled: flag(s?.metrics?.enabled, true),
       influxProject: text(s?.metrics?.influxProject, max(200)),
@@ -1075,7 +1085,11 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   const deliveryDisabled = deployment.controls.nexusDeliveryDisabled;
   const openShift = () => target.value === 'OPENSHIFT';
   const vm = () => target.value === 'VM';
-  build.controls.command.controls.tasks.addValidators(filled);
+  requireWhile(
+    build.controls.command.controls.tasks,
+    () => tool.value !== 'LIQUIBASE' && tool.value !== 'FLUTTER',
+    tool,
+  );
   form.controls.delivery.controls.tasks.addValidators(filled);
   requireOnceUsed(form.controls.openShiftTargets.controls.QC);
   revalidateOnChange(sonar.controls.badgeToken, sonar.controls.badgeCredentialsId);
@@ -1084,7 +1098,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   revalidateOnChange(nodeBuild.controls.nodePath, nodeBuild.controls.installationName);
   requireWhile(
     build.controls.javaPath,
-    () => tool.value === 'FLUTTER' || !build.controls.autoSetup.value,
+    () => (tool.value === 'FLUTTER' || !build.controls.autoSetup.value) && tool.value !== 'LIQUIBASE',
     tool,
     build.controls.autoSetup,
   );
@@ -1109,19 +1123,24 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   );
   requireWhile(
     unitTests.controls.command.controls.tasks,
-    () => unitTestsConfigured(form),
+    () => unitTestsConfigured(form) && tool.value !== 'LIQUIBASE' && !unitTests.controls.cypressEnabled.value,
     unitTests,
+    tool,
   );
   requireWhile(
     sonar.controls.command.controls.tasks,
-    () => !!optional(sonar.controls.projectKey.value) || commandEntered(sonar.controls.command),
+    () =>
+      (!!optional(sonar.controls.projectKey.value) || commandEntered(sonar.controls.command)) &&
+      tool.value !== 'LIQUIBASE',
     sonar.controls.projectKey,
     sonar.controls.command,
+    tool,
   );
   requireWhile(
     appScan.controls.compileCommand.controls.tasks,
-    () => commandEntered(appScan.controls.compileCommand),
+    () => commandEntered(appScan.controls.compileCommand) && tool.value !== 'LIQUIBASE',
     appScan.controls.compileCommand,
+    tool,
   );
   requireWhile(
     scm.controls.credentialsId,
@@ -1319,8 +1338,11 @@ export function unitTestsConfigured(form: ServiceForm): boolean {
   const v = form.controls.unitTests.getRawValue();
   return (
     commandEntered(form.controls.unitTests.controls.command) ||
-    [v.resultPattern, v.rootDir, v.reportOutDir].some((value) => !!optional(value)) ||
-    v.allowEmptyResults
+    [v.resultPattern, v.rootDir, v.reportOutDir, v.cypressCommand, v.cypressReportsDir].some(
+      (value) => !!optional(value),
+    ) ||
+    v.allowEmptyResults ||
+    v.cypressEnabled
   );
 }
 
@@ -1653,8 +1675,8 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       reviewers: words(v.scm.reviewers),
     },
     goldenFix: toServiceGoldenFixPolicy(v.goldenFix),
-    versionCatalogs:
-      !liquibase && passesValidators(c.versionCatalogs) ? relativePaths(v.versionCatalogs) : [],
+    versionCatalogs: passesValidators(c.versionCatalogs) ? relativePaths(v.versionCatalogs) : [],
+    versionCatalogRepo: toVersionCatalogRepo(v.versionCatalogRepo),
     metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
     ...(liquibase && {
@@ -1679,6 +1701,13 @@ function liveValues<T>(group: FormGroup): T {
       ];
     }),
   ) as T;
+}
+
+function toVersionCatalogRepo(
+  v: ReturnType<ServiceForm['controls']['versionCatalogRepo']['getRawValue']>,
+): VersionCatalogRepo | null {
+  const r = sent(v);
+  return r.repositoryUrl || r.credentialsId || r.branch || r.path ? r : null;
 }
 
 /** The Node.js build as the form value holds it, without what fails its rules while hidden. */
@@ -1797,7 +1826,7 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   section('sonar', 'SonarQube', 'analytics', ['sonar']),
   section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq', 'nexusIqApplications'], buildsCode),
   section('scm', 'Bitbucket', 'merge', ['scm']),
-  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix', 'versionCatalogs'], buildsCode),
+  section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix', 'versionCatalogs', 'versionCatalogRepo']),
   section('metrics', 'Monitoring', 'insights', ['metrics']),
   section('flutter', 'Flutter', 'phone_iphone', ['flutter'], onFlutter),
 ];

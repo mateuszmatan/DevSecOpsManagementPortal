@@ -1,7 +1,7 @@
 # BBH DevSecOps Management Portal
 
 The portal onboards products to DevSecOps, manages their pipelines and pipeline keys, shows how the pipelines are
-doing, and serves the configuration the Jenkins shared library [DSOEnhanced](https://github.com/mateuszmatan/DSOEnhanced)
+doing, and serves the configuration the Jenkins shared library DSOEnhanced
 reads for every build. It is one Spring Boot service (Java 21, Spring Boot 4) with the Angular GUI inside, packaged as
 one jar and one container image.
 

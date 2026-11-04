@@ -8,7 +8,6 @@ RUN java -Djarmode=tools -jar application.jar extract --layers --destination ext
 
 FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.title="BBH DevSecOps Management Portal" \
-      org.opencontainers.image.source="https://github.com/mateuszmatan/DevSecOpsManagementPortal" \
       io.k8s.display-name="BBH DevSecOps Management Portal" \
       io.k8s.description="Manages DevSecOps products, services, pipelines and pipeline keys and serves the configuration of DSOEnhanced" \
       io.openshift.expose-services="8080:http"

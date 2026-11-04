@@ -33,6 +33,7 @@ import com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeSettings
+import com.bbh.itss.dso.portal.domain.catalog.VersionCatalogRepo
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineKey
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings
@@ -87,7 +88,8 @@ final class Fixtures {
 
     static BuildSettings build(Map args = [:]) {
         BuildTool tool = args.tool as BuildTool ?: GRADLE
-        ToolCommand defaultCommand = tool in [FLUTTER, LIQUIBASE] ? NONE
+        ToolCommand defaultCommand = tool == FLUTTER ? NONE
+                : tool == LIQUIBASE ? command(['updateSQL'], ['--changelog-file=changelog.xml'])
                 : tool == MAVEN ? command(['clean', 'verify']) : command(['clean', 'build'])
         new BuildSettings(tool, args.sourceDir as String,
                 args.containsKey('javaPath') ? args.javaPath as String : JDK, args.autoSetup as Boolean,
@@ -130,6 +132,7 @@ final class Fixtures {
                 .nexusIqApplications(args.nexusIqApplications as List<NexusIqApplication>)
                 .scm(args.scm as ScmSettings).goldenFix(args.goldenFix as GoldenFixPolicy)
                 .versionCatalogs(args.versionCatalogs as List<String>)
+                .versionCatalogRepo(args.versionCatalogRepo as VersionCatalogRepo)
                 .metrics(args.metrics as MetricsSettings).flutter(args.flutter as FlutterSettings)
                 .database(args.database as DatabaseSettings)
                 .databaseTargets(args.databaseTargets as Map<DatabaseTarget, DatabaseTargetSettings>)

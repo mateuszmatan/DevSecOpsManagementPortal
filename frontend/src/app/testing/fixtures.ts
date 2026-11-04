@@ -74,6 +74,9 @@ export function service(overrides: Partial<Service> = {}): Service {
       reportOutDir: null,
       allowEmptyResults: false,
       coverageReportPath: null,
+      cypressEnabled: false,
+      cypressCommand: null,
+      cypressReportsDir: null,
     },
     tests: {
       maxParallel: null,
@@ -243,6 +246,7 @@ export function service(overrides: Partial<Service> = {}): Service {
       timeZone: null,
     },
     versionCatalogs: [],
+    versionCatalogRepo: null,
     metrics: {
       enabled: true,
       influxProject: 'CERT-gui',

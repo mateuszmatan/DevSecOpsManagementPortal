@@ -13,7 +13,7 @@ export const TOOL_LABELS: Record<BuildTool, string> = {
   GRADLE: 'Gradle',
   MAVEN: 'Maven',
   FLUTTER: 'Flutter',
-  LIQUIBASE: 'SQL and PL/SQL (Liquibase)',
+  LIQUIBASE: 'Liquibase (SQL / PL/SQL)',
 };
 
 /** How to tell the build tool of a service from its code. */
@@ -21,8 +21,7 @@ export const TOOL_HINTS: Record<BuildTool, string> = {
   GRADLE: 'The code has a build.gradle file',
   MAVEN: 'The code has a pom.xml file',
   FLUTTER: 'The code has a pubspec.yaml file',
-  LIQUIBASE:
-    'The code is SQL and PL/SQL with a Liquibase changelog, such as db/changelog-master.xml',
+  LIQUIBASE: 'The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties',
 };
 
 export const TARGET_LABELS: Record<DeployTarget, string> = {

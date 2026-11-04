@@ -4,6 +4,7 @@ import spock.lang.Specification
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE
 import static com.bbh.itss.dso.portal.domain.shared.Sections.written
@@ -47,16 +48,18 @@ class ToolCommandSpec extends Specification {
         written { command.writeTo(it, path, tool) } == config
 
         where:
-        command                                                                                         | path              | tool    || config
-        FULL                                                                                            | 'build'           | GRADLE  || [build: [gradle: [tasks: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]
-        FULL                                                                                            | 'tools.sonar'     | MAVEN   || [tools: [sonar: [maven: [goals: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', mvnPath: '/opt/maven-3.9', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]]
-        FULL                                                                                            | 'build'           | FLUTTER || [:]
-        NONE                                                                                            | 'build'           | GRADLE  || [:]
-        NONE                                                                                            | 'build'           | MAVEN   || [:]
-        ToolCommand.builder().tasks(['test']).mavenHome('/opt/maven').environment(['NO_VALUE']).build() | 'tests.unitTests' | MAVEN   || [tests: [unitTests: [maven: [goals: ['test'], mvnPath: '/opt/maven']]]]
-        ToolCommand.builder().tasks(['build']).environment(['JUST_A_NAME']).build()                     | 'build'           | GRADLE  || [build: [gradle: [tasks: ['build']]]]
-        ToolCommand.builder().tasks(['build']).label(' Build ').returnStdout(true).build()              | 'build'           | GRADLE  || [build: [gradle: [tasks: ['build'], label: 'Build', returnStdout: true]]]
-        ToolCommand.builder().tasks(['deploy']).build()                                                 | 'delivery'        | MAVEN   || [delivery: [maven: [goals: ['deploy']]]]
+        command                                                                                         | path              | tool      || config
+        FULL                                                                                            | 'build'           | GRADLE    || [build: [gradle: [tasks: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]
+        FULL                                                                                            | 'tools.sonar'     | MAVEN     || [tools: [sonar: [maven: [goals: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', mvnPath: '/opt/maven-3.9', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]]
+        FULL                                                                                            | 'build'           | LIQUIBASE || [build: [liquibase: [commands: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]
+        FULL                                                                                            | 'build'           | FLUTTER   || [:]
+        NONE                                                                                            | 'build'           | GRADLE    || [:]
+        NONE                                                                                            | 'build'           | MAVEN     || [:]
+        NONE                                                                                            | 'build'           | LIQUIBASE || [:]
+        ToolCommand.builder().tasks(['test']).mavenHome('/opt/maven').environment(['NO_VALUE']).build() | 'tests.unitTests' | MAVEN     || [tests: [unitTests: [maven: [goals: ['test'], mvnPath: '/opt/maven']]]]
+        ToolCommand.builder().tasks(['build']).environment(['JUST_A_NAME']).build()                     | 'build'           | GRADLE    || [build: [gradle: [tasks: ['build']]]]
+        ToolCommand.builder().tasks(['build']).label(' Build ').returnStdout(true).build()              | 'build'           | GRADLE    || [build: [gradle: [tasks: ['build'], label: 'Build', returnStdout: true]]]
+        ToolCommand.builder().tasks(['deploy']).build()                                                 | 'delivery'        | MAVEN     || [delivery: [maven: [goals: ['deploy']]]]
     }
 
     def "the environment becomes the env map, a value keeping any further '=' it contains"() {

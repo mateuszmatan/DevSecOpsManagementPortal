@@ -90,7 +90,7 @@ export function buildDefaults(
     case 'FLUTTER':
       return { tasks: '', artifact: '', scanPattern: template?.flutterScanPattern ?? '' };
     case 'LIQUIBASE':
-      return { tasks: '', artifact: '', scanPattern: '' };
+      return { tasks: 'updateSQL', artifact: '', scanPattern: '' };
     default:
       return {
         tasks: template?.gradleTasks ?? '',

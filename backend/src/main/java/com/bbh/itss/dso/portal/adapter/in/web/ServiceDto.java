@@ -36,6 +36,7 @@ import com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings;
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeApplicationSettings;
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeComponent;
 import com.bbh.itss.dso.portal.domain.catalog.UrbanCodeSettings;
+import com.bbh.itss.dso.portal.domain.catalog.VersionCatalogRepo;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
@@ -131,6 +132,7 @@ public record ServiceDto(
         @Size(max = 20)
         List<@Size(min = 1, max = 300) @Pattern(regexp = REPOSITORY_PATH, message = REPOSITORY_PATH_MESSAGE)
                 @Pattern(regexp = REPOSITORY_FILE, message = REPOSITORY_FILE_MESSAGE) String> versionCatalogs,
+        @Valid VersionCatalogRepoDto versionCatalogRepo,
         @Valid MetricsSettingsDto metrics,
         @Valid FlutterSettingsDto flutter,
         @Valid DatabaseSettingsDto database,
@@ -159,7 +161,15 @@ public record ServiceDto(
             @Size(max = 500) String rootDir,
             @Size(max = 500) String reportOutDir,
             Boolean allowEmptyResults,
-            @Size(max = 500) String coverageReportPath) implements Mirrors<UnitTestSettings> {
+            @Size(max = 500) String coverageReportPath,
+            Boolean cypressEnabled,
+            @Size(max = 500) String cypressCommand,
+            @Size(max = 500) String cypressReportsDir) implements Mirrors<UnitTestSettings> {
+
+        public UnitTestSettingsDto(ToolCommandDto command, String resultPattern, String rootDir, String reportOutDir,
+                                   Boolean allowEmptyResults, String coverageReportPath) {
+            this(command, resultPattern, rootDir, reportOutDir, allowEmptyResults, coverageReportPath, false, null, null);
+        }
     }
 
     public record TestSettingsDto(
@@ -416,6 +426,14 @@ public record ServiceDto(
             @Size(max = 100)
             @Pattern(regexp = "^[A-Za-z0-9_+/-]*$", message = "must be a time zone ID such as Europe/Warsaw or UTC")
             String timeZone) implements Mirrors<GoldenFixPolicy> {
+    }
+
+    public record VersionCatalogRepoDto(
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String repositoryUrl,
+            @Size(max = 200) String credentialsId,
+            @Size(max = 200) String branch,
+            @Size(max = 300) @Pattern(regexp = REPOSITORY_PATH, message = REPOSITORY_PATH_MESSAGE) String path)
+            implements Mirrors<VersionCatalogRepo> {
     }
 
     public record MetricsSettingsDto(

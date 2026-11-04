@@ -268,6 +268,31 @@ const VERSION_CATALOGS: Field[] = [
   }),
 ];
 
+const VERSION_CATALOG_REPO: Field[] = [
+  line('repositoryUrl', 'Repository URL', 'goldenFix.versionCatalogRepo.url', 8, {
+    placeholder: 'https://bitbucket.bbh.com/projects/TA/repos/shared-catalogs',
+    hint: 'optional external repository with version catalogs',
+    help: 'An external Git or Bitbucket repository holding the version catalog files or Gradle/Maven BOMs. GoldenFix checks it out and applies dependency upgrades directly there.',
+    error: HTTP_URL_ERROR,
+  }),
+  mono('credentialsId', 'Credentials ID', 'goldenFix.versionCatalogRepo.credentialsId', 4, {
+    placeholder: 'bitbucket-http-credentials',
+    hint: 'left empty: uses SCM credentials',
+    help: 'The Jenkins credential used to authenticate with the external version catalog repository. If not specified, the repository credentials from the SCM section are used.',
+  }),
+  mono('branch', 'Branch', 'goldenFix.versionCatalogRepo.branch', 6, {
+    placeholder: 'main',
+    hint: 'left empty: default branch',
+    help: 'The branch of the external catalog repository to check out and update.',
+  }),
+  mono('path', 'Path', 'goldenFix.versionCatalogRepo.path', 6, {
+    placeholder: 'catalogs/libs.versions.toml',
+    hint: 'path within the external repository',
+    help: 'Relative path to the version catalog file or directory within the external repository.',
+    error: "A path relative to the repository root, without a '..' folder, with letters, digits and . _ / * + @ : = , ~ - only",
+  }),
+];
+
 const SCM: Field[] = [
   line('repositoryUrl', 'Repository URL', 'scm.bitbucket.url', 8, {
     placeholder: 'https://bitbucket.bbh.com/projects/TA/repos/cert-scanner',
@@ -632,6 +657,7 @@ export class ServiceFields {
   protected readonly flutterSonar = FLUTTER_SONAR;
   protected readonly flutterPlatform = FLUTTER_PLATFORM;
   protected readonly versionCatalogs = VERSION_CATALOGS;
+  protected readonly versionCatalogRepo = VERSION_CATALOG_REPO;
 
   protected readonly sections = computed(() => {
     this.changes();
@@ -792,6 +818,7 @@ export class ServiceFields {
       [c.nexusIq, this.nexusIqFields()],
       [c.scm, [...SCM, ...SCM_OPTIONS, ...BITBUCKET_REPOSITORY]],
       [c.goldenFix, this.goldenFixField()],
+      [c.versionCatalogRepo, VERSION_CATALOG_REPO],
       [c.metrics, [...this.metricsFields(), ...this.metricsOptions()]],
       [c.flutter, [...FLUTTER_PLATFORM, ...FLUTTER_MODULES, ...FLUTTER_CREDENTIALS]],
       [c.flutter, [...FLUTTER_SONAR, ...this.flutterDelivery()]],
@@ -891,21 +918,17 @@ export class ServiceFields {
             help: 'The absolute path of a JDK installed on the Jenkins agent.',
           };
     return [
-      liquibase
-        ? mono('sourceDir', 'Source folder', 'sourceDir', 6, {
-            placeholder: '.',
-            hint: 'the folder of the SQL and PL/SQL code; a dot means the repository root',
-            help: 'Choose it once, before the first deployment: the folder of the changelogs, such as orders-db, or a dot when the repository holds only the database code. With a Java service in the same repository, exclude this folder from the AppScan scope of the Java service. Liquibase records every change in the database under its path, which depends on this folder and on the search folder, so changing either later makes Liquibase treat every change as new.',
-          })
-        : mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
-            placeholder: maven ? 'target/*.jar' : 'build/libs/*.jar',
-            hint:
-              this.isVm() && maven && this.delivers()
-                ? 'the artifact the Nexus snapshot delivery uploads'
-                : 'what the build produces',
-            help: 'A path or wildcard pattern relative to the workspace; the first matching file is used. On OpenShift only its folder counts: the image build takes the artifact from there.',
-            error: SHELL_SAFE_ERROR,
-          }),
+      mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
+        placeholder: liquibase ? 'db/changelog/*.xml' : maven ? 'target/*.jar' : 'build/libs/*.jar',
+        hint:
+          this.isVm() && maven && this.delivers()
+            ? 'the artifact the Nexus snapshot delivery uploads'
+            : liquibase
+              ? 'optional for Liquibase database migrations'
+              : 'what the build produces',
+        help: 'A path or wildcard pattern relative to the workspace; the first matching file is used. On OpenShift only its folder counts: the image build takes the artifact from there.',
+        error: SHELL_SAFE_ERROR,
+      }),
       check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 6, {
         help: liquibase
           ? 'Selects a JDK of the Java version in the Library defaults (17 unless set there) installed on the agent, instead of the JDK path.'
@@ -1115,6 +1138,25 @@ export class ServiceFields {
         mono: true,
         hint: 'usually left empty; one per line, *, ? and ** allowed',
         help: 'Usually left empty: the pipeline then finds every JaCoCo XML and LCOV report of the service by itself, in the folder of its unit tests (the Directory of the unit test command or of the build command, otherwise the Source folder), in the folder of its Node.js build, or else in the whole repository. On Windows agents it does not look for LCOV reports: it reads the usual JaCoCo report of the build tool, and when that is missing every jacoco.xml of the workspace, or total_lcov.info for Flutter, so name every report here for those agents. A JaCoCo report needs python3 on the agent. The line coverage of the service is the average of its reports. Fill it in only to choose the reports: then only the reports named here count, so name the report of the frontend too, and for Flutter the lcov.info of each package. Paths are relative to the repository root, for example **/build/reports/jacoco/test/*.xml. When none of them exists, the pipeline searches as if the field were empty.',
+      }),
+      check(
+        'cypressEnabled',
+        'Enable Cypress unit tests',
+        'tests.unitTests.cypress.enabled',
+        12,
+        {
+          help: 'Runs Cypress unit/component tests for Node.js frontend during the unit tests stage and collects coverage from coverage/lcov.info.',
+        },
+      ),
+      mono('cypressCommand', 'Cypress command', 'tests.unitTests.cypress.command', 6, {
+        placeholder: 'npx cypress run --component',
+        hint: 'left empty: npx cypress run --component',
+        help: 'Custom Cypress command to execute tests. Defaults to npx cypress run --component.',
+      }),
+      mono('cypressReportsDir', 'Cypress reports folder', 'tests.unitTests.cypress.reportsDir', 6, {
+        placeholder: 'cypress/results',
+        hint: 'left empty: cypress/results',
+        help: 'Directory containing JUnit XML results generated by Cypress reporter.',
       }),
     ];
   }

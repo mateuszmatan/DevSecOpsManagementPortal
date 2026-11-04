@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_1000;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
@@ -50,6 +51,14 @@ public record ToolCommand(List<String> tasks, List<String> flags, String directo
                     .set(block + "flags", flags)
                     .set(block + "dir", directory)
                     .set(block + "mvnPath", maven ? mavenHome : null)
+                    .set(block + "env", environmentMap())
+                    .set(block + "label", label)
+                    .flag(block + "returnStdout", returnStdout);
+        } else if (tool == LIQUIBASE) {
+            String block = path + ".liquibase.";
+            config.set(block + "commands", tasks)
+                    .set(block + "flags", flags)
+                    .set(block + "dir", directory)
                     .set(block + "env", environmentMap())
                     .set(block + "label", label)
                     .flag(block + "returnStdout", returnStdout);

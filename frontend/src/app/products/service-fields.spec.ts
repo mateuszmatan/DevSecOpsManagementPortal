@@ -114,6 +114,7 @@ describe('ServiceFields', () => {
     ['MAVEN', 'OPENSHIFT'],
     ['FLUTTER', 'VM'],
     ['FLUTTER', 'OPENSHIFT'],
+    ['LIQUIBASE', 'VM'],
   ];
 
   describe('every section', () => {
@@ -722,6 +723,28 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
       expect(helpOf(field())).toContain('and for Flutter the lcov.info of each package');
     });
+
+    it('configures Cypress unit testing and reports directory', async () => {
+      await render();
+      await open('Unit tests and coverage');
+
+      const enableCheckbox = checkboxOf(pane(), 'Enable Cypress unit tests');
+      expect(enableCheckbox.checked).toBe(false);
+
+      enableCheckbox.click();
+      await fixture.whenStable();
+      expect(form.controls.unitTests.controls.cypressEnabled.value).toBe(true);
+
+      const commandInput = inputOf(pane(), 'Cypress command');
+      commandInput.value = 'npm run test:cypress';
+      commandInput.dispatchEvent(new Event('input'));
+      expect(form.controls.unitTests.controls.cypressCommand.value).toBe('npm run test:cypress');
+
+      const reportsInput = inputOf(pane(), 'Cypress reports folder');
+      reportsInput.value = 'cypress/coverage-reports';
+      reportsInput.dispatchEvent(new Event('input'));
+      expect(form.controls.unitTests.controls.cypressReportsDir.value).toBe('cypress/coverage-reports');
+    });
   });
 
   describe('Deployment', () => {
@@ -857,22 +880,26 @@ describe('ServiceFields', () => {
   });
 
   describe('servers and credentials of the service', () => {
-    it('name the Library default, and whether the value still equals it', async () => {
-      await render();
-      await open('SonarQube');
-      expect(hints()).toContain(
-        'Library default: https://tools.bbh.com/sonar · tools.sonar.serverUrl',
-      );
+    it(
+      'name the Library default, and whether the value still equals it',
+      async () => {
+        await render();
+        await open('SonarQube');
+        expect(hints()).toContain(
+          'Library default: https://tools.bbh.com/sonar · tools.sonar.serverUrl',
+        );
 
-      form.controls.sonar.controls.installationName.setValue('SonarQube');
-      await fixture.whenStable();
+        form.controls.sonar.controls.installationName.setValue('SonarQube');
+        await fixture.whenStable();
 
-      expect(hints()).toContain('Library default · tools.sonar.installationName');
-      await open('Monitoring');
-      expect(hints()).toContain('Library default: influxdb-token · influx.credentialsId');
-      await open('SSH targets');
-      expect(hints()).toContain('Library default: taadmin · user');
-    });
+        expect(hints()).toContain('Library default · tools.sonar.installationName');
+        await open('Monitoring');
+        expect(hints()).toContain('Library default: influxdb-token · influx.credentialsId');
+        await open('SSH targets');
+        expect(hints()).toContain('Library default: taadmin · user');
+      },
+      20_000,
+    );
 
     it('hints at nothing without the global settings', async () => {
       await render(service(), null);

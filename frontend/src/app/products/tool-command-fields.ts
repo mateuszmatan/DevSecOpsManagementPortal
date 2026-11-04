@@ -10,21 +10,36 @@ export function commandFields(
   path: string,
   gradleExample = '',
   mavenExample = '',
+  liquibaseExample = 'updateSQL',
 ): Field[] {
   const maven = tool === 'MAVEN';
-  const key = `${path}.${maven ? 'maven' : 'gradle'}`;
+  const liquibase = tool === 'LIQUIBASE';
+  const toolName = liquibase ? 'liquibase' : maven ? 'maven' : 'gradle';
+  const key = `${path}.${toolName}`;
+  const taskKey = liquibase ? 'commands' : maven ? 'goals' : 'tasks';
+  const taskLabel = liquibase ? 'Liquibase commands' : maven ? 'Maven goals' : 'Gradle tasks';
+  const taskPlaceholder = liquibase ? liquibaseExample : maven ? mavenExample : gradleExample;
+  const taskHelp = liquibase
+    ? path === 'tools.sonar'
+      ? 'SonarScanner runs automatically for SQL and PL/SQL files; set Flags under Advanced settings when overriding -Dsonar.sources, -Dsonar.inclusions, or -Dsonar.plsql.file.suffixes.'
+      : path === 'tests.unitTests'
+        ? 'The Liquibase command run during the Unit tests stage (for example validate or status). Line coverage and JUnit XML checks are skipped automatically when empty.'
+        : path === 'asoc'
+          ? 'The Liquibase command run before AppScan SAST packaging (for example updateSQL or validate) so rendered SQL and changelog scripts are scanned together with PL/SQL sources.'
+          : 'The commands passed to liquibase, for example updateSQL, validate, or status. When left empty, updateSQL runs by default.'
+    : maven
+      ? 'The goals the step passes to Maven: the mvn of the Maven home, otherwise ./mvnw when the repository has it, otherwise the mvn of the agent.'
+      : 'The tasks the step passes to the Gradle wrapper (./gradlew) of the repository.';
   return [
     mono(
       'tasks',
-      maven ? 'Maven goals' : 'Gradle tasks',
-      `${key}.${maven ? 'goals' : 'tasks'}`,
+      taskLabel,
+      `${key}.${taskKey}`,
       6,
       {
-        placeholder: maven ? mavenExample : gradleExample,
+        placeholder: taskPlaceholder,
         hint: 'separated by spaces',
-        help: maven
-          ? 'The goals the step passes to Maven: the mvn of the Maven home, otherwise ./mvnw when the repository has it, otherwise the mvn of the agent.'
-          : 'The tasks the step passes to the Gradle wrapper (./gradlew) of the repository.',
+        help: taskHelp,
       },
     ),
     mono('directory', 'Directory', `${key}.dir`, maven ? 3 : 6, {
@@ -43,9 +58,20 @@ export function commandFields(
       : []),
     area('flags', 'Flags', `${key}.flags`, 6, {
       mono: true,
-      placeholder: maven ? '-B' : '--refresh-dependencies',
+      placeholder: liquibase
+        ? path === 'tools.sonar'
+          ? '-Dsonar.sources=db\n-Dsonar.plsql.file.suffixes=.sql,.pls,.pks,.pkb'
+          : '--changelog-file=src/main/resources/changelog.xml'
+        : maven
+          ? '-B'
+          : '--refresh-dependencies',
       hint: 'one per line',
-      help: 'Command line options added after the goals or tasks, such as system properties or profiles.',
+      help:
+        liquibase && path === 'tools.sonar'
+          ? 'SonarScanner properties passed to sonar-scanner, such as -Dsonar.sources=db, -Dsonar.inclusions=**/*.sql,**/*.pkb, or -Dsonar.plsql.file.suffixes=.sql,.pls,.pks,.pkb.'
+          : liquibase
+            ? 'Liquibase options added before the command, such as --changelog-file=..., --defaults-file=..., or --url=offline:oracle.'
+            : 'Command line options added after the goals or tasks, such as system properties or profiles.',
     }),
     area('environment', 'Environment variables', `${key}.env`, 6, {
       mono: true,
@@ -80,6 +106,7 @@ export class ToolCommandFields {
   readonly path = input.required<string>();
   readonly gradleExample = input('');
   readonly mavenExample = input('');
+  readonly liquibaseExample = input('updateSQL');
   readonly part = input<'all' | 'tasks' | 'options'>('all');
 
   protected fields(): Field[] {
@@ -89,6 +116,7 @@ export class ToolCommandFields {
       this.path(),
       this.gradleExample(),
       this.mavenExample(),
+      this.liquibaseExample(),
     );
     return part === 'all'
       ? fields

@@ -300,14 +300,46 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>Click &quot;Save changes&quot;. New services get a Full pipeline with their own key.</li>
 </ol>
 <p>To add a pipeline of another type to a service, use &quot;Add pipeline&quot; on the product page. See <a href="#9-pipeline-types-pipeline-keys-the-jenkinsfile-and-the-jenkins-jobs">chapter 9</a>.</p>
+<h3 id="sql-and-plsql-services-with-liquibase-single-module-and-multi-module">SQL and PL/SQL services with Liquibase (single-module and multi-module)</h3>
+<p>Choose <strong>Liquibase</strong> as the Build tool (<code>buildTool: liquibase</code>) for a service that manages database schemas, DDL migrations, or stored procedures (Oracle PL/SQL, PostgreSQL PL/pgSQL, T-SQL, ANSI SQL) with Liquibase changelogs (<code>changelog.xml</code>, <code>changelog.yaml</code>, <code>changelog.yml</code>, or formatted <code>.sql</code> files).</p>
+<h4 id="single-module-sql--plsql-repository">Single-module SQL / PL/SQL repository</h4>
+<p>When a repository contains only database scripts and Liquibase changelogs:</p>
+<ul>
+<li><strong>Build (<code>build.liquibase.*</code>)</strong>: Set the Liquibase commands (by default <code>updateSQL</code>) and flags (for example <code>--changelog-file=changelog.xml --url=offline:oracle</code>). No JDK path (<code>javaPath</code>) or automatic build tool setup (<code>buildToolAutoSetup</code>) is required unless a custom Java runtime is needed by the Liquibase CLI or JDBC drivers.</li>
+<li><strong>Unit tests and coverage (<code>tests.unitTests.liquibase.*</code>)</strong>: Run changelog verification (<code>validate</code>, <code>status</code>) or PL/SQL unit tests (such as utPLSQL exporting JUnit XML to <code>tests.unitTests.unitTestResult</code> and JaCoCo/LCOV coverage to <code>coverage.reportPath</code>).</li>
+<li><strong>Static analysis (<code>tools.sonar.liquibase.*</code> and <code>asoc.liquibase.*</code>)</strong>:
+<ul>
+<li><strong>SonarQube</strong>: Runs <code>sonar-scanner</code> against your SQL / PL/SQL sources (<code>-Dsonar.sources</code> defaults to the Liquibase directory or <code>sourceDir</code>) so SonarQube's PL/SQL and SQL analyzers inspect packages, triggers, procedures, and views.</li>
+<li><strong>AppScan SAST</strong>: Packages the SQL / PL/SQL source tree into the <code>.irx</code> archive; if <code>asoc.liquibase.commands</code> is configured and &quot;Compile before preparing the IRX&quot; (<code>asoc.doCompile</code>) is enabled, that Liquibase command runs first (for example <code>updateSQL</code> to render SQL scripts before scanning).</li>
+<li><strong>Nexus IQ</strong>: Scans any JDBC drivers, Liquibase extensions, or packaged zip/jar archives matching your <code>scanPatterns</code>.</li>
+</ul>
+</li>
+</ul>
+<h4 id="multi-module-and-polyglot-repositories-sql--plsql-with-java-gradle-maven-nodejs-python-or-kotlin">Multi-module and polyglot repositories (SQL / PL/SQL with Java, Gradle, Maven, Node.js, Python, or Kotlin)</h4>
+<p>In a multi-module or polyglot repository that combines SQL / PL/SQL database modules with application services (such as a Java / Kotlin backend built with Gradle or Maven, an Angular / React / Node.js frontend, or Python utilities), you can model the product in two ways:</p>
+<ol>
+<li><strong>Separate services in the same product and repository (recommended)</strong>:
+<ul>
+<li>Add one service for each application module (<code>buildTool: gradle</code> or <code>buildTool: maven</code>, optionally with <strong>Node.js build (stage 0)</strong> enabled for the Angular/Node.js frontend) and a dedicated database service (<code>buildTool: liquibase</code>, with <code>build.liquibase.dir</code> and <code>sourceDir</code> pointing to the database subfolder such as <code>db</code> or <code>sql/plsql</code>).</li>
+<li>Give the services of the same repository the same Jenkins job so they run together from a single combined <code>Jenkinsfile</code> (<code>pipelineKeys: [...]</code>).</li>
+<li>During the run, the library executes Stage 0 Node.js pre-builds for the web frontend, builds and tests the Gradle/Maven backend and the Liquibase SQL/PL-SQL module, aggregates all JaCoCo XML and LCOV coverage reports across all modules (computing per-service and overall run averages), and runs AppScan SAST, SonarQube, and Nexus IQ + GoldenFix across every module.</li>
+</ul>
+</li>
+<li><strong>Liquibase service with Node.js Stage 0 or Gradle/Maven wrapper</strong>:
+<ul>
+<li>A <code>liquibase</code> service can also enable <strong>Node.js build (stage 0)</strong> (<code>build.node.enabled: true</code>) when the database repository uses Node.js tooling (for example SQL linters, documentation generators, or frontend assets packaged alongside migrations).</li>
+<li>Conversely, if Liquibase is invoked via the <code>liquibase-maven-plugin</code> or <code>org.liquibase.gradle</code> plugin inside a Java build, keep <code>buildTool: maven</code> or <code>buildTool: gradle</code> and include the Liquibase goals/tasks (<code>liquibase:validate</code>, <code>liquibase:updateSQL</code>) in the Maven or Gradle command.</li>
+</ul>
+</li>
+</ol>
 </div>
 
 <div class="section" id="6-build-the-frontend-with-nodejs-first-stage-0">
 <h2><span class="num">6</span> Build the frontend with Node.js first (stage 0)</h2>
-<p>Many services have a frontend, for example an Angular application, next to the Java code. The optional Node.js build runs the npm commands of that frontend in an extra stage before the Gradle or Maven build. The Gradle or Maven build then packages the frontend into the jar.</p>
+<p>Many services have a frontend, for example an Angular application, next to the Java code. The optional Node.js build runs the npm commands of that frontend in an extra stage before the Gradle, Maven, or Liquibase build. The Gradle or Maven build then packages the frontend into the jar.</p>
 <h3 id="when-to-use-it">When to use it</h3>
 <ul>
-<li>Use it when the Gradle or Maven build needs the built frontend and does not run npm itself.</li>
+<li>Use it when the Gradle, Maven, or Liquibase build needs the built frontend and does not run npm itself.</li>
 <li>Leave it off when the Gradle or Maven build already runs npm, for example through a Gradle Node plugin or the Maven frontend plugin.</li>
 <li>A Flutter service cannot use it: a Flutter build has no Gradle or Maven stage for the Node.js build to run before. Choosing Flutter switches the Node.js build off.</li>
 </ul>
@@ -832,6 +864,15 @@ liquibase --defaults-file=dso-deploy.properties --search-path=orders-db-341-2026
 <h3 id="when-to-list-a-catalog">When to list a catalog</h3>
 <p>Use the field &quot;Shared version catalogs&quot; in the GoldenFix section of the service. Write one path per line, relative to the repository root. <code>*</code> matches within one folder and <code>**</code> matches across folders, for example <code>catalog/*.toml</code>. A leading <code>./</code> is dropped. Name a file, not its folder: a path that ends in <code>/</code> is refused, also in an imported file. List a file only when GoldenFix misses it, for example a parent or BOM pom with another file name, such as <code>platform/bom.xml</code>. A listed <code>.toml</code> file is read as a Gradle catalog, an <code>.xml</code> file as a Maven pom, and any other file as a Gradle build file. A listed TOML file that no <code>settings.gradle</code> imports is used by no build, so it is raised without verification. The field belongs to the service: it is kept whether the GoldenFix policy is inherited or overridden. It renders as <code>goldenFix.versionCatalogs</code>.</p>
 <p>A listed path that matches nothing gives the run note <code>version catalog &lt;path&gt; not found in the repository</code>. A path that leaves the repository gives <code>version catalog &lt;path&gt; is outside the repository</code>.</p>
+<h3 id="external-version-catalog-repository">External version catalog repository</h3>
+<p>When version catalog files or BOMs are maintained in an external Bitbucket or Git repository shared across multiple projects, configure the repository in the GoldenFix section:</p>
+<ul>
+<li><code>goldenFix.versionCatalogRepo.url</code>: The browser or clone address of the repository that holds the shared version catalog files or Gradle/Maven BOMs.</li>
+<li><code>goldenFix.versionCatalogRepo.credentialsId</code>: The Jenkins credential used to sign in and push dependency updates to the external repository. Left empty, GoldenFix uses the credential configured in the Bitbucket (SCM) section.</li>
+<li><code>goldenFix.versionCatalogRepo.branch</code>: The branch of the external catalog repository to check out, upgrade and open pull requests against. Left empty, the default branch is used.</li>
+<li><code>goldenFix.versionCatalogRepo.path</code>: The relative path to the catalog file or directory within the external repository (for example <code>catalogs/libs.versions.toml</code>).</li>
+</ul>
+<p>GoldenFix checks out the external catalog repository into an isolated workspace directory, applies version upgrades to the specified catalog, verifies the changes, and submits pull requests directly to the external repository.</p>
 <h3 id="what-the-pull-request-contains">What the pull request contains</h3>
 <ul>
 <li>The version is raised in the catalog, once. A declaration of the same dependency elsewhere is raised to at least the catalog version. The pull request lists it as <code>declared outside the catalog &lt;file&gt; (&lt;alias&gt;)</code>, so that reviewers can move it into the catalog.</li>
@@ -884,6 +925,20 @@ devSecOpsNexusIqGoldenFixPipeline(<span class="k">pipelineKeys</span>: [
 </table>
 <p><code>pipeline.type</code> holds the value in the fourth column (<code>full</code> for the Full pipeline) and <code>pipeline.entryPoint</code> the entry point.</p>
 <p>A SQL and PL/SQL service takes the Full, Security, Extended and SAST pipelines. The Nexus IQ GoldenFix pipeline is refused for it, because it has no open source dependencies to scan; see <a href="#what-the-pipelines-do-with-a-sql-and-plsql-service">chapter 7</a>.</p>
+<h3 id="pipeline-execution-flow-and-stages">Pipeline execution flow and stages</h3>
+<p>The Full and Security pipelines follow an optimized, decoupled execution order:</p>
+<ol>
+<li><strong>Build artifact (Stage 1)</strong>: As the initial active stage after pipeline initialization, the pipeline builds the deployable service artifacts without running unit tests (e.g. <code>clean assemble -x test</code> or <code>compile</code>). If a Node.js build is configured (<code>build.node.enabled: true</code>), npm commands run as step 0 at the start of this stage before compiling the main application.</li>
+<li><strong>Parallel verification stages</strong>: Four verification stages execute simultaneously:
+<ul>
+<li><strong>Nexus IQ</strong>: Evaluates open-source dependencies against security and license policies.</li>
+<li><strong>SonarQube</strong>: Performs code analysis and verifies quality gate standards.</li>
+<li><strong>Unit tests</strong>: Executes automated unit tests and aggregates JaCoCo / LCOV code coverage reports.</li>
+<li><strong>SAST</strong>: Initiates and monitors static security analysis in HCL AppScan on Cloud asynchronously.</li>
+</ul>
+</li>
+<li><strong>Deployment and automated test stages</strong> (Full pipeline): Following successful verification, the pipeline deploys the artifact to the lower test environment (RD), executes Smoke, Regression, and Performance test jobs, runs DAST against the deployed application, and proceeds to QC deployment and release delivery.</li>
+</ol>
 <h3 id="pipeline-settings">Pipeline settings</h3>
 <p>&quot;Add pipeline&quot; on the product page and &quot;Edit pipeline settings&quot; open the pipeline dialog:</p>
 <table>
@@ -1096,8 +1151,14 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <p>The block &quot;Node.js build&quot; in Service defaults has three fields: Node.js installation, npm registry and .npmrc credentials ID. A new service shows them as its &quot;Library default&quot;. A service that leaves them empty takes them later as well, through <code>defaults.build.node</code> in <code>devsecops_config.yaml</code>. A service that names its own installation or a Node.js home on the agent uses that instead. The BBH seed leaves all three empty.</p>
 <h3 id="sql-and-plsql-defaults">SQL and PL/SQL defaults</h3>
 <p>The section &quot;SQL and PL/SQL (Liquibase)&quot; gives every SQL and PL/SQL service the locations of Liquibase, the Oracle JDBC driver and utPLSQL-cli, the databases its pipelines may deploy to and the Nexus repositories of its package. The portal writes these values under <code>defaults.tools.liquibase</code>, <code>defaults.tools.oracleJdbc</code>, <code>defaults.tools.utplsql</code> and <code>defaults.database</code>, and only while they are set, so the settings of every other service stay as they were. The allowed databases apply to every service; a service cannot set its own. A service may name its own Nexus repositories. The BBH seed leaves the section empty, so set the allowed databases and the repositories before the first SQL and PL/SQL service is saved. <a href="#library-defaults-for-sql-and-plsql-services">Chapter 7</a> describes each field, the licences, the checksums and the allowed databases.</p>
-<h3 id="nexus-iq-and-sonarqube-while-appscan-scans">Nexus IQ and SonarQube while AppScan scans</h3>
-<p>The block &quot;Speed&quot; in Scans and coverage has one checkbox, &quot;Run Nexus IQ and SonarQube while AppScan scans&quot;. It is ticked by default. The full and security pipelines then send the code of every service to AppScan first, run Nexus IQ and SonarQube while AppScan scans it, and read the SAST results last. The findings and the release gate are the same as one after another, and the run is shorter; in the report and the metrics, the SAST duration covers the whole Static analysis stage. Jenkins shows the three scans as one stage, Static analysis. If SAST stops before the code is sent, Nexus IQ and SonarQube do not run in that build. A service whose SAST compile command differs from its build command makes the pipelines run the three scans one after another, and the build log says so. Unticked, they run one after another, in the order Nexus IQ, SAST, SonarQube. The Jenkins environment variable <code>DSO_STATIC_ANALYSIS_PARALLEL</code>, when set to <code>true</code> or <code>false</code>, overrides this checkbox. A Jenkinsfile without a key does not follow this checkbox: it runs the three scans one after another unless <code>DSO_STATIC_ANALYSIS_PARALLEL</code> is <code>true</code> or every service of the run sets <code>staticAnalysis.parallel: true</code> in devsecops_config.yaml.</p>
+<h3 id="decoupled-build-concurrent-scans-and-sonarqube-running-last">Decoupled build, concurrent scans, and SonarQube running last</h3>
+<p>The pipeline executes stages in an optimized sequence:</p>
+<ol>
+<li><strong>Build without tests</strong>: The primary build artifact is compiled first (with optional Node.js build executing as step 0).</li>
+<li><strong>Concurrent Scans and Tests</strong>: SAST scan submission queues while Unit tests (including Cypress tests) and Nexus IQ dependency scans run concurrently. Once testing and dependency evaluation finish, the pipeline retrieves the SAST analysis results.</li>
+<li><strong>SonarQube</strong>: SonarQube runs last, ensuring that all Unit test reports and JaCoCo / LCOV / Cypress code coverage files are available for ingestion into the SonarQube quality gate.</li>
+</ol>
+<p>The block &quot;Speed&quot; in Scans and coverage provides the checkbox &quot;Run Nexus IQ and SonarQube while AppScan scans&quot; (<code>staticAnalysis.parallel</code>, ticked by default). When enabled, SAST submission, unit tests, and Nexus IQ run concurrently before SonarQube runs last. Unticked, scans run sequentially. The Jenkins environment variable <code>DSO_STATIC_ANALYSIS_PARALLEL</code>, when set to <code>true</code> or <code>false</code>, overrides this setting. A Jenkinsfile without a key follows <code>staticAnalysis.parallel: true</code> in <code>devsecops_config.yaml</code>.</p>
 <h3 id="which-values-follow-later-changes">Which values follow later changes</h3>
 <ul>
 <li>Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the order of the static scans, the release gate, the test jobs at the same time, the Node.js build defaults, the SQL and PL/SQL defaults and the GoldenFix policy of services that inherit it.</li>
@@ -1129,6 +1190,22 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 </table>
 <p>A pipeline that has not deployed successfully since a failed deployment shows &quot;Not recovered yet&quot;.</p>
 <p>The results of a pipeline are stored under the tags of the Monitoring section of its service: the project tag (<code>influx.project</code>, by default <code>&lt;CODE&gt;-&lt;service&gt;</code>) and the environment tag (<code>influx.env</code>, by default <code>test</code>). Pipelines other than Full add their type to the project tag, for example <code>CERT-guisecurity</code>. The pipeline page shows them as Monitoring tags. Without an InfluxDB, the monitoring status says that the metrics store is not configured and the runs stay empty.</p>
+<h3 id="execution-report-pipeline-reporthtml">Execution Report (pipeline-report.html)</h3>
+<p>After each pipeline execution, the DevSecOps pipeline automatically sends the complete build status (build number, job, branch, commit, duration, stage tallies) and the full HTML content of <code>pipeline-report.html</code> to the portal via <code>POST /api/dso/reports</code>.</p>
+<p>The Pipeline Monitoring page embeds this report directly in an interactive card, displaying:</p>
+<ul>
+<li>Complete visual stage flow, step tallies, and execution times.</li>
+<li>Status badges (PASS, FAIL, WARN) for each development, scanning, testing, and deployment stage.</li>
+<li>Direct clickable links to Nexus IQ policy evaluations, HCL AppScan SAST/DAST reports, SonarQube dashboards, remote Jenkins test jobs, and delivery artifacts, identical to the Jenkins report view.</li>
+<li>A button to open the full HTML report in a separate browser tab.</li>
+</ul>
+<p>The portal provides the following endpoints for pipeline reports:</p>
+<ul>
+<li><code>POST /api/dso/reports</code>: Ingests build status and HTML report from the pipeline.</li>
+<li><code>GET /api/pipelines/{id}/report</code>: Returns report metadata and execution summary as JSON.</li>
+<li><code>GET /api/pipelines/{id}/report/html</code>: Renders the latest HTML execution report directly in the browser.</li>
+<li><code>GET /api/pipelines/{id}/runs/{build}/report/html</code>: Renders the HTML execution report for a specific build.</li>
+</ul>
 </div>
 
 <div class="section" id="15-business-services">
@@ -1199,7 +1276,7 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tr><td>Node.js environment variables (Advanced)</td><td><code>build.node.env</code></td><td>a map of <code>NAME: value</code></td></tr>
 </tbody>
 </table>
-<p>The Gradle or Maven command of the build has the command fields of the next table.</p>
+<p>The Gradle, Maven, or Liquibase command of the build has the command fields of the next table.</p>
 <h3 id="command-fields">Command fields</h3>
 <p>Five steps share the same command fields: the build, the unit tests, the SonarQube analysis, the compile of the AppScan static scan and the Nexus delivery of a Maven service on virtual machines. The keys depend on the build tool.</p>
 <table>
@@ -1209,17 +1286,23 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tbody>
 <tr><td>Gradle tasks</td><td><code>build.gradle.tasks</code></td><td><code>tests.unitTests.gradle.tasks</code></td><td><code>tools.sonar.gradle.tasks</code></td><td><code>asoc.gradle.tasks</code></td><td></td></tr>
 <tr><td>Maven goals</td><td><code>build.maven.goals</code></td><td><code>tests.unitTests.maven.goals</code></td><td><code>tools.sonar.maven.goals</code></td><td><code>asoc.maven.goals</code></td><td><code>delivery.maven.goals</code></td></tr>
+<tr><td>Liquibase commands</td><td><code>build.liquibase.commands</code></td><td><code>tests.unitTests.liquibase.commands</code></td><td><code>tools.sonar.liquibase.commands</code></td><td><code>asoc.liquibase.commands</code></td><td></td></tr>
 <tr><td>Directory (Gradle)</td><td><code>build.gradle.dir</code></td><td><code>tests.unitTests.gradle.dir</code></td><td><code>tools.sonar.gradle.dir</code></td><td><code>asoc.gradle.dir</code></td><td></td></tr>
 <tr><td>Directory (Maven)</td><td><code>build.maven.dir</code></td><td><code>tests.unitTests.maven.dir</code></td><td><code>tools.sonar.maven.dir</code></td><td><code>asoc.maven.dir</code></td><td><code>delivery.maven.dir</code></td></tr>
+<tr><td>Directory (Liquibase)</td><td><code>build.liquibase.dir</code></td><td><code>tests.unitTests.liquibase.dir</code></td><td><code>tools.sonar.liquibase.dir</code></td><td><code>asoc.liquibase.dir</code></td><td></td></tr>
 <tr><td>Maven home</td><td><code>build.maven.mvnPath</code></td><td><code>tests.unitTests.maven.mvnPath</code></td><td><code>tools.sonar.maven.mvnPath</code></td><td><code>asoc.maven.mvnPath</code></td><td><code>delivery.maven.mvnPath</code></td></tr>
 <tr><td>Flags (Gradle)</td><td><code>build.gradle.flags</code></td><td><code>tests.unitTests.gradle.flags</code></td><td><code>tools.sonar.gradle.flags</code></td><td><code>asoc.gradle.flags</code></td><td></td></tr>
 <tr><td>Flags (Maven)</td><td><code>build.maven.flags</code></td><td><code>tests.unitTests.maven.flags</code></td><td><code>tools.sonar.maven.flags</code></td><td><code>asoc.maven.flags</code></td><td><code>delivery.maven.flags</code></td></tr>
+<tr><td>Flags (Liquibase)</td><td><code>build.liquibase.flags</code></td><td><code>tests.unitTests.liquibase.flags</code></td><td><code>tools.sonar.liquibase.flags</code></td><td><code>asoc.liquibase.flags</code></td><td></td></tr>
 <tr><td>Environment variables (Gradle)</td><td><code>build.gradle.env</code></td><td><code>tests.unitTests.gradle.env</code></td><td><code>tools.sonar.gradle.env</code></td><td><code>asoc.gradle.env</code></td><td></td></tr>
 <tr><td>Environment variables (Maven)</td><td><code>build.maven.env</code></td><td><code>tests.unitTests.maven.env</code></td><td><code>tools.sonar.maven.env</code></td><td><code>asoc.maven.env</code></td><td><code>delivery.maven.env</code></td></tr>
+<tr><td>Environment variables (Liquibase)</td><td><code>build.liquibase.env</code></td><td><code>tests.unitTests.liquibase.env</code></td><td><code>tools.sonar.liquibase.env</code></td><td><code>asoc.liquibase.env</code></td><td></td></tr>
 <tr><td>Step label (Gradle)</td><td><code>build.gradle.label</code></td><td><code>tests.unitTests.gradle.label</code></td><td><code>tools.sonar.gradle.label</code></td><td><code>asoc.gradle.label</code></td><td></td></tr>
 <tr><td>Step label (Maven)</td><td><code>build.maven.label</code></td><td><code>tests.unitTests.maven.label</code></td><td><code>tools.sonar.maven.label</code></td><td><code>asoc.maven.label</code></td><td><code>delivery.maven.label</code></td></tr>
+<tr><td>Step label (Liquibase)</td><td><code>build.liquibase.label</code></td><td><code>tests.unitTests.liquibase.label</code></td><td><code>tools.sonar.liquibase.label</code></td><td><code>asoc.liquibase.label</code></td><td></td></tr>
 <tr><td>Return the output to the pipeline (Gradle)</td><td><code>build.gradle.returnStdout</code></td><td><code>tests.unitTests.gradle.returnStdout</code></td><td><code>tools.sonar.gradle.returnStdout</code></td><td><code>asoc.gradle.returnStdout</code></td><td></td></tr>
 <tr><td>Return the output to the pipeline (Maven)</td><td><code>build.maven.returnStdout</code></td><td><code>tests.unitTests.maven.returnStdout</code></td><td><code>tools.sonar.maven.returnStdout</code></td><td><code>asoc.maven.returnStdout</code></td><td><code>delivery.maven.returnStdout</code></td></tr>
+<tr><td>Return the output to the pipeline (Liquibase)</td><td><code>build.liquibase.returnStdout</code></td><td><code>tests.unitTests.liquibase.returnStdout</code></td><td><code>tools.sonar.liquibase.returnStdout</code></td><td><code>asoc.liquibase.returnStdout</code></td><td></td></tr>
 </tbody>
 </table>
 <h3 id="database-changes">Database changes</h3>
@@ -1296,12 +1379,16 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tbody>
 <tr><td>Test results</td><td><code>tests.unitTests.unitTestResult</code></td><td>Gradle builds</td></tr>
 <tr><td>Coverage reports</td><td><code>coverage.reportPath</code></td><td>Usually left empty; one path or pattern per line</td></tr>
+<tr><td>Enable Cypress unit tests</td><td><code>tests.unitTests.cypress.enabled</code></td><td>Runs Cypress tests and collects coverage</td></tr>
+<tr><td>Cypress command</td><td><code>tests.unitTests.cypress.command</code></td><td>Defaults to <code>npx cypress run --component</code></td></tr>
+<tr><td>Cypress reports folder</td><td><code>tests.unitTests.cypress.reportsDir</code></td><td>Directory containing JUnit results</td></tr>
 <tr><td>Root folder (Advanced)</td><td><code>tests.unitTests.rootDir</code></td><td>Maven builds</td></tr>
 <tr><td>Report folder (Advanced)</td><td><code>tests.unitTests.reportOutDir</code></td><td>Maven builds</td></tr>
 <tr><td>Accept a run without test results (Advanced)</td><td><code>tests.unitTests.allowEmptyResults</code></td><td>Maven builds</td></tr>
 </tbody>
 </table>
 <p>Leave Coverage reports empty unless the pipeline reads the wrong reports. Empty, the Unit tests stage finds every JaCoCo XML and LCOV report of the service by itself: in the Directory of its unit test command, otherwise of its build command, otherwise in the Source folder; also in the Folder with package.json of its Node.js build; and, when it finds none there, in the whole repository. On Windows agents the stage does not look for LCOV reports: it reads the usual JaCoCo report of the build tool, and when that is missing every <code>jacoco.xml</code> of the workspace, or <code>total_lcov.info</code> for Flutter, so a service on a Windows agent names every report in Coverage reports, the LCOV report of the frontend included. A JaCoCo report needs <code>python3</code> on the agent. In a folder that several services share, each service takes the reports of its own build tool, and the report of the run says when a report also counts for another service. The line coverage of the service is the average of its reports. The report of the run lists every report it found, and says why a report is not counted, for example because it is a copy of another one or combines other reports.</p>
+<p>For Node.js frontends or fullstack applications using Cypress, ticking <strong>Enable Cypress unit tests</strong> (<code>tests.unitTests.cypress.enabled</code>) runs Cypress unit and component tests during the Unit tests stage. You can configure a custom command in <strong>Cypress command</strong> (<code>tests.unitTests.cypress.command</code>) and the test report folder in <strong>Cypress reports folder</strong> (<code>tests.unitTests.cypress.reportsDir</code>). Code coverage is automatically collected from <code>coverage/lcov.info</code> generated by Cypress instrumentation.</p>
 <p>Filled in, only the reports named in the field count. Name the report of the frontend too, and for a Flutter service the <code>lcov.info</code> of each package: the library now reads the field for Flutter as well, where it ignored it before. Paths are relative to the repository root; <code>*</code>, <code>?</code> and <code>**</code> are allowed. When none of them exists, the stage searches as if the field were empty. An imported <code>coverage.reportPath</code> longer than the 500 characters the portal keeps is left out with a note.</p>
 <h3 id="test-jobs">Test jobs</h3>
 <table>
@@ -1541,6 +1628,10 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tbody>
 <tr><td>Run GoldenFix</td><td><code>goldenFix.enabled</code></td><td>Library default, On or Off</td></tr>
 <tr><td>Shared version catalogs</td><td><code>goldenFix.versionCatalogs</code></td><td>the service's own list, outside the inherited policy</td></tr>
+<tr><td>External catalog repository URL</td><td><code>goldenFix.versionCatalogRepo.url</code></td><td>optional separate Git/Bitbucket repository</td></tr>
+<tr><td>External catalog credentials ID</td><td><code>goldenFix.versionCatalogRepo.credentialsId</code></td><td>left empty: uses SCM credentials</td></tr>
+<tr><td>External catalog branch</td><td><code>goldenFix.versionCatalogRepo.branch</code></td><td>left empty: default branch</td></tr>
+<tr><td>External catalog path</td><td><code>goldenFix.versionCatalogRepo.path</code></td><td>relative path to catalog file or directory</td></tr>
 <tr><td>Ecosystems</td><td><code>goldenFix.ecosystems</code></td><td>Override only</td></tr>
 <tr><td>Minimum threat level</td><td><code>minThreatLevel</code></td><td><code>goldenFix.minThreatLevel</code></td></tr>
 <tr><td>Dependencies</td><td><code>onlyDirectDependencies</code></td><td><code>goldenFix.onlyDirectDependencies</code></td></tr>

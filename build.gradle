@@ -3,7 +3,6 @@ plugins {
     alias(libs.plugins.spring.dependency.management) apply false
 }
 
-// check (and so build) of the root project fails when docs/documentation.html is out of date
 apply plugin: 'base'
 apply from: 'gradle/documentation.gradle'
 
@@ -30,7 +29,6 @@ subprojects {
         }
     }
 
-    // check (and so build) runs the smoke, regression and performance suites too, not only the unit tests
     pluginManager.withPlugin('jvm-test-suite') {
         tasks.named('check') {
             dependsOn project.testing.suites.matching { it.name != 'test' }

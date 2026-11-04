@@ -21,5 +21,14 @@ databaseChangeLog:
       file: oracle/033-parallel-static-analysis.sql
       relativeToChangelogFile: true
   - include:
+      file: oracle/034-version-catalog-repo.sql
+      relativeToChangelogFile: true
+  - include:
+      file: oracle/035-cypress-unit-tests.sql
+      relativeToChangelogFile: true
+  - include:
+      file: oracle/036-pipeline-reports.sql
+      relativeToChangelogFile: true
+  - include:
       file: oracle/034-sql-plsql-services.sql
       relativeToChangelogFile: true

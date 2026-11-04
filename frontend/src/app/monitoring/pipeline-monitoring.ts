@@ -10,7 +10,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MonitoringApi } from '../core/api';
+import { MonitoringApi, PipelinesApi } from '../core/api';
 import { PipelineMonitoring, pipelineTypeLabel } from '../core/models';
 import { MONITORING, monitoringProduct, pipelinePage } from '../core/sections';
 import { BuildLink } from '../shared/build-link';
@@ -64,6 +64,7 @@ export class PipelineMonitoringPage {
   readonly range = input<string>();
 
   private readonly api = inject(MonitoringApi);
+  private readonly pipelinesApi = inject(PipelinesApi);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly sanitizer = inject(DomSanitizer);
@@ -91,6 +92,17 @@ export class PipelineMonitoringPage {
       embedded: this.sanitizer.bypassSecurityTrustResourceUrl(`${dashboard.dashboardUrl}&kiosk`),
     })),
   );
+
+  protected readonly reportFrameUrl = computed(() => {
+    const pipelineId = Number(this.id());
+    const build = this.data()?.lastRun?.build;
+    const url = this.pipelinesApi.reportHtmlUrl(pipelineId, build ?? undefined);
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  });
+
+  protected reportHtmlUrl(build?: number | null): string {
+    return this.pipelinesApi.reportHtmlUrl(Number(this.id()), build ?? undefined);
+  }
 
   protected readonly section = MONITORING;
   protected readonly monitoringProduct = monitoringProduct;

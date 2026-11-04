@@ -82,6 +82,12 @@ class ServiceConfigReaderSpec extends Specification {
             tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(), urbanCode: MAVEN_VM.urbanCode(),
             urbanCodeApplications: MAVEN_VM.urbanCodeApplications(), sshTargets: MAVEN_VM.sshTargets(),
             appScan: MAVEN_VM.appScan(), sonar: MAVEN_VM.sonar(), scm: MAVEN_VM.scm(), metrics: MAVEN_VM.metrics())
+    static final ServiceSettings LIQUIBASE_VM = settings(
+            build: build(tool: LIQUIBASE, sourceDir: 'db', javaPath: null),
+            unitTests: MAVEN_VM.unitTests(), tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(),
+            urbanCode: MAVEN_VM.urbanCode(), urbanCodeApplications: MAVEN_VM.urbanCodeApplications(),
+            sshTargets: MAVEN_VM.sshTargets(), appScan: MAVEN_VM.appScan(), sonar: MAVEN_VM.sonar(),
+            scm: MAVEN_VM.scm(), metrics: MAVEN_VM.metrics())
 
     @Shared
     JsonMapper json = JsonMapper.builder().build()
@@ -112,6 +118,7 @@ class ServiceConfigReaderSpec extends Specification {
                                          problem('deploy.openshift.rd.internalDockerUrl', RUN_TIME)]
         GRADLE_OPENSHIFT_NO_DELIVERY || []
         FLUTTER_VM                   || []
+        LIQUIBASE_VM                 || []
 
         tool = settings.build().tool()
         target = settings.deployment().target()
@@ -376,6 +383,84 @@ class ServiceConfigReaderSpec extends Specification {
         then:
         !service.service().deployment().nexusDeliveryDisabled()
         service.notes() == [problem('deploy.openshift.rd.nexusDeliveryEnabled', 'not imported: the service deploys to vm')]
+    }
+
+    def "a Liquibase SQL/PL-SQL config imports build, unit test, SAST and SonarQube sources, inclusions and exclusions"() {
+        when:
+        def importedService = imported('''
+            projects:
+              billing-db:
+                buildTool: liquibase
+                sourceDir: db
+                appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+                staticAnalysis:
+                  parallel: true
+                build:
+                  liquibase:
+                    commands: updateSQL
+                    flags:
+                      - --changelog-file=db/changelog/db.changelog-master.xml
+                      - --url=offline:oracle
+                tests:
+                  unitTests:
+                    liquibase:
+                      tasks: validate
+                      flags: --changelog-file=db/changelog/db.changelog-master.xml
+                asoc:
+                  liquibase:
+                    commands: updateSQL
+                    flags: --changelog-file=db/changelog/db.changelog-master.xml
+                tools:
+                  sonar:
+                    projectKey: com.bbh:billing-db
+                    projectName: Billing-DB
+                    liquibase:
+                      sources: [db/changelog, db/plsql]
+                      inclusions: "**/*.sql,**/*.pls,**/*.pks,**/*.pkb"
+                      exclusions: "**/testdata/**"
+                      flags:
+                        - -Dsonar.plsql.file.suffixes=.sql,.pls,.pks,.pkb
+            '''.stripIndent()).services()[0]
+        def db = importedService.service()
+
+        then:
+        importedService.name() == 'billing-db'
+        importedService.notes() == [problem('staticAnalysis.parallel', GLOBAL)]
+        db.build().tool() == LIQUIBASE
+        db.build().sourceDir() == 'db'
+        db.build().command().tasks() == ['updateSQL']
+        db.build().command().flags() == ['--changelog-file=db/changelog/db.changelog-master.xml', '--url=offline:oracle']
+        db.unitTests().command().tasks() == ['validate']
+        db.unitTests().command().flags() == ['--changelog-file=db/changelog/db.changelog-master.xml']
+        db.appScan().compileCommand().tasks() == ['updateSQL']
+        db.sonar().projectKey() == 'com.bbh:billing-db'
+        db.sonar().command().flags() == [
+                '-Dsonar.plsql.file.suffixes=.sql,.pls,.pks,.pkb',
+                '-Dsonar.sources=db/changelog,db/plsql',
+                '-Dsonar.inclusions=**/*.sql,**/*.pls,**/*.pks,**/*.pkb',
+                '-Dsonar.exclusions=**/testdata/**'
+        ]
+    }
+
+    def "Cypress unit test settings are imported from tests.unitTests.cypress"() {
+        when:
+        def imported = read('''
+            projects:
+              frontend:
+                buildTool: maven
+                deployTarget: openshift
+                tests:
+                  unitTests:
+                    cypress:
+                      enabled: true
+                      command: npx cypress run --component
+                      reportsDir: cypress/results
+        '''.stripIndent()).services()[0].service()
+
+        then:
+        imported.unitTests().cypressEnabled()
+        imported.unitTests().cypressCommand() == 'npx cypress run --component'
+        imported.unitTests().cypressReportsDir() == 'cypress/results'
     }
 
     def "a hand-written config.yaml gives a service per project, inherits the global values and notes what it leaves out"() {

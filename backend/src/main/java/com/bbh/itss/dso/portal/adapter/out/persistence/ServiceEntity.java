@@ -159,6 +159,7 @@ public class ServiceEntity extends AuditedEntity {
             ScmSettingsEmbeddable scm,
             @EmbeddedColumnNaming("GOLDEN_FIX_%s") GoldenFixPolicyEmbeddable goldenFix,
             @Column(name = "GOLDEN_FIX_VERSION_CATALOGS") List<String> versionCatalogs,
+            VersionCatalogRepoEmbeddable versionCatalogRepo,
             MetricsSettingsEmbeddable metrics,
             @EmbeddedColumnNaming("FLUTTER_%s") FlutterSettingsEmbeddable flutter,
             @EmbeddedColumnNaming("DB_%s") DatabaseSettingsEmbeddable database) {
@@ -187,7 +188,15 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "UNIT_TEST_ROOT_DIR") String rootDir,
             @Column(name = "UNIT_TEST_REPORT_DIR") String reportOutDir,
             @Column(name = "UNIT_TEST_ALLOW_EMPTY") Boolean allowEmptyResults,
-            String coverageReportPath) {
+            String coverageReportPath,
+            @Column(name = "UNIT_TEST_CYPRESS_ENABLED") Boolean cypressEnabled,
+            @Column(name = "UNIT_TEST_CYPRESS_COMMAND") String cypressCommand,
+            @Column(name = "UNIT_TEST_CYPRESS_REPORTS_DIR") String cypressReportsDir) {
+
+        public UnitTestSettingsEmbeddable(ToolCommandEmbeddable command, String resultPattern, String rootDir,
+                                          String reportOutDir, Boolean allowEmptyResults, String coverageReportPath) {
+            this(command, resultPattern, rootDir, reportOutDir, allowEmptyResults, coverageReportPath, false, null, null);
+        }
     }
 
     @Embeddable
@@ -325,6 +334,14 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "AUTHOR_NAME") String commitAuthorName,
             @Column(name = "AUTHOR_EMAIL") String commitAuthorEmail,
             String timeZone) {
+    }
+
+    @Embeddable
+    public record VersionCatalogRepoEmbeddable(
+            @Column(name = "VC_REPO_URL") String repositoryUrl,
+            @Column(name = "VC_CREDENTIALS_ID") String credentialsId,
+            @Column(name = "VC_BRANCH") String branch,
+            @Column(name = "VC_PATH") String path) {
     }
 
     @Embeddable

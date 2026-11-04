@@ -179,7 +179,8 @@ final class ServiceConfigReader {
             rule("env", "environment", ENV), rule("label", "label", TEXT), rule("returnStdout", "returnStdout", FLAG));
     private static final Map<BuildTool, List<Rule>> COMMANDS = Map.of(
             GRADLE, concat(List.of(rule("tasks", "tasks", WORDS)), COMMAND),
-            MAVEN, concat(List.of(rule("goals", "tasks", WORDS), rule("mvnPath", "mavenHome", TEXT)), COMMAND));
+            MAVEN, concat(List.of(rule("goals", "tasks", WORDS), rule("mvnPath", "mavenHome", TEXT)), COMMAND),
+            LIQUIBASE, concat(List.of(rule("commands", "tasks", WORDS), rule("tasks", "tasks", WORDS)), COMMAND));
     private static final List<Rule> TEST_JOB = concat(
             same(TEXT, "name", "remoteJenkins", "remoteJenkinsUrl", "credentialsId", "tokenCredentialsId"),
             same(FLAG, "abortTriggeredJob", "overrideTrustAllCertificates", "preventRemoteBuildQueue",
@@ -344,7 +345,7 @@ final class ServiceConfigReader {
     /** Reads the command block of the service's build tool; a block of another tool is left out with a note. */
     private static void readCommands(ConfigInput project, BuildTool tool, ConfigTree request) {
         for (Block block : COMMAND_BLOCKS) {
-            for (BuildTool blockTool : List.of(GRADLE, MAVEN)) {
+            for (BuildTool blockTool : List.of(GRADLE, MAVEN, LIQUIBASE)) {
                 String key = block.key() + "." + blockTool.name().toLowerCase(ROOT);
                 if (blockTool == tool) {
                     read(project, prefixed(key + ".", block.field() + ".", COMMANDS.get(tool)), request);
@@ -352,6 +353,36 @@ final class ServiceConfigReader {
                     project.note(key, "not imported: the service builds with " + tool.name().toLowerCase(ROOT));
                 }
             }
+        }
+        if (tool == LIQUIBASE) {
+            readLiquibaseSonar(project, request);
+        }
+    }
+
+    /** Reads Liquibase SonarQube sources, inclusions and exclusions as -Dsonar.* flags on the SonarQube command. */
+    private static void readLiquibaseSonar(ConfigInput project, ConfigTree request) {
+        List<String> flags = new ArrayList<>(request.get("sonar.command.flags") instanceof List<?> list
+                ? list.stream().map(String::valueOf).toList() : List.of());
+        Object topSources = request.get("flutter.sonarSources");
+        for (String prop : List.of("sources", "inclusions", "exclusions")) {
+            String key = "tools.sonar.liquibase." + prop;
+            Object raw = project.take(key);
+            if (raw != null) {
+                try {
+                    String joined = String.join(",", items(raw, ","));
+                    if (!joined.isBlank() && flags.stream().noneMatch(f -> f.startsWith("-Dsonar." + prop + "="))) {
+                        flags.add("-Dsonar." + prop + "=" + joined);
+                    }
+                } catch (NotImported e) {
+                    project.note(key, e.getMessage());
+                }
+            } else if ("sources".equals(prop) && topSources instanceof String s && !s.isBlank()
+                    && flags.stream().noneMatch(f -> f.startsWith("-Dsonar.sources="))) {
+                flags.add("-Dsonar.sources=" + s.trim());
+            }
+        }
+        if (!flags.isEmpty()) {
+            request.set("sonar.command.flags", List.copyOf(flags));
         }
     }
 
@@ -444,6 +475,7 @@ final class ServiceConfigReader {
                 rule("excludedDirs", "appScan.excludedDirs", COMMAS),
                 rule("appscanPath", "appScan.clientPath", TEXT),
                 note("asoc.url", GLOBAL),
+                note("staticAnalysis.parallel", GLOBAL),
                 rule("asoc.keyId", "appScan.keyId", TEXT),
                 rule("asoc.token", "appScan.secretCredentialsId", TEXT),
                 rule("asoc.doCompile", "appScan.compile", FLAG),
@@ -495,6 +527,14 @@ final class ServiceConfigReader {
         rules.addAll(prefixed("asoc.", "appScan.", same(FLAG, "sourceCodeOnly", "insecureTls")));
         rules.addAll(prefixed("tests.unitTests.", "unitTests.", concat(same(TEXT, "rootDir", "reportOutDir"),
                 same(FLAG, "allowEmptyResults"))));
+        List<Rule> cypressRules = List.of(
+                rule("enabled", "cypressEnabled", FLAG),
+                rule("command", "cypressCommand", TEXT),
+                rule("reportsDir", "cypressReportsDir", TEXT));
+        rules.addAll(prefixed("tests.unitTests.cypress.", "unitTests.", cypressRules));
+        rules.addAll(prefixed("unitTests.cypress.", "unitTests.", cypressRules));
+        rules.addAll(prefixed("build.node.cypress.", "unitTests.", cypressRules));
+        rules.addAll(prefixed("cypress.", "unitTests.", cypressRules));
         rules.addAll(prefixed("tools.sonar.", "sonar.", concat(same(TEXT, "serverUrl", "projectName", "projectKey",
                 "installationName", "credentialsId", "badgeToken", "badgeCredentialsId"),
                 same(FLAG, "addBadges", "fullBadges"))));
@@ -505,6 +545,19 @@ final class ServiceConfigReader {
                 same(LIST, "ecosystems", "goldenVersionTypes", "excludeDirs"),
                 same(TEXT, "commitAuthorName", "commitAuthorEmail", "timeZone"))));
         rules.add(rule("goldenFix.versionCatalogs", "versionCatalogs", FILES));
+        rules.add(rule("versionCatalogs", "versionCatalogs", FILES));
+        rules.addAll(prefixed("goldenFix.versionCatalogRepo.", "versionCatalogRepo.", same(TEXT, "repositoryUrl", "credentialsId", "branch", "path")));
+        rules.addAll(prefixed("goldenFix.versionCatalogRepository.", "versionCatalogRepo.", same(TEXT, "repositoryUrl", "credentialsId", "branch", "path")));
+        rules.addAll(prefixed("versionCatalogRepo.", "versionCatalogRepo.", same(TEXT, "repositoryUrl", "credentialsId", "branch", "path")));
+        rules.addAll(prefixed("versionCatalogRepository.", "versionCatalogRepo.", same(TEXT, "repositoryUrl", "credentialsId", "branch", "path")));
+        rules.add(rule("goldenFix.versionCatalogRepo.url", "versionCatalogRepo.repositoryUrl", TEXT));
+        rules.add(rule("goldenFix.versionCatalogRepository.url", "versionCatalogRepo.repositoryUrl", TEXT));
+        rules.add(rule("versionCatalogRepo.url", "versionCatalogRepo.repositoryUrl", TEXT));
+        rules.add(rule("versionCatalogRepository.url", "versionCatalogRepo.repositoryUrl", TEXT));
+        rules.add(rule("goldenFix.versionCatalogRepo.targetBranch", "versionCatalogRepo.branch", TEXT));
+        rules.add(rule("goldenFix.versionCatalogRepository.targetBranch", "versionCatalogRepo.branch", TEXT));
+        rules.add(rule("versionCatalogRepo.targetBranch", "versionCatalogRepo.branch", TEXT));
+        rules.add(rule("versionCatalogRepository.targetBranch", "versionCatalogRepo.branch", TEXT));
         for (String tool : List.of("maven", "gradle", "npm", "pip", "pub")) {
             rules.add(rule("goldenFix.verify.commands." + tool, "goldenFix.verify" + capitalize(tool) + "Command",
                     TEXT));
