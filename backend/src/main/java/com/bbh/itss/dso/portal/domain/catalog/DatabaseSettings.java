@@ -213,8 +213,9 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
                     + " holds only lower-case letters, digits, \"_\" and \".\" (at most 64), and at most 50 lines");
         }
         if (pairs.stream().anyMatch(pair -> pair[0].matches(SECRET_NAME))) {
-            problems.add(field, "holds a name that looks like a secret: changelog parameters are written into the"
-                    + " package; keep secrets in Jenkins credentials");
+            problems.add(field, "holds a name that looks like a secret or a variable of the agent, which the library"
+                    + " refuses in the changelog: changelog parameters are written into the package; keep secrets in"
+                    + " Jenkins credentials");
         }
         if (pairs.stream().anyMatch(pair -> pair.length == 2
                 && (!pair[1].matches(PARAMETER_VALUE) || pair[1].contains("${")))) {

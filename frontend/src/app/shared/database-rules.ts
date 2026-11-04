@@ -22,7 +22,8 @@ export const JAR = /^.*\.jar$/;
 export const ZIP = /^.*\.zip$/;
 export const SHA256 = /^[0-9a-f]{64}$/;
 export const PARAMETER_NAME = /^[a-z][a-z0-9_.]{0,63}$/;
-export const SECRET_NAME = /password|passwd|pwd|secret|token|credential/i;
+export const SECRET_NAME =
+  /^(liquibase_|dso_|jenkins)|password|passwd|pwd|secret|token|credential|key|user/i;
 export const PARAMETER_VALUE = /^([\x21-\x7e]([\x20-\x7e]{0,498}[\x21-\x7e])?)?$/;
 export const TARGET = /^[A-Za-z0-9*][A-Za-z0-9.*-]{0,252}(\/[A-Za-z0-9_$#.*-]{1,128})?$/;
 export const ORACLE_VERSION = /^[0-9]{1,2}(\.[0-9]{1,2})?$/;
@@ -70,7 +71,7 @@ export const matching =
 const PARAMETER_FORM =
   'Each line must be name=value, where the name starts with a lower-case letter and holds only lower-case letters, digits, "_" and "." (at most 64), and at most 50 lines';
 const PARAMETER_SECRET =
-  'Holds a name that looks like a secret: changelog parameters are written into the package; keep secrets in Jenkins credentials';
+  'Holds a name that looks like a secret or a variable of the agent, which the library refuses in the changelog: changelog parameters are written into the package; keep secrets in Jenkins credentials';
 const PARAMETER_VALUE_MESSAGE =
   'Holds a value that is not printable ASCII of at most 500 characters, or that starts or ends with a blank, or holds "${"';
 

@@ -537,7 +537,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tbody>
 <tr><td>Changelog file</td><td>none</td><td>The main Liquibase changelog, relative to the search folder. It ends with <code>.xml</code>, <code>.yaml</code>, <code>.yml</code>, <code>.json</code> or <code>.sql</code>. Set, it gives the service its database changes; empty, the service builds with its Liquibase commands only. Its path is part of the identity of every change in the database, so it must not change after the first deployment.</td></tr>
 <tr><td>Search folder</td><td><code>.</code>, the source folder</td><td>Liquibase looks for the changelog and every file it includes in this folder, relative to the source folder, and reads nothing outside it. Like the changelog path, it must not change after the first deployment.</td></tr>
-<tr><td>Changelog parameters</td><td>none</td><td>Values that the changelog uses as <code>${name}</code>, one <code>name=value</code> per line, such as <code>app_role=orders_app_role</code>. They are written into the package, so they must not hold a secret: a name that contains password, passwd, pwd, secret, token or credential is refused.</td></tr>
+<tr><td>Changelog parameters</td><td>none</td><td>Values that the changelog uses as <code>${name}</code>, one <code>name=value</code> per line, such as <code>app_role=orders_app_role</code>. They are written into the package, so they must not hold a secret: a name that contains password, passwd, pwd, secret, token, credential, key or user, or that starts with liquibase_, dso_ or jenkins, is refused, as the library refuses such a <code>${name}</code> in the changelog.</td></tr>
 </tbody>
 </table>
 <p>Each database has a block of its own: &quot;Test database, for the utPLSQL tests&quot; (<code>database.test</code>), &quot;RD, the lower test region&quot; (<code>database.rd</code>) and &quot;QC, the higher test region&quot; (<code>database.qc</code>).</p>
@@ -689,7 +689,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>Put no password and no agent commands in a changeset. Values that differ between databases are changelog parameters, written <code>${app_role}</code> in the changelog.</li>
 <li><code>runAlways</code> changesets, such as grants and synonyms, run on every deployment, so every deployment is tagged.</li>
 </ol>
-<p>The Build artifact stage checks the source files for most of these rules. Each finding is one line of the console and of the archived file <code>static-checks.txt</code>, and the findings turn the stage orange; &quot;Files the static checks ignore&quot; names files to leave out. A password, an <code>executeCommand</code> or a <code>customChange</code> in a changeset, or a changelog parameter whose name looks like a secret, stops the run.</p>
+<p>The Build artifact stage checks the source files for most of these rules. Each finding is one line of the console and of the archived file <code>static-checks.txt</code>, and the findings turn the stage orange; &quot;Files the static checks ignore&quot; names files to leave out. A password, an <code>executeCommand</code> or a <code>customChange</code> in a changeset, or a <code>${name}</code> whose name looks like a secret or a variable of the agent (as for the Changelog parameters), stops the run.</p>
 <h3 id="the-first-deployment-to-an-existing-schema">The first deployment to an existing schema</h3>
 <p>The first deployment to a schema that already holds the objects of the changelog fails: <code>CREATE TABLE</code> of a table that exists ends with ORA-00955. Choose one of two ways before that deployment:</p>
 <ul>
@@ -763,7 +763,7 @@ devSecOpsPipeline(<span class="k">pipelineKeys</span>: [
 <li>The portal stores only the credentials IDs of the databases. It has no field for a user or a password.</li>
 <li>A JDBC URL with a user or a password, such as <code>jdbc:oracle:thin:scott/tiger@//rd-db.bbh.com:1521/ORDERS_RD</code> or one with <code>password=</code>, is refused when the product is saved.</li>
 <li>No message of the portal repeats a JDBC URL, a changelog parameter value or a credentials ID.</li>
-<li>Changelog parameters are written into the package, so a name that looks like a secret is refused.</li>
+<li>Changelog parameters are written into the package, so a name that looks like a secret or a variable of the agent is refused.</li>
 <li>The import of a devsecops_config.yaml never takes a database password, a JDBC URL with a user or a password, or a production database; see <a href="#10-import-a-devsecops_configyaml-and-copy-a-service">chapter 10</a>.</li>
 <li>The pipelines pass the password to Liquibase and utPLSQL without writing it to the console, the report or the archived files.</li>
 </ul>
@@ -867,7 +867,7 @@ liquibase --defaults-file=dso-deploy.properties --search-path=orders-db-341-2026
 <tr><td>&quot;is set, but the Library defaults allow no database yet: ...&quot;</td><td>JDBC URL</td><td>Ask the DevSecOps team to fill in the allowed databases.</td></tr>
 <tr><td>&quot;names a database that the Library defaults do not allow: ...&quot;</td><td>JDBC URL</td><td>Check the host and the service, or ask the DevSecOps team to allow the database.</td></tr>
 <tr><td>&quot;each line must be name=value, ...&quot;</td><td>Changelog parameters</td><td>Start each name with a lower-case letter, and use only lower-case letters, digits, <code>_</code> and <code>.</code>.</td></tr>
-<tr><td>&quot;holds a name that looks like a secret: ...&quot;</td><td>Changelog parameters</td><td>Remove the parameter, and keep the secret in a Jenkins credential.</td></tr>
+<tr><td>&quot;holds a name that looks like a secret or a variable of the agent, ...&quot;</td><td>Changelog parameters</td><td>Rename the parameter, such as <code>app_role</code> for <code>app_user</code>, and use the new name in the changelog. Keep a secret in a Jenkins credential.</td></tr>
 <tr><td>&quot;holds a value that is not printable ASCII of at most 500 characters, ...&quot;</td><td>Changelog parameters</td><td>Use plain ASCII without blanks at the start or the end and without <code>${</code>.</td></tr>
 <tr><td><code>Service &lt;service&gt; delivers its database package to Nexus in the &lt;type&gt; pipeline but has no &lt;item&gt;</code></td><td>the save</td><td>Set the item under Database changes or in the Library defaults, or untick &quot;Deliver the package to Nexus&quot;.</td></tr>
 <tr><td><code>Service &lt;service&gt; is a Liquibase service with database changes, for which the library runs no Nexus IQ GoldenFix pipeline</code></td><td>Add pipeline, the save</td><td>Choose another pipeline type, or delete the Nexus IQ GoldenFix pipeline before you set the changelog file.</td></tr>

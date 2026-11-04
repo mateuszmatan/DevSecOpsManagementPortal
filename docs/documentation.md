@@ -496,7 +496,7 @@ A service whose changelog file is set keeps its deployment values, hidden and un
 |-------|---------|---------|
 | Changelog file | none | The main Liquibase changelog, relative to the search folder. It ends with `.xml`, `.yaml`, `.yml`, `.json` or `.sql`. Set, it gives the service its database changes; empty, the service builds with its Liquibase commands only. Its path is part of the identity of every change in the database, so it must not change after the first deployment. |
 | Search folder | `.`, the source folder | Liquibase looks for the changelog and every file it includes in this folder, relative to the source folder, and reads nothing outside it. Like the changelog path, it must not change after the first deployment. |
-| Changelog parameters | none | Values that the changelog uses as `${name}`, one `name=value` per line, such as `app_role=orders_app_role`. They are written into the package, so they must not hold a secret: a name that contains password, passwd, pwd, secret, token or credential is refused. |
+| Changelog parameters | none | Values that the changelog uses as `${name}`, one `name=value` per line, such as `app_role=orders_app_role`. They are written into the package, so they must not hold a secret: a name that contains password, passwd, pwd, secret, token, credential, key or user, or that starts with liquibase_, dso_ or jenkins, is refused, as the library refuses such a `${name}` in the changelog. |
 
 Each database has a block of its own: "Test database, for the utPLSQL tests" (`database.test`), "RD, the lower test region" (`database.rd`) and "QC, the higher test region" (`database.qc`).
 
@@ -632,7 +632,7 @@ The pipelines deploy what Liquibase Community deploys. The library guide explain
 12. Put no password and no agent commands in a changeset. Values that differ between databases are changelog parameters, written `${app_role}` in the changelog.
 13. `runAlways` changesets, such as grants and synonyms, run on every deployment, so every deployment is tagged.
 
-The Build artifact stage checks the source files for most of these rules. Each finding is one line of the console and of the archived file `static-checks.txt`, and the findings turn the stage orange; "Files the static checks ignore" names files to leave out. A password, an `executeCommand` or a `customChange` in a changeset, or a changelog parameter whose name looks like a secret, stops the run.
+The Build artifact stage checks the source files for most of these rules. Each finding is one line of the console and of the archived file `static-checks.txt`, and the findings turn the stage orange; "Files the static checks ignore" names files to leave out. A password, an `executeCommand` or a `customChange` in a changeset, or a `${name}` whose name looks like a secret or a variable of the agent (as for the Changelog parameters), stops the run.
 
 ### The first deployment to an existing schema
 
@@ -721,7 +721,7 @@ The product `ORDERSDB` of layout (a) is one service, `orders-db`, with the Sourc
 - The portal stores only the credentials IDs of the databases. It has no field for a user or a password.
 - A JDBC URL with a user or a password, such as `jdbc:oracle:thin:scott/tiger@//rd-db.bbh.com:1521/ORDERS_RD` or one with `password=`, is refused when the product is saved.
 - No message of the portal repeats a JDBC URL, a changelog parameter value or a credentials ID.
-- Changelog parameters are written into the package, so a name that looks like a secret is refused.
+- Changelog parameters are written into the package, so a name that looks like a secret or a variable of the agent is refused.
 - The import of a devsecops_config.yaml never takes a database password, a JDBC URL with a user or a password, or a production database; see [chapter 10](#10-import-a-devsecops_configyaml-and-copy-a-service).
 - The pipelines pass the password to Liquibase and utPLSQL without writing it to the console, the report or the archived files.
 
@@ -828,7 +828,7 @@ The portal refuses the settings that the pipelines would refuse. While you type,
 | "is set, but the Library defaults allow no database yet: ..." | JDBC URL | Ask the DevSecOps team to fill in the allowed databases. |
 | "names a database that the Library defaults do not allow: ..." | JDBC URL | Check the host and the service, or ask the DevSecOps team to allow the database. |
 | "each line must be name=value, ..." | Changelog parameters | Start each name with a lower-case letter, and use only lower-case letters, digits, `_` and `.`. |
-| "holds a name that looks like a secret: ..." | Changelog parameters | Remove the parameter, and keep the secret in a Jenkins credential. |
+| "holds a name that looks like a secret or a variable of the agent, ..." | Changelog parameters | Rename the parameter, such as `app_role` for `app_user`, and use the new name in the changelog. Keep a secret in a Jenkins credential. |
 | "holds a value that is not printable ASCII of at most 500 characters, ..." | Changelog parameters | Use plain ASCII without blanks at the start or the end and without `${`. |
 | `Service <service> delivers its database package to Nexus in the <type> pipeline but has no <item>` | the save | Set the item under Database changes or in the Library defaults, or untick "Deliver the package to Nexus". |
 | `Service <service> is a Liquibase service with database changes, for which the library runs no Nexus IQ GoldenFix pipeline` | Add pipeline, the save | Choose another pipeline type, or delete the Nexus IQ GoldenFix pipeline before you set the changelog file. |

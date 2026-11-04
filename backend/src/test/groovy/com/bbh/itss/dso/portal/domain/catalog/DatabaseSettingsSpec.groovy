@@ -237,6 +237,9 @@ class DatabaseSettingsSpec extends Specification {
         (1..51).collect { "p$it=v".toString() } | NAME
         ['db_password=s3cr3t']               | SECRET
         ['token.id=v4lue']                   | SECRET
+        ['app_user=orders_app']              | SECRET
+        ['api_key=v4lue']                    | SECRET
+        ['liquibase_home=v4lue']             | SECRET
         ['x=${env}']                         | VALUE
         ['x= v4lue']                         | VALUE
         ['x=välue']                     | VALUE
@@ -278,8 +281,9 @@ class DatabaseSettingsSpec extends Specification {
             ' @tcps://host:2484/SERVICE?ssl_server_dn_match=true or @(DESCRIPTION=...)'
     static final String NAME = 'each line must be name=value, where the name starts with a lower-case letter and holds' +
             ' only lower-case letters, digits, "_" and "." (at most 64), and at most 50 lines'
-    static final String SECRET = 'holds a name that looks like a secret: changelog parameters are written into the' +
-            ' package; keep secrets in Jenkins credentials'
+    static final String SECRET = 'holds a name that looks like a secret or a variable of the agent, which the library' +
+            ' refuses in the changelog: changelog parameters are written into the package; keep secrets in Jenkins' +
+            ' credentials'
     static final String VALUE = 'holds a value that is not printable ASCII of at most 500 characters, or that starts or' +
             ' ends with a blank, or holds "${"'
 

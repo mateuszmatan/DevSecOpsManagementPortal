@@ -82,6 +82,11 @@ describe('database rules', () => {
     [['role'], 'Each line must be name=value'],
     [Array.from({ length: 51 }, (_, i) => `p${i}=x`), 'Each line must be name=value'],
     [['db_password=x'], 'Holds a name that looks like a secret'],
+    [['app_user=orders_app'], 'Holds a name that looks like a secret'],
+    [['api_key=x'], 'Holds a name that looks like a secret'],
+    [['dso_env=rd'], 'Holds a name that looks like a secret'],
+    [['jenkins_url=x'], 'Holds a name that looks like a secret'],
+    [['app_dso_role=x'], null],
     [['x=${env}'], 'Holds a value that is not printable ASCII'],
     [['x= v4lue'], 'Holds a value that is not printable ASCII'],
   ])('checks the parameter lines %j', (lines, problem) => {

@@ -53,7 +53,8 @@ public final class DatabaseFormats {
     public static final String SHA256 = "^[0-9a-f]{64}$";
     public static final String SHA256_MESSAGE = "must be the 64 lower-case hexadecimal digits of the file";
     public static final String PARAMETER_NAME = "^[a-z][a-z0-9_.]{0,63}$";
-    public static final String SECRET_NAME = "(?i).*(password|passwd|pwd|secret|token|credential).*";
+    public static final String SECRET_NAME = "(?i)(liquibase_|dso_|jenkins).*"
+            + "|.*(password|passwd|pwd|secret|token|credential|key|user).*";
     public static final String PARAMETER_VALUE = "^([\\x21-\\x7e]([\\x20-\\x7e]{0,498}[\\x21-\\x7e])?)?$";
     public static final String TARGET = "^[A-Za-z0-9*][A-Za-z0-9.*-]{0,252}(/[A-Za-z0-9_$#.*-]{1,128})?$";
     public static final String TARGET_MESSAGE = "must be \"host\" or \"host/SERVICE\" of letters, digits, \".\", \"-\""
