@@ -52,7 +52,7 @@
             />
           }
           <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
-          @if (!flutter()) {
+          @if (!flutter() && !changesDatabase()) {
             <h4 class="sub-heading span-12">Node.js build (stage 0)</h4>
             <dso-fields [group]="node" [fields]="nodeSwitch()" />
             @if (buildsNode()) {

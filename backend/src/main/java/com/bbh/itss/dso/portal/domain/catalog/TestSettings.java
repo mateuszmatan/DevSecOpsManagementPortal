@@ -21,11 +21,16 @@ public record TestSettings(Integer maxParallel, Integer smokeMaxParallel, Intege
         performanceRequired = isNotFalse(performanceRequired);
     }
 
-    public void writeTo(ConfigTree config, List<TestJob> jobs) {
+    /**
+     * Writes the stages and their jobs. A service with database changes writes no required: false, which the form does
+     * not show for it, since the library then treats a stage without jobs as not required.
+     */
+    public void writeTo(ConfigTree config, List<TestJob> jobs, boolean changesDatabase) {
         config.set("tests.maxParallel", maxParallel);
         for (TestStage stage : TestStage.values()) {
             String path = "tests." + stage.configKey();
-            config.set(path + ".required", of(stage, smokeRequired, regressionRequired, performanceRequired) ? null : false)
+            boolean required = changesDatabase || of(stage, smokeRequired, regressionRequired, performanceRequired);
+            config.set(path + ".required", required ? null : false)
                     .set(path + ".maxParallel", of(stage, smokeMaxParallel, regressionMaxParallel, performanceMaxParallel))
                     .set(path + ".pollIntervalSec",
                             of(stage, smokePollIntervalSec, regressionPollIntervalSec, performancePollIntervalSec))

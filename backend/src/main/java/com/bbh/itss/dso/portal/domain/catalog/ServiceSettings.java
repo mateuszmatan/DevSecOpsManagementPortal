@@ -109,7 +109,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         goldenFix.writeTo(config);
         config.set("goldenFix.versionCatalogs", versionCatalogs);
         versionCatalogRepo.writeTo(config);
-        tests.writeTo(config, testJobs);
+        tests.writeTo(config, testJobs, !deploys);
         if (!deploys) {
             database.writeTo(config, databaseTargets);
         } else if (deployment.target() == VM) {
@@ -137,6 +137,10 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         boolean deploys = !changesDatabase();
         build.validate(problems.at("build"));
         nodeBuild.validate(problems.at("nodeBuild"), tool);
+        if (!deploys && nodeBuild.enabled()) {
+            problems.at("nodeBuild").add("enabled", "must be off for a service with database changes: the library"
+                    + " runs no Node.js build for it");
+        }
         unitTests.validate(problems.at("unitTests"), tool);
         if (deploys) {
             deployment.validate(problems.at("deployment"));

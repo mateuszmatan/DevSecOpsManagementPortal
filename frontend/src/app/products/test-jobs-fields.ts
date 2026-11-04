@@ -174,9 +174,12 @@ export class TestJobsFields {
     ];
   }
 
+  /** Whether the stage runs its jobs; a service with database changes writes no required: false. */
   protected required(stage: Stage): boolean {
     this.changes();
-    return this.form().controls.tests.controls[stage.required].value;
+    return (
+      formChangesDatabase(this.form()) || this.form().controls.tests.controls[stage.required].value
+    );
   }
 
   protected jobFields(job: TestJobForm, stage: Stage): Field[] {

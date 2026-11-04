@@ -263,7 +263,7 @@ Many services have a frontend, for example an Angular application, next to the J
 - Use it when the Gradle, Maven, or Liquibase build needs the built frontend and does not run npm itself.
 - Leave it off when the Gradle or Maven build already runs npm, for example through a Gradle Node plugin or the Maven frontend plugin.
 - A Flutter service cannot use it: a Flutter build has no Gradle or Maven stage for the Node.js build to run before. Choosing Flutter switches the Node.js build off.
-- A Liquibase service with database changes does not use it: the library runs no Node.js build for such a service, even when the checkbox is ticked. Build the frontend in the Gradle or Maven service of the repository ([chapter 7](#which-services-a-repository-needs)).
+- A Liquibase service with database changes does not use it: the library runs no Node.js build for such a service. Entering a changelog file switches the Node.js build off. Build the frontend in the Gradle or Maven service of the repository ([chapter 7](#which-services-a-repository-needs)).
 
 ### The fields
 
@@ -566,8 +566,8 @@ Under Advanced settings each database has its options too, under the same headin
 
 **The other sections.**
 
-- **Unit tests and coverage**: the Liquibase command of the unit tests is optional. The test results and the coverage of the service are those of utPLSQL.
-- **Test jobs**: as for every service, without the "Required" box: a test stage without jobs is not required, so it never turns the run orange.
+- **Unit tests and coverage**: the Liquibase command of the unit tests is optional. The test results and the coverage of the service are those of utPLSQL: the "Test results", "Coverage reports" and Cypress fields are not read for a service with database changes.
+- **Test jobs**: as for every service, without the "Required" box: a test stage without jobs is not required, so it never turns the run orange. A stage that was not required before the changelog file was set runs its jobs too.
 - **AppScan SAST and DAST**: the static scan reads the source files without a compile step. AppScan does not scan files with the extensions `.prc`, `.fnc`, `.trg`, `.vw`, `.tps`, `.tpb`, `.typ` and `.bdy`; the console lists them, and SonarQube still analyses them. Leave "Run DAST against the deployed application" off: a database has no web application, and the DAST stage is not required while it is off.
 - **SonarQube**: type the project key. The SonarQube stage then runs `sonar-scanner` when the server analyses PL/SQL, and is not required otherwise. The pipelines add the source folder of the package, the file suffixes, the test folder and the utPLSQL reports; the Flags of the SonarQube command win over them, such as `-Dsonar.sources=`. When the SonarQube server needs a login to list its languages, set the Token credentials ID.
 - **Nexus IQ and GoldenFix**: Nexus IQ is not required, because SQL and PL/SQL have no dependency components, unless the Nexus IQ application of the service names scan patterns of its own. Without a Nexus IQ scan GoldenFix has nothing to raise. Remove the Nexus IQ application that the service template fills in, unless the repository holds files that Nexus IQ is to scan.
@@ -1017,6 +1017,7 @@ devSecOpsPipeline(projectNames: 'gateway', agentNames: ['linux-agent'])
 - A value equal to a Library default comes back empty, so the service keeps following the Library default. The same holds for the library's own Node.js defaults: `npm ci` then `npm run build`, 30 minutes and the Nexus IQ scan of `package-lock.json`.
 - `build.node` without `enabled: true` comes back switched off, with its values kept.
 - A Flutter file with `build.node.enabled: true` comes back switched off with the note "Check: the Node.js build is not used with Flutter".
+- A Liquibase file with a `database.changelogFile` and `build.node.enabled: true` comes back switched off with the note "Check: the Node.js build is not used with database changes".
 - `goldenFix.versionCatalogs` fills "Shared version catalogs".
 - A project with `buildTool: liquibase` imports its Liquibase commands. `tools.sonar.liquibase.sources`, `tools.sonar.liquibase.inclusions` and `tools.sonar.liquibase.exclusions`, and `tools.sonar.sources` when the first is missing, become `-Dsonar.sources=`, `-Dsonar.inclusions=` and `-Dsonar.exclusions=` in the Flags of its SonarQube command, unless those flags are there already.
 - A project with `buildTool: liquibase` and a `database.changelogFile` imports its `database` block and every key it shares with the other Liquibase services, its Liquibase commands included. `build.maven.mvnPath` fills "Maven home" under Database changes when the file has no `database.package.mvnPath`. Repositories equal to the Library defaults, and an artifact ID equal to the service name, come back empty. The notes of the database keys are in the table below.

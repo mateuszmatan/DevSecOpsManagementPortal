@@ -64,6 +64,7 @@ final class ServiceConfigReader {
     static final String PIPELINE = "not imported: a pipeline setting, chosen when the pipeline is created";
     static final String RUN_TIME = "check: a run that builds the image replaces it";
     static final String NODE_WITH_FLUTTER = "check: the Node.js build is not used with Flutter";
+    static final String NODE_WITH_DATABASE = "check: the Node.js build is not used with database changes";
     static final String LONG_PATHS = "not imported: longer than the 500 characters the portal keeps; name fewer"
             + " reports, or one pattern such as **/build/reports/jacoco/test/*.xml";
     static final String NO_PROJECT = "found no project: expected a projects map or the settings of one project";
@@ -282,9 +283,9 @@ final class ServiceConfigReader {
                 project.note("database", NOT_A_DATABASE);
             }
         }
-        if (tool == FLUTTER && Boolean.TRUE.equals(request.get("nodeBuild.enabled"))) {
+        if ((tool == FLUTTER || database) && Boolean.TRUE.equals(request.get("nodeBuild.enabled"))) {
             request.set("nodeBuild.enabled", false);
-            project.note("build.node.enabled", NODE_WITH_FLUTTER);
+            project.note("build.node.enabled", database ? NODE_WITH_DATABASE : NODE_WITH_FLUTTER);
         }
         readCommands(project, tool, database ? DATABASE_BLOCKS : COMMAND_BLOCKS, request);
         if (!database) {

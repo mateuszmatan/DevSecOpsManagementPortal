@@ -112,6 +112,26 @@ class ServiceSettingsSpec extends Specification {
                 nodeBuild: NodeBuildSettings.builder().directory('frontend').build()))*.field.contains('nodeBuild.enabled')
     }
 
+    def "a Liquibase service with database changes cannot run a Node.js build"() {
+        given:
+        def node = NodeBuildSettings.builder().enabled(true).build()
+
+        expect:
+        reported(databaseSettings(nodeBuild: node)).collect { [it.field, it.message] } == [['nodeBuild.enabled',
+                'must be off for a service with database changes: the library runs no Node.js build for it']]
+        reported(settings(build: build(tool: LIQUIBASE, command: NONE), nodeBuild: node)) == []
+    }
+
+    def "a Liquibase service with database changes writes no test stage as not required"() {
+        given:
+        def tests = TestSettings.builder().smokeRequired(false).build()
+
+        expect:
+        written(databaseSettings(tests: tests)).toMap().tests == null
+        written(settings(build: build(tool: LIQUIBASE, command: NONE), tests: tests)).toMap().tests ==
+                [smoke: [required: false]]
+    }
+
     def "a service on OpenShift writes its OpenShift projects and nothing of the VM deployment"() {
         when:
         def tree = written(settings(deployment: deployment(target: OPENSHIFT, appName: 'cert',

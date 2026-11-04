@@ -163,7 +163,7 @@ class TestSectionsSpec extends Specification {
         when:
         def tests = written {
             TestSettings.builder().maxParallel(4).smokeMaxParallel(2).performanceMaxParallel(1).build()
-                    .writeTo(it, [smoke1, regression, smoke2])
+                    .writeTo(it, [smoke1, regression, smoke2], false)
         }.tests
 
         then:
@@ -179,12 +179,12 @@ class TestSectionsSpec extends Specification {
         expect:
         TestStage.values()*.configKey() == ['smoke', 'regression', 'performance']
         DEFAULTS == new TestSettings(null, null, null, null, true, true, true, null, null, null)
-        written { DEFAULTS.writeTo(it, []) } == [:]
-        written { TestSettings.builder().regressionMaxParallel(3).build().writeTo(it, []) } ==
+        written { DEFAULTS.writeTo(it, [], false) } == [:]
+        written { TestSettings.builder().regressionMaxParallel(3).build().writeTo(it, [], false) } ==
                 [tests: [regression: [maxParallel: 3]]]
-        written { TestSettings.builder().performanceMaxParallel(5).build().writeTo(it, []) } ==
+        written { TestSettings.builder().performanceMaxParallel(5).build().writeTo(it, [], false) } ==
                 [tests: [performance: [maxParallel: 5]]]
-        written { DEFAULTS.writeTo(it, [TestJob.of(PERFORMANCE, null, null, 'CERT/load', null)]) } ==
+        written { DEFAULTS.writeTo(it, [TestJob.of(PERFORMANCE, null, null, 'CERT/load', null)], false) } ==
                 [tests: [performance: [jobs: [[job: 'CERT/load']]]]]
     }
 
@@ -205,8 +205,16 @@ class TestSectionsSpec extends Specification {
         new TestSettings(null, null, null, null, null, null, null, null, null, null) == DEFAULTS
         written {
             TestSettings.builder().smokeRequired(false).regressionRequired(true).smokePollIntervalSec(20)
-                    .performancePollIntervalSec(45).build().writeTo(it, [])
+                    .performancePollIntervalSec(45).build().writeTo(it, [], false)
         } ==
                 [tests: [smoke: [required: false, pollIntervalSec: 20], performance: [pollIntervalSec: 45]]]
+    }
+
+    def "a service with database changes writes no stage as not required"() {
+        expect:
+        written {
+            TestSettings.builder().smokeRequired(false).smokePollIntervalSec(20).build()
+                    .writeTo(it, [TestJob.of(SMOKE, null, null, 'ORDERS/db-smoke', null)], true)
+        } == [tests: [smoke: [pollIntervalSec: 20, jobs: [[job: 'ORDERS/db-smoke']]]]]
     }
 }

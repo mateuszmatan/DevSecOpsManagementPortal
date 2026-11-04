@@ -107,6 +107,10 @@ const NOTES: Record<ServiceSectionId, string> = {
 
 /** The notes of the sections that read differently for a Liquibase service with database changes. */
 const DATABASE_NOTES: Partial<Record<ServiceSectionId, string>> = {
+  build:
+    'How Jenkins builds the service and where the build leaves its result (the artifact). A service with database changes runs no Node.js build: build a frontend in its Gradle or Maven service. A service in a subfolder of its repository names that folder under Advanced settings.',
+  unitTests:
+    'The unit tests of a service with database changes are its utPLSQL tests: tick Run the utPLSQL tests under the test database in Database changes. The Liquibase command here is optional and runs first. The test results, the coverage reports and Cypress are not read for such a service: its results and coverage are those of utPLSQL.',
   testJobs:
     'The Jenkins jobs that run the smoke, regression and performance tests after a deployment. For a service with database changes a test stage without jobs is not required, so it never turns the run orange.',
 };
@@ -707,16 +711,17 @@ export class ServiceFields {
     const id = this.current();
     const section = this.sections().find((candidate) => candidate.id === id);
     const coverage = this.defaults()?.scans.coverageMinLine;
+    const database = this.changesDatabase();
     const extra: Partial<Record<ServiceSectionId, string>> = {
       unitTests:
         coverage === undefined
           ? ''
-          : ` BBH policy requires ${coverage}% line coverage, the average of the coverage reports of the service.`,
+          : ` BBH policy requires ${coverage}% line coverage, ${database ? 'of the utPLSQL tests' : 'the average of the coverage reports of the service'}.`,
       deployment: this.isVm()
         ? ' Its environments are set under UrbanCode Deploy and SSH targets.'
         : ' Its environments are set under OpenShift targets.',
     };
-    const notes = this.changesDatabase() ? { ...NOTES, ...DATABASE_NOTES } : NOTES;
+    const notes = database ? { ...NOTES, ...DATABASE_NOTES } : NOTES;
     return { label: section?.label ?? '', note: chips(notes[id] + (extra[id] ?? '')) };
   });
 

@@ -29,6 +29,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.GLOBAL
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.LONG_PATHS
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.MAX_PROJECTS
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NODE_WITH_DATABASE
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NODE_WITH_FLUTTER
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NOT_A_DATABASE
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.NOT_FOR_DATABASE
@@ -176,9 +177,13 @@ class ServiceConfigReaderSpec extends Specification {
 
         then:
         service.notes() == [problem('staticAnalysis.parallel', GLOBAL), problem('deployTarget', NOT_FOR_DATABASE),
-                            problem('appName', NOT_FOR_DATABASE), problem('deploy', NOT_FOR_DATABASE)]
+                            problem('appName', NOT_FOR_DATABASE), problem('deploy', NOT_FOR_DATABASE),
+                            problem('build.node.enabled', NODE_WITH_DATABASE)]
         service.service().database().changelogFile() == 'db/changelog-master.xml'
         KEPT.collect { service.service()."$it"() } == KEPT.collect { plain."$it"() }
+        plain.nodeBuild().enabled()
+        !service.service().nodeBuild().enabled()
+        service.service().nodeBuild().directory() == plain.nodeBuild().directory()
         service.service().deployment().appName() == null
         service.service().sshTargets().isEmpty()
         plain.deployment().appName() == 'billing'
@@ -186,8 +191,8 @@ class ServiceConfigReaderSpec extends Specification {
         plain.databaseTargets().isEmpty()
     }
 
-    /** What a Liquibase service imports alike with database changes and without. */
-    static final List<String> KEPT = ['build', 'nodeBuild', 'unitTests', 'appScan', 'sonar', 'nexusIqApplications',
+    /** What a Liquibase service imports alike with database changes and without; its Node.js build is switched off. */
+    static final List<String> KEPT = ['build', 'unitTests', 'appScan', 'sonar', 'nexusIqApplications',
                                       'goldenFix']
 
     def "a database block without a Liquibase changelog is left out with a note: #project"() {

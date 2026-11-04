@@ -1366,10 +1366,10 @@ function syncApplicability(form: ServiceForm): void {
   }
   setEnabled(form.controls.build.controls.autoSetup, !flutter);
   const node = form.controls.nodeBuild;
-  if (flutter && node.controls.enabled.value) {
+  if ((flutter || database) && node.controls.enabled.value) {
     node.controls.enabled.setValue(false);
   }
-  setEnabled(node, !flutter);
+  setEnabled(node, !flutter && !database);
   Object.entries(node.controls).forEach(
     ([key, control]) => key === 'enabled' || setEnabled(control, node.controls.enabled.value),
   );

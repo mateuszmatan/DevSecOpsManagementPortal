@@ -485,13 +485,24 @@ describe('ServiceFields', () => {
       await render(liquibase());
 
       expect(await note('Build')).toBe(build);
+      expect(labels(pane())).toContain('Build the frontend with Node.js first');
       expect(await note('Test jobs')).toBe(testJobs);
       expect(await note('Database changes')).toContain(
         'Once its changelog file is set, the pipelines check the changes, package them in a zip',
       );
 
+      expect(await note('Unit tests and coverage')).toContain(
+        'Without a test command the step is skipped.',
+      );
+
       form.controls.database.controls.changelogFile.setValue('db/changelog-master.xml');
-      expect(await note('Build')).toBe(build);
+      expect(await note('Build')).toContain(
+        'A service with database changes runs no Node.js build: build a frontend in its Gradle or Maven service.',
+      );
+      expect(labels(pane())).not.toContain('Build the frontend with Node.js first');
+      expect(await note('Unit tests and coverage')).toContain(
+        'The unit tests of a service with database changes are its utPLSQL tests',
+      );
       expect(await note('Test jobs')).toContain(
         'For a service with database changes a test stage without jobs is not required, so it never turns the run orange.',
       );

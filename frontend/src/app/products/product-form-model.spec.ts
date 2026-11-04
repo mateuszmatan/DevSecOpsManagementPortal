@@ -1623,7 +1623,7 @@ describe('Liquibase services with and without database changes', () => {
   const APPLIES: Record<string, Mode[]> = {
     'build.command': ['GRADLE', 'MAVEN', 'LIQUIBASE', 'DATABASE'],
     'build.buildPath': ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DATABASE'],
-    nodeBuild: ['GRADLE', 'MAVEN', 'LIQUIBASE', 'DATABASE'],
+    nodeBuild: ['GRADLE', 'MAVEN', 'LIQUIBASE'],
     unitTests: ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DATABASE'],
     'unitTests.command': ['GRADLE', 'MAVEN', 'LIQUIBASE', 'DATABASE'],
     'sonar.command': ['GRADLE', 'MAVEN', 'LIQUIBASE', 'DATABASE'],
@@ -1662,6 +1662,25 @@ describe('Liquibase services with and without database changes', () => {
       );
     },
   );
+
+  it('switches off and locks the Node.js build once the changelog file is set, keeping its values', () => {
+    const form = createServiceForm(
+      databaseService({
+        database: null,
+        databaseTargets: {},
+        nodeBuild: nodeBuild({ enabled: true, directory: 'frontend' }),
+      }),
+    );
+    expect(form.controls.nodeBuild.controls.enabled.value).toBe(true);
+
+    form.controls.database.controls.changelogFile.setValue('db/changelog-master.xml');
+
+    expect(form.controls.nodeBuild.disabled).toBe(true);
+    expect(toServiceRequest(form).nodeBuild).toMatchObject({
+      enabled: false,
+      directory: 'frontend',
+    });
+  });
 
   it('turns the utPLSQL fields on with the tests and the delivery fields off with the delivery', () => {
     const d = database({ utplsql: false }).controls.database.controls;

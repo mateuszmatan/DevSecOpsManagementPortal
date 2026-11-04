@@ -167,4 +167,15 @@ describe('TestJobsFields', () => {
     expect(text(smoke().querySelector('.list-empty'))).toContain('Not required');
     expect(text(sections()[1])).not.toContain('Not required');
   });
+
+  it('does not show a stored not required stage of a service with database changes as not required', async () => {
+    await render([]);
+    form.controls.tests.controls.smokeRequired.setValue(false);
+    form.controls.build.controls.tool.setValue('LIQUIBASE');
+    form.controls.database.controls.changelogFile.setValue('db/changelog-master.xml');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(text(sections()[0].querySelector('.list-empty'))).toBe('No smoke test jobs.');
+  });
 });
