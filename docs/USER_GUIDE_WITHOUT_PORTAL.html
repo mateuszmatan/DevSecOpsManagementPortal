@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DevSecOps Shared Library (Standalone Version) - BBH DevSecOps</title>
+  <title>DevSecOps Jenkins Shared Library - Standalone User Guide - BBH DevSecOps</title>
   <style>
 :root {
   --primary: #0a2540;
@@ -366,7 +366,7 @@ pre code {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         BBH DevSecOps
       </div>
-      <div class="sidebar-subbrand">User Guide (Without Portal Version)</div>
+      <div class="sidebar-subbrand">Comprehensive Guide for Pipelines Running Without the Portal</div>
       <ul class="sidebar-nav">
         <li><a href='#contents' >Contents</a></li>
 <li><a href='#1-overview-and-standalone-model' ><span style='color:#94a3b8;font-weight:600;'>1.</span> Overview and Standalone Model</a></li>
@@ -383,20 +383,28 @@ pre code {
 <li><a href='#8-dynamic-application-security-testing-dast--hcl-appscan' ><span style='color:#94a3b8;font-weight:600;'>8.</span> Dynamic Application Security Testing (DAST) – HCL AppScan</a></li>
 <li><a href='#9-code-quality--sonarqube--alternative-badge-tokens' ><span style='color:#94a3b8;font-weight:600;'>9.</span> Code Quality – SonarQube &amp; Alternative Badge Tokens</a></li>
 <li><a href='#10-dependency-security--goldenfix--nexus-iq' ><span style='color:#94a3b8;font-weight:600;'>10.</span> Dependency Security &amp; GoldenFix – Nexus IQ</a></li>
+<li><a href='#decoupled-pipeline-execution-order' style='padding-left: 20px; font-size: 0.8rem;'>Decoupled Pipeline Execution Order:</a></li>
 <li><a href='#11-deployments-and-disable-nexus-delivery-openshift--vm' ><span style='color:#94a3b8;font-weight:600;'>11.</span> Deployments and &quot;Disable Nexus Delivery&quot; (OpenShift &amp; VM)</a></li>
 <li><a href='#skipping-nexus-artifact-publishing' style='padding-left: 20px; font-size: 0.8rem;'>Skipping Nexus Artifact Publishing:</a></li>
 <li><a href='#optional-openshift-qc-region' style='padding-left: 20px; font-size: 0.8rem;'>Optional OpenShift QC Region:</a></li>
 <li><a href='#12-telemetry-dora-metrics-influxdb-and-grafana' ><span style='color:#94a3b8;font-weight:600;'>12.</span> Telemetry, DORA Metrics, InfluxDB, and Grafana</a></li>
 <li><a href='#13-complete-devsecops_configyaml-template-with-field-reference' ><span style='color:#94a3b8;font-weight:600;'>13.</span> Complete devsecops_config.yaml Template with Field Reference</a></li>
 <li><a href='#non-technical-field-quick-reference' style='padding-left: 20px; font-size: 0.8rem;'>Non-Technical Field Quick Reference:</a></li>
+<li><a href='#14-auto-resolve-in-standalone-mode-autoresolve-parameters-true' ><span style='color:#94a3b8;font-weight:600;'>14.</span> Auto-Resolve in Standalone Mode (`autoresolve parameters: true`)</a></li>
+<li><a href='#default-behaviour' style='padding-left: 20px; font-size: 0.8rem;'>Default Behaviour:</a></li>
+<li><a href='#minimal-configuration-example' style='padding-left: 20px; font-size: 0.8rem;'>Minimal Configuration Example:</a></li>
+<li><a href='#disabling-auto-resolve' style='padding-left: 20px; font-size: 0.8rem;'>Disabling Auto-Resolve:</a></li>
+<li><a href='#15-auto-resolved-parameters-reference' ><span style='color:#94a3b8;font-weight:600;'>15.</span> Auto-Resolved Parameters Reference</a></li>
+<li><a href='#16-bitbucket-pull-request-decoration--shift-left-feedback' ><span style='color:#94a3b8;font-weight:600;'>16.</span> Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</a></li>
+<li><a href='#17-sast-rest-api--credential-isolation' ><span style='color:#94a3b8;font-weight:600;'>17.</span> SAST REST API &amp; Credential Isolation</a></li>
       </ul>
     </aside>
 
     <main class="main-wrapper">
       <div class="content-container">
         <header class="doc-header">
-          <h1>DevSecOps Shared Library (Standalone Version)</h1>
-          <p>User Guide (Without Portal Version)</p>
+          <h1>DevSecOps Jenkins Shared Library - Standalone User Guide</h1>
+          <p>Comprehensive Guide for Pipelines Running Without the Portal</p>
           <div class="doc-meta">
             <span class="meta-chip">Brown Brothers Harriman</span>
             <span class="meta-chip">DevSecOps Shared Library</span>
@@ -428,6 +436,10 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 <li><a href="#11-deployments-and-disable-nexus-delivery-openshift--vm">11. Deployments and "Disable Nexus Delivery" (OpenShift &amp; VM)</a></li>
 <li><a href="#12-telemetry-dora-metrics-influxdb-and-grafana">12. Telemetry, DORA Metrics, InfluxDB, and Grafana</a></li>
 <li><a href="#13-complete-devsecops_configyaml-template-with-field-reference">13. Complete devsecops_config.yaml Template with Field Reference</a></li>
+<li><a href="#14-auto-resolve-in-standalone-mode-autoresolve-parameters-true">14. Auto-Resolve in Standalone Mode (<code>autoresolve parameters: true</code>)</a></li>
+<li><a href="#15-auto-resolved-parameters-reference">15. Auto-Resolved Parameters Reference</a></li>
+<li><a href="#16-bitbucket-pull-request-decoration--shift-left-feedback">16. Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</a></li>
+<li><a href="#17-sast-rest-api--credential-isolation">17. SAST REST API &amp; Credential Isolation</a></li>
 </ul>
 <hr />
 <h2 id="1-overview-and-standalone-model">1. Overview and Standalone Model</h2>
@@ -572,34 +584,32 @@ devSecOpsPipeline(
     goldenFix:
       enabled: true
       pullRequest: true</code></li>
-<li>Creates a dedicated branch and opens a Bitbucket Pull Request with the updated <code>pom.xml</code>, <code>build.gradle</code>, <code>package.json</code>, <code>requirements.txt</code>, or <code>libs.versions.toml</code>.</li>
-<li><strong>External Version Catalog Repository:</strong></li>
-<li>When version catalogs or BOMs reside in an external Bitbucket repository:
-    <pre><code class="language-yaml">goldenFix:
-  versionCatalogRepo:
-    url: 'ssh://git@bitbucket.bbh.com/shared/version-catalogs.git'
-    credentialsId: 'bitbucket-http-credentials'
-    branch: 'main'
-    path: 'catalogs/libs.versions.toml'</code></pre>
+<li>
+<p>Creates a dedicated branch and opens a Bitbucket Pull Request with the updated <code>pom.xml</code>, <code>build.gradle</code>, <code>package.json</code>, <code>requirements.txt</code>, or <code>libs.versions.toml</code>.</p>
 </li>
+<li>
+<p><strong>External Version Catalog Repository:</strong></p>
+</li>
+<li>When version catalogs or BOMs reside in an external Bitbucket repository:
+    <code>yaml
+    goldenFix:
+      versionCatalogRepo:
+        url: 'ssh://git@bitbucket.bbh.com/shared/version-catalogs.git'
+        credentialsId: 'bitbucket-http-credentials'
+        branch: 'main'
+        path: 'catalogs/libs.versions.toml'</code></li>
 <li>GoldenFix checks out the external repository, upgrades dependency versions, validates changes, and submits the Pull Request directly to the external catalog repository.</li>
 </ul>
 <h3 id="decoupled-pipeline-execution-order">Decoupled Pipeline Execution Order:</h3>
 <ol>
 <li><strong>Stage 1: Build Artifact (without tests):</strong> The pipeline first builds application artifacts without executing unit tests (e.g., <code>-DskipTests</code> / <code>-x test</code>). If a Node.js build is configured (<code>build.node.enabled: true</code>), npm commands run as step 0 at the start of this stage before compiling the backend application.</li>
-<li><strong>Stage 2: Concurrent Verification (Unit Tests + SAST + Nexus IQ):</strong>
-  <ul>
-    <li><strong>Unit Tests:</strong> Runs automated unit tests (including Node.js &amp; Cypress tests) and aggregates JaCoCo &amp; LCOV code coverage.</li>
-    <li><strong>SAST (HCL AppScan):</strong> Queues static application security analysis in the background and retrieves findings.</li>
-    <li><strong>Nexus IQ:</strong> Evaluates open-source dependencies against security policies and prepares GoldenFix remediation.</li>
-  </ul>
-</li>
-<li><strong>Stage 3: SonarQube (Static Code Analysis &amp; Quality Gate):</strong>
-  <ul>
-    <li>Runs last after Unit tests, SAST, and Nexus IQ have concluded.</li>
-    <li>Ingests test execution results and JaCoCo/LCOV/Cypress coverage reports to enforce the SonarQube Quality Gate.</li>
-  </ul>
-</li>
+<li><strong>Stage 2: Concurrent Verification (Unit Tests + SAST + Nexus IQ):</strong></li>
+<li><strong>Unit Tests:</strong> Runs automated unit tests (including Node.js &amp; Cypress tests) and aggregates JaCoCo &amp; LCOV code coverage.</li>
+<li><strong>SAST (HCL AppScan):</strong> Queues static application security analysis in the background and retrieves findings.</li>
+<li><strong>Nexus IQ:</strong> Evaluates open-source dependencies against security policies and prepares GoldenFix remediation.</li>
+<li><strong>Stage 3: SonarQube (Static Code Analysis &amp; Quality Gate):</strong></li>
+<li>Runs last after Unit tests, SAST, and Nexus IQ have concluded.</li>
+<li>Ingests test execution results and JaCoCo/LCOV/Cypress coverage reports to enforce the SonarQube Quality Gate.</li>
 </ol>
 <hr />
 <h2 id="11-deployments-and-disable-nexus-delivery-openshift-vm">11. Deployments and "Disable Nexus Delivery" (OpenShift &amp; VM)</h2>
@@ -671,6 +681,11 @@ projects:
     goldenFix:
       enabled: true                               # Run GoldenFix analysis
       pullRequest: true                           # Open automated Bitbucket PR
+      versionCatalogRepo:
+        url: 'ssh://git@bitbucket.bbh.com/shared/catalogs.git'
+        credentialsId: 'bitbucket-http-credentials'
+        branch: 'main'
+        path: 'catalogs/libs.versions.toml'
 
     # 7. Deployment &amp; Delivery
     deploy:
@@ -721,11 +736,6 @@ projects:
     goldenFix:
       enabled: true
       pullRequest: true
-      versionCatalogRepo:
-        url: 'ssh://git@bitbucket.bbh.com/shared/catalogs.git'
-        credentialsId: 'bitbucket-http-credentials'
-        branch: 'main'
-        path: 'catalogs/libs.versions.toml'
 
     deploy:
       openshift:
@@ -850,24 +860,6 @@ projects:
 <td style="text-align: center;"><span class="badge badge-default">DEFAULT TRUE</span></td>
 </tr>
 <tr>
-<td><code>goldenFix.versionCatalogRepo.url</code></td>
-<td>Dedicated catalog repository</td>
-<td><code>ssh://git@bitbucket.bbh.com/...</code></td>
-<td style="text-align: center;"><span class="badge badge-optional">OPTIONAL</span></td>
-</tr>
-<tr>
-<td><code>goldenFix.versionCatalogRepo.branch</code></td>
-<td>Branch of catalog repository</td>
-<td><code>main</code></td>
-<td style="text-align: center;"><span class="badge badge-optional">OPTIONAL</span></td>
-</tr>
-<tr>
-<td><code>goldenFix.versionCatalogRepo.path</code></td>
-<td>Relative path to catalog file</td>
-<td><code>catalogs/libs.versions.toml</code></td>
-<td style="text-align: center;"><span class="badge badge-optional">OPTIONAL</span></td>
-</tr>
-<tr>
 <td><code>nexusDeliveryEnabled</code></td>
 <td>Toggle Nexus delivery</td>
 <td><code>false</code></td>
@@ -875,6 +867,199 @@ projects:
 </tr>
 </tbody>
 </table></div>
+<hr />
+<h2 id="14-auto-resolve-in-standalone-mode-autoresolve-parameters-true">14. Auto-Resolve in Standalone Mode (<code>autoresolve parameters: true</code>)</h2>
+<p>The standalone library features automated repository stack detection (<code>RepoStackAutoResolver</code>).</p>
+<h3 id="default-behaviour">Default Behaviour:</h3>
+<p>Auto-resolve is enabled by default (<code>autoresolve parameters: true</code>). Application teams can omit build tool details, compiler paths, Node.js directories, and Sonar properties from <code>devsecops_config.yaml</code>.</p>
+<h3 id="minimal-configuration-example">Minimal Configuration Example:</h3>
+<p>Application teams need to provide only the application ID and AppScan key ID in <code>devsecops_config.yaml</code>:</p>
+<pre><code class="language-yaml">projects:
+  payment-service:
+    appId: &quot;APP-54321&quot;
+    asoc:
+      keyId: &quot;11111111-2222-3333-4444-555555555555&quot;
+      token: &quot;APPSCAN_KEY_SECRET_CREDENTIAL_ID&quot;
+</code></pre>
+<p>The pipeline automatically resolves the build tool (Maven, Gradle, Liquibase, Flutter, or Python), compiler version, Stage 0 Node.js frontend, OpenShift target, and SonarQube properties from the repository workspace files.</p>
+<h3 id="disabling-auto-resolve">Disabling Auto-Resolve:</h3>
+<p>To mandate strict manual configuration and disable heuristic resolution, set <code>autoresolve parameters: false</code>:</p>
+<pre><code class="language-yaml">projects:
+  payment-service:
+    autoresolve parameters: false
+    buildTool: maven
+    deployTarget: vm
+    appId: &quot;APP-54321&quot;
+    asoc:
+      keyId: &quot;11111111-2222-3333-4444-555555555555&quot;
+      token: &quot;APPSCAN_KEY_SECRET_CREDENTIAL_ID&quot;
+</code></pre>
+<hr />
+<h2 id="15-auto-resolved-parameters-reference">15. Auto-Resolved Parameters Reference</h2>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Setting / Field</th>
+<th>Target Key / Form Field</th>
+<th>Workspace Indicator / Manifest</th>
+<th>Resolved Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>pom.xml</code> present</td>
+<td><code>maven</code></td>
+</tr>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>build.gradle</code> or <code>build.gradle.kts</code> present</td>
+<td><code>gradle</code></td>
+</tr>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>changelog.xml</code>, <code>changelog.yaml</code>, <code>liquibase.properties</code></td>
+<td><code>liquibase</code></td>
+</tr>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>pubspec.yaml</code> present</td>
+<td><code>flutter</code></td>
+</tr>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>requirements.txt</code>, <code>pyproject.toml</code>, <code>setup.py</code>, <code>Pipfile</code></td>
+<td><code>pip</code></td>
+</tr>
+<tr>
+<td>Build Tool Auto Setup</td>
+<td><code>buildToolAutoSetup</code></td>
+<td>Set to <code>true</code> whenever Maven or Gradle is detected</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td>Java / JDK Version</td>
+<td><code>build.maven.javaVersion</code> / <code>build.gradle.javaVersion</code></td>
+<td><code>&lt;java.version&gt;</code>, <code>&lt;maven.compiler.source&gt;</code>, <code>&lt;maven.compiler.target&gt;</code>, <code>&lt;release&gt;</code> in <code>pom.xml</code>, or <code>jvmToolchain</code>, <code>sourceCompatibility</code> in <code>build.gradle</code></td>
+<td>Matched JDK version (<code>17</code>, <code>21</code>, <code>11</code>, <code>8</code>)</td>
+</tr>
+<tr>
+<td>Gradle Version</td>
+<td><code>build.gradle.version</code></td>
+<td><code>distributionUrl</code> in <code>gradle/wrapper/gradle-wrapper.properties</code></td>
+<td>Exact Gradle wrapper version (e.g. <code>8.7</code>, <code>7.6</code>)</td>
+</tr>
+<tr>
+<td>Node.js Stage 0 Enabled</td>
+<td><code>build.node.enabled</code></td>
+<td><code>package.json</code> exists in root or standard frontend folders</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td>Node.js Directory</td>
+<td><code>build.node.dir</code></td>
+<td>Detected subfolder holding <code>package.json</code></td>
+<td><code>.</code>, <code>frontend</code>, <code>web</code>, <code>client</code>, or <code>ui</code></td>
+</tr>
+<tr>
+<td>Node.js Engine Version</td>
+<td><code>build.node.version</code></td>
+<td><code>engines.node</code> in <code>package.json</code> (e.g. <code>&gt;=20.0.0</code>)</td>
+<td>Major Node version (e.g. <code>20</code>)</td>
+</tr>
+<tr>
+<td>Cypress Unit Testing</td>
+<td><code>tests.unitTests.node.cypress</code></td>
+<td><code>cypress</code> in <code>devDependencies</code> / <code>dependencies</code> of <code>package.json</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td>Jest Unit Testing</td>
+<td><code>tests.unitTests.node.jest</code></td>
+<td><code>jest</code> in <code>devDependencies</code> / <code>dependencies</code> of <code>package.json</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td>Liquibase Build Command</td>
+<td><code>build.liquibase.commands</code></td>
+<td>Detected <code>changelog.xml</code> / <code>liquibase.properties</code></td>
+<td><code>['updateSQL']</code></td>
+</tr>
+<tr>
+<td>Liquibase Test Command</td>
+<td><code>tests.unitTests.liquibase.commands</code></td>
+<td>Liquibase build tool</td>
+<td><code>['validate']</code></td>
+</tr>
+<tr>
+<td>Deployment Target</td>
+<td><code>deployTarget</code></td>
+<td><code>Dockerfile</code>, <code>Containerfile</code>, <code>openshift/</code>, <code>k8s/</code>, <code>helm/</code> present</td>
+<td><code>openshift</code> (otherwise defaults to <code>vm</code>)</td>
+</tr>
+<tr>
+<td>Sonar Project Key</td>
+<td><code>tools.sonar.projectKey</code></td>
+<td>Empty or missing in config</td>
+<td><code>com.bbh:&lt;projectName&gt;</code> or <code>com.bbh:&lt;appName&gt;</code></td>
+</tr>
+<tr>
+<td>Sonar Language</td>
+<td><code>sonar.language</code></td>
+<td>Source tree inspection (<code>pubspec.yaml</code> -&gt; <code>dart</code>, <code>requirements.txt</code> -&gt; <code>py</code>, Kotlin files -&gt; <code>kotlin</code>, Liquibase -&gt; <code>sql</code>, else <code>java</code>)</td>
+<td>Detected language code</td>
+</tr>
+<tr>
+<td>Sonar Sources Directory</td>
+<td><code>sonar.sources</code></td>
+<td>Missing <code>sonar-project.properties</code></td>
+<td><code>src/main/java</code> (Java), <code>src/main/kotlin</code> (Kotlin), <code>lib</code> (Dart), <code>db</code> (SQL), <code>src</code> or <code>.</code> (Python)</td>
+</tr>
+<tr>
+<td>Sonar Tests Directory</td>
+<td><code>sonar.tests</code></td>
+<td>Missing <code>sonar-project.properties</code></td>
+<td><code>src/test/java</code> (Java), <code>src/test/kotlin</code> (Kotlin), <code>test</code> (Dart), <code>tests</code> (Python)</td>
+</tr>
+<tr>
+<td>Sonar Java Binaries</td>
+<td><code>sonar.java.binaries</code></td>
+<td>Maven: <code>target/classes</code>; Gradle: <code>target/classes,build/classes/java/main</code></td>
+<td>Standard build output directories</td>
+</tr>
+<tr>
+<td>Sonar Submodules</td>
+<td><code>sonar.modules</code></td>
+<td>Submodules in <code>pom.xml</code> (<code>&lt;module&gt;</code>) or <code>settings.gradle</code> (<code>include '...'</code>)</td>
+<td>Comma-separated module names</td>
+</tr>
+<tr>
+<td>Sonar Branch Pinning</td>
+<td><code>sonar.branch.name</code></td>
+<td>Auto-detected from pipeline branch (<code>CHANGE_BRANCH</code>, <code>BRANCH_NAME</code>, <code>GIT_BRANCH</code>)</td>
+<td>Active evaluated branch (never master)</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="16-bitbucket-pull-request-decoration-shift-left-feedback">16. Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</h2>
+<p>Security feedback is reported directly in Bitbucket Pull Requests:
+1. <strong>Static Analysis Consolidated Pull Request</strong>:
+   - Nexus IQ GoldenFix safe dependency updates, AppScan SAST inline vulnerability comments, and SonarQube quality findings are presented together in a single Pull Request review.
+   - Findings marked as <code>Noise</code> are automatically excluded.
+2. <strong>Dynamic Analysis Dedicated Pull Request</strong>:
+   - DAST dynamic runtime findings are placed in a dedicated separate Pull Request to isolate runtime operational issues from source code changes.</p>
+<hr />
+<h2 id="17-sast-rest-api-credential-isolation">17. SAST REST API &amp; Credential Isolation</h2>
+<p>In <code>DSOEnhancedAppScanApiOnly</code>, static analysis communicates directly with HCL AppScan via REST API v4:
+- <strong>Authentication:</strong> Obtains an API bearer token using <code>sast.keyId</code> (or <code>asoc.keyId</code>) and <code>sast.token</code> (or <code>asoc.token</code>).
+- <strong>Credential Isolation:</strong> SAST authentication strictly uses SAST credentials and never uses DAST credentials (<code>dast.keyId</code>, <code>dast.token</code>), preventing authentication mismatch errors.
+- <strong>Noise Filtering:</strong> Findings marked with status <code>Noise</code> in the AppScan portal are filtered out and not counted against the release quality gate.</p>
         </div>
 
         <footer class="doc-footer">
