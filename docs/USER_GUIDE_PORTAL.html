@@ -549,21 +549,21 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 </tr>
 <tr>
 <td><strong>Node.js / TypeScript</strong></td>
-<td>npm</td>
+<td>npm (Stage 0)</td>
 <td><code>npm run build</code></td>
 <td>Web backends &amp; BFF services</td>
 </tr>
 <tr>
 <td><strong>Angular</strong></td>
-<td>npm</td>
+<td>npm (Stage 0)</td>
 <td><code>npm ci &amp;&amp; npm run build --prod</code></td>
 <td>Client-facing web apps</td>
 </tr>
 <tr>
 <td><strong>Python</strong></td>
-<td>pip / python3</td>
-<td><code>pip install -r requirements.txt</code></td>
-<td>Data analytics &amp; automation</td>
+<td>none in the Portal</td>
+<td>–</td>
+<td>Not supported: the Portal has no Python (pip) build tool, and the repository scan sets no build tool for a Python repository</td>
 </tr>
 <tr>
 <td><strong>SQL / PL-SQL</strong></td>
@@ -579,6 +579,7 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 </tr>
 </tbody>
 </table></div>
+<p>In the Portal the <strong>Build Tool</strong> of a service is Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL); npm runs as the Stage 0 Node.js build of such a service.</p>
 <h3 id="stage-0-frontend-pre-build">Stage 0 Frontend Pre-Build:</h3>
 <ul>
 <li>For full-stack applications where Java/Kotlin packages serve Angular/Node.js assets, Stage 0 compiles the frontend before backend packaging.</li>
@@ -745,7 +746,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <tr>
 <td><strong>Build Tool</strong></td>
 <td>Technology build system</td>
-<td><code>maven</code>, <code>gradle</code>, <code>npm</code>, <code>pip</code></td>
+<td>Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL)</td>
 <td>Application runtime</td>
 <td style="text-align: center;"><span class="badge badge-required">YES</span></td>
 </tr>
@@ -926,7 +927,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <p>The <strong>Repo Auto-Discovery / Smart Wizard</strong> removes over 80% of onboarding friction:</p>
 <h3 id="non-technical-business-benefits">Non-Technical Business Benefits:</h3>
 <ul>
-<li><strong>Instant Onboarding:</strong> Teams provide only their Bitbucket repository URL and branch, then click <strong>Scan &amp; Auto-fill</strong>.</li>
+<li><strong>Instant Onboarding:</strong> Teams type their Bitbucket repository URL and branch and click <strong>Scan &amp; Auto-fill</strong>, which pre-fills the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key. The other required fields, such as the service name and the AppScan settings, are still filled in by hand.</li>
 <li><strong>Error Reduction:</strong> Manifests are inspected directly from source control, preventing misconfigurations and build breaks.</li>
 <li><strong>Immediate Time-to-Value:</strong> Pipelines are configured, validated, and ready to execute within minutes.</li>
 </ul>
@@ -934,7 +935,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <ol>
 <li>When creating or updating a service in the Self-service wizard or Admin editor, specify the <strong>Bitbucket Repo URL</strong> and target <strong>Branch</strong>.</li>
 <li>Click <strong>Scan &amp; Auto-fill</strong>.</li>
-<li>The Portal executes an inspection (<code>/api/catalog/inspect-repo</code>) that reads only the root folder of the branch through the Bitbucket REST API, and fills in the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key; every other field keeps its value. A marker in a subfolder, such as <code>frontend/package.json</code> or <code>gradle/wrapper/gradle-wrapper.properties</code>, is never found through Bitbucket. A Liquibase service with database changes keeps its build tool, its commands and its deployment settings; the scan fills in only an empty SonarQube project key.</li>
+<li>The Portal executes an inspection (<code>/api/catalog/inspect-repo</code>) that reads only the root folder of the branch through the Bitbucket REST API, and fills in the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key; every other field keeps its value. A marker in a subfolder, such as <code>frontend/package.json</code> or <code>gradle/wrapper/gradle-wrapper.properties</code>, is never found through Bitbucket. A Liquibase service with database changes (one whose Changelog file is set; see chapter 7, "SQL and PL/SQL changes with Liquibase", of the Portal guide <code>docs/documentation.md</code>) keeps its build tool, its commands and its deployment settings; the scan fills in only an empty SonarQube project key.</li>
 <li>Developers review the suggestions, make any project-specific adjustments, and click <strong>Save</strong>.</li>
 </ol>
 <h3 id="stack-detection-matrix">Stack Detection Matrix:</h3>
@@ -949,7 +950,10 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 </ul>
 <hr />
 <h2 id="16-auto-resolved-parameters-reference">16. Auto-Resolved Parameters Reference</h2>
-<p>When auto-resolution is active (<code>autoresolve parameters: true</code>), the pipeline automatically evaluates workspace files at execution time. This is not <strong>Scan &amp; Auto-fill</strong>, which fills in only the fields named in <a href="#15-repo-auto-discovery-and-smart-wizard-one-click-inspect">chapter 15</a>. Every service of the Portal has a build tool, and the Portal has no Python (pip) build tool, so the Build Tool rows apply only to a <code>devsecops_config.yaml</code> without <code>buildTool</code>. A Liquibase service with database changes has no Deployment section: the Portal writes no deployment target and no deployment settings for it, because its database changes replace the deployment. Any parameters omitted from the Portal or configuration file are dynamically resolved:</p>
+<p>When auto-resolution is active (<code>autoresolve parameters: true</code>, the default, which the Portal never changes), the pipeline automatically evaluates workspace files at execution time. This is not <strong>Scan &amp; Auto-fill</strong>, which fills in only the fields named in <a href="#15-repo-auto-discovery-and-smart-wizard-one-click-inspect">chapter 15</a>. Every service of the Portal has a build tool, and the Portal has no Python (pip) build tool, so the Build Tool rows apply only to a <code>devsecops_config.yaml</code> without <code>buildTool</code>.</p>
+<p>A Liquibase service without database changes gets the Liquibase rows: empty build commands become <code>updateSQL</code>, empty unit test commands <code>validate</code>, and empty Flags of either <code>--changelog-file=</code> with a changelog path that the library finds at the root of the repository, else <code>src/main/resources/changelog.xml</code> (chapter 7 of <code>docs/documentation.md</code> lists the paths). Its SonarQube stage writes the <code>sonar.*</code> rows to a <code>sonar-project.properties</code> at the root of the workspace when the workspace has none there.</p>
+<p>The library leaves a Liquibase service with database changes alone: it resolves none of these settings for it except an empty SonarQube project key, which becomes <code>com.bbh:&lt;service name&gt;</code>, so it detects no Node.js build and no deployment target, and its SonarQube stage writes no <code>sonar-project.properties</code>. Such a service has no Deployment section: the Portal writes no deployment target and no deployment settings for it, because its database changes replace the deployment, and the library ignores any deployment target of such a service.</p>
+<p>Any parameters omitted from the Portal or configuration file are dynamically resolved:</p>
 <div class="table-wrapper"><table>
 <thead>
 <tr>
@@ -1125,7 +1129,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
   <code>groovy
   @Library('DSOEnhanced@main') _
   devSecOpsPipeline(pipelineKey: '5e0f0001-8c2b-4f6a-9d3e-1a7b2c4d0001')</code></li>
-<li><strong>Dynamic Resolution:</strong> Any fields left blank in the Portal are auto-resolved at pipeline runtime by <code>RepoStackAutoResolver</code>. A Liquibase service with database changes has no Deployment section: its database changes replace the deployment.</li>
+<li><strong>Dynamic Resolution:</strong> Any fields left blank in the Portal are auto-resolved at pipeline runtime by <code>RepoStackAutoResolver</code>; of a Liquibase service with database changes it fills in only an empty SonarQube project key. Such a service has no Deployment section: its database changes replace the deployment.</li>
 </ul>
 <h3 id="mode-2-standalone-without-portal-dsoenhancedwithoutportal-dsoenhancedappscanapionly">Mode 2: Standalone Without Portal (<code>DSOEnhancedWithoutPortal</code> &amp; <code>DSOEnhancedAppScanApiOnly</code>)</h3>
 <ul>

@@ -876,6 +876,21 @@ describe('ServiceFields', () => {
       ['without', liquibase],
       ['with', databaseService],
     ])(
+      'says what empty Liquibase build commands run with the auto-resolve of the library, %s database changes',
+      async (_, stored) => {
+        await render(stored());
+        await open('Build');
+
+        expect(helpFor('Liquibase commands')).toBe(
+          'The commands passed to liquibase, for example updateSQL, validate, or status. When left empty, the library runs updateSQL, with --changelog-file= and the changelog it finds when Flags is empty too; for a service with database changes it runs validate when Flags is set, else nothing. A new service is prefilled with updateSQL.',
+        );
+      },
+    );
+
+    it.each([
+      ['without', liquibase],
+      ['with', databaseService],
+    ])(
       'says where sonar-scanner runs and what the folder holds with database changes, %s database changes (library V46)',
       async (_, stored) => {
         await render(stored());
