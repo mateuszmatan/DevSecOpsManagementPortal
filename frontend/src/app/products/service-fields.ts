@@ -12,14 +12,18 @@ import {
 import { AbstractControl, FormArray, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { SvgIconComponent } from 'angular-svg-icon';
 import {
+  BuildTool,
   DATABASE_TARGETS,
   DatabaseTarget,
+  DeployTarget,
+  DiscoveredStack,
   FLUTTER_PLATFORMS,
   GlobalSettings,
   PipelineType,
   REGIONS,
   Region,
 } from '../core/models';
+import { ProductsApi } from '../core/api';
 import {
   Field,
   Fields,
@@ -246,7 +250,6 @@ const NODE_BUILD_IN: Partial<Record<PipelineType, string>> = {
   EXTENDED: 'In the Extended pipeline it runs before the release delivery rebuild.',
 };
 
-/** Left out of the SAST pipeline, which runs no Nexus IQ scan; the value stays for the other pipelines. */
 const NPM_SCAN = check(
   'nexusIqScan',
   'Scan the npm dependencies with Nexus IQ',
@@ -576,7 +579,6 @@ const FLUTTER_PLATFORM: Field[] = [
   ),
 ];
 
-/** The invalid controls of a form that hold an error themselves, in the order of the form. */
 function invalidControls(control: AbstractControl): AbstractControl[] {
   if (!control.invalid) {
     return [];
@@ -725,7 +727,6 @@ export class ServiceFields {
     return { label: section?.label ?? '', note: chips(notes[id] + (extra[id] ?? '')) };
   });
 
-  /** The fields that need input, in the order of the sections. */
   readonly missing = computed<MissingField[]>(() => {
     this.changes();
     const form = this.form();
@@ -751,7 +752,6 @@ export class ServiceFields {
     this.selected.set(id);
   }
 
-  /** Opens the section of a field that needs input, shows its error and puts the cursor in it. */
   reveal(field: MissingField): void {
     field.control.markAsTouched();
     this.selected.set(field.section);
@@ -779,7 +779,6 @@ export class ServiceFields {
     return id !== null;
   }
 
-  /** The label of each field of the form that has one. */
   private labels(): Map<AbstractControl, string> {
     const form = this.form();
     const c = form.controls;
@@ -1384,5 +1383,64 @@ export class ServiceFields {
       `${intro}: ${g.ecosystems.join(', ')}, threat level ${g.minThreatLevel} and above, ` +
       `${dependencies}, ${verification}.`
     );
+  }
+
+  private readonly api = inject(ProductsApi);
+  protected readonly inspectingRepo = signal(false);
+  protected readonly inspectError = signal<string | null>(null);
+  protected readonly inspectSuccess = signal<string | null>(null);
+
+  protected autoDiscover(): void {
+    const scm = this.form().controls.scm.controls;
+    const repoUrl = scm.repositoryUrl.value?.trim();
+    if (!repoUrl) {
+      scm.repositoryUrl.markAsTouched();
+      this.inspectError.set('Enter a Bitbucket repository URL first.');
+      return;
+    }
+    this.inspectingRepo.set(true);
+    this.inspectError.set(null);
+    this.inspectSuccess.set(null);
+
+    this.api
+      .inspectRepo({
+        repositoryUrl: repoUrl,
+        branch: scm.targetBranch.value?.trim() || null,
+        credentialsId: scm.credentialsId.value?.trim() || null,
+      })
+      .subscribe({
+        next: (stack) => {
+          this.inspectingRepo.set(false);
+          this.applyDiscoveredStack(stack);
+          this.inspectSuccess.set(stack.summaryMessage || 'Stack detected and form auto-filled successfully.');
+        },
+        error: (err) => {
+          this.inspectingRepo.set(false);
+          this.inspectError.set(err?.error?.message || 'Could not inspect repository.');
+        },
+      });
+  }
+
+  private applyDiscoveredStack(stack: DiscoveredStack): void {
+    const c = this.form().controls;
+    if (stack.buildTool && ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'].includes(stack.buildTool)) {
+      c.build.controls.tool.setValue(stack.buildTool as BuildTool);
+    }
+    if (stack.deployTarget && ['VM', 'OPENSHIFT'].includes(stack.deployTarget)) {
+      c.deployment.controls.target.setValue(stack.deployTarget as DeployTarget);
+    }
+    if (stack.nodeBuildEnabled) {
+      c.nodeBuild.controls.enabled.setValue(true);
+    }
+    const database = formChangesDatabase(this.form());
+    if (stack.buildTasks && !database) {
+      c.build.controls.command.controls.tasks.setValue(stack.buildTasks);
+    }
+    if (stack.unitTestTasks && !database) {
+      c.unitTests.controls.command.controls.tasks.setValue(stack.unitTestTasks);
+    }
+    if (stack.sonarProjectKey && !c.sonar.controls.projectKey.value) {
+      c.sonar.controls.projectKey.setValue(stack.sonarProjectKey);
+    }
   }
 }

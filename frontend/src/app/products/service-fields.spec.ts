@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
-import { BuildTool, DeployTarget, GlobalSettings, Service } from '../core/models';
+import { of } from 'rxjs';
+import { ProductsApi } from '../core/api';
+import { BuildTool, DeployTarget, DiscoveredStack, GlobalSettings, Service } from '../core/models';
 import { wholeNumber } from '@common/shared/form-controls';
 import {
   buttonOf,
@@ -510,6 +512,43 @@ describe('ServiceFields', () => {
         'A service with database changes runs on Linux or macOS agents only.',
       );
     }, 15_000);
+
+    it('keeps the Liquibase commands of a service with database changes when the repository is scanned', async () => {
+      const stack = {
+        buildTool: 'LIQUIBASE',
+        buildTasks: 'validate',
+        unitTestTasks: 'updateSQL validate',
+        deployTarget: 'VM',
+        nodeBuildEnabled: false,
+        summaryMessage: 'Liquibase detected.',
+      } as DiscoveredStack;
+      TestBed.configureTestingModule({
+        providers: [{ provide: ProductsApi, useValue: { inspectRepo: () => of(stack) } }],
+      });
+      const commands = () => [
+        form.controls.build.controls.command.controls.tasks.value,
+        form.controls.unitTests.controls.command.controls.tasks.value,
+      ];
+      const scan = async () => {
+        await open('Bitbucket');
+        buttonOf(pane(), 'Scan & Auto-fill').click();
+        await fixture.whenStable();
+      };
+
+      await render(databaseService());
+      const before = commands();
+      await scan();
+      expect(commands()).toEqual(before);
+      expect(text(pane())).toContain('Liquibase detected.');
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [{ provide: ProductsApi, useValue: { inspectRepo: () => of(stack) } }],
+      });
+      await render(liquibase());
+      await scan();
+      expect(commands()).toEqual(['validate', 'updateSQL validate']);
+    });
 
     it.each([
       ['without', liquibase],

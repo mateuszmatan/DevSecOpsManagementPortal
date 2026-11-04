@@ -32,6 +32,35 @@ export const TEST_STAGES: TestStage[] = ['SMOKE', 'REGRESSION', 'PERFORMANCE'];
 export type TestSuite = 'UNIT' | TestStage;
 export const SCANNERS: Scanner[] = ['SAST', 'SCA', 'NEXUS_IQ', 'DAST'];
 
+export interface DiscoveredStack {
+  buildTool: BuildTool | string | null;
+  primaryLanguage: string | null;
+  framework: string | null;
+  deployTarget: DeployTarget | string;
+  javaVersion: string | null;
+  gradleVersion: string | null;
+  nodeBuildEnabled: boolean;
+  nodeVersion: string | null;
+  testRunner: string | null;
+  unitTestTasks: string | null;
+  buildTasks: string | null;
+  liquibaseDetected: boolean;
+  dockerDetected: boolean;
+  detectedMarkers: readonly string[];
+  summaryMessage: string;
+  sonarPropertiesDetected?: boolean;
+  sonarProjectKey?: string | null;
+  sonarModules?: readonly string[];
+  sonarSources?: string | null;
+  sonarTests?: string | null;
+}
+
+export interface InspectRepoRequest {
+  repositoryUrl: string;
+  branch?: string | null;
+  credentialsId?: string | null;
+}
+
 export interface Department extends PortalDepartment {
   serviceCount: number;
   pipelineCount: number;

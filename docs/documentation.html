@@ -68,11 +68,13 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li><a href="#13-library-defaults-global-settings">13. Library defaults (Global Settings)</a></li>
 <li><a href="#14-pipeline-monitoring-and-dora">14. Pipeline Monitoring and DORA</a></li>
 <li><a href="#15-owasp-samm-software-assurance-maturity-model">15. OWASP SAMM Software Assurance Maturity Model</a></li>
-<li><a href="#16-business-services">16. Business Services</a></li>
-<li><a href="#17-action-history">17. Action history</a></li>
-<li><a href="#18-field-reference-from-the-portal-to-devsecops_configyaml">18. Field reference: from the portal to devsecops_config.yaml</a></li>
-<li><a href="#19-database-and-environments">19. Database and environments</a></li>
-<li><a href="#20-troubleshooting">20. Troubleshooting</a></li>
+<li><a href="#16-repo-auto-discovery-and-smart-wizard">16. Repo Auto-Discovery and Smart Wizard</a></li>
+<li><a href="#17-bitbucket-pull-request-decoration--shift-left-feedback">17. Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</a></li>
+<li><a href="#18-business-services">18. Business Services</a></li>
+<li><a href="#19-action-history">19. Action history</a></li>
+<li><a href="#20-field-reference-from-the-portal-to-devsecops_configyaml">20. Field reference: from the portal to devsecops_config.yaml</a></li>
+<li><a href="#21-database-and-environments">21. Database and environments</a></li>
+<li><a href="#22-troubleshooting">22. Troubleshooting</a></li>
 </ul>
 </div>
 
@@ -128,12 +130,12 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><td>Self-service</td><td>Set up the pipelines of a product, or change them, in five guided steps. See <a href="#4-add-a-service-in-the-self-service-wizard">chapter 4</a>.</td></tr>
 <tr><td>Pipeline Monitoring</td><td>See whether the latest runs passed and how often and how safely changes reach production. See <a href="#14-pipeline-monitoring-and-dora">chapter 14</a>.</td></tr>
 <tr><td>OWASP SAMM</td><td>Software Assurance Maturity Model (OWASP SAMM v2.0) posture across BBH applications and business services. Continuous maturity evaluation across 5 domains and 11 practices, scorecards, and improvement roadmaps. See <a href="#15-owasp-samm-software-assurance-maturity-model">chapter 15</a>.</td></tr>
-<tr><td>Action history</td><td>See who changed what and when, with the result. See <a href="#17-action-history">chapter 17</a>.</td></tr>
+<tr><td>Action history</td><td>See who changed what and when, with the result. See <a href="#19-action-history">chapter 19</a>.</td></tr>
 <tr><td>Admin</td><td>The DevSecOps administration with four tabs: Business Services, Products, Service template and Library defaults.</td></tr>
 </tbody>
 </table>
 <h3 id="the-help-icons-and-the-key-chips">The help icons and the key chips</h3>
-<p>Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as <code>build.node.enabled</code>. The chip is the key the field writes in <code>devsecops_config.yaml</code>. <a href="#18-field-reference-from-the-portal-to-devsecops_configyaml">Chapter 18</a> lists every chip.</p>
+<p>Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as <code>build.node.enabled</code>. The chip is the key the field writes in <code>devsecops_config.yaml</code>. <a href="#20-field-reference-from-the-portal-to-devsecops_configyaml">Chapter 20</a> lists every chip.</p>
 <p>A hint that says &quot;Library default: X&quot; shows the value the service takes from the Library defaults page. A hint that says &quot;Library default&quot; alone shows that the field still holds that value.</p>
 </div>
 
@@ -248,8 +250,9 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <ol>
 <li>Click &quot;Add a service&quot;. The dialog &quot;Add a service&quot; opens. Its tag shows the pipeline.</li>
 <li>To start from another service of the product, choose it in &quot;Copy values from&quot;. To start from a file, click &quot;Import devsecops_config.yaml&quot;. Both are optional. See <a href="#10-import-a-devsecops_configyaml-and-copy-a-service">chapter 10</a>.</li>
+<li>Alternatively, use <strong>Repo Auto-Discovery / Smart Wizard (Scan &amp; Auto-fill)</strong>: Type the Bitbucket repository URL and branch, then click &quot;Scan &amp; Auto-fill&quot;. The portal queries the repository tree via Bitbucket REST API and automatically populates the build tool (Maven, Gradle, Liquibase, Flutter, Python/pip), Java/Node versions, test runners, and OpenShift target. See <a href="#16-repo-auto-discovery-and-smart-wizard">chapter 16</a>.</li>
 <li>In General, type the service name, for example <code>backend-api</code>. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.</li>
-<li>In Build, choose the build tool. The hint tells you how to recognise it: &quot;The code has a build.gradle file&quot; means Gradle, &quot;The code has a pom.xml file&quot; means Maven, &quot;The code has a pubspec.yaml file&quot; means Flutter and &quot;The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties&quot; means Liquibase (SQL / PL/SQL); for its commands and its database changes see <a href="#add-a-liquibase-service-in-the-wizard">chapter 7</a>. The tasks and the artifact path come from the service template. Leave &quot;Set up the build tool automatically&quot; on.</li>
+<li>In Build, choose or verify the build tool. The hint tells you how to recognise it: &quot;The code has a build.gradle file&quot; means Gradle, &quot;The code has a pom.xml file&quot; means Maven, &quot;The code has a pubspec.yaml file&quot; means Flutter, &quot;The code has a requirements.txt or pyproject.toml&quot; means Python/pip and &quot;The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties&quot; means Liquibase (SQL / PL/SQL); for its commands and its database changes see <a href="#add-a-liquibase-service-in-the-wizard">chapter 7</a>. The tasks and the artifact path come from the service template. Leave &quot;Set up the build tool automatically&quot; on.</li>
 <li>If the repository holds a frontend that npm builds, for example an Angular application, tick &quot;Build the frontend with Node.js first&quot;. Type the &quot;Folder with package.json&quot;, for example <code>frontend</code>. Leave the other Node.js fields as they are. See <a href="#6-build-the-frontend-with-nodejs-first-stage-0">chapter 6</a>.</li>
 <li>In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.</li>
 <li>For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.</li>
@@ -873,7 +876,7 @@ liquibase --defaults-file=dso-deploy.properties --search-path=orders-db-341-2026
 <tr><td><code>Service &lt;service&gt; is a Liquibase service with database changes, for which the library runs no Nexus IQ GoldenFix pipeline</code></td><td>Add pipeline, the save</td><td>Choose another pipeline type, or delete the Nexus IQ GoldenFix pipeline before you set the changelog file.</td></tr>
 </tbody>
 </table>
-<p>The library checks the settings again when a pipeline starts, together with what the portal cannot see: whether the changelog file and the utPLSQL folders exist in the checkout, and whether the allowed databases have changed. Its messages, and the messages of Liquibase and utPLSQL, are explained in chapter 14 of the library guide, under &quot;Troubleshooting&quot;. <a href="#20-troubleshooting">Chapter 20</a> of this guide describes the portal refusals in more detail.</p>
+<p>The library checks the settings again when a pipeline starts, together with what the portal cannot see: whether the changelog file and the utPLSQL folders exist in the checkout, and whether the allowed databases have changed. Its messages, and the messages of Liquibase and utPLSQL, are explained in chapter 14 of the library guide, under &quot;Troubleshooting&quot;. <a href="#22-troubleshooting">Chapter 22</a> of this guide describes the portal refusals in more detail.</p>
 </div>
 
 <div class="section" id="8-shared-version-catalogs-and-the-combined-jenkinsfile">
@@ -1325,8 +1328,106 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 </ul>
 </div>
 
-<div class="section" id="16-business-services">
-<h2><span class="num">16</span> Business Services</h2>
+<div class="section" id="16-repo-auto-discovery-and-smart-wizard">
+<h2><span class="num">16</span> Repo Auto-Discovery and Smart Wizard</h2>
+<p>Onboarding new repositories into DevSecOps typically requires developers to know 15 to 20 granular settings: build tool flags, compiler versions, test result XML locations, JaCoCo report paths, Node.js versions, and deployment targets. The <strong>Repo Auto-Discovery / Smart Wizard</strong> removes this barrier by automatically detecting the application stack directly from Bitbucket.</p>
+<h3 id="how-it-works">How it works</h3>
+<ol>
+<li>When adding or editing a service in the Self-service wizard or Admin editor, enter the <strong>Bitbucket repository URL</strong> and target <strong>Branch</strong> (defaults to <code>main</code> or <code>master</code>).</li>
+<li>Click <strong>Scan &amp; Auto-fill</strong>.</li>
+<li>The portal executes an inspection against Bitbucket REST API v2 (<code>/api/catalog/inspect-repo</code>), walks the directory structure, and analyzes configuration manifests.</li>
+<li>The service form is populated immediately with tailored defaults, which developers can review and tweak before saving.</li>
+</ol>
+<h3 id="supported-stacks-and-heuristics">Supported Stacks and Heuristics</h3>
+<p>The detector (<code>RepoStackDetector</code>) inspects manifests in priority order:</p>
+<ul>
+<li><strong>Maven</strong>: Detected via <code>pom.xml</code>.
+<ul>
+<li>Parses <code>&lt;java.version&gt;</code>, <code>&lt;maven.compiler.source&gt;</code>, <code>&lt;maven.compiler.target&gt;</code>, or <code>&lt;release&gt;</code> properties to determine the exact Java JDK version.</li>
+<li>Automatically configures default tasks (<code>clean verify</code>), artifact path (<code>target/*.jar</code>), and enables JaCoCo XML discovery.</li>
+<li>Detects Kotlin plugins (<code>kotlin-maven-plugin</code>) and configures Kotlin support.</li>
+</ul>
+</li>
+<li><strong>Gradle</strong>: Detected via <code>build.gradle</code>, <code>build.gradle.kts</code>, or <code>gradle/wrapper/gradle-wrapper.properties</code>.
+<ul>
+<li>Reads <code>distributionUrl</code> in wrapper properties to identify the exact Gradle release (e.g. Gradle 8.5) and appropriate JDK.</li>
+<li>Automatically configures default tasks (<code>build</code>), artifact path (<code>build/libs/*.jar</code>), and enables JaCoCo test reporting.</li>
+<li>Detects Kotlin DSL (<code>build.gradle.kts</code>) and Kotlin compiler plugins.</li>
+</ul>
+</li>
+<li><strong>Node.js (Stage 0)</strong>: Detected via <code>package.json</code> at root or in common frontend directories (<code>frontend/</code>, <code>web/</code>, <code>client/</code>, <code>ui/</code>).
+<ul>
+<li>Automatically enables Stage 0 Node.js pre-build (<code>build.node.enabled: true</code>) and sets the folder.</li>
+<li>Parses <code>engines.node</code> to select the compatible Node.js installation.</li>
+<li>Inspects <code>dependencies</code> and <code>devDependencies</code> to detect frontend frameworks (Angular, React, Vue) and test runners (Cypress, Jest), preconfiguring unit test commands and coverage paths (<code>coverage/lcov.info</code>).</li>
+</ul>
+</li>
+<li><strong>Liquibase (SQL / PL/SQL)</strong>: Detected via <code>changelog.xml</code>, <code>liquibase.properties</code>, or <code>db/changelog/</code> directories.
+<ul>
+<li>Automatically selects <code>LIQUIBASE</code> as the primary build tool, setting default commands (<code>updateSQL</code>) and verification tasks (<code>validate</code>).</li>
+<li>It fills only the Liquibase commands. To check, package and deploy the database changes, fill in &quot;Database changes&quot; with the changelog file yourself; see <a href="#7-sql-and-plsql-changes-with-liquibase">chapter 7</a>.</li>
+</ul>
+</li>
+<li><strong>Flutter / Dart</strong>: Detected via <code>pubspec.yaml</code>.
+<ul>
+<li>Configures the Flutter toolchain, artifact type (<code>APK</code>), and unit test runner (<code>flutter test</code>).</li>
+</ul>
+</li>
+<li><strong>Python / pip</strong>: Detected via <code>requirements.txt</code>, <code>pyproject.toml</code>, <code>setup.py</code>, or <code>Pipfile</code>.
+<ul>
+<li>Configures <code>PIP</code> build tool with isolated virtualenv execution.</li>
+</ul>
+</li>
+<li><strong>OpenShift Deployment Target</strong>: Detected via <code>Dockerfile</code>, <code>Containerfile</code>, or manifests in <code>openshift/</code>, <code>k8s/</code>, or <code>helm/</code>.
+<ul>
+<li>Sets the deployment target to <code>OPENSHIFT</code> and preconfigures default image build and rollout templates.</li>
+</ul>
+</li>
+<li><strong>SonarQube Static Analysis</strong>:
+<ul>
+<li>Checks if <code>sonar-project.properties</code> is present.</li>
+<li>When omitted, infers default project key (<code>com.bbh:&lt;derivedKey&gt;</code>), discovers submodules from <code>pom.xml</code> (<code>&lt;module&gt;</code>) or <code>settings.gradle</code> (<code>include</code>), infers source paths (<code>src/main/java</code>, <code>src/main/kotlin</code>, <code>lib</code>, etc.) and test paths (<code>src/test/java</code>, <code>test</code>), and preconfigures <code>tools.sonar.projectKey</code>.</li>
+</ul>
+</li>
+</ul>
+<h3 id="rest-api-of-the-auto-discovery">REST API of the auto-discovery</h3>
+<ul>
+<li><code>POST /api/catalog/inspect-repo</code>: Accepts <code>{ &quot;repositoryUrl&quot;: &quot;...&quot;, &quot;branch&quot;: &quot;main&quot;, &quot;credentialsId&quot;: &quot;...&quot; }</code> and returns the detected stack configuration <code>DiscoveredStack</code>.</li>
+</ul>
+</div>
+
+<div class="section" id="17-bitbucket-pull-request-decoration--shift-left-feedback">
+<h2><span class="num">17</span> Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</h2>
+<p>Shift-left security is most effective when developers receive immediate, context-rich feedback inside their existing code review interface rather than logging into separate security dashboards.</p>
+<p>The portal provides an automated Pull Request decoration engine (<code>/api/dso/bitbucket/pull-requests/decorate</code>) supporting both Bitbucket Server (anchored diff comments) and Bitbucket Cloud (inline comments).</p>
+<h3 id="pull-request-consolidation-strategy">Pull Request Consolidation Strategy</h3>
+<p>To keep code review clean, uncluttered, and actionable, the pipeline divides security findings into two distinct Pull Requests:</p>
+<ol>
+<li><strong>Static Security Pull Request (Single Consolidated PR)</strong>:
+<ul>
+<li>Created during the static analysis stage of security and full pipelines.</li>
+<li><strong>Nexus IQ GoldenFix</strong>: When direct dependencies violate open source policy, GoldenFix updates package manifests (<code>pom.xml</code>, <code>build.gradle</code>, <code>package.json</code>, <code>requirements.txt</code>, <code>pubspec.yaml</code>) in a dedicated branch (<code>GoldenFix-YYYYMMDDHHMM</code>) and opens a Pull Request.</li>
+<li><strong>HCL AppScan SAST</strong>: SAST results are matched against files and line numbers. Findings with status <code>Noise</code> are filtered out. Genuine vulnerabilities (SQL Injection, XSS, Path Traversal, etc.) are posted as inline line comments directly on the affected code, providing the vulnerability description, severity, and remediation guidance.</li>
+<li><strong>SonarQube</strong>: Static code quality, vulnerability, and bug issues are added as inline line comments on the specific code lines.</li>
+<li>Developers review and merge automated version upgrades and security recommendations in a single PR review.</li>
+</ul>
+</li>
+<li><strong>DAST Dynamic Security Pull Request (Dedicated PR)</strong>:
+<ul>
+<li>Dynamic application security testing (DAST) inspects running applications against external web endpoints.</li>
+<li>Findings from DAST (such as missing HTTP security headers, insecure cookie configurations, CORS misconfigurations, or SSL/TLS cipher suites) are operational and infrastructure concerns rather than source file flaws.</li>
+<li>When DAST detects policy violations, a dedicated separate PR (<code>security-dast-&lt;project&gt;</code>) is created, keeping operational remediation cleanly isolated from application source code changes.</li>
+</ul>
+</li>
+</ol>
+<h3 id="rest-api-of-the-pull-request-decoration">REST API of the pull request decoration</h3>
+<ul>
+<li><code>POST /api/dso/bitbucket/pull-requests/decorate</code>: Receives <code>PrDecorationRequest</code> containing repository URL, pull request ID, credentials, target/source branches, overall markdown summary, and list of <code>PrFinding</code> entries (file path, line number, tool name, severity, message).</li>
+</ul>
+</div>
+
+<div class="section" id="18-business-services">
+<h2><span class="num">18</span> Business Services</h2>
 <p>Admin, Business Services lists the groups of products with their product, service and pipeline counts.</p>
 <ul>
 <li>&quot;Add business service&quot; creates one. A name must be unique.</li>
@@ -1336,15 +1437,15 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <p>The Pipelines page shows the pipelines of one Business Service at a time. Its first table counts the pipelines of each Business Service, active and with an invalidated key.</p>
 </div>
 
-<div class="section" id="17-action-history">
-<h2><span class="num">17</span> Action history</h2>
+<div class="section" id="19-action-history">
+<h2><span class="num">19</span> Action history</h2>
 <p>The Action history records every change made in the portal: who did it, when, what was done, on which resource and with which result. Search by user, resource or details, and filter by action, resource and status.</p>
 <p>The recorded actions are: create, update and delete a product; create, update and delete a pipeline; issue a new key; invalidate a key; create, rename and delete a business service; update the service template; update the library defaults; initialize the portal. An import of a devsecops_config.yaml or config.yaml stores nothing and is not recorded.</p>
 <p>The portal has no sign-in yet. Every action is recorded as the default administrator until BBH single sign-on is added.</p>
 </div>
 
-<div class="section" id="18-field-reference-from-the-portal-to-devsecops_configyaml">
-<h2><span class="num">18</span> Field reference: from the portal to devsecops_config.yaml</h2>
+<div class="section" id="20-field-reference-from-the-portal-to-devsecops_configyaml">
+<h2><span class="num">20</span> Field reference: from the portal to devsecops_config.yaml</h2>
 <p>This chapter lists every field that writes to <code>devsecops_config.yaml</code>. The column &quot;Key&quot; shows the key in the code chip of the field. Service keys sit under <code>projects.&lt;service&gt;</code>. A chip that shows only the last part of a key is listed with its full key. A field that is empty writes nothing, and a checkbox that is off writes nothing unless the table says otherwise.</p>
 <h3 id="product-and-pipeline">Product and pipeline</h3>
 <table>
@@ -1896,8 +1997,8 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <p>Some headings of the service form name the section they write to: <code>deploy.vm.rd</code> and <code>deploy.vm.qc</code> (SSH targets), <code>deploy.openshift.rd</code> and <code>deploy.openshift.qc</code> (OpenShift targets), <code>tools.nexusIq.application</code> (Nexus IQ), <code>deploy.vm.dod.applications</code> and <code>components</code> (UrbanCode Deploy), <code>build.credentialsId</code> (Flutter credentials) and <code>database.test</code>, <code>database.rd</code> and <code>database.qc</code> (Database changes).</p>
 </div>
 
-<div class="section" id="19-database-and-environments">
-<h2><span class="num">19</span> Database and environments</h2>
+<div class="section" id="21-database-and-environments">
+<h2><span class="num">21</span> Database and environments</h2>
 <h3 id="where-the-portal-runs">Where the portal runs</h3>
 <table>
 <thead>
@@ -1952,8 +2053,8 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <div class="callout"><strong>Warning.</strong> A rollback of 037 stops at the build tool checks while a service has the build tool Liquibase (SQL / PL/SQL). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.</div>
 </div>
 
-<div class="section" id="20-troubleshooting">
-<h2><span class="num">20</span> Troubleshooting</h2>
+<div class="section" id="22-troubleshooting">
+<h2><span class="num">22</span> Troubleshooting</h2>
 <h3 id="add-service-stays-disabled">&quot;Add service&quot; stays disabled</h3>
 <p>The text next to the button names the missing fields, for example &quot;Complete these fields first: AppScan API key ID&quot;. Click a field name. The form opens its section, under Advanced settings if needed, and puts the cursor in the field.</p>
 <h3 id="a-service-shows-needs-attention">A service shows &quot;Needs attention&quot;</h3>

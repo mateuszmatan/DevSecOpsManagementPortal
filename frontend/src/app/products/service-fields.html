@@ -364,6 +364,32 @@
 
       @case ('scm') {
         <div class="form-fields">
+          <div class="span-12 auto-discover-banner">
+            <div class="auto-discover-content">
+              <div>
+                <strong>Repo Auto-Discovery / Smart Wizard</strong>
+                <p class="muted">Detect Maven, Gradle, Kotlin, Node.js/Cypress, Liquibase, Flutter, Python, and OpenShift from repository structure.</p>
+              </div>
+              <button
+                type="button"
+                class="btn btn-primary"
+                [disabled]="inspectingRepo()"
+                (click)="autoDiscover()"
+              >
+                @if (inspectingRepo()) {
+                  <span>Scanning repository...</span>
+                } @else {
+                  <span>Scan &amp; Auto-fill</span>
+                }
+              </button>
+            </div>
+            @if (inspectError(); as err) {
+              <div class="banner error-banner" role="alert">{{ err }}</div>
+            }
+            @if (inspectSuccess(); as msg) {
+              <div class="banner success-banner" role="status">{{ msg }}</div>
+            }
+          </div>
           <dso-fields [group]="f.controls.scm" [fields]="scm" />
           <dso-advanced-settings
             summary="Sign-in, clone URL and where GoldenFix finds the repository"

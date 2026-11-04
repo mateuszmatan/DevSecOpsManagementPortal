@@ -23,6 +23,8 @@ import {
   ServiceTemplate,
   ServiceTemplateRequest,
   UserProfile,
+  DiscoveredStack,
+  InspectRepoRequest,
   SammApplicationScore,
   SammDepartmentScore,
   SammOrganizationOverview,
@@ -79,6 +81,10 @@ export class ProductsApi {
       content,
       serviceName,
     });
+  }
+
+  inspectRepo(request: InspectRepoRequest): Observable<DiscoveredStack> {
+    return this.http.post<DiscoveredStack>('/api/catalog/inspect-repo', request);
   }
 }
 

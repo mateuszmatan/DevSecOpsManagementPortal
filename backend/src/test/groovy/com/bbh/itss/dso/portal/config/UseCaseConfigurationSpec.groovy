@@ -10,6 +10,8 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPor
 import com.bbh.itss.dso.portal.application.monitoring.port.in.MonitorPipelinesUseCase
 import com.bbh.itss.dso.portal.application.monitoring.port.out.DashboardLinksPort
 import com.bbh.itss.dso.portal.application.monitoring.port.out.PipelineRunsPort
+import com.bbh.itss.dso.portal.application.bitbucket.port.out.BitbucketPullRequestPort
+import com.bbh.itss.dso.portal.application.discovery.port.out.BitbucketRepositoryPort
 import com.bbh.itss.dso.portal.application.pipeline.port.in.PipelinesUseCase
 import com.bbh.itss.dso.portal.application.pipeline.port.out.PipelineRepositoryPort
 import com.bbh.itss.dso.portal.application.report.port.out.PipelineReportPort
@@ -68,6 +70,8 @@ class UseCaseConfigurationSpec extends Specification {
     ServiceTemplateRepositoryPort templates = Mock()
     ActionLogRepositoryPort actionLogs = Mock()
     PipelineReportPort reports = Mock()
+    BitbucketRepositoryPort bitbucketRepository = Mock()
+    BitbucketPullRequestPort bitbucketPullRequest = Mock()
 
     def runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(AopAutoConfiguration, TransactionAutoConfiguration))
@@ -84,6 +88,8 @@ class UseCaseConfigurationSpec extends Specification {
             .withBean(ServiceTemplateRepositoryPort, { templates } as Supplier<ServiceTemplateRepositoryPort>)
             .withBean(ActionLogRepositoryPort, { actionLogs } as Supplier<ActionLogRepositoryPort>)
             .withBean(PipelineReportPort, { reports } as Supplier<PipelineReportPort>)
+            .withBean(BitbucketRepositoryPort, { bitbucketRepository } as Supplier<BitbucketRepositoryPort>)
+            .withBean(BitbucketPullRequestPort, { bitbucketPullRequest } as Supplier<BitbucketPullRequestPort>)
             .withBean(KeyGenerator, { { -> 'key' } as KeyGenerator } as Supplier<KeyGenerator>)
             .withBean(Clock, { systemUTC() } as Supplier<Clock>)
 
@@ -94,7 +100,8 @@ class UseCaseConfigurationSpec extends Specification {
             assert useCases.keySet() == ['globalSettingsService', 'productCatalogService', 'departmentService',
                                          'pipelineService', 'pipelineConfigService', 'pipelineMonitoringService',
                                          'monitoringTargetsService', 'serviceTemplateService', 'actionLogService',
-                                         'pipelineReportService', 'sammMaturityService'] as Set
+                                         'pipelineReportService', 'sammMaturityService', 'inspectRepositoryService',
+                                         'bitbucketPrDecorationService'] as Set
             useCases.values().each { useCase ->
                 assert isAopProxy(useCase)
                 assert (useCase as Advised).advisors*.advice.any { it instanceof TransactionInterceptor }
