@@ -5,6 +5,22 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
 ## [Unreleased]
 
 ### Added
+- **Repo Auto-Discovery & Smart Wizard (Automatyczne wykrywanie stosu)**:
+  - One-Click Inspect repository analysis (`POST /api/catalog/inspect-repo`, "Scan & Auto-fill" button in service form).
+  - Reads Bitbucket repository structure via REST API and automatically populates service configuration:
+    - `pom.xml` -> Maven build tool, compiler Java version, Kotlin detection, JaCoCo test reporting.
+    - `build.gradle` / `build.gradle.kts` / `gradle/wrapper/gradle-wrapper.properties` -> Gradle build tool, exact Gradle version and JDK, Kotlin, JaCoCo.
+    - `package.json` -> Enables Node.js Stage 0 pre-build, extracts Node version from `engines.node`, detects test runners (Cypress, Jest, Angular, React).
+    - `changelog.xml` / `liquibase.properties` / `db/changelog` -> Liquibase build tool for SQL/PL-SQL.
+    - `pubspec.yaml` -> Flutter / Dart mobile applications.
+    - `requirements.txt` / `pyproject.toml` / `setup.py` / `Pipfile` -> Python / pip build tool (`PIP`).
+    - `Dockerfile` / `Containerfile` / `openshift/` / `k8s/` / `helm/` -> OpenShift deployment target (`OPENSHIFT`).
+- **Bitbucket Pull Request Decoration & Shift-Left Feedback**:
+  - Direct pull request decoration endpoint (`POST /api/dso/bitbucket/pull-requests/decorate`):
+    - AppScan SAST: adds inline line comments on exact file and line with vulnerability description and suggested remediation, skipping findings with status `Noise`.
+    - SonarQube: adds inline line comments on exact file and line for quality issues, security vulnerabilities, and code smells.
+    - Static analysis consolidation: combines Nexus IQ GoldenFix safe dependency updates, SAST line comments, and SonarQube findings into a single consolidated Pull Request.
+    - Dynamic analysis isolation: separates DAST findings into a second dedicated Pull Request.
 - **OWASP SAMM (Software Assurance Maturity Model v2.0) Scoring & Dashboard**:
   - Implemented continuous software assurance maturity evaluation across all BBH applications and business services.
   - Objective scoring engine (`SammCalculator`) evaluating 11 automated practices across 5 SAMM business functions:

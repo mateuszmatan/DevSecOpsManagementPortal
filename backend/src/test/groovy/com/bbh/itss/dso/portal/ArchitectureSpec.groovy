@@ -39,7 +39,7 @@ class ArchitectureSpec extends Specification {
     static final String PERSISTENCE = 'com.bbh.itss.dso.portal.adapter.out.persistence..'
     static final String ADAPTER = 'com.bbh.itss.dso.portal.adapter..'
     static final String CONFIG = 'com.bbh.itss.dso.portal.config..'
-    static final String HTTP_ADAPTER = 'com.bbh.itss.dso.portal.adapter.out.influx..'
+    static final String[] HTTP_ADAPTERS = ['com.bbh.itss.dso.portal.adapter.out.influx..', 'com.bbh.itss.dso.portal.adapter.out.bitbucket..']
     static final String[] FRAMEWORKS = ['jakarta..', 'org.springframework..', 'org.hibernate..', 'tools.jackson..',
                                         'com.fasterxml..', 'org.slf4j..']
     static final String[] HELPERS = ['org.apache.commons.lang3..', 'org.apache.commons.collections4..', 'lombok..']
@@ -91,7 +91,7 @@ class ArchitectureSpec extends Specification {
              [Entity, Embeddable, MappedSuperclass, Converter].any { type.isAnnotatedWith(it) } ||
                      type.isAssignableTo(Repository)
          }).should().resideInAPackage(PERSISTENCE),
-         noClasses().that().resideOutsideOfPackage(HTTP_ADAPTER)
+         noClasses().that().resideOutsideOfPackages(HTTP_ADAPTERS)
                  .should().dependOnClassesThat()
                  .resideInAnyPackage('org.springframework.web.client..', 'java.net.http..'),
          slices().matching('com.bbh.itss.dso.portal.domain.(*)..').should().beFreeOfCycles(),

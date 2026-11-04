@@ -20,11 +20,13 @@ The guide is written in `docs/documentation.md`. The page `docs/documentation.ht
 - [12. Library defaults (Global Settings)](#12-library-defaults-global-settings)
 - [13. Pipeline Monitoring and DORA](#13-pipeline-monitoring-and-dora)
 - [14. OWASP SAMM Software Assurance Maturity Model](#14-owasp-samm-software-assurance-maturity-model)
-- [15. Business Services](#15-business-services)
-- [16. Action history](#16-action-history)
-- [17. Field reference: from the portal to devsecops_config.yaml](#17-field-reference-from-the-portal-to-devsecops_configyaml)
-- [18. Database and environments](#18-database-and-environments)
-- [19. Troubleshooting](#19-troubleshooting)
+- [15. Repo Auto-Discovery and Smart Wizard](#15-repo-auto-discovery-and-smart-wizard)
+- [16. Bitbucket Pull Request Decoration & Shift-Left Feedback](#16-bitbucket-pull-request-decoration--shift-left-feedback)
+- [17. Business Services](#17-business-services)
+- [18. Action history](#18-action-history)
+- [19. Field reference: from the portal to devsecops_config.yaml](#19-field-reference-from-the-portal-to-devsecops_configyaml)
+- [20. Database and environments](#20-database-and-environments)
+- [21. Troubleshooting](#21-troubleshooting)
 
 ## 1. What the portal does
 
@@ -74,12 +76,12 @@ The menu at the top has six entries.
 | Self-service | Set up the pipelines of a product, or change them, in five guided steps. See [chapter 4](#4-add-a-service-in-the-self-service-wizard). |
 | Pipeline Monitoring | See whether the latest runs passed and how often and how safely changes reach production. See [chapter 13](#13-pipeline-monitoring-and-dora). |
 | OWASP SAMM | Software Assurance Maturity Model (OWASP SAMM v2.0) posture across BBH applications and business services. Continuous maturity evaluation across 5 domains and 11 practices, scorecards, and improvement roadmaps. See [chapter 14](#14-owasp-samm-software-assurance-maturity-model). |
-| Action history | See who changed what and when, with the result. See [chapter 16](#16-action-history). |
+| Action history | See who changed what and when, with the result. See [chapter 18](#18-action-history). |
 | Admin | The DevSecOps administration with four tabs: Business Services, Products, Service template and Library defaults. |
 
 ### The help icons and the key chips
 
-Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as `build.node.enabled`. The chip is the key the field writes in `devsecops_config.yaml`. [Chapter 17](#17-field-reference-from-the-portal-to-devsecops_configyaml) lists every chip.
+Every field has a help icon. Point at it or move the keyboard focus to it to read what the field does. The grey text under a field is its hint. A hint ends with a code chip such as `build.node.enabled`. The chip is the key the field writes in `devsecops_config.yaml`. [Chapter 19](#19-field-reference-from-the-portal-to-devsecops_configyaml) lists every chip.
 
 A hint that says "Library default: X" shows the value the service takes from the Library defaults page. A hint that says "Library default" alone shows that the field still holds that value.
 
@@ -189,16 +191,17 @@ Have these at hand:
 
 1. Click "Add a service". The dialog "Add a service" opens. Its tag shows the pipeline.
 2. To start from another service of the product, choose it in "Copy values from". To start from a file, click "Import devsecops_config.yaml". Both are optional. See [chapter 9](#9-import-a-devsecops_configyaml-and-copy-a-service).
-3. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.
-4. In Build, choose the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven and "The code has a pubspec.yaml file" means Flutter. The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
-5. If the repository holds a frontend that npm builds, for example an Angular application, tick "Build the frontend with Node.js first". Type the "Folder with package.json", for example `frontend`. Leave the other Node.js fields as they are. See [chapter 6](#6-build-the-frontend-with-nodejs-first-stage-0).
-6. In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.
-7. For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.
-8. For the Full pipeline on virtual machines, add an UrbanCode Deploy application for DV.
-9. For the Security and Full pipelines, choose Virtual machine or OpenShift in Deployment. On OpenShift, fill in the RD build fields of OpenShift targets.
-10. In GoldenFix, list a shared version catalog only when the services of the repository share one with an unusual name. Most services leave the field empty. See [chapter 7](#7-shared-version-catalogs-and-the-combined-jenkinsfile).
-11. Look at the bottom of the dialog. While something is missing, it says "Complete these fields first:" followed by the names of the fields. Click a name: the dialog opens its section and puts the cursor in the field.
-12. When nothing is missing, "Add service" is active. Click it.
+3. Alternatively, use **Repo Auto-Discovery / Smart Wizard (Scan & Auto-fill)**: Type the Bitbucket repository URL and branch, then click "Scan & Auto-fill". The portal queries the repository tree via Bitbucket REST API and automatically populates the build tool (Maven, Gradle, Liquibase, Flutter, Python/pip), Java/Node versions, test runners, and OpenShift target. See [chapter 15](#15-repo-auto-discovery-and-smart-wizard).
+4. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.
+5. In Build, choose or verify the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven, "The code has a pubspec.yaml file" means Flutter, "The code has a requirements.txt or pyproject.toml" means Python/pip, and "The code has a changelog.xml" means Liquibase. The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
+6. If the repository holds a frontend that npm builds, for example an Angular application, tick "Build the frontend with Node.js first". Type the "Folder with package.json", for example `frontend`. Leave the other Node.js fields as they are. See [chapter 6](#6-build-the-frontend-with-nodejs-first-stage-0).
+7. In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.
+8. For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.
+9. For the Full pipeline on virtual machines, add an UrbanCode Deploy application for DV.
+10. For the Security and Full pipelines, choose Virtual machine or OpenShift in Deployment. On OpenShift, fill in the RD build fields of OpenShift targets.
+11. In GoldenFix, list a shared version catalog only when the services of the repository share one with an unusual name. Most services leave the field empty. See [chapter 7](#7-shared-version-catalogs-and-the-combined-jenkinsfile).
+12. Look at the bottom of the dialog. While something is missing, it says "Complete these fields first:" followed by the names of the fields. Click a name: the dialog opens its section and puts the cursor in the field.
+13. When nothing is missing, "Add service" is active. Click it.
 
 Add every service of the product in the same way. Under each service the list shows its build tool, the folder of its Node.js build and its repository. Use Change to correct a service and Remove to take it out. Click Next.
 
@@ -775,7 +778,73 @@ The portal exposes the following REST endpoints under `/api/samm`:
 - `GET /api/samm/departments/{id}`: Department summary and its application scores.
 - `GET /api/samm/pipelines/{id}`: Detailed application scorecard for a single pipeline, including practice scores, criteria checklist, and recommendations.
 
-## 15. Business Services
+## 15. Repo Auto-Discovery and Smart Wizard
+
+Onboarding new repositories into DevSecOps typically requires developers to know 15 to 20 granular settings: build tool flags, compiler versions, test result XML locations, JaCoCo report paths, Node.js versions, and deployment targets. The **Repo Auto-Discovery / Smart Wizard** removes this barrier by automatically detecting the application stack directly from Bitbucket.
+
+### How it works
+
+1. When adding or editing a service in the Self-service wizard or Admin editor, enter the **Bitbucket repository URL** and target **Branch** (defaults to `main` or `master`).
+2. Click **Scan & Auto-fill**.
+3. The portal executes an inspection against Bitbucket REST API v2 (`/api/catalog/inspect-repo`), walks the directory structure, and analyzes configuration manifests.
+4. The service form is populated immediately with tailored defaults, which developers can review and tweak before saving.
+
+### Supported Stacks and Heuristics
+
+The detector (`RepoStackDetector`) inspects manifests in priority order:
+
+- **Maven**: Detected via `pom.xml`.
+  - Parses `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, or `<release>` properties to determine the exact Java JDK version.
+  - Automatically configures default tasks (`clean verify`), artifact path (`target/*.jar`), and enables JaCoCo XML discovery.
+  - Detects Kotlin plugins (`kotlin-maven-plugin`) and configures Kotlin support.
+- **Gradle**: Detected via `build.gradle`, `build.gradle.kts`, or `gradle/wrapper/gradle-wrapper.properties`.
+  - Reads `distributionUrl` in wrapper properties to identify the exact Gradle release (e.g. Gradle 8.5) and appropriate JDK.
+  - Automatically configures default tasks (`build`), artifact path (`build/libs/*.jar`), and enables JaCoCo test reporting.
+  - Detects Kotlin DSL (`build.gradle.kts`) and Kotlin compiler plugins.
+- **Node.js (Stage 0)**: Detected via `package.json` at root or in common frontend directories (`frontend/`, `web/`, `client/`, `ui/`).
+  - Automatically enables Stage 0 Node.js pre-build (`build.node.enabled: true`) and sets the folder.
+  - Parses `engines.node` to select the compatible Node.js installation.
+  - Inspects `dependencies` and `devDependencies` to detect frontend frameworks (Angular, React, Vue) and test runners (Cypress, Jest), preconfiguring unit test commands and coverage paths (`coverage/lcov.info`).
+- **Liquibase (SQL / PL/SQL)**: Detected via `changelog.xml`, `liquibase.properties`, or `db/changelog/` directories.
+  - Automatically selects `LIQUIBASE` as the primary build tool, setting default commands (`updateSQL`) and verification tasks (`validate`).
+- **Flutter / Dart**: Detected via `pubspec.yaml`.
+  - Configures the Flutter toolchain, artifact type (`APK`), and unit test runner (`flutter test`).
+- **Python / pip**: Detected via `requirements.txt`, `pyproject.toml`, `setup.py`, or `Pipfile`.
+  - Configures `PIP` build tool with isolated virtualenv execution.
+- **OpenShift Deployment Target**: Detected via `Dockerfile`, `Containerfile`, or manifests in `openshift/`, `k8s/`, or `helm/`.
+  - Sets the deployment target to `OPENSHIFT` and preconfigures default image build and rollout templates.
+
+### REST API
+
+- `POST /api/catalog/inspect-repo`: Accepts `{ "repositoryUrl": "...", "branch": "main", "credentialsId": "..." }` and returns the detected stack configuration `DiscoveredStack`.
+
+## 16. Bitbucket Pull Request Decoration & Shift-Left Feedback
+
+Shift-left security is most effective when developers receive immediate, context-rich feedback inside their existing code review interface rather than logging into separate security dashboards.
+
+The portal provides an automated Pull Request decoration engine (`/api/dso/bitbucket/pull-requests/decorate`) supporting both Bitbucket Server (anchored diff comments) and Bitbucket Cloud (inline comments).
+
+### Pull Request Consolidation Strategy
+
+To keep code review clean, uncluttered, and actionable, the pipeline divides security findings into two distinct Pull Requests:
+
+1. **Static Security Pull Request (Single Consolidated PR)**:
+   - Created during the static analysis stage of security and full pipelines.
+   - **Nexus IQ GoldenFix**: When direct dependencies violate open source policy, GoldenFix updates package manifests (`pom.xml`, `build.gradle`, `package.json`, `requirements.txt`, `pubspec.yaml`) in a dedicated branch (`GoldenFix-YYYYMMDDHHMM`) and opens a Pull Request.
+   - **HCL AppScan SAST**: SAST results are matched against files and line numbers. Findings with status `Noise` are filtered out. Genuine vulnerabilities (SQL Injection, XSS, Path Traversal, etc.) are posted as inline line comments directly on the affected code, providing the vulnerability description, severity, and remediation guidance.
+   - **SonarQube**: Static code quality, vulnerability, and bug issues are added as inline line comments on the specific code lines.
+   - Developers review and merge automated version upgrades and security recommendations in a single PR review.
+
+2. **DAST Dynamic Security Pull Request (Dedicated PR)**:
+   - Dynamic application security testing (DAST) inspects running applications against external web endpoints.
+   - Findings from DAST (such as missing HTTP security headers, insecure cookie configurations, CORS misconfigurations, or SSL/TLS cipher suites) are operational and infrastructure concerns rather than source file flaws.
+   - When DAST detects policy violations, a dedicated separate PR (`security-dast-<project>`) is created, keeping operational remediation cleanly isolated from application source code changes.
+
+### REST API
+
+- `POST /api/dso/bitbucket/pull-requests/decorate`: Receives `PrDecorationRequest` containing repository URL, pull request ID, credentials, target/source branches, overall markdown summary, and list of `PrFinding` entries (file path, line number, tool name, severity, message).
+
+## 17. Business Services
 
 Admin, Business Services lists the groups of products with their product, service and pipeline counts.
 
@@ -785,7 +854,7 @@ Admin, Business Services lists the groups of products with their product, servic
 
 The Pipelines page shows the pipelines of one Business Service at a time. Its first table counts the pipelines of each Business Service, active and with an invalidated key.
 
-## 16. Action history
+## 18. Action history
 
 The Action history records every change made in the portal: who did it, when, what was done, on which resource and with which result. Search by user, resource or details, and filter by action, resource and status.
 
@@ -793,7 +862,7 @@ The recorded actions are: create, update and delete a product; create, update an
 
 The portal has no sign-in yet. Every action is recorded as the default administrator until BBH single sign-on is added.
 
-## 17. Field reference: from the portal to devsecops_config.yaml
+## 19. Field reference: from the portal to devsecops_config.yaml
 
 This chapter lists every field that writes to `devsecops_config.yaml`. The column "Key" shows the key in the code chip of the field. Service keys sit under `projects.<service>`. A chip that shows only the last part of a key is listed with its full key. A field that is empty writes nothing, and a checkbox that is off writes nothing unless the table says otherwise.
 
@@ -1212,7 +1281,7 @@ The Portal monitoring block sets the portal itself and is not written to `devsec
 
 Some headings of the service form name the section they write to: `deploy.vm.rd` and `deploy.vm.qc` (SSH targets), `deploy.openshift.rd` and `deploy.openshift.qc` (OpenShift targets), `tools.nexusIq.application` (Nexus IQ), `deploy.vm.dod.applications` and `components` (UrbanCode Deploy) and `build.credentialsId` (Flutter credentials).
 
-## 18. Database and environments
+## 20. Database and environments
 
 ### Where the portal runs
 
@@ -1257,7 +1326,7 @@ Every service starts with the Node.js build off and no catalogs, so every config
 
 Changeset `033-parallel-static-analysis` adds `PARALLEL_STATIC_ANALYSIS` (0 or 1, 1 by default) to `DSO_GLOBAL_SETTINGS`, with the check `CK_DSO_GLOBAL_PARALLEL_SCANS`. The saved settings get 1, so "Run Nexus IQ and SonarQube while AppScan scans" is ticked after the upgrade and the settings sent to Jenkins hold `defaults.staticAnalysis.parallel: true`. A library version without this order ignores the key. Untick the box before the next runs to keep the order Nexus IQ, SAST, SonarQube. A rollback drops the column.
 
-## 19. Troubleshooting
+## 21. Troubleshooting
 
 ### "Add service" stays disabled
 
