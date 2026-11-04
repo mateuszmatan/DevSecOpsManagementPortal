@@ -10,6 +10,7 @@ import com.bbh.itss.dso.portal.domain.catalog.ProductDirectory.ProductIdentity
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
+import com.bbh.itss.dso.portal.domain.catalog.UnitTestSettings
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -18,10 +19,13 @@ import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.Region.QC
 import static com.bbh.itss.dso.portal.domain.catalog.Region.RD
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.DEPARTMENT_ID
+import static com.bbh.itss.dso.portal.support.Fixtures.appScan
+import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
@@ -147,7 +151,7 @@ class ProductPersistenceAdapterSpec extends Specification {
                  GOLDEN_FIX_VERSION_CATALOGS: null]
     }
 
-    def "a SQL and PL/SQL service with every database setting and three databases is stored and read back unchanged"() {
+    def "a Liquibase service with every database setting and three databases is stored and read back unchanged"() {
         given:
         def database = DatabaseSettings.builder().changelogFile('db/changelog-master.xml').searchPath('orders-db')
                 .oracleVersion('21.0').defaultSchema('ORDERS').liquibaseSchema('ORDERS_LB').contexts('!test and !perf')
@@ -158,8 +162,7 @@ class ProductPersistenceAdapterSpec extends Specification {
                 .snapshotRepositoryId('orders-snapshots').snapshotRepositoryUrl('https://nexus.bbh.com/orders-snapshots')
                 .releaseRepositoryId('orders-releases').releaseRepositoryUrl('https://nexus.bbh.com/orders-releases')
                 .testReset(true).utplsql(true).utplsqlPaths('orders_app').utplsqlOwner('ORDERS_TEST')
-                .utplsqlSourcePath('db/code').utplsqlTestPath('db/test').utplsqlTimeoutMinutes(45).sonarSources('db')
-                .sonarScannerVersion('7.1.0.4889').build()
+                .utplsqlSourcePath('db/code').utplsqlTestPath('db/test').utplsqlTimeoutMinutes(45).build()
         def test = new DatabaseTargetSettings('jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI', 'orders-db-test',
                 'test,ci', 'smoke', 'ORDERS_CI', 'ORDERS_CI_LB', ['app_role=orders_ci_role'], 20)
         def targets = databaseTargets() + [(DatabaseTarget.TEST): test]
@@ -180,6 +183,22 @@ class ProductPersistenceAdapterSpec extends Specification {
                 [DB_TAG: 0, DB_NEXUS_DELIVERY: 0, DB_PARAMETERS: 'app_role=orders_app_role\ntablespace=orders_data',
                  DB_UTPLSQL_TIMEOUT: 45]
         jdbc.queryForList('SELECT TARGET FROM DSO_SERVICE_DATABASE_TARGET ORDER BY TARGET', String) == ['QC', 'RD', 'TEST']
+    }
+
+    def "a Liquibase service without database changes is stored with its Liquibase commands and read back unchanged"() {
+        given:
+        def liquibase = settings(build: build(tool: LIQUIBASE), unitTests: UnitTestSettings.builder()
+                .command(command(['validate'])).build(), appScan: appScan(compile: true, compileCommand: command(['updateSQL'])))
+
+        when:
+        def saved = adapter.save(Product.create(details(), [new ServiceDraft(null, 'billing-db', null, liquibase)], adapter))
+        entities.clear()
+
+        then:
+        def loaded = adapter.load(saved.id()).get().services()
+        loaded == saved.services()
+        ['build', 'unitTests', 'appScan', 'database'].every { loaded[0].settings()."$it"() == liquibase."$it"() }
+        jdbc.queryForObject('SELECT BUILD_TOOL FROM DSO_SERVICE WHERE ID = ?', String, saved.services()[0].id()) == 'LIQUIBASE'
     }
 
     def "a database that is removed from a kept service loses its row"() {

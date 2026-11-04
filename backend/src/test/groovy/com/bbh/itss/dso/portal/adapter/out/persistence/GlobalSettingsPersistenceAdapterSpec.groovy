@@ -79,7 +79,7 @@ class GlobalSettingsPersistenceAdapterSpec extends Specification {
                  NPMRC_CREDENTIALS_ID  : 'npmrc-file']
     }
 
-    def "the Library defaults (SQL and PL/SQL) are stored and read back, and an emptied block loads as none"() {
+    def "the Library defaults (Liquibase database changes) are stored and read back, and an emptied block loads as none"() {
         given:
         def stored = adapter.save(GlobalSettings.bbhDefaults())
 

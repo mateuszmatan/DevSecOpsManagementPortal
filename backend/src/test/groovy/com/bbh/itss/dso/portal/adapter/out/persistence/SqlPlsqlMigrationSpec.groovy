@@ -35,7 +35,7 @@ class SqlPlsqlMigrationSpec extends MigrationSpecification {
         liquibase.update('')
 
         then:
-        databaseColumns() == [32, 15]
+        databaseColumns() == [30, 15]
         TARGETS in tables()
         jdbc.queryForMap('SELECT NAME, DB_CHANGELOG_FILE, DB_TAG, DB_UTPLSQL FROM DSO_SERVICE') ==
                 [NAME: 'orders-app', DB_CHANGELOG_FILE: null, DB_TAG: null, DB_UTPLSQL: null]
@@ -75,7 +75,7 @@ class SqlPlsqlMigrationSpec extends MigrationSpecification {
         jdbc.queryForList("SELECT ID FROM DATABASECHANGELOG WHERE ID LIKE '037-%' ORDER BY ORDEREXECUTED", String) ==
                 ['037-service-database', '037-service-database-flags', '037-service-database-target',
                  '037-global-database', '037-service-build-tool-old']
-        databaseColumns() == [32, 15]
+        databaseColumns() == [30, 15]
         jdbc.queryForObject("SELECT COUNT(*) FROM $TARGETS" as String, Integer) == 3
 
         when:
@@ -94,7 +94,7 @@ class SqlPlsqlMigrationSpec extends MigrationSpecification {
         jdbc.update('DELETE FROM DSO_SERVICE WHERE ID = ?', again)
 
         then:
-        databaseColumns() == [32, 15]
+        databaseColumns() == [30, 15]
         jdbc.queryForObject("SELECT COUNT(*) FROM $TARGETS" as String, Integer) == 0
     }
 

@@ -10,8 +10,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildSettings.DEFAULT_SOURCE_DIR;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.ABSOLUTE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.JDK_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.PARAMETER_NAME;
 import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.PARAMETER_VALUE;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.PATH;
+import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SEARCH_PATH_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.catalog.DatabaseFormats.SECRET_NAME;
 import static com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget.QC;
 import static com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget.RD;
@@ -25,8 +30,9 @@ import static java.lang.Boolean.TRUE;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
- * The Liquibase changes of a SQL and PL/SQL service (build tool LIQUIBASE): the changelog, the checks, the package in
- * Nexus and the utPLSQL tests. A value equal to the library's default is kept as null, so it is not written.
+ * The database changes of a Liquibase service: the changelog, the checks, the package in Nexus and the utPLSQL tests.
+ * They apply once the changelog file is set. A value equal to the library's default is kept as null, so it is not
+ * written.
  */
 @Builder(toBuilder = true)
 public record DatabaseSettings(String changelogFile, String searchPath, String oracleVersion, String defaultSchema,
@@ -37,7 +43,7 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
                                String snapshotRepositoryId, String snapshotRepositoryUrl, String releaseRepositoryId,
                                String releaseRepositoryUrl, Boolean testReset, Boolean utplsql, String utplsqlPaths,
                                String utplsqlOwner, String utplsqlSourcePath, String utplsqlTestPath,
-                               Integer utplsqlTimeoutMinutes, String sonarSources, String sonarScannerVersion) {
+                               Integer utplsqlTimeoutMinutes) {
 
     public static final DatabaseSettings NONE = builder().build();
 
@@ -74,13 +80,16 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
         utplsqlSourcePath = trimToNull(utplsqlSourcePath);
         utplsqlTestPath = trimToNull(utplsqlTestPath);
         utplsqlTimeoutMinutes = unlessDefault(utplsqlTimeoutMinutes, 30);
-        sonarSources = trimToNull(sonarSources);
-        sonarScannerVersion = trimToNull(sonarScannerVersion);
     }
 
     /** Null for a value equal to the library's default, so that it is neither stored nor written. */
     static <T> T unlessDefault(T value, T libraryDefault) {
         return libraryDefault.equals(value) ? null : value;
+    }
+
+    /** Whether a database setting or a database is set. */
+    public boolean isSet(Map<DatabaseTarget, DatabaseTargetSettings> targets) {
+        return !equals(NONE) || !targets.isEmpty();
     }
 
     /** Whether the pipelines deliver the package to Nexus, which is the library's default. */
@@ -129,15 +138,19 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
                     .set("database.test.utplsql.testPath", utplsqlTestPath)
                     .set("database.test.utplsql.timeoutMinutes", utplsqlTimeoutMinutes);
         }
-        config.set("tools.sonar.sources", sonarSources).set("tools.sonar.sonarScannerVersion", sonarScannerVersion);
     }
 
-    /** The rules that are not a single format; the problems of the databases go to databaseTargets[...]. */
+    /**
+     * The rules that are not a single format, among them the JDK and the source folder of the build that Liquibase and
+     * utPLSQL need; the problems of the databases go to databaseTargets[...].
+     */
     public void validate(ValidationProblems problems, Map<DatabaseTarget, DatabaseTargetSettings> targets,
-                         String sourceDir) {
+                         BuildSettings build) {
         ValidationProblems database = problems.at("database");
-        database.require("changelogFile", changelogFile, "is required for the build tool SQL and PL/SQL (Liquibase)");
-        if (changelogFile != null && !changelogFile.contains("/") && ".".equals(sourceDir) && searchPath == null) {
+        database.require("changelogFile", changelogFile, "is required once a database setting or database is set");
+        validateBuild(problems.at("build"), build);
+        if (changelogFile != null && !changelogFile.contains("/") && DEFAULT_SOURCE_DIR.equals(build.sourceDir())
+                && searchPath == null) {
             database.add("changelogFile", "has no folder and the search root is the repository root: put the"
                     + " changelog in a folder, or set the search folder or the source folder to the folder of the"
                     + " changelog");
@@ -164,6 +177,18 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
             if (testReset != null) {
                 database.add("testReset", TEST_URL);
             }
+        }
+    }
+
+    private static void validateBuild(ValidationProblems problems, BuildSettings build) {
+        if (build.javaPath() == null && !build.autoSetup()) {
+            problems.add("javaPath", "set the JDK path or enable automatic build tool setup: Liquibase and utPLSQL need"
+                    + " Java 17 or newer");
+        } else if (build.javaPath() != null && !build.javaPath().matches(ABSOLUTE)) {
+            problems.add("javaPath", JDK_MESSAGE);
+        }
+        if (!build.sourceDir().equals(DEFAULT_SOURCE_DIR) && !build.sourceDir().matches(PATH)) {
+            problems.add("sourceDir", SEARCH_PATH_MESSAGE);
         }
     }
 

@@ -73,8 +73,6 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FIL
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_PATH_MESSAGE;
-import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SCANNER_VERSION;
-import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SCANNER_VERSION_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.URL;
@@ -462,7 +460,8 @@ public record ServiceDto(
             @Size(max = 500) String sonarTests,
             Boolean sonarFlutterPlugin,
             @Size(max = 500) String dartAnalyzeCommand,
-            @Size(max = 50) @Pattern(regexp = SCANNER_VERSION, message = SCANNER_VERSION_MESSAGE)
+            @Size(max = 50)
+            @Pattern(regexp = "^[0-9A-Za-z._-]*$", message = "must be a SonarScanner version such as 5.0.1.3006")
             String sonarScannerVersion) implements Mirrors<FlutterSettings> {
     }
 
@@ -505,10 +504,7 @@ public record ServiceDto(
             String utplsqlSourcePath,
             @Size(max = 500) @Pattern(regexp = OPTIONAL + PATH, message = SEARCH_ROOT_PATH_MESSAGE)
             String utplsqlTestPath,
-            @Min(1) @Max(240) Integer utplsqlTimeoutMinutes,
-            @Size(max = 500) @Pattern(regexp = COMMAND, message = COMMAND_MESSAGE) String sonarSources,
-            @Size(max = 50) @Pattern(regexp = SCANNER_VERSION, message = SCANNER_VERSION_MESSAGE)
-            String sonarScannerVersion) implements Mirrors<DatabaseSettings> {
+            @Min(1) @Max(240) Integer utplsqlTimeoutMinutes) implements Mirrors<DatabaseSettings> {
     }
 
     public record DatabaseTargetDto(

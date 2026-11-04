@@ -119,7 +119,7 @@ class ConfigContractRegressionSpec extends PortalSpecification {
         matchesExpected('node-catalog-nexus-iq-pipeline-config.yaml', nexusIqConfig.body)
     }
 
-    def "SQL and PL/SQL services render the database block the library reads and leave the other services of their repository as they are"() {
+    def "Liquibase services with database changes render the database block the library reads and leave the other services of their repository as they are"() {
         given:
         saveDatabaseDefaults(databaseDefaults())
         def orders = createProduct(product(code: 'ORDERSDB', name: 'Orders Database', services: [ORDERS_DB]))

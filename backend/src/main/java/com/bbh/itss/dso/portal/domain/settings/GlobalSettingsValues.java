@@ -86,7 +86,7 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
         releaseGate.validate(problems.at("releaseGate"));
         goldenFix.validateComplete(problems.at("goldenFix"));
         if (serviceDefaults.buildTool() == LIQUIBASE) {
-            problems.add("serviceDefaults.buildTool", "must not be SQL and PL/SQL (Liquibase): a database service needs"
+            problems.add("serviceDefaults.buildTool", "must not be Liquibase (SQL / PL/SQL): a Liquibase service needs"
                     + " its own changelog, so every new service starts with Gradle, Maven or Flutter");
         }
         database.validate(problems.at("database"));

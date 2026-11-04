@@ -66,12 +66,9 @@ class NodeBuildSettingsSpec extends Specification {
                 [['nodePath', 'give the Node.js installation or its home on the agent, not both']]
     }
 
-    def "an enabled Node.js build is refused for SQL and PL/SQL, and a switched off one is not"() {
+    def "an enabled Node.js build runs before a Liquibase build as before any other"() {
         expect:
-        reported { FULL.validate(it, LIQUIBASE) }.collect { [it.field, it.message] } == [['enabled',
-                'must be off for SQL and PL/SQL (Liquibase): a database service has no build for a Node.js build to run'
-                        + ' before']]
-        reported { both(false).validate(it, LIQUIBASE) } == []
+        reported { FULL.validate(it, LIQUIBASE) } == []
     }
 
     def "the folder of an enabled Node.js build is refused when it leaves the repository: '#directory'"() {

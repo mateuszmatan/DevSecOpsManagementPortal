@@ -81,7 +81,7 @@ class GlobalSettingsEntitySpec extends Specification {
         1 * stored.putAll({ it == [(SAST): new SeverityLimitsEmbeddable(3, 2, 1)] })
     }
 
-    def "the Library defaults (SQL and PL/SQL) are read back unchanged, and an empty block as none"() {
+    def "the Library defaults (Liquibase database changes) are read back unchanged, and an empty block as none"() {
         when:
         entity.apply(copy(bbh, database: database))
 

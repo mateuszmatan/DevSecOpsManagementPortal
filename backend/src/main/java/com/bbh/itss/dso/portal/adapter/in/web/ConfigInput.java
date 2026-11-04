@@ -87,6 +87,14 @@ final class ConfigInput {
         return entries;
     }
 
+    /** Whether the key holds a value that nobody read and the portal would not write anyway. */
+    boolean unread(String key) {
+        Object value = valueAt(values, key);
+        return value instanceof Map<?, ?> map && !map.isEmpty()
+                ? map.keySet().stream().anyMatch(name -> unread(key + "." + name))
+                : !isEmpty(value) && !isRead(key) && !same(value, valueAt(inherited, key));
+    }
+
     void note(String key, String message) {
         notes.add(new FieldProblem(path + key, message));
     }

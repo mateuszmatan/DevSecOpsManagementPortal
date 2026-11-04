@@ -139,9 +139,13 @@ final class Fixtures {
                 .build()
     }
 
-    /** The SQL and PL/SQL service orders-db of the library's layout (a), with the repositories left to the defaults. */
+    /**
+     * The Liquibase service orders-db of the library's layout (a), with database changes, no Liquibase commands of its
+     * own and the repositories left to the defaults.
+     */
     static ServiceSettings databaseSettings(Map args = [:]) {
-        settings([build: build(tool: LIQUIBASE), database: database(), databaseTargets: databaseTargets()] + args)
+        settings([build: build(tool: LIQUIBASE, command: NONE), database: database(), databaseTargets: databaseTargets()]
+                + args)
     }
 
     static DatabaseSettings database() {
@@ -159,7 +163,7 @@ final class Fixtures {
                  .credentialsId('orders-db-qc').parameters(['app_role=orders_qc_role']).build()]
     }
 
-    /** The Library defaults (SQL and PL/SQL) of the regression Global Settings. */
+    /** The Library defaults (Liquibase database changes) of the regression Global Settings. */
     static DatabaseDefaults databaseDefaults() {
         DatabaseDefaults.builder().liquibaseHome('/opt/liquibase/4.33.0').oracleJdbcPath('/opt/oracle/ojdbc11.jar')
                 .utplsqlUrl(UTPLSQL_URL)

@@ -18,8 +18,8 @@ import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
- * The tools, the allowed databases and the Nexus repositories of every SQL and PL/SQL service, rendered under
- * defaults only when set.
+ * The tools, the allowed databases and the Nexus repositories of every Liquibase service with database changes,
+ * rendered under defaults only when set.
  */
 @Builder(toBuilder = true)
 public record DatabaseDefaults(String liquibaseHome, String liquibaseUrl, String liquibaseSha256,

@@ -82,30 +82,24 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         return withDatabase(database.withDefaultArtifact(serviceName));
     }
 
-    /** Whether the service is SQL and PL/SQL code that Liquibase deploys, which builds and deploys nothing else. */
+    /** Whether Liquibase deploys the changes of the service to its databases: a Liquibase service with a changelog. */
     public boolean changesDatabase() {
-        return build.tool() == LIQUIBASE;
+        return build.tool() == LIQUIBASE && database.changelogFile() != null;
     }
 
-    /** The target the service deploys to; none for a database service, which Liquibase deploys. */
+    /** The target the service deploys to; none for a service whose changes Liquibase deploys. */
     public DeployTarget deployTarget() {
         return changesDatabase() ? null : deployment.target();
     }
 
     public void writeTo(ConfigTree config) {
         BuildTool tool = build.tool();
+        boolean deploys = !changesDatabase();
         build.writeTo(config);
-        if (changesDatabase()) {
-            appScan.writeTo(config, tool);
-            metrics.writeTo(config);
-            sonar.writeTo(config, tool);
-            scm.writeTo(config);
-            tests.writeTo(config, testJobs);
-            database.writeTo(config, databaseTargets);
-            return;
-        }
         nodeBuild.writeTo(config);
-        deployment.writeTo(config);
+        if (deploys) {
+            deployment.writeTo(config);
+        }
         appScan.writeTo(config, tool);
         metrics.writeTo(config);
         unitTests.writeTo(config, tool);
@@ -116,7 +110,9 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         config.set("goldenFix.versionCatalogs", versionCatalogs);
         versionCatalogRepo.writeTo(config);
         tests.writeTo(config, testJobs);
-        if (deployment.target() == VM) {
+        if (!deploys) {
+            database.writeTo(config, databaseTargets);
+        } else if (deployment.target() == VM) {
             if (tool == MAVEN) {
                 delivery.writeTo(config, "delivery", MAVEN);
             }
@@ -126,7 +122,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
             openShiftTargets.forEach((region, target) ->
                     config.set("deploy.openshift." + region.configKey(), target.toConfig()));
         }
-        if (deployment.nexusDeliveryDisabled()) {
+        if (deploys && deployment.nexusDeliveryDisabled()) {
             String rd = deployment.target() == VM ? "deploy.vm.rd" : "deploy.openshift.rd";
             config.set(rd + ".nexusDeliveryEnabled", false);
         }
@@ -135,21 +131,17 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         }
     }
 
+    /** The rules of the service; one whose changes Liquibase deploys has no deployment of its own to check. */
     public void validate(ValidationProblems problems) {
         BuildTool tool = build.tool();
+        boolean deploys = !changesDatabase();
         build.validate(problems.at("build"));
         nodeBuild.validate(problems.at("nodeBuild"), tool);
-        if (changesDatabase()) {
-            appScan.validate(problems.at("appScan"), tool);
-            sonar.validate(problems.at("sonar"), tool);
-            scm.validate(problems.at("scm"));
-            validateTestJobs(problems);
-            database.validate(problems, databaseTargets, build.sourceDir());
-            return;
-        }
         unitTests.validate(problems.at("unitTests"), tool);
-        deployment.validate(problems.at("deployment"));
-        if (deployment.target() == OPENSHIFT) {
+        if (deploys) {
+            deployment.validate(problems.at("deployment"));
+        }
+        if (deploys && deployment.target() == OPENSHIFT) {
             if (deployment.deliversToNexus(OPENSHIFT)) {
                 openShiftTargets.getOrDefault(RD, NONE).validateImageBuild(problems.at(targetPath(RD)));
             }
@@ -165,22 +157,26 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         if (tool == FLUTTER) {
             flutter.validate(problems.at("flutter"), deployment);
         }
-        if (deployment.deliversToNexus(VM) && tool == MAVEN) {
+        if (deploys && deployment.deliversToNexus(VM) && tool == MAVEN) {
             problems.require("build.buildPath", build.buildPath(),
                     "is required for Maven on VMs: the Nexus delivery publishes the artifact found there");
             problems.require("delivery.tasks", delivery.tasks(),
                     "add the Maven goals that upload the snapshot, for example deploy:deploy-file");
         }
-        delivery.validate(problems.at("delivery"));
-        validateTestJobs(problems);
-        for (int i = 0; i < urbanCodeApplications.size(); i++) {
-            urbanCodeApplications.get(i).validate(problems.at("urbanCodeApplications[" + i + "]"));
+        if (deploys) {
+            delivery.validate(problems.at("delivery"));
         }
-    }
-
-    private void validateTestJobs(ValidationProblems problems) {
         for (int i = 0; i < testJobs.size(); i++) {
             testJobs.get(i).validate(problems.at("testJobs[" + i + "]"));
+        }
+        for (int i = 0; deploys && i < urbanCodeApplications.size(); i++) {
+            urbanCodeApplications.get(i).validate(problems.at("urbanCodeApplications[" + i + "]"));
+        }
+        if (database.isSet(databaseTargets) && tool != LIQUIBASE) {
+            problems.add("database", "is set for a service that does not build with Liquibase: only a Liquibase"
+                    + " service changes a database");
+        } else if (database.isSet(databaseTargets)) {
+            database.validate(problems, databaseTargets, build);
         }
     }
 

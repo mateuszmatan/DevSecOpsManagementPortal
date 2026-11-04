@@ -20,6 +20,7 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.ACTIVE
 import static com.bbh.itss.dso.portal.domain.pipeline.KeyStatus.REVOKED
@@ -32,6 +33,7 @@ import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.CatalogFixtures.copy
 import static com.bbh.itss.dso.portal.support.Fixtures.KEY
 import static com.bbh.itss.dso.portal.support.Fixtures.activeKey
+import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.database
 import static com.bbh.itss.dso.portal.support.Fixtures.databaseDefaults
 import static com.bbh.itss.dso.portal.support.Fixtures.databaseSettings
@@ -325,7 +327,7 @@ class PipelineServiceSpec extends Specification {
                   [nexusIqApplications: [scanned('cert-batch')], deployment: deployment(target: OPENSHIFT)], [:]]
     }
 
-    def "a #type pipeline of a SQL and PL/SQL service that delivers its package is refused without its #missing"() {
+    def "a #type pipeline of a Liquibase service that delivers its database package is refused without its #missing"() {
         given:
         products.findByServiceId(30L) >> Optional.of(product(id: 3, services: [[name: 'orders-db', id: 30,
                                                                                  settings: databaseSettings(database: own)]]))
@@ -349,10 +351,10 @@ class PipelineServiceSpec extends Specification {
         FULL     | own(snapshotRepositoryId: 's')        | library(snapshotRepositoryUrl: 'u')     || 'release repository ID'
         EXTENDED | own(releaseRepositoryId: 'r')         | library(snapshotRepositoryId: 's',
                                                                    snapshotRepositoryUrl: 'u')     || 'release repository URL'
-        orDefaults = missing == 'group ID' ? '' : ' or in the Library defaults (SQL and PL/SQL)'
+        orDefaults = missing == 'group ID' ? '' : ' or in the Library defaults (Liquibase database changes)'
     }
 
-    def "a SQL and PL/SQL service gets a #type pipeline when #reason"() {
+    def "a Liquibase service with database changes gets a #type pipeline when #reason"() {
         given:
         products.findByServiceId(30L) >> Optional.of(product(id: 3, services: [[name: 'orders-db', id: 30,
                                                                                  settings: databaseSettings(database: own)]]))
@@ -373,7 +375,7 @@ class PipelineServiceSpec extends Specification {
         library = reason.startsWith('the Library') ? databaseDefaults() : DatabaseDefaults.NONE
     }
 
-    def "a SQL and PL/SQL service has no Nexus IQ pipeline, and a product keeping one is refused"() {
+    def "a Liquibase service with database changes has no Nexus IQ pipeline, and a product keeping one is refused"() {
         given:
         products.findByServiceId(30L) >> Optional.of(product(id: 3, services: [[name: 'orders-db', id: 30,
                                                                                  settings: databaseSettings()]]))
@@ -393,6 +395,18 @@ class PipelineServiceSpec extends Specification {
         then:
         def saved = thrown(IllegalStateException)
         saved.message == NO_DEPENDENCIES
+    }
+
+    def "a Liquibase service without database changes gets a Nexus IQ pipeline for its Nexus IQ application"() {
+        given:
+        products.findByServiceId(30L) >> Optional.of(product(id: 3, services: [[name: 'orders-db', id: 30,
+                build: build(tool: LIQUIBASE), nexusIqApplications: [scanned('orders-db')]]]))
+
+        when:
+        service.create(30L, NEXUS_IQ, pipelineSettings())
+
+        then:
+        1 * pipelines.save(_) >> { Pipeline p -> stored(100L, p) }
     }
 
     def "a product whose services can run every pipeline type asks for none of their pipelines"() {
@@ -539,10 +553,9 @@ class PipelineServiceSpec extends Specification {
          running([id: 91L, serviceId: 14L, jenkinsJob: 'Teams/payhub'] + args)]
     }
 
-    static final String NO_DEPENDENCIES = 'Service orders-db changes a database with SQL and PL/SQL and has no open' +
-            ' source dependencies, so a Nexus IQ GoldenFix pipeline would scan nothing. Choose another pipeline type,' +
-            ' or delete the Nexus IQ GoldenFix pipeline of the service before you change its build tool to SQL and' +
-            ' PL/SQL (Liquibase)'
+    static final String NO_DEPENDENCIES = 'Service orders-db is a Liquibase service with database changes, for which' +
+            ' the library runs no Nexus IQ GoldenFix pipeline. Choose another pipeline type, or delete the Nexus IQ' +
+            ' GoldenFix pipeline of the service before you set its changelog file'
 
     private static DatabaseSettings own(Map changes) {
         def builder = database().toBuilder()
@@ -556,7 +569,7 @@ class PipelineServiceSpec extends Specification {
         builder.build()
     }
 
-    /** The service under a Global Settings stub with these Library defaults (SQL and PL/SQL). */
+    /** The service under a Global Settings stub with these Library defaults (Liquibase database changes). */
     private PipelineService withDefaults(DatabaseDefaults defaults) {
         ManageGlobalSettingsUseCase library = Stub() {
             current() >> storedSettings { copy(it, database: defaults) }

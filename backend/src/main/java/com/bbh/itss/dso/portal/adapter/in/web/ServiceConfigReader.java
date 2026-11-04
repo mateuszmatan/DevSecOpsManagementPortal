@@ -67,15 +67,15 @@ final class ServiceConfigReader {
     static final String LONG_PATHS = "not imported: longer than the 500 characters the portal keeps; name fewer"
             + " reports, or one pattern such as **/build/reports/jacoco/test/*.xml";
     static final String NO_PROJECT = "found no project: expected a projects map or the settings of one project";
-    static final String NOT_FOR_DATABASE = "not imported: a SQL and PL/SQL service (buildTool liquibase) does not use"
-            + " it";
-    static final String NOT_A_DATABASE = "not imported: database settings belong to a service with buildTool"
-            + " liquibase";
+    static final String NOT_FOR_DATABASE = "not imported: a Liquibase service with database changes has no deployment"
+            + " of its own";
+    static final String NOT_A_DATABASE = "not imported: only a Liquibase service with a database.changelogFile has"
+            + " database settings";
     static final String NO_PRODUCTION = "not imported: the pipelines never deploy to production";
     static final String SECRET_IN_URL = "not imported: the URL holds a user or a password; the portal keeps only the"
             + " ID of the Jenkins credentials";
-    static final String TOOLS_IN_DEFAULTS = "not imported: the portal sets the SQL and PL/SQL tools for every service"
-            + " in the Library defaults";
+    static final String TOOLS_IN_DEFAULTS = "not imported: the portal sets the tools of Liquibase database changes for"
+            + " every service in the Library defaults";
     static final int MAX_PROJECTS = 50;
 
     private static final List<String> DOCUMENT_KEYS = List.of("pipeline", "platform", "defaults");
@@ -130,12 +130,6 @@ final class ServiceConfigReader {
         }
         return url;
     };
-    private static final Conversion DAST_OFF = value -> {
-        if ((Boolean) FLAG.apply(value)) {
-            throw new NotImported(NOT_FOR_DATABASE);
-        }
-        return false;
-    };
     private static final Conversion PARAMETERS = value ->
             String.join("\n", value instanceof Map<?, ?> parameters ? pairs(parameters) : items(value, null));
     private static final Conversion DISABLED = value -> !(Boolean) FLAG.apply(value);
@@ -160,21 +154,17 @@ final class ServiceConfigReader {
             .map(rule -> rule.key().split("\\.")[0]).collect(toSet());
     private static final List<Rule> DATABASE = databaseRules();
     private static final List<String> UNUSED_BY_DATABASE = List.of("deployTarget", "appName", "artifactName",
-            "baseArtifactName", "build.buildPath", "build.gradle", "build.maven", "build.flutter", "build.node",
-            "build.credentialsId", "asoc.gradle", "asoc.maven", "asoc.doCompile", "asoc.sourceCodeOnly",
-            "dast.targetUrl", "dast.presenceId", "coverage", "tests.unitTests", "tests.modules", "tests.submodules",
-            "tests.subplugins", "tools.sonar.gradle", "tools.sonar.maven", "tools.sonar.tests",
-            "tools.sonar.dartAnalyzeCommand", "tools.sonar.flutterPlugin", "tools.flutter", "tools.nexusIq", "deploy",
-            "delivery", "goldenFix", "flutter");
+            "baseArtifactName", "deploy", "delivery");
     private static final List<Rule> DATABASE_PROJECT = PROJECT.stream()
-            .filter(rule -> DATABASE.stream().noneMatch(database -> database.key().equals(rule.key()))
-                    && UNUSED_BY_DATABASE.stream().noneMatch(key -> (rule.key() + ".").startsWith(key + ".")))
+            .filter(rule -> UNUSED_BY_DATABASE.stream().noneMatch(key -> (rule.key() + ".").startsWith(key + ".")))
             .toList();
     private static final String MAVEN_HOME = "build.maven.mvnPath";
     private static final String DELIVERY = "deploy.%s.rd.nexusDeliveryEnabled";
     private static final List<Block> COMMAND_BLOCKS = List.of(new Block("build", "build.command"),
             new Block("tests.unitTests", "unitTests.command"), new Block("tools.sonar", "sonar.command"),
             new Block("asoc", "appScan.compileCommand"), new Block("delivery", "delivery"));
+    private static final List<Block> DATABASE_BLOCKS = COMMAND_BLOCKS.stream()
+            .filter(block -> !UNUSED_BY_DATABASE.contains(block.key())).toList();
     private static final List<Rule> COMMAND = List.of(rule("flags", "flags", WORDS), rule("dir", "directory", TEXT),
             rule("env", "environment", ENV), rule("label", "label", TEXT), rule("returnStdout", "returnStdout", FLAG));
     private static final Map<BuildTool, List<Rule>> COMMANDS = Map.of(
@@ -258,7 +248,7 @@ final class ServiceConfigReader {
     /** The values the portal writes into the project anyway, among them the package named after the project. */
     private Map<String, Object> inherited(String name) {
         ConfigTree inherited = new ConfigTree().set("deploy.vm.dod.applications", List.of(Map.of()));
-        global.platform().writeProjectDefaults(inherited, true);
+        global.platform().writeProjectDefaults(inherited);
         global.deployment().fillIn(inherited, VM);
         global.goldenFix().writeTo(inherited);
         inherited.set("tests.maxParallel", global.serviceDefaults().testsMaxParallel());
@@ -283,30 +273,30 @@ final class ServiceConfigReader {
         }
         BuildTool tool = BuildTool.valueOf(String.valueOf(request.get("build.tool")));
         DeployTarget target = DeployTarget.valueOf(String.valueOf(request.get("deployment.target")));
-        if (tool == LIQUIBASE) {
+        boolean database = tool == LIQUIBASE && project.take("database.changelogFile") != null;
+        if (database) {
             readDatabase(project, request);
-            request.set("testJobs", testJobs(project));
         } else {
             read(project, PROJECT, request);
             if (project.take("database") != null) {
                 project.note("database", NOT_A_DATABASE);
             }
-            if (tool == FLUTTER && Boolean.TRUE.equals(request.get("nodeBuild.enabled"))) {
-                request.set("nodeBuild.enabled", false);
-                project.note("build.node.enabled", NODE_WITH_FLUTTER);
-            }
-            readCommands(project, tool, request);
-            readDelivery(project, target, request);
-            request.set("testJobs", testJobs(project))
-                    .set("urbanCodeApplications", project.entries("deploy.vm.dod.applications", null, null).stream()
-                            .map(application -> entry(application, URBAN_CODE_APPLICATION, new ConfigTree()
-                                    .set("components", application.entries("components", null, null).stream()
-                                            .map(component -> entry(component, URBAN_CODE_COMPONENT,
-                                                    new ConfigTree()))
-                                            .toList())))
-                            .toList())
-                    .set("nexusIqApplications", nexusIqApplications(project, settings));
         }
+        if (tool == FLUTTER && Boolean.TRUE.equals(request.get("nodeBuild.enabled"))) {
+            request.set("nodeBuild.enabled", false);
+            project.note("build.node.enabled", NODE_WITH_FLUTTER);
+        }
+        readCommands(project, tool, database ? DATABASE_BLOCKS : COMMAND_BLOCKS, request);
+        if (!database) {
+            readDelivery(project, target, request);
+            request.set("urbanCodeApplications", project.entries("deploy.vm.dod.applications", null, null).stream()
+                    .map(application -> entry(application, URBAN_CODE_APPLICATION, new ConfigTree()
+                            .set("components", application.entries("components", null, null).stream()
+                                    .map(component -> entry(component, URBAN_CODE_COMPONENT, new ConfigTree()))
+                                    .toList())))
+                    .toList());
+        }
+        request.set("testJobs", testJobs(project)).set("nexusIqApplications", nexusIqApplications(project, settings));
         boolean delivers = !Boolean.TRUE.equals(request.get("deployment.nexusDeliveryDisabled"));
         for (String key : List.of("buildTag", "internalDockerUrl")) {
             if (request.get("openShiftTargets.RD." + key) != null && delivers) {
@@ -323,33 +313,34 @@ final class ServiceConfigReader {
     }
 
     /**
-     * Reads a SQL and PL/SQL service: its database block, the project keys it shares with every service, and one note
-     * for each key it ignores. The Maven home of build.maven fills that of the package, as in the library.
+     * Reads a Liquibase service with database changes: its database block, the project keys it shares with every
+     * service, and a note for each deployment key. The Maven home of build.maven fills that of the package, as in the
+     * library.
      */
     private static void readDatabase(ConfigInput project, ConfigTree request) {
         read(project, DATABASE, request);
         read(project, DATABASE_PROJECT, request);
+        if (request.get("database.mvnPath") == null) {
+            read(project, List.of(rule(MAVEN_HOME, "database.mvnPath", TEXT)), request);
+        }
         for (String key : UNUSED_BY_DATABASE) {
-            Object value = project.take(key);
-            if (key.equals("build.maven") && value instanceof Map<?, ?> maven
-                    && request.get("database.mvnPath") == null) {
-                read(project, List.of(rule(MAVEN_HOME, "database.mvnPath", TEXT)), request);
-                value = maven.keySet().equals(Set.of("mvnPath")) ? null : value;
-            }
-            if (value != null) {
+            if (project.take(key) != null) {
                 project.note(key, NOT_FOR_DATABASE);
             }
         }
     }
 
-    /** Reads the command block of the service's build tool; a block of another tool is left out with a note. */
-    private static void readCommands(ConfigInput project, BuildTool tool, ConfigTree request) {
-        for (Block block : COMMAND_BLOCKS) {
+    /**
+     * Reads the command blocks of the service's build tool; a block of another tool is left out with a note, unless
+     * what it holds was read already.
+     */
+    private static void readCommands(ConfigInput project, BuildTool tool, List<Block> blocks, ConfigTree request) {
+        for (Block block : blocks) {
             for (BuildTool blockTool : List.of(GRADLE, MAVEN, LIQUIBASE)) {
                 String key = block.key() + "." + blockTool.name().toLowerCase(ROOT);
                 if (blockTool == tool) {
                     read(project, prefixed(key + ".", block.field() + ".", COMMANDS.get(tool)), request);
-                } else if (project.take(key) != null) {
+                } else if (project.unread(key) && project.take(key) != null) {
                     project.note(key, "not imported: the service builds with " + tool.name().toLowerCase(ROOT));
                 }
             }
@@ -623,10 +614,8 @@ final class ServiceConfigReader {
                             rule("timeoutMinutes", "timeoutMinutes", NUMBER), note("password", SECRET),
                             note("username", SECRET), note("user", SECRET)))));
         }
-        rules.addAll(List.of(rule("tools.sonar.sources", "database.sonarSources", TEXT),
-                rule("tools.sonar.sonarScannerVersion", "database.sonarScannerVersion", TEXT),
-                rule("dast.enabled", "appScan.dastEnabled", DAST_OFF), note("tools.liquibase", TOOLS_IN_DEFAULTS),
-                note("tools.oracleJdbc", TOOLS_IN_DEFAULTS), note("tools.utplsql", TOOLS_IN_DEFAULTS)));
+        rules.addAll(List.of(note("tools.liquibase", TOOLS_IN_DEFAULTS), note("tools.oracleJdbc", TOOLS_IN_DEFAULTS),
+                note("tools.utplsql", TOOLS_IN_DEFAULTS)));
         return List.copyOf(rules);
     }
 

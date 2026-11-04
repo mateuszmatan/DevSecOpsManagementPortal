@@ -6,9 +6,12 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import groovy.json.JsonSlurper
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget.QC
 import static com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget.RD
 import static com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget.TEST
+import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE
+import static com.bbh.itss.dso.portal.support.Fixtures.build
 
 class DatabaseSettingsSpec extends Specification {
 
@@ -83,8 +86,7 @@ class DatabaseSettingsSpec extends Specification {
         def full = new DatabaseSettings('db/changelog-master.xml', 'src/main/resources', '23.4', 'APP', 'LB', 'rd, !test',
                 'core', ['app_role=orders_app_role'], true, false, 10, false, false, ['PKG_LEGACY'], ['db/legacy/old.sql'],
                 'com.bbh.orders', 'orders-schema', null, '/opt/maven', 'snapshots', 'https://nexus.bbh.com/snapshots',
-                'releases', 'https://nexus.bbh.com/releases', true, true, 'orders', 'APP_OWNER', 'db/code', 'db/test', 60,
-                'db', '5.0.1.3006')
+                'releases', 'https://nexus.bbh.com/releases', true, true, 'orders', 'APP_OWNER', 'db/code', 'db/test', 60)
         def targets = [(QC)  : DatabaseTargetSettings.builder().url(RD_URL.replace('rd', 'qc')).credentialsId('qc')
                 .contexts('qc').labels('core').defaultSchema('APP').liquibaseSchema('LB').parameters(['a=1'])
                 .timeoutMinutes(45).build(),
@@ -109,8 +111,7 @@ class DatabaseSettingsSpec extends Specification {
                                                           sourcePath: 'db/code', testPath: 'db/test', timeoutMinutes: 60]],
                               qc             : [url           : RD_URL.replace('rd', 'qc'), credentialsId: 'qc', contexts: 'qc',
                                                 labels        : 'core', defaultSchema: 'APP', liquibaseSchema: 'LB',
-                                                parameters    : [a: '1'], timeoutMinutes: 45]],
-                   tools   : [sonar: [sources: 'db', sonarScannerVersion: '5.0.1.3006']]]
+                                                parameters    : [a: '1'], timeoutMinutes: 45]]]
         (config.database as Map).keySet() as List == ['changelogFile', 'searchPath', 'oracleVersion', 'defaultSchema',
                                                       'liquibaseSchema', 'contexts', 'labels', 'parameters',
                                                       'requireRollback', 'tag', 'lockWaitMinutes', 'compileCheck',
@@ -140,9 +141,27 @@ class DatabaseSettingsSpec extends Specification {
 
     def "the changelog is required (V1) and needs a folder below a repository root search root (V35)"() {
         expect:
-        problems(DatabaseSettings.NONE) == [problem('database.changelogFile',
-                'is required for the build tool SQL and PL/SQL (Liquibase)')]
+        problems(VALID.toBuilder().changelogFile(null).tag(false).build()) == [problem('database.changelogFile',
+                'is required once a database setting or database is set')]
         problems(VALID.toBuilder().changelogFile('x.xml').build())*.field() == ['database.changelogFile']
+    }
+
+    def "a build in #sourceDir with java path #javaPath and auto setup #autoSetup reports #fields (V3, V23, V26)"() {
+        expect:
+        problems(VALID, [:], new BuildSettings(LIQUIBASE, sourceDir, javaPath, autoSetup, null, null))
+                .collect { [it.field(), it.message()] } == fields
+
+        where:
+        sourceDir   | javaPath                       | autoSetup || fields
+        null        | null                           | true      || []
+        'orders-db' | '/usr/lib/jvm/java-17-openjdk' | false     || []
+        null        | null                           | false     || [['build.javaPath', 'set the JDK path or enable'
+                + ' automatic build tool setup: Liquibase and utPLSQL need Java 17 or newer']]
+        null        | 'jdk-17'                       | true      || [['build.javaPath', 'must be the absolute path of a JDK'
+                + ' 17 or newer, such as /usr/lib/jvm/java-17-openjdk']]
+        'db/../..'  | null                           | true      || [['build.sourceDir', SOURCE_FOLDER]]
+        'db folder' | null                           | true      || [['build.sourceDir', SOURCE_FOLDER]]
+        '/db'       | null                           | true      || [['build.sourceDir', SOURCE_FOLDER]]
     }
 
     def "#url is refused as #problem (V5, V6)"() {
@@ -248,6 +267,7 @@ class DatabaseSettingsSpec extends Specification {
          '${env}'].every { value -> messages.every { !it.contains(value) } }
     }
 
+    static final String SOURCE_FOLDER = 'must be "." or a relative path inside the repository, without ".."'
     static final Map CASES = new JsonSlurper().parse(DatabaseSettingsSpec.getResource('/database-rules-cases.json')) as Map
     static final String SECRET_URL = 'must not contain a user or a password: keep them in the Jenkins credentials of' +
             ' the credentials ID'
@@ -272,8 +292,13 @@ class DatabaseSettingsSpec extends Specification {
 
     static List<FieldProblem> problems(DatabaseSettings settings, Map<DatabaseTarget, DatabaseTargetSettings> targets = [:],
                                        String sourceDir = '.') {
+        problems(settings, targets, build(tool: LIQUIBASE, sourceDir: sourceDir, command: NONE))
+    }
+
+    static List<FieldProblem> problems(DatabaseSettings settings, Map<DatabaseTarget, DatabaseTargetSettings> targets,
+                                       BuildSettings build) {
         def problems = new ValidationProblems()
-        settings.validate(problems, targets.sort { it.key }, sourceDir)
+        settings.validate(problems, targets.sort { it.key }, build)
         problems.list()
     }
 

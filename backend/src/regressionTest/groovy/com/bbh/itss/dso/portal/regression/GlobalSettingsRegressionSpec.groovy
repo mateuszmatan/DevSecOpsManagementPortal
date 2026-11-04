@@ -177,7 +177,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         changed.json.goldenFix.enabled == true
     }
 
-    def "the Library defaults (SQL and PL/SQL) are stored, reach the defaults of every configuration and are cleared again"() {
+    def "the Library defaults (Liquibase database changes) are stored, reach the defaults of every configuration and are cleared again"() {
         when:
         def saved = api.put('/api/settings', original + [database: databaseDefaults()])
         def defaults = api.get('/api/settings/config?format=json').json.defaults
@@ -206,7 +206,7 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         emptied.tools.keySet() == ['sonar', 'nexusIq'] as Set
     }
 
-    def "SQL and PL/SQL cannot be the default build tool, since a database service needs its database settings"() {
+    def "Liquibase cannot be the default build tool, since a Liquibase service needs its own changelog"() {
         when:
         def response = api.put('/api/settings', original + [serviceDefaults: original.serviceDefaults + [buildTool: 'LIQUIBASE']])
 

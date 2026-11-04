@@ -23,7 +23,7 @@ class GlobalSettingsDtoSpec extends Specification {
     @Shared
     Validator validator = buildDefaultValidatorFactory().validator
 
-    def "the Library defaults (SQL and PL/SQL) of the regression settings are valid and map to the domain"() {
+    def "the Library defaults (Liquibase database changes) of the regression settings are valid and map to the domain"() {
         given:
         def dto = defaults()
 

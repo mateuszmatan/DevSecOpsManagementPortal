@@ -171,7 +171,7 @@ class GlobalSettingsValuesSpec extends Specification {
         !defaults.containsKey('sca')
     }
 
-    def "the Library defaults (SQL and PL/SQL) are left out while none is set, and come last with their tools"() {
+    def "the Library defaults (Liquibase database changes) are left out while none is set, and come last with their tools"() {
         when:
         def defaults = copy(BBH, database: databaseDefaults()).defaultsConfig()
 
@@ -186,14 +186,14 @@ class GlobalSettingsValuesSpec extends Specification {
         defaults.findAll { !(it.key in ['tools', 'database']) } == BBH.defaultsConfig().findAll { it.key != 'tools' }
     }
 
-    def "a new service cannot start as SQL and PL/SQL, and the Library defaults (SQL and PL/SQL) report under database"() {
+    def "a new service cannot start as Liquibase, and the Library defaults (Liquibase database changes) report under database"() {
         given:
         def values = copy(BBH, serviceDefaults: copy(BBH.serviceDefaults(), buildTool: LIQUIBASE),
                 database: DatabaseDefaults.builder().utplsqlUrl('https://tools.bbh.com/utPLSQL-cli.zip').build())
 
         expect:
         problems(values).collect { [it.field(), it.message()] } == [
-                ['serviceDefaults.buildTool', 'must not be SQL and PL/SQL (Liquibase): a database service needs its own'
+                ['serviceDefaults.buildTool', 'must not be Liquibase (SQL / PL/SQL): a Liquibase service needs its own'
                         + ' changelog, so every new service starts with Gradle, Maven or Flutter'],
                 ['database.utplsqlSha256', 'is required with the download URL: the 64 lower-case hexadecimal digits of'
                         + ' the file']]

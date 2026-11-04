@@ -191,10 +191,9 @@ public class PipelineService implements PipelinesUseCase {
 
     private Optional<String> databaseRefusal(String name, DatabaseSettings database, PipelineType type) {
         if (type == NEXUS_IQ) {
-            return Optional.of("Service " + name + " changes a database with SQL and PL/SQL and has no open source"
-                    + " dependencies, so a Nexus IQ GoldenFix pipeline would scan nothing. Choose another pipeline"
-                    + " type, or delete the Nexus IQ GoldenFix pipeline of the service before you change its build"
-                    + " tool to SQL and PL/SQL (Liquibase)");
+            return Optional.of("Service " + name + " is a Liquibase service with database changes, for which the"
+                    + " library runs no Nexus IQ GoldenFix pipeline. Choose another pipeline type, or delete the Nexus"
+                    + " IQ GoldenFix pipeline of the service before you set its changelog file");
         }
         if (!database.delivers() || !(type == FULL || type == SECURITY || type == EXTENDED)) {
             return Optional.empty();
@@ -202,7 +201,7 @@ public class PipelineService implements PipelinesUseCase {
         return settings.current().values().database().missingForDelivery(database, type != SECURITY)
                 .map(missing -> "Service " + name + " delivers its database package to Nexus in the " + type.label()
                         + " pipeline but has no " + missing + ". Set it under Database changes"
-                        + (missing.equals("group ID") ? "" : " or in the Library defaults (SQL and PL/SQL)")
+                        + (missing.equals("group ID") ? "" : " or in the Library defaults (Liquibase database changes)")
                         + ", or untick Deliver the package to Nexus");
     }
 

@@ -198,7 +198,7 @@ final class ApiJson {
                                   credentialsId: 'orders-db-qc', parameters: ['app_role=orders_qc_role']]]] + overrides
     }
 
-    /** The Library defaults (SQL and PL/SQL) of the regression Global Settings. */
+    /** The Library defaults (Liquibase database changes) of the regression Global Settings. */
     static Map databaseDefaults() {
         [liquibaseHome        : '/opt/liquibase/4.33.0', oracleJdbcPath: '/opt/oracle/ojdbc11.jar',
          utplsqlUrl           : Fixtures.UTPLSQL_URL,

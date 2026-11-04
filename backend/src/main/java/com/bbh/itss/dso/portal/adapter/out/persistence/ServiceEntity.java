@@ -368,8 +368,7 @@ public class ServiceEntity extends AuditedEntity {
             Boolean nexusDelivery, String mvnPath, String snapshotRepositoryId, String snapshotRepositoryUrl,
             String releaseRepositoryId, String releaseRepositoryUrl, Boolean testReset, Boolean utplsql,
             String utplsqlPaths, String utplsqlOwner, String utplsqlSourcePath, String utplsqlTestPath,
-            @Column(name = "UTPLSQL_TIMEOUT") Integer utplsqlTimeoutMinutes, String sonarSources,
-            @Column(name = "SONAR_SCANNER") String sonarScannerVersion) {
+            @Column(name = "UTPLSQL_TIMEOUT") Integer utplsqlTimeoutMinutes) {
     }
 
     @Embeddable

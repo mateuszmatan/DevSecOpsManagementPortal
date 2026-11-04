@@ -13,7 +13,7 @@ import static com.bbh.itss.dso.portal.domain.shared.Text.trimmed;
 import static org.apache.commons.lang3.ObjectUtils.allNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
-/** A database the pipelines deploy the changes of a SQL and PL/SQL service to; the user stays in Jenkins. */
+/** A database the pipelines deploy the changes of a Liquibase service to; the user stays in Jenkins. */
 @Builder
 public record DatabaseTargetSettings(String url, String credentialsId, String contexts, String labels,
                                      String defaultSchema, String liquibaseSchema, List<String> parameters,

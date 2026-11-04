@@ -5,7 +5,7 @@ import lombok.NoArgsConstructor;
 import static lombok.AccessLevel.PRIVATE;
 
 /**
- * The value formats of a SQL and PL/SQL service and of its Library defaults, copied from the DevSecOps library, with
+ * The value formats of the database changes and of their Library defaults, copied from the DevSecOps library, with
  * the library's sentences without the key and the value, because the portal shows them under the field.
  */
 @NoArgsConstructor(access = PRIVATE)

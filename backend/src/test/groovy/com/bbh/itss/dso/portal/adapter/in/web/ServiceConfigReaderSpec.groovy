@@ -12,6 +12,7 @@ import com.bbh.itss.dso.portal.domain.catalog.DatabaseTargetSettings
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
+import com.bbh.itss.dso.portal.domain.catalog.ToolCommand
 import com.bbh.itss.dso.portal.domain.dsoconfig.DsoConfigBuilder
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
@@ -125,7 +126,7 @@ class ServiceConfigReaderSpec extends Specification {
         disabled = settings.deployment().nexusDeliveryDisabled()
     }
 
-    def "a SQL and PL/SQL service read back from its config runs the same, without a note"() {
+    def "a Liquibase service with database changes read back from its config runs the same, without a note"() {
         given:
         Map config = builder.productConfig(product(services: [[name: 'orders-db', settings: ORDERS_DB]]))
 
@@ -139,7 +140,7 @@ class ServiceConfigReaderSpec extends Specification {
         asRun(rendered(result.services()[0])) == asRun(config)
     }
 
-    def "a SQL and PL/SQL project leaves out #key with a note, once"() {
+    def "a Liquibase project with database changes leaves out #key with a note, once"() {
         when:
         def service = imported(new Yaml().dump(merged(ORDERS, extra))).services()[0]
 
@@ -161,23 +162,41 @@ class ServiceConfigReaderSpec extends Specification {
         [tools: [utplsql: [url: 'https://tools.bbh.com/u.zip']]]                    || 'tools.utplsql'           | TOOLS_IN_DEFAULTS
         [deploy: [vm: [rd: [host: 'rdltaapps1.testbbh.com']]]]                      || 'deploy'                  | NOT_FOR_DATABASE
         [deployTarget: 'openshift']                                                 || 'deployTarget'            | NOT_FOR_DATABASE
-        [build: [node: [enabled: true, dir: 'web']]]                                || 'build.node'              | NOT_FOR_DATABASE
-        [build: [gradle: [tasks: ['build']]]]                                       || 'build.gradle'            | NOT_FOR_DATABASE
-        [build: [maven: [goals: ['verify']]]]                                       || 'build.maven'             | NOT_FOR_DATABASE
-        [goldenFix: [enabled: false]]                                               || 'goldenFix'               | NOT_FOR_DATABASE
-        [tools: [nexusIq: [application: 'orders', scanPatterns: ['**/*.zip']]]]     || 'tools.nexusIq'           | NOT_FOR_DATABASE
-        [tests: [unitTests: [unitTestResult: '**/*.xml']]]                          || 'tests.unitTests'         | NOT_FOR_DATABASE
-        [coverage: [reportPath: 'target/jacoco.xml']]                               || 'coverage'                | NOT_FOR_DATABASE
-        [asoc: [doCompile: false]]                                                  || 'asoc.doCompile'          | NOT_FOR_DATABASE
-        [dast: [enabled: true]]                                                     || 'dast.enabled'            | NOT_FOR_DATABASE
-        [dast: [targetUrl: 'https://orders.bbh.com']]                               || 'dast.targetUrl'          | NOT_FOR_DATABASE
         [appName: 'orders']                                                         || 'appName'                 | NOT_FOR_DATABASE
+        [delivery: [liquibase: [commands: ['deploy']]]]                             || 'delivery'                | NOT_FOR_DATABASE
+        [build: [gradle: [tasks: ['build']]]]                                       || 'build.gradle'            | BUILDS_LIQUIBASE
+        [build: [maven: [goals: ['verify']]]]                                       || 'build.maven'             | BUILDS_LIQUIBASE
     }
 
-    def "a Gradle project leaves its database block out with a note"() {
+    def "a Liquibase project with database changes imports main's Liquibase commands, scans and tests with the database"() {
+        when:
+        def service = imported(new Yaml().dump(merged(new Yaml().load(BILLING_DB), [database: ORDERS.database])))
+                .services()[0]
+        def plain = imported(BILLING_DB).services()[0].service()
+
+        then:
+        service.notes() == [problem('staticAnalysis.parallel', GLOBAL), problem('deployTarget', NOT_FOR_DATABASE),
+                            problem('appName', NOT_FOR_DATABASE), problem('deploy', NOT_FOR_DATABASE)]
+        service.service().database().changelogFile() == 'db/changelog-master.xml'
+        KEPT.collect { service.service()."$it"() } == KEPT.collect { plain."$it"() }
+        service.service().deployment().appName() == null
+        service.service().sshTargets().isEmpty()
+        plain.deployment().appName() == 'billing'
+        plain.database().changelogFile() == null
+        plain.databaseTargets().isEmpty()
+    }
+
+    /** What a Liquibase service imports alike with database changes and without. */
+    static final List<String> KEPT = ['build', 'nodeBuild', 'unitTests', 'appScan', 'sonar', 'nexusIqApplications',
+                                      'goldenFix']
+
+    def "a database block without a Liquibase changelog is left out with a note: #project"() {
         expect:
-        imported(new Yaml().dump([buildTool: 'gradle', database: [changelogFile: 'db/changelog-master.xml']]))
-                .services()[0].notes() == [problem('database', NOT_A_DATABASE)]
+        imported(new Yaml().dump(project)).services()[0].notes() == [problem('database', NOT_A_DATABASE)]
+
+        where:
+        project << [[buildTool: 'gradle', database: [changelogFile: 'db/changelog-master.xml']],
+                    [buildTool: 'liquibase', database: [searchPath: 'db', rd: [credentialsId: 'orders-rd']]]]
     }
 
     def "the Maven home of build.maven fills that of the package unless the package names its own: #maven"() {
@@ -191,8 +210,8 @@ class ServiceConfigReaderSpec extends Specification {
         where:
         maven                                         | extra                                             || mvnPath        | notes
         [mvnPath: '/opt/maven']                       | [:]                                               || '/opt/maven'   | []
-        [mvnPath: '/opt/maven', goals: ['verify']]    | [:]                                               || '/opt/maven'   | [problem('build.maven', NOT_FOR_DATABASE)]
-        [mvnPath: '/opt/maven']                       | [database: [package: [mvnPath: '/opt/maven-3']]]  || '/opt/maven-3' | [problem('build.maven', NOT_FOR_DATABASE)]
+        [mvnPath: '/opt/maven', goals: ['verify']]    | [:]                                               || '/opt/maven'   | [problem('build.maven', BUILDS_LIQUIBASE)]
+        [mvnPath: '/opt/maven']                       | [database: [package: [mvnPath: '/opt/maven-3']]]  || '/opt/maven-3' | [problem('build.maven', BUILDS_LIQUIBASE)]
     }
 
     def "repositories equal to the Library defaults and a package named after the project come back empty"() {
@@ -712,7 +731,7 @@ class ServiceConfigReaderSpec extends Specification {
         'a: ' + 'x' * MAX_LENGTH                                                    || LIMITS
     }
 
-    /** A SQL and PL/SQL service with every database setting that is not the library's default. */
+    /** A Liquibase service with every database setting that is not the library's default. */
     static final ServiceSettings ORDERS_DB = databaseSettings(
             build: new BuildSettings(LIQUIBASE, 'orders-db', '/usr/lib/jvm/java-17-openjdk', true, null, null),
             database: database().toBuilder().searchPath('src/main/resources').oracleVersion('23.4').defaultSchema('APP')
@@ -720,17 +739,59 @@ class ServiceConfigReaderSpec extends Specification {
                     .lockWaitMinutes(10).compileCheck(false).recompile(false).ignoreObjects(['PKG_LEGACY'])
                     .ignoreFiles(['db/legacy/old.sql']).artifactId('orders-schema').mvnPath('/opt/maven')
                     .snapshotRepositoryId('own-snapshots').snapshotRepositoryUrl('https://nexus.bbh.com/own')
-                    .testReset(true).utplsqlPaths('orders').utplsqlOwner('APP_OWNER').utplsqlTimeoutMinutes(60)
-                    .sonarSources('db').sonarScannerVersion('5.0.1.3006').build(),
+                    .testReset(true).utplsqlPaths('orders').utplsqlOwner('APP_OWNER').utplsqlTimeoutMinutes(60).build(),
             databaseTargets: databaseTargets() + [(DatabaseTarget.RD): DatabaseTargetSettings.builder()
                     .url('jdbc:oracle:thin:@rd-db1.bbh.com:1521,rd-db2.bbh.com:1521/ORDERS_RD').credentialsId('orders-rd')
                     .contexts('rd').labels('core').defaultSchema('APP').liquibaseSchema('LB').parameters(['a=1'])
                     .timeoutMinutes(45).build()],
             appScan: appScan(includedDirs: ['orders-db'], useConfigFile: true, insecureTls: true, clientPath: '/opt/appscan',
                     secretCredentialsId: 'orders-secret', scanName: 'orders-db-sast'),
-            sonar: SonarSettings.of('Orders DB', 'bbh-orders-db', null),
+            sonar: SonarSettings.of('Orders DB', 'bbh-orders-db', ToolCommand.of([], ['-Dsonar.sources=db'])),
             scm: ScmSettings.of('https://bitbucket.bbh.com/projects/ORD/repos/orders', 'bitbucket-http-credentials'),
             tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(), metrics: MAVEN_VM.metrics())
+    static final String BUILDS_LIQUIBASE = 'not imported: the service builds with liquibase'
+    /** A Liquibase project with the keys of main's Liquibase support, a Node.js build, scans and a VM deployment. */
+    static final String BILLING_DB = '''
+        buildTool: liquibase
+        sourceDir: db
+        deployTarget: vm
+        appName: billing
+        appId: 109f44ac-cc06-4ca0-884e-d944904f7019
+        staticAnalysis:
+          parallel: true
+        build:
+          liquibase:
+            commands: updateSQL
+            flags: [--changelog-file=db/changelog/db.changelog-master.xml]
+          node:
+            enabled: true
+            dir: web
+        tests:
+          unitTests:
+            liquibase:
+              commands: validate
+            unitTestResult: '**/utplsql/*.xml'
+        asoc:
+          liquibase:
+            commands: updateSQL
+        dast:
+          enabled: true
+          targetUrl: https://billing.rd.bbh.com
+        tools:
+          sonar:
+            projectKey: com.bbh:billing-db
+            liquibase:
+              sources: [db/changelog, db/plsql]
+          nexusIq:
+            application: billing-db
+            scanPatterns: ['**/*.jar']
+        goldenFix:
+          enabled: false
+        deploy:
+          vm:
+            rd:
+              host: rdltaapps9.testbbh.com
+        '''.stripIndent()
     static final Map ORDERS = [buildTool: 'liquibase', javaPath: '/usr/lib/jvm/java-17-openjdk',
                                database : [changelogFile: 'db/changelog-master.xml']]
 

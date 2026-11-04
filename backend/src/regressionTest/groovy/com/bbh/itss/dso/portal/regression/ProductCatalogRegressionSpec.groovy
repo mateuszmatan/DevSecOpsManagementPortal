@@ -633,7 +633,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                 [resourceName: 'batch \u00b7 Full', status: 'FAILURE', departmentName: department]
     }
 
-    def "a SQL and PL/SQL service deploys only to allowed databases and gets no Nexus IQ pipeline, nor a Full one without its group ID"() {
+    def "a Liquibase service with database changes deploys only to allowed databases and gets no Nexus IQ pipeline, nor a Full one without its group ID"() {
         given:
         def code = uniqueCode('ORDERS')
         def orders = { Map settings -> product(code: code, name: "Product $code", services: [databaseService(database: settings)]) }
@@ -677,10 +677,9 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
 
         then:
         nexusIq.status == 409
-        nexusIq.json.detail == 'Service orders-db changes a database with SQL and PL/SQL and has no open source' +
-                ' dependencies, so a Nexus IQ GoldenFix pipeline would scan nothing. Choose another pipeline type, or' +
-                ' delete the Nexus IQ GoldenFix pipeline of the service before you change its build tool to SQL and' +
-                ' PL/SQL (Liquibase)'
+        nexusIq.json.detail == 'Service orders-db is a Liquibase service with database changes, for which the library' +
+                ' runs no Nexus IQ GoldenFix pipeline. Choose another pipeline type, or delete the Nexus IQ GoldenFix' +
+                ' pipeline of the service before you set its changelog file'
 
         cleanup:
         saveDatabaseDefaults([:])

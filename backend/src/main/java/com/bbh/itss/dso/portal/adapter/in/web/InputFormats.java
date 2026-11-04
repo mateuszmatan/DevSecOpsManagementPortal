@@ -49,8 +49,6 @@ final class InputFormats {
     static final String ENVIRONMENT_MESSAGE = "write each variable as NAME=value";
     static final String NO_WHITESPACE = "^\\S*$";
     static final String NO_WHITESPACE_MESSAGE = "must not contain whitespace";
-    static final String SCANNER_VERSION = "^[0-9A-Za-z._-]*$";
-    static final String SCANNER_VERSION_MESSAGE = "must be a SonarScanner version such as 5.0.1.3006";
     static final String AGENT_LABEL = "^[^,\\p{Cntrl}]{1,100}$";
     static final String AGENT_LABEL_MESSAGE = "must be a Jenkins label or label expression such as linux && docker,"
             + " without commas";

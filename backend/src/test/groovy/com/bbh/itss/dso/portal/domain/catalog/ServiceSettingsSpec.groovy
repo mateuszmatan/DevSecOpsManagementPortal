@@ -310,31 +310,48 @@ class ServiceSettingsSpec extends Specification {
         explicit.withDefaultMetricsProject('CERT', 'gui').is(explicit)
     }
 
-    def "a SQL and PL/SQL service renders only what the library reads for it, whatever else it stores"() {
-        when:
-        def tree = written(databaseSettings(STORED_ELSEWHERE + [scm: ScmSettings.of(REPO, 'bitbucket-http-credentials'),
-                testJobs: [TestJob.builder().stage(SMOKE).job('orders/smoke').build()]]))
+    def "a Liquibase service without database changes renders every section as on main: #target"() {
+        expect:
+        written(billingDb(target)).toMap() == expected
+        written(billingDb(target)).toMap().keySet() as List == expected.keySet() as List
 
-        then:
-        tree.toMap().keySet() == ['buildTool', 'sourceDir', 'javaPath', 'appId', 'asoc', 'dast', 'influx', 'tools', 'scm',
-                                  'tests', 'database'] as Set
-        tree.get('asoc') == [keyId: KEY_ID]
-        tree.get('dast') == [enabled: false]
-        tree.get('tools') == [sonar: [projectKey: 'bbh-orders-db']]
-        tree.get('tests.smoke.jobs')*.job == ['orders/smoke']
-        tree.get('database.changelogFile') == 'db/changelog-master.xml'
-        tree.get('database.test.utplsql.enabled') == true
+        where:
+        target    || expected
+        VM        || BILLING_DB_VM
+        OPENSHIFT || BILLING_DB_VM.collectEntries { key, value -> key == 'appName' ? [appName: value,
+                     artifactName: 'billing.zip'] : [key, value] } + [deployTarget: 'openshift',
+                     deploy: [openshift: [qc: [projectDeploymentR: 'billing-qc']]]]
     }
 
-    def "a SQL and PL/SQL service checks its database block and nothing it neither renders nor uses"() {
+    def "the changelog file adds the database block to a Liquibase service and leaves out its deployment"() {
+        given:
+        def database = DatabaseSettings.builder().changelogFile('db/changelog/db.changelog-master.xml').build()
+        def plain = written(billingDb(VM)).toMap()
+
+        when:
+        def changes = written(billingDb(VM, database)).toMap()
+
+        then:
+        changes == plain.findAll { !(it.key in DEPLOYMENT) } + [database: [changelogFile: database.changelogFile()]]
+        plain.keySet().containsAll(DEPLOYMENT)
+    }
+
+    def "a Liquibase service with database changes checks its database block and not its deployment"() {
+        given:
+        def deploys = [deployment: deployment(target: OPENSHIFT, artifactName: 'orders.war'), delivery: command([]),
+                       urbanCodeApplications: [UrbanCodeApplicationSettings.of('Orders', 1, ['RD'], null, [])]]
+        def deployment = reported(settings(deploys + [build: build(tool: LIQUIBASE, command: NONE)]))
+
         expect:
-        reported(databaseSettings(STORED_ELSEWHERE)) == []
-        reported(settings(STORED_ELSEWHERE + [build: build()]))*.field.containsAll(['unitTests.command.tasks', 'deployment.appName',
-                'nexusIqApplications[0].scanPatterns', 'urbanCodeApplications[0].components'])
+        reported(databaseSettings(deploys)) == []
+        reported(databaseSettings(deploys + [database: DatabaseSettings.NONE, databaseTargets: [:]])) == deployment
+        deployment*.field.containsAll(['deployment.appName', 'urbanCodeApplications[0].components'])
         reported(databaseSettings(database: database().toBuilder().changelogFile(null).build(),
                 databaseTargets: [(DatabaseTarget.RD): DatabaseTargetSettings.builder().url('x').build()]))*.field ==
                 ['database.changelogFile', 'databaseTargets[RD].url', 'databaseTargets[RD].credentialsId',
                  'database.utplsql']
+        reported(databaseSettings(build: build())).collect { [it.field, it.message] } == [['database', 'is set for a'
+                + ' service that does not build with Liquibase: only a Liquibase service changes a database']]
     }
 
     def "a database that sets only the library's defaults is dropped, and the package named after the service too"() {
@@ -369,22 +386,58 @@ class ServiceSettingsSpec extends Specification {
         section << ['build', 'deployment', 'AppScan']
     }
 
-    /** What a SQL and PL/SQL service may keep from another build tool; invalid for a Gradle service. */
-    static final Map STORED_ELSEWHERE = [
-            build                : new BuildSettings(LIQUIBASE, null, JDK, false, 'target/*.jar',
-                    command(['clean', 'build'])),
-            unitTests            : UnitTestSettings.builder().resultPattern('**/TEST-*.xml').build(),
-            deployment           : deployment(target: OPENSHIFT, artifactName: 'orders.war'),
-            delivery             : command(['publish']),
-            urbanCodeApplications: [UrbanCodeApplicationSettings.of('Orders', 1, ['RD'], null, [])],
-            sshTargets           : [(RD): RD_HOST], openShiftTargets: [(QC): RD_PROJECT],
-            appScan              : appScan(compile: false, sourceCodeOnly: true, dastEnabled: true),
-            sonar                : SonarSettings.of(null, 'bbh-orders-db', null),
-            nexusIq              : new NexusIqSettings('https://iq.bbh.com', 'iq'),
-            nexusIqApplications  : [new NexusIqApplication('orders', [], null, null)],
-            goldenFix            : GoldenFixPolicy.builder().enabled(true).minThreatLevel(99).build(),
-            versionCatalogs      : ['gradle/libs.versions.toml'],
-            flutter              : FlutterSettings.builder().modules(['app']).build()]
+    /** The deployment keys that a Liquibase service with database changes leaves out. */
+    static final List<String> DEPLOYMENT = ['deployTarget', 'appName', 'baseArtifactName', 'deploy']
+    /** What main (a725366) renders for billingDb(VM), keys in order. */
+    static final Map BILLING_DB_VM = [
+            buildTool       : 'liquibase', sourceDir: 'db',
+            build           : [buildPath: 'db/changelog/*.xml',
+                               liquibase: [commands: ['updateSQL'],
+                                           flags   : ['--changelog-file=db/changelog/db.changelog-master.xml']],
+                               node     : [enabled: true, dir: 'web', commands: ['npm ci']]],
+            deployTarget    : 'vm', appName: 'billing', baseArtifactName: 'billing-db', appId: APP_ID,
+            asoc            : [keyId: KEY_ID, liquibase: [commands: ['updateSQL']]],
+            dast            : [enabled: true, targetUrl: 'https://billing.rd.bbh.com'],
+            influx          : [enabled: true, env: 'test'],
+            tests           : [unitTests: [liquibase: [commands: ['validate']], unitTestResult: '**/utplsql/*.xml'],
+                               smoke    : [jobs: [[job: 'billing/smoke']]]],
+            coverage        : [reportPath: 'target/coverage.xml'],
+            tools           : [sonar  : [projectName: 'Billing-DB', projectKey: 'com.bbh:billing-db',
+                                         liquibase  : [commands: ['status'], flags: ['-Dsonar.sources=db']]],
+                               nexusIq: [application: 'billing-db', scanPatterns: ['**/*.jar'], stage: 'build',
+                                         failOnNetworkError: false]],
+            goldenFix       : [enabled: false, versionCatalogs: ['gradle/libs.versions.toml'],
+                               versionCatalogRepo: [url: 'https://bitbucket.bbh.com/scm/ta/catalogs.git',
+                                                    credentialsId: 'bb']],
+            deploy          : [vm: [dod: [skipWait: false, deployWithSnapshot: true, updateSnapshotComp: false,
+                                          includeOnlyDeployVersions: true, deployOnlyChanged: false,
+                                          applications: [[applicationName: 'Cert', order: 1, environments: ['RD'],
+                                                          components: [[componentName: 'cert-gui', baseDir: 'build',
+                                                                        fileIncludePatterns: '*.war',
+                                                                        incrementalVersion: false]]]]],
+                                    rd : [host: 'rd.host']]]]
+
+    /** The Liquibase service billing-db with every setting main renders for it, deployed to a VM or to OpenShift. */
+    static ServiceSettings billingDb(DeployTarget target, DatabaseSettings database = null) {
+        settings(build: new BuildSettings(LIQUIBASE, 'db', null, false, 'db/changelog/*.xml',
+                command(['updateSQL'], ['--changelog-file=db/changelog/db.changelog-master.xml'])),
+                nodeBuild: new NodeBuildSettings(true, 'web', ['npm ci'], null, null, [], null, null, null, null),
+                unitTests: UnitTestSettings.builder().command(command(['validate'])).resultPattern('**/utplsql/*.xml')
+                        .coverageReportPath('target/coverage.xml').build(),
+                deployment: deployment(target: target, appName: 'billing', baseArtifactName: 'billing-db',
+                        artifactName: target == VM ? null : 'billing.zip'),
+                delivery: command(['publish']), urbanCodeApplications: [UCD_APP],
+                sshTargets: [(RD): RD_HOST], openShiftTargets: [(QC): OpenShiftTarget.builder().projectDeployment('billing-qc')
+                        .build()],
+                appScan: appScan(compile: true, compileCommand: command(['updateSQL']), dastEnabled: true,
+                        dastTargetUrl: 'https://billing.rd.bbh.com'),
+                sonar: SonarSettings.of('Billing-DB', 'com.bbh:billing-db', command(['status'], ['-Dsonar.sources=db'])),
+                nexusIqApplications: [new NexusIqApplication('billing-db', ['**/*.jar'], null, null)],
+                goldenFix: GoldenFixPolicy.builder().enabled(false).build(), versionCatalogs: ['gradle/libs.versions.toml'],
+                versionCatalogRepo: new VersionCatalogRepo('https://bitbucket.bbh.com/scm/ta/catalogs.git', 'bb', null,
+                        null),
+                testJobs: [TestJob.builder().stage(SMOKE).job('billing/smoke').build()], database: database)
+    }
 
     private static ConfigTree written(ServiceSettings settings) {
         def tree = new ConfigTree()

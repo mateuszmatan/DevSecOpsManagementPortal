@@ -127,7 +127,7 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
         thrown(DataIntegrityViolationException)
     }
 
-    def "037 adds the Library defaults (SQL and PL/SQL), empty for saved settings, and its rollback removes the columns"() {
+    def "037 adds the Library defaults (Liquibase database changes), empty for saved settings, and its rollback removes the columns"() {
         given:
         jdbc.execute('DROP ALL OBJECTS')
         liquibase.update('')

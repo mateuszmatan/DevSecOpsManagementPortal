@@ -111,7 +111,7 @@ class DsoConfigBuilderSpec extends Specification {
         !off.containsKey('goldenFix')
     }
 
-    def "a SQL and PL/SQL service renders its database block in the template's place, without Nexus IQ or VM hosts"() {
+    def "a Liquibase service with database changes renders its database block in the template's place, without VM hosts"() {
         given:
         def orders = product(code: 'ORDERSDB', services: [[id: 20L, name: 'orders-db', settings: databaseSettings(
                 sonar: SonarSettings.of(null, 'bbh-orders-db', null), scm: ScmSettings.of(REPOSITORY, 'bitbucket'))]])
@@ -122,8 +122,9 @@ class DsoConfigBuilderSpec extends Specification {
         then:
         entry.keySet() as List == ['appId', 'buildTool', 'sourceDir', 'javaPath', 'asoc', 'influx', 'tools', 'dast',
                                    'database', 'scm']
-        entry.tools == [sonar: [serverUrl: 'https://tools.bbh.com/sonar', installationName: 'SonarQube',
-                                projectKey: 'bbh-orders-db']]
+        entry.tools == [sonar  : [serverUrl: 'https://tools.bbh.com/sonar', installationName: 'SonarQube',
+                                  projectKey: 'bbh-orders-db'],
+                        nexusIq: [serverUrl: 'https://tools.bbh.com/IQ', credentialsId: 'nexusiqP']]
         entry.dast == [enabled: false]
         DsoConfigBuilder.KEY_ORDER.subList(DsoConfigBuilder.KEY_ORDER.indexOf('build'),
                 DsoConfigBuilder.KEY_ORDER.indexOf('delivery') + 1) == ['build', 'database', 'delivery']

@@ -2,7 +2,6 @@ package com.bbh.itss.dso.portal.domain.dsoconfig;
 
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
-import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings;
 import com.bbh.itss.dso.portal.domain.pipeline.Pipeline;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineSettings;
 import com.bbh.itss.dso.portal.domain.settings.GlobalSettingsValues;
@@ -68,11 +67,10 @@ public final class DsoConfigBuilder {
     }
 
     private ConfigTree serviceTree(Service service) {
-        ServiceSettings settings = service.settings();
         ConfigTree tree = new ConfigTree();
-        global.platform().writeProjectDefaults(tree, !settings.changesDatabase());
-        settings.writeTo(tree);
-        global.deployment().fillIn(tree, settings.deployTarget());
+        global.platform().writeProjectDefaults(tree);
+        service.settings().writeTo(tree);
+        global.deployment().fillIn(tree, service.settings().deployTarget());
         return tree;
     }
 }
