@@ -146,15 +146,18 @@ of the portal you run. The [user and administrator guide](../docs/documentation.
 lists every key with the field that sets it.
 
 `config/orders-db-full.json` and `config/orders-db-full.yaml` are the configuration of the full pipeline of the
-Liquibase service with database changes `orders-db` of `new-database-product.json`, with Library defaults that allow its databases and name the
-Nexus repositories of the database packages. `defaults.tools.liquibase`, `defaults.tools.oracleJdbc`,
-`defaults.tools.utplsql` and `defaults.database` hold those Library defaults; they are rendered only while they are set.
-The project has `buildTool: liquibase` and a `database` block after its build settings: the changelog, a changelog
-parameter, the group ID of the package, and the three databases `test`, `rd` and `qc`, each with its JDBC URL and the
-ID of the Jenkins credential of its database user. The test database runs the utPLSQL tests, and QC sets its own value
-of the parameter. The project has no `deployTarget`, `deploy` or `delivery`: the pipelines deploy the database changes
-themselves. It holds no user and no password. [Chapter 7 of the guide](../docs/documentation.md#7-liquibase-services-with-database-changes)
-describes Liquibase services with database changes.
+Liquibase service with database changes `orders-db` of `new-database-product.json`, with Library defaults that allow
+its databases and name the Nexus repositories of the database packages. `defaults.tools.liquibase`,
+`defaults.tools.oracleJdbc`, `defaults.tools.utplsql` and `defaults.database` hold those Library defaults; they are
+rendered only while they are set. The project has `buildTool: liquibase` and a `database` block after its build
+settings: the changelog, a changelog parameter, the group ID of the package, and the three databases `test`, `rd` and
+`qc`, each with its JDBC URL and the ID of the Jenkins credential of its database user. The test database runs the
+utPLSQL tests, and QC sets its own value of the parameter. The project has no `build.liquibase` command, because the
+database changes check and package the changelog themselves, and no `deployTarget`, `deploy` or `delivery`, because
+the pipelines deploy the database changes themselves. Like every service it names the Nexus IQ server
+(`tools.nexusIq.serverUrl`, `tools.nexusIq.credentialsId`), but no Nexus IQ application, so its Nexus IQ stage is not
+required. It holds no user and no password. [Chapter 7 of the guide](../docs/documentation.md#7-sql-and-plsql-changes-with-liquibase)
+describes Liquibase services with and without database changes.
 
 ## Screenshots
 

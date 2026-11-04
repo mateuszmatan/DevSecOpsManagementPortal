@@ -661,7 +661,7 @@ describe('ServiceFields', () => {
       await open('Database changes');
 
       expect(helpFor('Require a rollback for every change')).toBe(
-        'Ticked, the Unit tests stage checks that every change can be rolled back, and a change without a working rollback turns the stage orange. Unticked, this check does not run.',
+        'Ticked, the Build artifact stage checks that every change can be rolled back, and a change without a working rollback turns the stage orange. Unticked, this check does not run.',
       );
     });
 

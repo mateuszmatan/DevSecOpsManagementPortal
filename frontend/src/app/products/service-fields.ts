@@ -471,7 +471,7 @@ const DATABASE_OPTIONS: Field[] = [
     help: 'The schema of the tables in which Liquibase records the deployed changes (DATABASECHANGELOG) and its lock. Every step that connects to a database uses it. Empty: the default schema.',
   }),
   check('requireRollback', 'Require a rollback for every change', 'database.requireRollback', 6, {
-    help: 'Ticked, the Unit tests stage checks that every change can be rolled back, and a change without a working rollback turns the stage orange. Unticked, this check does not run.',
+    help: 'Ticked, the Build artifact stage checks that every change can be rolled back, and a change without a working rollback turns the stage orange. Unticked, this check does not run.',
   }),
   check('tag', 'Tag each deployment', 'database.tag', 6, {
     help: 'After a deployment that applied changes, tags the RD or QC database with the artifact ID and the version. A DBA can roll the database back to a tag by hand: that undoes the changes that have a rollback, while PL/SQL code keeps its new version, because its changes have an empty rollback.',
