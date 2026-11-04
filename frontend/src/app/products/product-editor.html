@@ -181,7 +181,7 @@
                   </span>
                   <span class="panel-description">
                     <span>{{ toolLabels[service.controls.build.controls.tool.value] }}</span>
-                    @if (service.controls.build.controls.tool.value !== 'LIQUIBASE') {
+                    @if (!changesDatabase(service)) {
                       <span class="dot">·</span>
                       <span>{{
                         targetLabels[service.controls.deployment.controls.target.value]

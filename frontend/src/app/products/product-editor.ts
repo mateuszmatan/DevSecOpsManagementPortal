@@ -62,6 +62,7 @@ import {
   firstServiceWithProblem,
   followName,
   followToolDefaults,
+  formChangesDatabase,
   patchProduct,
   prefillNewService,
   toProductRequest,
@@ -318,6 +319,8 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   hasUnsavedChanges(): boolean {
     return !this.saved && this.form.dirty;
   }
+
+  protected readonly changesDatabase = formChangesDatabase;
 
   protected pipelinesOf(service: ServiceForm): number {
     const id = service.controls.id.value;

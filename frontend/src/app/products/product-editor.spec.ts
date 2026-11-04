@@ -525,6 +525,14 @@ describe('ProductEditor', () => {
     expect(page().querySelector('.service-panel .banner')).toBeNull();
   });
 
+  it('names the deploy target of a Liquibase service without database changes in its panel header', async () => {
+    await edit([service(), databaseService({ id: 11, database: null, databaseTargets: {} })]);
+
+    expect(text(panels()[1].querySelector('.panel-description'))).toBe(
+      'Liquibase (SQL / PL/SQL)·Virtual machine',
+    );
+  });
+
   it('shows why the portal refused the product', async () => {
     await edit();
     await submit();
