@@ -199,9 +199,9 @@ In a repository with Java and database code, add the Liquibase service first.
 
 1. Click "Add a service". The dialog "Add a service" opens. Its tag shows the pipeline.
 2. To start from another service of the product, choose it in "Copy values from". To start from a file, click "Import devsecops_config.yaml". Both are optional. See [chapter 10](#10-import-a-devsecops_configyaml-and-copy-a-service).
-3. Alternatively, use **Repo Auto-Discovery / Smart Wizard (Scan & Auto-fill)**: Type the Bitbucket repository URL and branch, then click "Scan & Auto-fill". The portal queries the repository tree via Bitbucket REST API and automatically populates the build tool (Maven, Gradle, Liquibase, Flutter, Python/pip), Java/Node versions, test runners, and OpenShift target. See [chapter 16](#16-repo-auto-discovery-and-smart-wizard).
+3. Alternatively, use **Repo Auto-Discovery / Smart Wizard (Scan & Auto-fill)**: Type the Bitbucket repository URL and branch, then click "Scan & Auto-fill". The portal queries the repository tree via Bitbucket REST API and automatically populates the build tool (Maven, Gradle, Liquibase, Flutter), Java/Node versions, test runners, and OpenShift target. See [chapter 16](#16-repo-auto-discovery-and-smart-wizard).
 4. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.
-5. In Build, choose or verify the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven, "The code has a pubspec.yaml file" means Flutter, "The code has a requirements.txt or pyproject.toml" means Python/pip and "The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties" means Liquibase (SQL / PL/SQL); for its commands and its database changes see [chapter 7](#add-a-liquibase-service-in-the-wizard). The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
+5. In Build, choose or verify the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven, "The code has a pubspec.yaml file" means Flutter and "The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties" means Liquibase (SQL / PL/SQL); for its commands and its database changes see [chapter 7](#add-a-liquibase-service-in-the-wizard). The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
 6. If the repository holds a frontend that npm builds, for example an Angular application, tick "Build the frontend with Node.js first". Type the "Folder with package.json", for example `frontend`. Leave the other Node.js fields as they are. See [chapter 6](#6-build-the-frontend-with-nodejs-first-stage-0).
 7. In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.
 8. For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.
@@ -465,6 +465,8 @@ Four parties prepare a service with database changes. A service without database
 11. For the Security and Full pipelines of a service without database changes, choose the deployment as for every service ([step 3 of chapter 4](#step-3-services)).
 12. For the Security and Full pipelines, type the SonarQube project key. A service with database changes is analysed only with a project key and on a SonarQube server that analyses PL/SQL; otherwise its SonarQube stage is not required.
 13. When nothing is missing, click "Add service".
+
+"Scan & Auto-fill" under Bitbucket decides the build tool from the files at the root of the repository: before the Changelog file is set, a scan sets the build tool it finds there, such as Gradle or Maven in a multi-module build; once it is set, a scan keeps the build tool, the commands and the deployment settings of the service and fills in only an empty SonarQube project key.
 
 The wizard checks the database settings while you type. A JDBC URL that the Library defaults do not allow, a test database that is also the RD or QC database, and a QC context filter that selects the test changesets are refused under their field; [When a service with database changes stops](#when-a-service-with-database-changes-stops) lists every message.
 
@@ -1303,10 +1305,11 @@ The detector (`RepoStackDetector`) inspects manifests in priority order:
 - **Liquibase (SQL / PL/SQL)**: Detected via `changelog.xml`, `liquibase.properties`, or `db/changelog/` directories.
   - Automatically selects `LIQUIBASE` as the primary build tool, setting default commands (`updateSQL`) and verification tasks (`validate`).
   - It fills only the Liquibase commands. To check, package and deploy the database changes, fill in "Database changes" with the changelog file yourself; see [chapter 7](#7-sql-and-plsql-changes-with-liquibase).
+  - A service with database changes keeps its build tool, its commands and its deployment settings when it is scanned, also when the scan finds Gradle or Maven at the root of the repository, as in a multi-module build. The scan then fills in only an empty SonarQube project key, and its message says that the service keeps Liquibase and names the build tool found at the root.
 - **Flutter / Dart**: Detected via `pubspec.yaml`.
   - Configures the Flutter toolchain, artifact type (`APK`), and unit test runner (`flutter test`).
 - **Python / pip**: Detected via `requirements.txt`, `pyproject.toml`, `setup.py`, or `Pipfile`.
-  - Configures `PIP` build tool with isolated virtualenv execution.
+  - The detector recognises a Python project, but the portal has no Python build tool, so the scan sets no build tool and no commands for it.
 - **OpenShift Deployment Target**: Detected via `Dockerfile`, `Containerfile`, or manifests in `openshift/`, `k8s/`, or `helm/`.
   - Sets the deployment target to `OPENSHIFT` and preconfigures default image build and rollout templates.
 - **SonarQube Static Analysis**:

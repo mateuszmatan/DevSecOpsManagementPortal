@@ -46,7 +46,7 @@ The guide is rendered by plain Groovy in `gradle/documentation.gradle`, with no 
 offline on Windows too. `checkDocumentation`, part of `check`, fails when `docs/documentation.html` is not the page
 the Markdown renders to, or when a link names a heading or a file that does not exist: run `./gradlew documentation`
 and commit both files. The Vitest spec `frontend/src/app/documentation.spec.ts` fails when a field shows a
-`devsecops_config.yaml` key chip that the guide does not name, so a new field needs a line in chapter 18 of the guide.
+`devsecops_config.yaml` key chip that the guide does not name, so a new field needs a line in chapter 20 of the guide.
 
 ## Running locally
 
