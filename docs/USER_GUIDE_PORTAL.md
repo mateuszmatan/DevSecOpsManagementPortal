@@ -21,6 +21,10 @@
 - [12. Telemetry, DORA Metrics, InfluxDB, and Grafana](#12-telemetry-dora-metrics-influxdb-and-grafana)
 - [13. Step-by-Step Form Reference: What to Enter Where](#13-step-by-step-form-reference-what-to-enter-where)
 - [14. OWASP SAMM Software Assurance Maturity Model](#14-owasp-samm-software-assurance-maturity-model)
+- [15. Repo Auto-Discovery and Smart Wizard (One-Click Inspect)](#15-repo-auto-discovery-and-smart-wizard-one-click-inspect)
+- [16. Auto-Resolved Parameters Reference](#16-auto-resolved-parameters-reference)
+- [17. Bitbucket Pull Request Decoration & Shift-Left Feedback](#17-bitbucket-pull-request-decoration--shift-left-feedback)
+- [18. Deployment Modes and Configuration Guide](#18-deployment-modes-and-configuration-guide)
 
 ---
 
@@ -306,4 +310,122 @@ The DevSecOps Management Portal includes a dedicated **OWASP SAMM** section asse
 - **Executive & Departmental Dashboards:** Organization-level overview, maturity distribution across Levels 0–3, and departmental benchmarking.
 - **Application Scorecards:** Practice-level scores (0.0 to 3.0), criteria checklists, and concrete remediation roadmaps.
 - **Pipeline Monitoring Integration:** One-click drill-down directly from any pipeline card in Pipeline Monitoring into its SAMM scorecard.
+
+---
+
+## 15. Repo Auto-Discovery and Smart Wizard (One-Click Inspect)
+
+Onboarding services into a corporate DevSecOps pipeline historically created friction: engineers had to determine 15 to 20 granular configuration parameters, including build tools, compiler flags, test report paths, JaCoCo directories, Node.js versions, and OpenShift manifests.
+
+The **Repo Auto-Discovery / Smart Wizard** removes over 80% of onboarding friction:
+
+### Non-Technical Business Benefits:
+- **Instant Onboarding:** Teams provide only their Bitbucket repository URL and branch, then click **Scan & Auto-fill**.
+- **Error Reduction:** Manifests are inspected directly from source control, preventing misconfigurations and build breaks.
+- **Immediate Time-to-Value:** Pipelines are configured, validated, and ready to execute within minutes.
+
+### How it Works:
+1. When creating or updating a service in the Self-service wizard or Admin editor, specify the **Bitbucket Repo URL** and target **Branch**.
+2. Click **Scan & Auto-fill**.
+3. The Portal executes an inspection via the Bitbucket REST API (`/api/catalog/inspect-repo`), recursively traverses workspace manifests, and pre-populates all form inputs with optimal configurations.
+4. Developers review the suggestions, make any project-specific adjustments, and click **Save**.
+
+### Stack Detection Matrix:
+- **Maven (`pom.xml`)**: Identifies Maven build tool, extracts Java JDK version from `<java.version>`, `<maven.compiler.source>`, or `<release>`, detects Kotlin plugins, and preconfigures JaCoCo XML reports.
+- **Gradle (`build.gradle`, `build.gradle.kts`, `gradle/wrapper/gradle-wrapper.properties`)**: Identifies Gradle build tool, extracts exact Gradle wrapper version and compatible JDK, detects Kotlin DSL, and sets up test reporting.
+- **Node.js Stage 0 (`package.json`)**: Identifies root or frontend subdirectories (`frontend/`, `web/`, `client/`, `ui/`), enables Stage 0 pre-build (`build.node.enabled: true`), reads `engines.node` for Node version, and detects Cypress or Jest runners.
+- **Liquibase (`changelog.xml`, `liquibase.properties`)**: Configures Liquibase for database schema migrations (`updateSQL`, `validate`).
+- **Flutter / Dart (`pubspec.yaml`)**: Configures Flutter toolchain and Dart test runner.
+- **Python / pip (`requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile`)**: Configures isolated Python virtual environment.
+- **OpenShift Target**: Detects `Dockerfile`, `Containerfile`, or manifests in `openshift/`, `k8s/`, or `helm/` and sets the target to OpenShift.
+
+---
+
+## 16. Auto-Resolved Parameters Reference
+
+When auto-resolution is active (`autoresolve parameters: true`), the pipeline automatically evaluates workspace files at execution time. Any parameters omitted from the Portal or configuration file are dynamically resolved:
+
+| Setting / Field | Target Key / Form Field | Workspace Indicator / Manifest | Resolved Default Value |
+|---|---|---|---|
+| Build Tool | `buildTool` | `pom.xml` present | `maven` |
+| Build Tool | `buildTool` | `build.gradle` or `build.gradle.kts` present | `gradle` |
+| Build Tool | `buildTool` | `changelog.xml`, `changelog.yaml`, `liquibase.properties` | `liquibase` |
+| Build Tool | `buildTool` | `pubspec.yaml` present | `flutter` |
+| Build Tool | `buildTool` | `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` | `pip` |
+| Build Tool Auto Setup | `buildToolAutoSetup` | Set to `true` whenever Maven or Gradle is detected | `true` |
+| Java / JDK Version | `build.maven.javaVersion` / `build.gradle.javaVersion` | `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, `<release>` in `pom.xml`, or `jvmToolchain`, `sourceCompatibility` in `build.gradle` | Matched JDK version (`17`, `21`, `11`, `8`) |
+| Gradle Version | `build.gradle.version` | `distributionUrl` in `gradle/wrapper/gradle-wrapper.properties` | Exact Gradle wrapper version (e.g. `8.7`, `7.6`) |
+| Node.js Stage 0 Enabled | `build.node.enabled` | `package.json` exists in root or standard frontend folders | `true` |
+| Node.js Directory | `build.node.dir` | Detected subfolder holding `package.json` | `.`, `frontend`, `web`, `client`, or `ui` |
+| Node.js Engine Version | `build.node.version` | `engines.node` in `package.json` (e.g. `>=20.0.0`) | Major Node version (e.g. `20`) |
+| Cypress Unit Testing | `tests.unitTests.node.cypress` | `cypress` in `devDependencies` / `dependencies` of `package.json` | `true` |
+| Jest Unit Testing | `tests.unitTests.node.jest` | `jest` in `devDependencies` / `dependencies` of `package.json` | `true` |
+| Liquibase Build Command | `build.liquibase.commands` | Detected `changelog.xml` / `liquibase.properties` | `['updateSQL']` |
+| Liquibase Test Command | `tests.unitTests.liquibase.commands` | Liquibase build tool | `['validate']` |
+| Deployment Target | `deployTarget` | `Dockerfile`, `Containerfile`, `openshift/`, `k8s/`, `helm/` present | `openshift` (otherwise defaults to `vm`) |
+| Sonar Project Key | `tools.sonar.projectKey` | Empty or missing in config | `com.bbh:<projectName>` or `com.bbh:<appName>` |
+| Sonar Language | `sonar.language` | Source tree inspection (`pubspec.yaml` -> `dart`, `requirements.txt` -> `py`, Kotlin files -> `kotlin`, Liquibase -> `sql`, else `java`) | Detected language code |
+| Sonar Sources Directory | `sonar.sources` | Missing `sonar-project.properties` | `src/main/java` (Java), `src/main/kotlin` (Kotlin), `lib` (Dart), `db` (SQL), `src` or `.` (Python) |
+| Sonar Tests Directory | `sonar.tests` | Missing `sonar-project.properties` | `src/test/java` (Java), `src/test/kotlin` (Kotlin), `test` (Dart), `tests` (Python) |
+| Sonar Java Binaries | `sonar.java.binaries` | Maven: `target/classes`; Gradle: `target/classes,build/classes/java/main` | Standard build output directories |
+| Sonar Submodules | `sonar.modules` | Submodules in `pom.xml` (`<module>`) or `settings.gradle` (`include '...'`) | Comma-separated module names |
+| Sonar Branch Pinning | `sonar.branch.name` | Auto-detected from pipeline branch (`CHANGE_BRANCH`, `BRANCH_NAME`, `GIT_BRANCH`) | Active evaluated branch (never master) |
+
+---
+
+## 17. Bitbucket Pull Request Decoration & Shift-Left Feedback
+
+Direct feedback in developer pull requests accelerates remediation and prevents vulnerabilities from reaching production.
+
+### Pull Request Separation Strategy:
+1. **Static Security Pull Request (Consolidated PR)**:
+   - Evaluates Nexus IQ SCA, AppScan SAST, and SonarQube.
+   - GoldenFix automatically updates vulnerable package manifests (`pom.xml`, `build.gradle`, `package.json`, etc.) in a dedicated remediation branch.
+   - AppScan SAST findings are added as inline line comments on the exact source file and line, skipping findings with status `Noise`.
+   - SonarQube code quality issues, security vulnerabilities, and code smells are added as inline comments.
+   - Developers review all static findings and dependency updates in a single, unified Pull Request.
+2. **DAST Dynamic Security Pull Request (Dedicated PR)**:
+   - Runtime web application scan results (e.g. missing HTTP security headers, cookie flags, TLS configuration) are placed into a separate, dedicated Pull Request.
+   - Keeps infrastructure and runtime security separated from application source code reviews.
+
+---
+
+## 18. Deployment Modes and Configuration Guide
+
+### Mode 1: With Portal (`main` branch)
+* **Configuration Source:** Centrally managed in DevSecOps Management Portal.
+* **Onboarding:** Use **Scan & Auto-fill** in the service editor to auto-populate fields from Bitbucket.
+* **Pipeline Execution:** Application repository requires only a single-line `Jenkinsfile`:
+  ```groovy
+  @Library('DSOEnhanced@main') _
+  devSecOpsPipeline(pipelineKey: '5e0f0001-8c2b-4f6a-9d3e-1a7b2c4d0001')
+  ```
+* **Dynamic Resolution:** Any fields left blank in the Portal are auto-resolved at pipeline runtime by `RepoStackAutoResolver`.
+
+### Mode 2: Standalone Without Portal (`DSOEnhancedWithoutPortal` & `DSOEnhancedAppScanApiOnly`)
+* **Configuration Source:** `devsecops_config.yaml` in the application Git repository.
+* **Auto-Resolve Default:** Enabled by default (`autoresolve parameters: true`).
+* **Minimal Configuration Example:**
+  ```yaml
+  projects:
+    payment-service:
+      appId: "APP-54321"
+      asoc:
+        keyId: "11111111-2222-3333-4444-555555555555"
+        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
+  ```
+* **Disabling Auto-Resolve:** To enforce strict manual configuration, set `autoresolve parameters: false`:
+  ```yaml
+  projects:
+    payment-service:
+      autoresolve parameters: false
+      buildTool: maven
+      deployTarget: vm
+      appId: "APP-54321"
+      asoc:
+        keyId: "11111111-2222-3333-4444-555555555555"
+        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
+  ```
+* **Credential Isolation:** SAST credentials (`sast.keyId`, `sast.token`) are strictly isolated from DAST credentials (`dast.keyId`, `dast.token`).
+
 

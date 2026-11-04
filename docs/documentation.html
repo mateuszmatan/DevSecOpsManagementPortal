@@ -1391,8 +1391,80 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <ul>
 <li>Checks if <code>sonar-project.properties</code> is present.</li>
 <li>When omitted, infers default project key (<code>com.bbh:&lt;derivedKey&gt;</code>), discovers submodules from <code>pom.xml</code> (<code>&lt;module&gt;</code>) or <code>settings.gradle</code> (<code>include</code>; through Bitbucket the scan never reads <code>settings.gradle</code>, so it finds no Gradle modules there), infers source paths (<code>src/main/java</code>, <code>src/main/kotlin</code>, <code>lib</code>, etc.) and test paths (<code>src/test/java</code>, <code>test</code>), and preconfigures <code>tools.sonar.projectKey</code>. The form takes only the project key, and only while its Project key is empty; the modules and the source and test paths are returned by the REST API only.</li>
+<li>In the pipeline, the SonarQube stage checks if <code>sonar-project.properties</code> is present in the workspace. When it is omitted, the stage applies the standard BBH default parameters, which the scan never fills in; the values below are those of a Maven service in Java, and the <a href="#auto-resolved-parameters-reference">Auto-Resolved Parameters Reference</a> gives those of the other build tools and languages:
+<ul>
+<li><code>sonar.java.binaries</code>: <code>target/classes</code></li>
+<li><code>sonar.java.coveragePlugin</code>: <code>jacoco</code></li>
+<li><code>sonar.language</code>: <code>java</code></li>
+<li><code>sonar.jacoco.reportPaths</code>: <code>target/jacoco.exec</code></li>
+<li><code>sonar.junit.reportPaths</code>: <code>target/surefire-reports</code></li>
+<li><code>sonar.projectKey</code>: <code>com.bbh:&lt;projectName&gt;</code></li>
+<li><code>sonar.sources</code>: <code>src/main/java</code></li>
+<li><code>sonar.sourceEncoding</code>: <code>UTF-8</code></li>
+<li><code>sonar.tests</code>: <code>src/test/java</code></li>
+<li><code>sonar.dynamicAnalysis</code>: <code>reuseReports</code></li>
+<li><code>sonar.modules</code>: inferred from Maven <code>&lt;module&gt;</code> or Gradle <code>include</code></li>
 </ul>
 </li>
+<li><strong>Branch Pinning</strong>: SonarQube always scans the specific branch evaluated in the DevSecOps pipeline (<code>sonar.branch.name</code>, evaluated from <code>CHANGE_BRANCH</code>, <code>BRANCH_NAME</code>, or <code>GIT_BRANCH</code>), never falling back to master.</li>
+</ul>
+</li>
+</ul>
+<h3 id="auto-resolved-parameters-reference">Auto-Resolved Parameters Reference</h3>
+<p>When auto-resolution is active (<code>autoresolve parameters: true</code>, the default), the library's <code>RepoStackAutoResolver</code> resolves at run time, from the files of the pipeline workspace, the settings that the configuration of a service leaves out. This is not Scan &amp; Auto-fill, which fills in only the fields that <a href="#how-it-works">How it works</a> names. Every service of the portal has a build tool, and the portal has no Python (pip) build tool, so the Build Tool rows apply only to a <code>devsecops_config.yaml</code> without <code>buildTool</code>. A Liquibase service with database changes has no Deployment section: the portal writes no deployment target and no deployment settings for it, because its database changes replace the deployment (<a href="#two-ways-to-configure-a-liquibase-service">chapter 7</a>).</p>
+<table>
+<thead>
+<tr><th>Setting / Field</th><th>Target Key / Form Field</th><th>Workspace Indicator / Manifest</th><th>Resolved Default Value</th></tr>
+</thead>
+<tbody>
+<tr><td>Build Tool</td><td><code>buildTool</code></td><td><code>pom.xml</code> present</td><td><code>maven</code></td></tr>
+<tr><td>Build Tool</td><td><code>buildTool</code></td><td><code>build.gradle</code> or <code>build.gradle.kts</code> present</td><td><code>gradle</code></td></tr>
+<tr><td>Build Tool</td><td><code>buildTool</code></td><td><code>changelog.xml</code>, <code>changelog.yaml</code>, <code>liquibase.properties</code></td><td><code>liquibase</code></td></tr>
+<tr><td>Build Tool</td><td><code>buildTool</code></td><td><code>pubspec.yaml</code> present</td><td><code>flutter</code></td></tr>
+<tr><td>Build Tool</td><td><code>buildTool</code></td><td><code>requirements.txt</code>, <code>pyproject.toml</code>, <code>setup.py</code>, <code>Pipfile</code></td><td><code>pip</code></td></tr>
+<tr><td>Build Tool Auto Setup</td><td><code>buildToolAutoSetup</code></td><td>Set to <code>true</code> whenever Maven or Gradle is detected</td><td><code>true</code></td></tr>
+<tr><td>Java / JDK Version</td><td><code>build.maven.javaVersion</code> / <code>build.gradle.javaVersion</code></td><td><code>&lt;java.version&gt;</code>, <code>&lt;maven.compiler.source&gt;</code>, <code>&lt;maven.compiler.target&gt;</code>, <code>&lt;release&gt;</code> in <code>pom.xml</code>, or <code>jvmToolchain</code>, <code>sourceCompatibility</code> in <code>build.gradle</code></td><td>Matched JDK version (<code>17</code>, <code>21</code>, <code>11</code>, <code>8</code>)</td></tr>
+<tr><td>Gradle Version</td><td><code>build.gradle.version</code></td><td><code>distributionUrl</code> in <code>gradle/wrapper/gradle-wrapper.properties</code></td><td>Exact Gradle wrapper version (e.g. <code>8.7</code>, <code>7.6</code>)</td></tr>
+<tr><td>Node.js Stage 0 Enabled</td><td><code>build.node.enabled</code></td><td><code>package.json</code> exists in root or standard frontend folders</td><td><code>true</code></td></tr>
+<tr><td>Node.js Directory</td><td><code>build.node.dir</code></td><td>Detected subfolder holding <code>package.json</code></td><td><code>.</code>, <code>frontend</code>, <code>web</code>, <code>client</code>, or <code>ui</code></td></tr>
+<tr><td>Node.js Engine Version</td><td><code>build.node.version</code></td><td><code>engines.node</code> in <code>package.json</code> (e.g. <code>&gt;=20.0.0</code>)</td><td>Major Node version (e.g. <code>20</code>)</td></tr>
+<tr><td>Cypress Unit Testing</td><td><code>tests.unitTests.node.cypress</code></td><td><code>cypress</code> in <code>devDependencies</code> / <code>dependencies</code> of <code>package.json</code></td><td><code>true</code></td></tr>
+<tr><td>Jest Unit Testing</td><td><code>tests.unitTests.node.jest</code></td><td><code>jest</code> in <code>devDependencies</code> / <code>dependencies</code> of <code>package.json</code></td><td><code>true</code></td></tr>
+<tr><td>Liquibase Build Command</td><td><code>build.liquibase.commands</code></td><td>Detected <code>changelog.xml</code> / <code>liquibase.properties</code></td><td><code>['updateSQL']</code></td></tr>
+<tr><td>Liquibase Test Command</td><td><code>tests.unitTests.liquibase.commands</code></td><td>Liquibase build tool</td><td><code>['validate']</code></td></tr>
+<tr><td>Deployment Target</td><td><code>deployTarget</code></td><td><code>Dockerfile</code>, <code>Containerfile</code>, <code>openshift/</code>, <code>k8s/</code>, <code>helm/</code> present</td><td><code>openshift</code> (otherwise defaults to <code>vm</code>)</td></tr>
+<tr><td>Sonar Project Key</td><td><code>tools.sonar.projectKey</code></td><td>Empty or missing in config</td><td><code>com.bbh:&lt;projectName&gt;</code> or <code>com.bbh:&lt;appName&gt;</code></td></tr>
+<tr><td>Sonar Language</td><td><code>sonar.language</code></td><td>Source tree inspection (<code>pubspec.yaml</code> -&gt; <code>dart</code>, <code>requirements.txt</code> -&gt; <code>py</code>, Kotlin files -&gt; <code>kotlin</code>, Liquibase -&gt; <code>sql</code>, else <code>java</code>)</td><td>Detected language code</td></tr>
+<tr><td>Sonar Sources Directory</td><td><code>sonar.sources</code></td><td>Missing <code>sonar-project.properties</code></td><td><code>src/main/java</code> (Java), <code>src/main/kotlin</code> (Kotlin), <code>lib</code> (Dart), <code>db</code> (SQL), <code>src</code> or <code>.</code> (Python)</td></tr>
+<tr><td>Sonar Tests Directory</td><td><code>sonar.tests</code></td><td>Missing <code>sonar-project.properties</code></td><td><code>src/test/java</code> (Java), <code>src/test/kotlin</code> (Kotlin), <code>test</code> (Dart), <code>tests</code> (Python)</td></tr>
+<tr><td>Sonar Java Binaries</td><td><code>sonar.java.binaries</code></td><td>Maven: <code>target/classes</code>; Gradle: <code>target/classes,build/classes/java/main</code></td><td>Standard build output directories</td></tr>
+<tr><td>Sonar Submodules</td><td><code>sonar.modules</code></td><td>Submodules in <code>pom.xml</code> (<code>&lt;module&gt;</code>) or <code>settings.gradle</code> (<code>include '...'</code>)</td><td>Comma-separated module names</td></tr>
+<tr><td>Sonar Branch Pinning</td><td><code>sonar.branch.name</code></td><td>Auto-detected from pipeline branch (<code>CHANGE_BRANCH</code>, <code>BRANCH_NAME</code>, <code>GIT_BRANCH</code>)</td><td>Active evaluated branch (never master)</td></tr>
+</tbody>
+</table>
+<h3 id="configuration-by-deployment-mode">Configuration by Deployment Mode</h3>
+<h4 id="1-version-with-portal-main-branch">1. Version with Portal (main branch)</h4>
+<ul>
+<li><strong>Portal Wizard (One-Click Inspect)</strong>: Click <strong>Scan &amp; Auto-fill</strong> in the DevSecOps Management Portal after entering the Bitbucket repository URL and branch. The REST API reads the root folder of the branch and fills in the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key; every other field keeps its value. A service with database changes keeps all of them except the SonarQube project key.</li>
+<li><strong>Pipeline Auto-Resolve (<code>autoResolveParameters: true</code>)</strong>: If any fields are left blank, <code>RepoStackAutoResolver</code> auto-resolves them during Jenkins execution. Explicit fields always override auto-resolution.</li>
+<li><strong>Jenkinsfile</strong>:</li>
+</ul>
+<pre><code><span class="kw">@Library</span>(<span class="s">'DSOEnhanced@main'</span>) _
+devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key from DevSecOps portal&gt;'</span>)</code></pre>
+<h4 id="2-standalone-version-without-portal-dsoenhancedwithoutportal-and-dsoenhancedappscanapionly">2. Standalone Version without Portal (DSOEnhancedWithoutPortal and DSOEnhancedAppScanApiOnly)</h4>
+<ul>
+<li><strong>Default Mode</strong>: <code>autoresolve parameters: true</code> is enabled by default in <code>devsecops_config.yaml</code>.</li>
+<li><strong>Minimal Configuration</strong>:</li>
+</ul>
+<pre><code><span class="k">projects</span>:
+  <span class="k">payment-service</span>:
+    <span class="k">appId</span>: <span class="s">&quot;APP-12345&quot;</span>
+    <span class="k">asoc</span>:
+      <span class="k">keyId</span>: <span class="s">&quot;11111111-2222-3333-4444-555555555555&quot;</span>
+      <span class="k">token</span>: <span class="s">&quot;APPSCAN_CREDENTIALS_ID&quot;</span></code></pre>
+<ul>
+<li><strong>Disabling Auto-Resolve</strong>: Set <code>autoresolve parameters: false</code> under the service to enforce strict manual configuration.</li>
+<li><strong>REST API SAST (<code>DSOEnhancedAppScanApiOnly</code>)</strong>: Authenticates via AppScan REST API v4, isolates SAST credentials (<code>sast.keyId</code>, <code>sast.token</code>), and ignores findings marked as <code>Noise</code>.</li>
 </ul>
 <h3 id="rest-api-of-the-auto-discovery">REST API of the auto-discovery</h3>
 <ul>

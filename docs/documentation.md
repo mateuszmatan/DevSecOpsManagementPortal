@@ -1317,6 +1317,74 @@ The detector (`RepoStackDetector`) inspects manifests in priority order:
 - **SonarQube Static Analysis**:
   - Checks if `sonar-project.properties` is present.
   - When omitted, infers default project key (`com.bbh:<derivedKey>`), discovers submodules from `pom.xml` (`<module>`) or `settings.gradle` (`include`; through Bitbucket the scan never reads `settings.gradle`, so it finds no Gradle modules there), infers source paths (`src/main/java`, `src/main/kotlin`, `lib`, etc.) and test paths (`src/test/java`, `test`), and preconfigures `tools.sonar.projectKey`. The form takes only the project key, and only while its Project key is empty; the modules and the source and test paths are returned by the REST API only.
+  - In the pipeline, the SonarQube stage checks if `sonar-project.properties` is present in the workspace. When it is omitted, the stage applies the standard BBH default parameters, which the scan never fills in; the values below are those of a Maven service in Java, and the [Auto-Resolved Parameters Reference](#auto-resolved-parameters-reference) gives those of the other build tools and languages:
+    - `sonar.java.binaries`: `target/classes`
+    - `sonar.java.coveragePlugin`: `jacoco`
+    - `sonar.language`: `java`
+    - `sonar.jacoco.reportPaths`: `target/jacoco.exec`
+    - `sonar.junit.reportPaths`: `target/surefire-reports`
+    - `sonar.projectKey`: `com.bbh:<projectName>`
+    - `sonar.sources`: `src/main/java`
+    - `sonar.sourceEncoding`: `UTF-8`
+    - `sonar.tests`: `src/test/java`
+    - `sonar.dynamicAnalysis`: `reuseReports`
+    - `sonar.modules`: inferred from Maven `<module>` or Gradle `include`
+  - **Branch Pinning**: SonarQube always scans the specific branch evaluated in the DevSecOps pipeline (`sonar.branch.name`, evaluated from `CHANGE_BRANCH`, `BRANCH_NAME`, or `GIT_BRANCH`), never falling back to master.
+
+### Auto-Resolved Parameters Reference
+
+When auto-resolution is active (`autoresolve parameters: true`, the default), the library's `RepoStackAutoResolver` resolves at run time, from the files of the pipeline workspace, the settings that the configuration of a service leaves out. This is not Scan & Auto-fill, which fills in only the fields that [How it works](#how-it-works) names. Every service of the portal has a build tool, and the portal has no Python (pip) build tool, so the Build Tool rows apply only to a `devsecops_config.yaml` without `buildTool`. A Liquibase service with database changes has no Deployment section: the portal writes no deployment target and no deployment settings for it, because its database changes replace the deployment ([chapter 7](#two-ways-to-configure-a-liquibase-service)).
+
+| Setting / Field | Target Key / Form Field | Workspace Indicator / Manifest | Resolved Default Value |
+|---|---|---|---|
+| Build Tool | `buildTool` | `pom.xml` present | `maven` |
+| Build Tool | `buildTool` | `build.gradle` or `build.gradle.kts` present | `gradle` |
+| Build Tool | `buildTool` | `changelog.xml`, `changelog.yaml`, `liquibase.properties` | `liquibase` |
+| Build Tool | `buildTool` | `pubspec.yaml` present | `flutter` |
+| Build Tool | `buildTool` | `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` | `pip` |
+| Build Tool Auto Setup | `buildToolAutoSetup` | Set to `true` whenever Maven or Gradle is detected | `true` |
+| Java / JDK Version | `build.maven.javaVersion` / `build.gradle.javaVersion` | `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, `<release>` in `pom.xml`, or `jvmToolchain`, `sourceCompatibility` in `build.gradle` | Matched JDK version (`17`, `21`, `11`, `8`) |
+| Gradle Version | `build.gradle.version` | `distributionUrl` in `gradle/wrapper/gradle-wrapper.properties` | Exact Gradle wrapper version (e.g. `8.7`, `7.6`) |
+| Node.js Stage 0 Enabled | `build.node.enabled` | `package.json` exists in root or standard frontend folders | `true` |
+| Node.js Directory | `build.node.dir` | Detected subfolder holding `package.json` | `.`, `frontend`, `web`, `client`, or `ui` |
+| Node.js Engine Version | `build.node.version` | `engines.node` in `package.json` (e.g. `>=20.0.0`) | Major Node version (e.g. `20`) |
+| Cypress Unit Testing | `tests.unitTests.node.cypress` | `cypress` in `devDependencies` / `dependencies` of `package.json` | `true` |
+| Jest Unit Testing | `tests.unitTests.node.jest` | `jest` in `devDependencies` / `dependencies` of `package.json` | `true` |
+| Liquibase Build Command | `build.liquibase.commands` | Detected `changelog.xml` / `liquibase.properties` | `['updateSQL']` |
+| Liquibase Test Command | `tests.unitTests.liquibase.commands` | Liquibase build tool | `['validate']` |
+| Deployment Target | `deployTarget` | `Dockerfile`, `Containerfile`, `openshift/`, `k8s/`, `helm/` present | `openshift` (otherwise defaults to `vm`) |
+| Sonar Project Key | `tools.sonar.projectKey` | Empty or missing in config | `com.bbh:<projectName>` or `com.bbh:<appName>` |
+| Sonar Language | `sonar.language` | Source tree inspection (`pubspec.yaml` -> `dart`, `requirements.txt` -> `py`, Kotlin files -> `kotlin`, Liquibase -> `sql`, else `java`) | Detected language code |
+| Sonar Sources Directory | `sonar.sources` | Missing `sonar-project.properties` | `src/main/java` (Java), `src/main/kotlin` (Kotlin), `lib` (Dart), `db` (SQL), `src` or `.` (Python) |
+| Sonar Tests Directory | `sonar.tests` | Missing `sonar-project.properties` | `src/test/java` (Java), `src/test/kotlin` (Kotlin), `test` (Dart), `tests` (Python) |
+| Sonar Java Binaries | `sonar.java.binaries` | Maven: `target/classes`; Gradle: `target/classes,build/classes/java/main` | Standard build output directories |
+| Sonar Submodules | `sonar.modules` | Submodules in `pom.xml` (`<module>`) or `settings.gradle` (`include '...'`) | Comma-separated module names |
+| Sonar Branch Pinning | `sonar.branch.name` | Auto-detected from pipeline branch (`CHANGE_BRANCH`, `BRANCH_NAME`, `GIT_BRANCH`) | Active evaluated branch (never master) |
+
+### Configuration by Deployment Mode
+
+#### 1. Version with Portal (main branch)
+- **Portal Wizard (One-Click Inspect)**: Click **Scan & Auto-fill** in the DevSecOps Management Portal after entering the Bitbucket repository URL and branch. The REST API reads the root folder of the branch and fills in the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key; every other field keeps its value. A service with database changes keeps all of them except the SonarQube project key.
+- **Pipeline Auto-Resolve (`autoResolveParameters: true`)**: If any fields are left blank, `RepoStackAutoResolver` auto-resolves them during Jenkins execution. Explicit fields always override auto-resolution.
+- **Jenkinsfile**:
+```groovy
+@Library('DSOEnhanced@main') _
+devSecOpsPipeline(pipelineKey: '<key from DevSecOps portal>')
+```
+
+#### 2. Standalone Version without Portal (DSOEnhancedWithoutPortal and DSOEnhancedAppScanApiOnly)
+- **Default Mode**: `autoresolve parameters: true` is enabled by default in `devsecops_config.yaml`.
+- **Minimal Configuration**:
+```yaml
+projects:
+  payment-service:
+    appId: "APP-12345"
+    asoc:
+      keyId: "11111111-2222-3333-4444-555555555555"
+      token: "APPSCAN_CREDENTIALS_ID"
+```
+- **Disabling Auto-Resolve**: Set `autoresolve parameters: false` under the service to enforce strict manual configuration.
+- **REST API SAST (`DSOEnhancedAppScanApiOnly`)**: Authenticates via AppScan REST API v4, isolates SAST credentials (`sast.keyId`, `sast.token`), and ignores findings marked as `Noise`.
 
 ### REST API of the auto-discovery
 

@@ -21,6 +21,10 @@
 - [11. Deployments and "Disable Nexus Delivery" (OpenShift & VM)](#11-deployments-and-disable-nexus-delivery-openshift--vm)
 - [12. Telemetry, DORA Metrics, InfluxDB, and Grafana](#12-telemetry-dora-metrics-influxdb-and-grafana)
 - [13. Complete devsecops_config.yaml Template with Field Reference](#13-complete-devsecops_configyaml-template-with-field-reference)
+- [14. Auto-Resolve in Standalone Mode (`autoresolve parameters: true`)](#14-auto-resolve-in-standalone-mode-autoresolve-parameters-true)
+- [15. Auto-Resolved Parameters Reference](#15-auto-resolved-parameters-reference)
+- [16. Bitbucket Pull Request Decoration & Shift-Left Feedback](#16-bitbucket-pull-request-decoration--shift-left-feedback)
+- [17. SAST REST API & Credential Isolation](#17-sast-rest-api--credential-isolation)
 
 ---
 
@@ -381,4 +385,91 @@ projects:
 | `tools.nexusIq.applicationId` | Single app ID in Nexus IQ | `payhub-backend-api` | <span class="badge badge-required">YES</span> |
 | `goldenFix.pullRequest` | Auto-create remediation PR | `true` | <span class="badge badge-default">DEFAULT TRUE</span> |
 | `nexusDeliveryEnabled` | Toggle Nexus delivery | `false` | <span class="badge badge-optional">OPTIONAL</span> |
+
+---
+
+## 14. Auto-Resolve in Standalone Mode (`autoresolve parameters: true`)
+
+The standalone library features automated repository stack detection (`RepoStackAutoResolver`).
+
+### Default Behaviour:
+Auto-resolve is enabled by default (`autoresolve parameters: true`). Application teams can omit build tool details, compiler paths, Node.js directories, and Sonar properties from `devsecops_config.yaml`.
+
+### Minimal Configuration Example:
+Application teams need to provide only the application ID and AppScan key ID in `devsecops_config.yaml`:
+```yaml
+projects:
+  payment-service:
+    appId: "APP-54321"
+    asoc:
+      keyId: "11111111-2222-3333-4444-555555555555"
+      token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
+```
+
+The pipeline automatically resolves the build tool (Maven, Gradle, Liquibase, Flutter, or Python), compiler version, Stage 0 Node.js frontend, OpenShift target, and SonarQube properties from the repository workspace files.
+
+### Disabling Auto-Resolve:
+To mandate strict manual configuration and disable heuristic resolution, set `autoresolve parameters: false`:
+```yaml
+projects:
+  payment-service:
+    autoresolve parameters: false
+    buildTool: maven
+    deployTarget: vm
+    appId: "APP-54321"
+    asoc:
+      keyId: "11111111-2222-3333-4444-555555555555"
+      token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
+```
+
+---
+
+## 15. Auto-Resolved Parameters Reference
+
+| Setting / Field | Target Key / Form Field | Workspace Indicator / Manifest | Resolved Default Value |
+|---|---|---|---|
+| Build Tool | `buildTool` | `pom.xml` present | `maven` |
+| Build Tool | `buildTool` | `build.gradle` or `build.gradle.kts` present | `gradle` |
+| Build Tool | `buildTool` | `changelog.xml`, `changelog.yaml`, `liquibase.properties` | `liquibase` |
+| Build Tool | `buildTool` | `pubspec.yaml` present | `flutter` |
+| Build Tool | `buildTool` | `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` | `pip` |
+| Build Tool Auto Setup | `buildToolAutoSetup` | Set to `true` whenever Maven or Gradle is detected | `true` |
+| Java / JDK Version | `build.maven.javaVersion` / `build.gradle.javaVersion` | `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, `<release>` in `pom.xml`, or `jvmToolchain`, `sourceCompatibility` in `build.gradle` | Matched JDK version (`17`, `21`, `11`, `8`) |
+| Gradle Version | `build.gradle.version` | `distributionUrl` in `gradle/wrapper/gradle-wrapper.properties` | Exact Gradle wrapper version (e.g. `8.7`, `7.6`) |
+| Node.js Stage 0 Enabled | `build.node.enabled` | `package.json` exists in root or standard frontend folders | `true` |
+| Node.js Directory | `build.node.dir` | Detected subfolder holding `package.json` | `.`, `frontend`, `web`, `client`, or `ui` |
+| Node.js Engine Version | `build.node.version` | `engines.node` in `package.json` (e.g. `>=20.0.0`) | Major Node version (e.g. `20`) |
+| Cypress Unit Testing | `tests.unitTests.node.cypress` | `cypress` in `devDependencies` / `dependencies` of `package.json` | `true` |
+| Jest Unit Testing | `tests.unitTests.node.jest` | `jest` in `devDependencies` / `dependencies` of `package.json` | `true` |
+| Liquibase Build Command | `build.liquibase.commands` | Detected `changelog.xml` / `liquibase.properties` | `['updateSQL']` |
+| Liquibase Test Command | `tests.unitTests.liquibase.commands` | Liquibase build tool | `['validate']` |
+| Deployment Target | `deployTarget` | `Dockerfile`, `Containerfile`, `openshift/`, `k8s/`, `helm/` present | `openshift` (otherwise defaults to `vm`) |
+| Sonar Project Key | `tools.sonar.projectKey` | Empty or missing in config | `com.bbh:<projectName>` or `com.bbh:<appName>` |
+| Sonar Language | `sonar.language` | Source tree inspection (`pubspec.yaml` -> `dart`, `requirements.txt` -> `py`, Kotlin files -> `kotlin`, Liquibase -> `sql`, else `java`) | Detected language code |
+| Sonar Sources Directory | `sonar.sources` | Missing `sonar-project.properties` | `src/main/java` (Java), `src/main/kotlin` (Kotlin), `lib` (Dart), `db` (SQL), `src` or `.` (Python) |
+| Sonar Tests Directory | `sonar.tests` | Missing `sonar-project.properties` | `src/test/java` (Java), `src/test/kotlin` (Kotlin), `test` (Dart), `tests` (Python) |
+| Sonar Java Binaries | `sonar.java.binaries` | Maven: `target/classes`; Gradle: `target/classes,build/classes/java/main` | Standard build output directories |
+| Sonar Submodules | `sonar.modules` | Submodules in `pom.xml` (`<module>`) or `settings.gradle` (`include '...'`) | Comma-separated module names |
+| Sonar Branch Pinning | `sonar.branch.name` | Auto-detected from pipeline branch (`CHANGE_BRANCH`, `BRANCH_NAME`, `GIT_BRANCH`) | Active evaluated branch (never master) |
+
+---
+
+## 16. Bitbucket Pull Request Decoration & Shift-Left Feedback
+
+Security feedback is reported directly in Bitbucket Pull Requests:
+1. **Static Analysis Consolidated Pull Request**:
+   - Nexus IQ GoldenFix safe dependency updates, AppScan SAST inline vulnerability comments, and SonarQube quality findings are presented together in a single Pull Request review.
+   - Findings marked as `Noise` are automatically excluded.
+2. **Dynamic Analysis Dedicated Pull Request**:
+   - DAST dynamic runtime findings are placed in a dedicated separate Pull Request to isolate runtime operational issues from source code changes.
+
+---
+
+## 17. SAST REST API & Credential Isolation
+
+In `DSOEnhancedAppScanApiOnly`, static analysis communicates directly with HCL AppScan via REST API v4:
+- **Authentication:** Obtains an API bearer token using `sast.keyId` (or `asoc.keyId`) and `sast.token` (or `asoc.token`).
+- **Credential Isolation:** SAST authentication strictly uses SAST credentials and never uses DAST credentials (`dast.keyId`, `dast.token`), preventing authentication mismatch errors.
+- **Noise Filtering:** Findings marked with status `Noise` in the AppScan portal are filtered out and not counted against the release quality gate.
+
 

@@ -16,6 +16,10 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
     - `requirements.txt` / `pyproject.toml` / `setup.py` / `Pipfile` -> Python is recognised, but the portal has no Python build tool, so the scan fills in no build tool and no commands.
     - `Dockerfile` / `Containerfile` / `openshift/` / `k8s/` / `helm/` -> OpenShift deployment target (`OPENSHIFT`).
     - SonarQube default configuration -> Checks for `sonar-project.properties`; if missing, automatically infers `com.bbh:<projectKey>`, discovers multi-module configurations from Maven/Gradle manifests, detects sources/tests, and auto-fills `tools.sonar.projectKey`.
+  - Pipeline runtime auto-resolution (`RepoStackAutoResolver`) enabled by default (`autoresolve parameters: true`) across both portal-integrated and standalone execution modes, allowing minimal configurations (`appId`, `asoc.keyId`, `asoc.token`).
+- **AppScan SAST Credential Isolation & REST API v4**:
+  - Isolated SAST credentials (`sast.keyId`, `sast.token`) from DAST credentials (`dast.keyId`, `dast.token`), preventing credential mismatch errors during REST API authentication.
+  - Automatically filters out findings with status `Noise` from AppScan SAST reports.
 - **Bitbucket Pull Request Decoration & Shift-Left Feedback**:
   - Direct pull request decoration endpoint (`POST /api/dso/bitbucket/pull-requests/decorate`):
     - AppScan SAST: adds inline line comments on exact file and line with vulnerability description and suggested remediation, skipping findings with status `Noise`.

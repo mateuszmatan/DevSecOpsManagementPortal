@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DevSecOps Management Portal &amp; DSOEnhanced - BBH DevSecOps</title>
+  <title>DevSecOps Management Portal &amp; DSOEnhanced User Guide - BBH DevSecOps</title>
   <style>
 :root {
   --primary: #0a2540;
@@ -366,7 +366,7 @@ pre code {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         BBH DevSecOps
       </div>
-      <div class="sidebar-subbrand">User Guide (Portal-Integrated Version)</div>
+      <div class="sidebar-subbrand">Comprehensive Guide for the Portal-Integrated Version</div>
       <ul class="sidebar-nav">
         <li><a href='#contents' >Contents</a></li>
 <li><a href='#1-overview-and-architecture' ><span style='color:#94a3b8;font-weight:600;'>1.</span> Overview and Architecture</a></li>
@@ -389,6 +389,8 @@ pre code {
 <li><a href='#10-software-composition-analysis--goldenfix--nexus-iq' ><span style='color:#94a3b8;font-weight:600;'>10.</span> Software Composition Analysis &amp; GoldenFix – Nexus IQ</a></li>
 <li><a href='#single-application-constraint' style='padding-left: 20px; font-size: 0.8rem;'>Single-Application Constraint:</a></li>
 <li><a href='#goldenfix--automated-pull-requests' style='padding-left: 20px; font-size: 0.8rem;'>GoldenFix &amp; Automated Pull Requests:</a></li>
+<li><a href='#external-version-catalog-repository' style='padding-left: 20px; font-size: 0.8rem;'>External Version Catalog Repository:</a></li>
+<li><a href='#decoupled-pipeline-execution-order' style='padding-left: 20px; font-size: 0.8rem;'>Decoupled Pipeline Execution Order:</a></li>
 <li><a href='#11-deployments--delivery--openshift-and-virtual-machines-vm' ><span style='color:#94a3b8;font-weight:600;'>11.</span> Deployments &amp; Delivery – OpenShift and Virtual Machines (VM)</a></li>
 <li><a href='#disable-nexus-delivery-checkbox' style='padding-left: 20px; font-size: 0.8rem;'>&quot;Disable Nexus Delivery&quot; Checkbox:</a></li>
 <li><a href='#openshift-qc-region-validation' style='padding-left: 20px; font-size: 0.8rem;'>OpenShift QC Region Validation:</a></li>
@@ -396,14 +398,26 @@ pre code {
 <li><a href='#12-telemetry-dora-metrics-influxdb-and-grafana' ><span style='color:#94a3b8;font-weight:600;'>12.</span> Telemetry, DORA Metrics, InfluxDB, and Grafana</a></li>
 <li><a href='#13-step-by-step-form-reference-what-to-enter-where' ><span style='color:#94a3b8;font-weight:600;'>13.</span> Step-by-Step Form Reference: What to Enter Where</a></li>
 <li><a href='#step-by-step-walkthrough' style='padding-left: 20px; font-size: 0.8rem;'>Step-by-Step Walkthrough:</a></li>
+<li><a href='#14-owasp-samm-software-assurance-maturity-model' ><span style='color:#94a3b8;font-weight:600;'>14.</span> OWASP SAMM Software Assurance Maturity Model</a></li>
+<li><a href='#core-capabilities' style='padding-left: 20px; font-size: 0.8rem;'>Core Capabilities:</a></li>
+<li><a href='#15-repo-auto-discovery-and-smart-wizard-one-click-inspect' ><span style='color:#94a3b8;font-weight:600;'>15.</span> Repo Auto-Discovery and Smart Wizard (One-Click Inspect)</a></li>
+<li><a href='#non-technical-business-benefits' style='padding-left: 20px; font-size: 0.8rem;'>Non-Technical Business Benefits:</a></li>
+<li><a href='#how-it-works' style='padding-left: 20px; font-size: 0.8rem;'>How it Works:</a></li>
+<li><a href='#stack-detection-matrix' style='padding-left: 20px; font-size: 0.8rem;'>Stack Detection Matrix:</a></li>
+<li><a href='#16-auto-resolved-parameters-reference' ><span style='color:#94a3b8;font-weight:600;'>16.</span> Auto-Resolved Parameters Reference</a></li>
+<li><a href='#17-bitbucket-pull-request-decoration--shift-left-feedback' ><span style='color:#94a3b8;font-weight:600;'>17.</span> Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</a></li>
+<li><a href='#pull-request-separation-strategy' style='padding-left: 20px; font-size: 0.8rem;'>Pull Request Separation Strategy:</a></li>
+<li><a href='#18-deployment-modes-and-configuration-guide' ><span style='color:#94a3b8;font-weight:600;'>18.</span> Deployment Modes and Configuration Guide</a></li>
+<li><a href='#mode-1-with-portal-main-branch' style='padding-left: 20px; font-size: 0.8rem;'>Mode 1: With Portal (`main` branch)</a></li>
+<li><a href='#mode-2-standalone-without-portal-dsoenhancedwithoutportal--dsoenhancedappscanapionly' style='padding-left: 20px; font-size: 0.8rem;'>Mode 2: Standalone Without Portal (`DSOEnhancedWithoutPortal` &amp; `DSOEnhancedAppScanApiOnly`)</a></li>
       </ul>
     </aside>
 
     <main class="main-wrapper">
       <div class="content-container">
         <header class="doc-header">
-          <h1>DevSecOps Management Portal &amp; DSOEnhanced</h1>
-          <p>User Guide (Portal-Integrated Version)</p>
+          <h1>DevSecOps Management Portal &amp; DSOEnhanced User Guide</h1>
+          <p>Comprehensive Guide for the Portal-Integrated Version</p>
           <div class="doc-meta">
             <span class="meta-chip">Brown Brothers Harriman</span>
             <span class="meta-chip">DevSecOps Shared Library</span>
@@ -434,6 +448,11 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 <li><a href="#11-deployments--delivery--openshift-and-virtual-machines-vm">11. Deployments &amp; Delivery – OpenShift and Virtual Machines (VM)</a></li>
 <li><a href="#12-telemetry-dora-metrics-influxdb-and-grafana">12. Telemetry, DORA Metrics, InfluxDB, and Grafana</a></li>
 <li><a href="#13-step-by-step-form-reference-what-to-enter-where">13. Step-by-Step Form Reference: What to Enter Where</a></li>
+<li><a href="#14-owasp-samm-software-assurance-maturity-model">14. OWASP SAMM Software Assurance Maturity Model</a></li>
+<li><a href="#15-repo-auto-discovery-and-smart-wizard-one-click-inspect">15. Repo Auto-Discovery and Smart Wizard (One-Click Inspect)</a></li>
+<li><a href="#16-auto-resolved-parameters-reference">16. Auto-Resolved Parameters Reference</a></li>
+<li><a href="#17-bitbucket-pull-request-decoration--shift-left-feedback">17. Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</a></li>
+<li><a href="#18-deployment-modes-and-configuration-guide">18. Deployment Modes and Configuration Guide</a></li>
 </ul>
 <hr />
 <h2 id="1-overview-and-architecture">1. Overview and Architecture</h2>
@@ -574,8 +593,8 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 <li>Parses <strong>LCOV (<code>lcov.info</code>)</strong> reports for JavaScript, TypeScript, Angular, Python, Flutter, and Cypress.</li>
 <li><strong>Node.js &amp; Cypress Unit Testing:</strong></li>
 <li>Dedicated support for Node.js unit and component tests via Cypress (<code>tests.unitTests.cypress</code>).</li>
-<li>Runs Cypress tests (<code>npx cypress run --component</code> or custom command) inside the Node.js runtime.</li>
-<li>Ingests JUnit XML test reports and aggregates Cypress LCOV coverage files (<code>coverage/lcov.info</code>).</li>
+<li>Seamless execution of Cypress tests (<code>npx cypress run --component</code> or custom command) within the Node.js environment.</li>
+<li>Ingestion of JUnit XML test results and automatic aggregation of Cypress LCOV coverage data (<code>coverage/lcov.info</code>).</li>
 <li><strong>Granular Per-Module Reporting:</strong></li>
 <li>Every discovered report receives its own line in the build log and HTML report with path, line count, and percentage.</li>
 <li><strong>Project Run Summary:</strong></li>
@@ -646,19 +665,13 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <h3 id="decoupled-pipeline-execution-order">Decoupled Pipeline Execution Order:</h3>
 <ol>
 <li><strong>Stage 1: Build Artifact (without tests):</strong> The pipeline builds deployable artifacts without executing unit tests. If the optional Node.js build is enabled (<code>build.node.enabled: true</code>), npm commands run as step 0 at the start of this stage before compiling backend code.</li>
-<li><strong>Stage 2: Concurrent Verification (Unit Tests + SAST + Nexus IQ):</strong>
-  <ul>
-    <li><strong>Unit Tests:</strong> Runs tests (including Node.js &amp; Cypress tests) and aggregates JaCoCo &amp; LCOV code coverage.</li>
-    <li><strong>SAST (HCL AppScan):</strong> Queues static security scanning in the background and retrieves findings.</li>
-    <li><strong>Nexus IQ:</strong> Evaluates open-source dependencies against security policies and prepares GoldenFix.</li>
-  </ul>
-</li>
-<li><strong>Stage 3: SonarQube (Static Code Analysis &amp; Quality Gate):</strong>
-  <ul>
-    <li>Runs last after Unit tests, SAST, and Nexus IQ have finished.</li>
-    <li>Ingests test execution and coverage reports to enforce the SonarQube Quality Gate.</li>
-  </ul>
-</li>
+<li><strong>Stage 2: Concurrent Verification (Unit Tests + SAST + Nexus IQ):</strong></li>
+<li><strong>Unit Tests:</strong> Runs automated tests (including Node.js &amp; Cypress tests) and aggregates JaCoCo &amp; LCOV code coverage.</li>
+<li><strong>SAST (HCL AppScan):</strong> Queues static application security analysis in the background and retrieves findings.</li>
+<li><strong>Nexus IQ:</strong> Evaluates open-source dependencies against security policies and prepares GoldenFix remediation.</li>
+<li><strong>Stage 3: SonarQube (Static Code Analysis &amp; Quality Gate):</strong></li>
+<li>Runs last after Unit tests, SAST, and Nexus IQ have concluded.</li>
+<li>Ingests test execution results and JaCoCo/LCOV/Cypress coverage reports to enforce the SonarQube Quality Gate.</li>
 </ol>
 <hr />
 <h2 id="11-deployments-delivery-openshift-and-virtual-machines-vm">11. Deployments &amp; Delivery – OpenShift and Virtual Machines (VM)</h2>
@@ -896,6 +909,249 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <li><strong>Save:</strong> The <em>Add service</em> button activates once all required fields are valid.</li>
 <li><strong>Deploy Jenkinsfile:</strong> Copy the generated single-line <code>Jenkinsfile</code> with its <code>pipelineKey</code> into your Git repository. The pipeline is ready to run!</li>
 </ol>
+<hr />
+<h2 id="14-owasp-samm-software-assurance-maturity-model">14. OWASP SAMM Software Assurance Maturity Model</h2>
+<p>The DevSecOps Management Portal includes a dedicated <strong>OWASP SAMM</strong> section assessing software assurance maturity across all applications and business services.</p>
+<h3 id="core-capabilities">Core Capabilities:</h3>
+<ul>
+<li><strong>Continuous Maturity Assessment:</strong> SAMM v2.0 posture across 5 business functions (Governance, Design, Implementation, Verification, Operations) and 11 automated practices.</li>
+<li><strong>Automated Evidence-Based Scoring:</strong> Derived from active pipeline configuration (SAST, DAST, SCA Nexus IQ, SonarQube, unit tests, Cypress, coverage &gt;= 60%, GoldenFix, InfluxDB telemetry).</li>
+<li><strong>Executive &amp; Departmental Dashboards:</strong> Organization-level overview, maturity distribution across Levels 0–3, and departmental benchmarking.</li>
+<li><strong>Application Scorecards:</strong> Practice-level scores (0.0 to 3.0), criteria checklists, and concrete remediation roadmaps.</li>
+<li><strong>Pipeline Monitoring Integration:</strong> One-click drill-down directly from any pipeline card in Pipeline Monitoring into its SAMM scorecard.</li>
+</ul>
+<hr />
+<h2 id="15-repo-auto-discovery-and-smart-wizard-one-click-inspect">15. Repo Auto-Discovery and Smart Wizard (One-Click Inspect)</h2>
+<p>Onboarding services into a corporate DevSecOps pipeline historically created friction: engineers had to determine 15 to 20 granular configuration parameters, including build tools, compiler flags, test report paths, JaCoCo directories, Node.js versions, and OpenShift manifests.</p>
+<p>The <strong>Repo Auto-Discovery / Smart Wizard</strong> removes over 80% of onboarding friction:</p>
+<h3 id="non-technical-business-benefits">Non-Technical Business Benefits:</h3>
+<ul>
+<li><strong>Instant Onboarding:</strong> Teams provide only their Bitbucket repository URL and branch, then click <strong>Scan &amp; Auto-fill</strong>.</li>
+<li><strong>Error Reduction:</strong> Manifests are inspected directly from source control, preventing misconfigurations and build breaks.</li>
+<li><strong>Immediate Time-to-Value:</strong> Pipelines are configured, validated, and ready to execute within minutes.</li>
+</ul>
+<h3 id="how-it-works">How it Works:</h3>
+<ol>
+<li>When creating or updating a service in the Self-service wizard or Admin editor, specify the <strong>Bitbucket Repo URL</strong> and target <strong>Branch</strong>.</li>
+<li>Click <strong>Scan &amp; Auto-fill</strong>.</li>
+<li>The Portal executes an inspection via the Bitbucket REST API (<code>/api/catalog/inspect-repo</code>), recursively traverses workspace manifests, and pre-populates all form inputs with optimal configurations.</li>
+<li>Developers review the suggestions, make any project-specific adjustments, and click <strong>Save</strong>.</li>
+</ol>
+<h3 id="stack-detection-matrix">Stack Detection Matrix:</h3>
+<ul>
+<li><strong>Maven (<code>pom.xml</code>)</strong>: Identifies Maven build tool, extracts Java JDK version from <code>&lt;java.version&gt;</code>, <code>&lt;maven.compiler.source&gt;</code>, or <code>&lt;release&gt;</code>, detects Kotlin plugins, and preconfigures JaCoCo XML reports.</li>
+<li><strong>Gradle (<code>build.gradle</code>, <code>build.gradle.kts</code>, <code>gradle/wrapper/gradle-wrapper.properties</code>)</strong>: Identifies Gradle build tool, extracts exact Gradle wrapper version and compatible JDK, detects Kotlin DSL, and sets up test reporting.</li>
+<li><strong>Node.js Stage 0 (<code>package.json</code>)</strong>: Identifies root or frontend subdirectories (<code>frontend/</code>, <code>web/</code>, <code>client/</code>, <code>ui/</code>), enables Stage 0 pre-build (<code>build.node.enabled: true</code>), reads <code>engines.node</code> for Node version, and detects Cypress or Jest runners.</li>
+<li><strong>Liquibase (<code>changelog.xml</code>, <code>liquibase.properties</code>)</strong>: Configures Liquibase for database schema migrations (<code>updateSQL</code>, <code>validate</code>).</li>
+<li><strong>Flutter / Dart (<code>pubspec.yaml</code>)</strong>: Configures Flutter toolchain and Dart test runner.</li>
+<li><strong>Python / pip (<code>requirements.txt</code>, <code>pyproject.toml</code>, <code>setup.py</code>, <code>Pipfile</code>)</strong>: Configures isolated Python virtual environment.</li>
+<li><strong>OpenShift Target</strong>: Detects <code>Dockerfile</code>, <code>Containerfile</code>, or manifests in <code>openshift/</code>, <code>k8s/</code>, or <code>helm/</code> and sets the target to OpenShift.</li>
+</ul>
+<hr />
+<h2 id="16-auto-resolved-parameters-reference">16. Auto-Resolved Parameters Reference</h2>
+<p>When auto-resolution is active (<code>autoresolve parameters: true</code>), the pipeline automatically evaluates workspace files at execution time. Any parameters omitted from the Portal or configuration file are dynamically resolved:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Setting / Field</th>
+<th>Target Key / Form Field</th>
+<th>Workspace Indicator / Manifest</th>
+<th>Resolved Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>pom.xml</code> present</td>
+<td><code>maven</code></td>
+</tr>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>build.gradle</code> or <code>build.gradle.kts</code> present</td>
+<td><code>gradle</code></td>
+</tr>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>changelog.xml</code>, <code>changelog.yaml</code>, <code>liquibase.properties</code></td>
+<td><code>liquibase</code></td>
+</tr>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>pubspec.yaml</code> present</td>
+<td><code>flutter</code></td>
+</tr>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>requirements.txt</code>, <code>pyproject.toml</code>, <code>setup.py</code>, <code>Pipfile</code></td>
+<td><code>pip</code></td>
+</tr>
+<tr>
+<td>Build Tool Auto Setup</td>
+<td><code>buildToolAutoSetup</code></td>
+<td>Set to <code>true</code> whenever Maven or Gradle is detected</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td>Java / JDK Version</td>
+<td><code>build.maven.javaVersion</code> / <code>build.gradle.javaVersion</code></td>
+<td><code>&lt;java.version&gt;</code>, <code>&lt;maven.compiler.source&gt;</code>, <code>&lt;maven.compiler.target&gt;</code>, <code>&lt;release&gt;</code> in <code>pom.xml</code>, or <code>jvmToolchain</code>, <code>sourceCompatibility</code> in <code>build.gradle</code></td>
+<td>Matched JDK version (<code>17</code>, <code>21</code>, <code>11</code>, <code>8</code>)</td>
+</tr>
+<tr>
+<td>Gradle Version</td>
+<td><code>build.gradle.version</code></td>
+<td><code>distributionUrl</code> in <code>gradle/wrapper/gradle-wrapper.properties</code></td>
+<td>Exact Gradle wrapper version (e.g. <code>8.7</code>, <code>7.6</code>)</td>
+</tr>
+<tr>
+<td>Node.js Stage 0 Enabled</td>
+<td><code>build.node.enabled</code></td>
+<td><code>package.json</code> exists in root or standard frontend folders</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td>Node.js Directory</td>
+<td><code>build.node.dir</code></td>
+<td>Detected subfolder holding <code>package.json</code></td>
+<td><code>.</code>, <code>frontend</code>, <code>web</code>, <code>client</code>, or <code>ui</code></td>
+</tr>
+<tr>
+<td>Node.js Engine Version</td>
+<td><code>build.node.version</code></td>
+<td><code>engines.node</code> in <code>package.json</code> (e.g. <code>&gt;=20.0.0</code>)</td>
+<td>Major Node version (e.g. <code>20</code>)</td>
+</tr>
+<tr>
+<td>Cypress Unit Testing</td>
+<td><code>tests.unitTests.node.cypress</code></td>
+<td><code>cypress</code> in <code>devDependencies</code> / <code>dependencies</code> of <code>package.json</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td>Jest Unit Testing</td>
+<td><code>tests.unitTests.node.jest</code></td>
+<td><code>jest</code> in <code>devDependencies</code> / <code>dependencies</code> of <code>package.json</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td>Liquibase Build Command</td>
+<td><code>build.liquibase.commands</code></td>
+<td>Detected <code>changelog.xml</code> / <code>liquibase.properties</code></td>
+<td><code>['updateSQL']</code></td>
+</tr>
+<tr>
+<td>Liquibase Test Command</td>
+<td><code>tests.unitTests.liquibase.commands</code></td>
+<td>Liquibase build tool</td>
+<td><code>['validate']</code></td>
+</tr>
+<tr>
+<td>Deployment Target</td>
+<td><code>deployTarget</code></td>
+<td><code>Dockerfile</code>, <code>Containerfile</code>, <code>openshift/</code>, <code>k8s/</code>, <code>helm/</code> present</td>
+<td><code>openshift</code> (otherwise defaults to <code>vm</code>)</td>
+</tr>
+<tr>
+<td>Sonar Project Key</td>
+<td><code>tools.sonar.projectKey</code></td>
+<td>Empty or missing in config</td>
+<td><code>com.bbh:&lt;projectName&gt;</code> or <code>com.bbh:&lt;appName&gt;</code></td>
+</tr>
+<tr>
+<td>Sonar Language</td>
+<td><code>sonar.language</code></td>
+<td>Source tree inspection (<code>pubspec.yaml</code> -&gt; <code>dart</code>, <code>requirements.txt</code> -&gt; <code>py</code>, Kotlin files -&gt; <code>kotlin</code>, Liquibase -&gt; <code>sql</code>, else <code>java</code>)</td>
+<td>Detected language code</td>
+</tr>
+<tr>
+<td>Sonar Sources Directory</td>
+<td><code>sonar.sources</code></td>
+<td>Missing <code>sonar-project.properties</code></td>
+<td><code>src/main/java</code> (Java), <code>src/main/kotlin</code> (Kotlin), <code>lib</code> (Dart), <code>db</code> (SQL), <code>src</code> or <code>.</code> (Python)</td>
+</tr>
+<tr>
+<td>Sonar Tests Directory</td>
+<td><code>sonar.tests</code></td>
+<td>Missing <code>sonar-project.properties</code></td>
+<td><code>src/test/java</code> (Java), <code>src/test/kotlin</code> (Kotlin), <code>test</code> (Dart), <code>tests</code> (Python)</td>
+</tr>
+<tr>
+<td>Sonar Java Binaries</td>
+<td><code>sonar.java.binaries</code></td>
+<td>Maven: <code>target/classes</code>; Gradle: <code>target/classes,build/classes/java/main</code></td>
+<td>Standard build output directories</td>
+</tr>
+<tr>
+<td>Sonar Submodules</td>
+<td><code>sonar.modules</code></td>
+<td>Submodules in <code>pom.xml</code> (<code>&lt;module&gt;</code>) or <code>settings.gradle</code> (<code>include '...'</code>)</td>
+<td>Comma-separated module names</td>
+</tr>
+<tr>
+<td>Sonar Branch Pinning</td>
+<td><code>sonar.branch.name</code></td>
+<td>Auto-detected from pipeline branch (<code>CHANGE_BRANCH</code>, <code>BRANCH_NAME</code>, <code>GIT_BRANCH</code>)</td>
+<td>Active evaluated branch (never master)</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="17-bitbucket-pull-request-decoration-shift-left-feedback">17. Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</h2>
+<p>Direct feedback in developer pull requests accelerates remediation and prevents vulnerabilities from reaching production.</p>
+<h3 id="pull-request-separation-strategy">Pull Request Separation Strategy:</h3>
+<ol>
+<li><strong>Static Security Pull Request (Consolidated PR)</strong>:</li>
+<li>Evaluates Nexus IQ SCA, AppScan SAST, and SonarQube.</li>
+<li>GoldenFix automatically updates vulnerable package manifests (<code>pom.xml</code>, <code>build.gradle</code>, <code>package.json</code>, etc.) in a dedicated remediation branch.</li>
+<li>AppScan SAST findings are added as inline line comments on the exact source file and line, skipping findings with status <code>Noise</code>.</li>
+<li>SonarQube code quality issues, security vulnerabilities, and code smells are added as inline comments.</li>
+<li>Developers review all static findings and dependency updates in a single, unified Pull Request.</li>
+<li><strong>DAST Dynamic Security Pull Request (Dedicated PR)</strong>:</li>
+<li>Runtime web application scan results (e.g. missing HTTP security headers, cookie flags, TLS configuration) are placed into a separate, dedicated Pull Request.</li>
+<li>Keeps infrastructure and runtime security separated from application source code reviews.</li>
+</ol>
+<hr />
+<h2 id="18-deployment-modes-and-configuration-guide">18. Deployment Modes and Configuration Guide</h2>
+<h3 id="mode-1-with-portal-main-branch">Mode 1: With Portal (<code>main</code> branch)</h3>
+<ul>
+<li><strong>Configuration Source:</strong> Centrally managed in DevSecOps Management Portal.</li>
+<li><strong>Onboarding:</strong> Use <strong>Scan &amp; Auto-fill</strong> in the service editor to auto-populate fields from Bitbucket.</li>
+<li><strong>Pipeline Execution:</strong> Application repository requires only a single-line <code>Jenkinsfile</code>:
+  <code>groovy
+  @Library('DSOEnhanced@main') _
+  devSecOpsPipeline(pipelineKey: '5e0f0001-8c2b-4f6a-9d3e-1a7b2c4d0001')</code></li>
+<li><strong>Dynamic Resolution:</strong> Any fields left blank in the Portal are auto-resolved at pipeline runtime by <code>RepoStackAutoResolver</code>.</li>
+</ul>
+<h3 id="mode-2-standalone-without-portal-dsoenhancedwithoutportal-dsoenhancedappscanapionly">Mode 2: Standalone Without Portal (<code>DSOEnhancedWithoutPortal</code> &amp; <code>DSOEnhancedAppScanApiOnly</code>)</h3>
+<ul>
+<li><strong>Configuration Source:</strong> <code>devsecops_config.yaml</code> in the application Git repository.</li>
+<li><strong>Auto-Resolve Default:</strong> Enabled by default (<code>autoresolve parameters: true</code>).</li>
+<li><strong>Minimal Configuration Example:</strong>
+  <code>yaml
+  projects:
+    payment-service:
+      appId: "APP-54321"
+      asoc:
+        keyId: "11111111-2222-3333-4444-555555555555"
+        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"</code></li>
+<li><strong>Disabling Auto-Resolve:</strong> To enforce strict manual configuration, set <code>autoresolve parameters: false</code>:
+  <code>yaml
+  projects:
+    payment-service:
+      autoresolve parameters: false
+      buildTool: maven
+      deployTarget: vm
+      appId: "APP-54321"
+      asoc:
+        keyId: "11111111-2222-3333-4444-555555555555"
+        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"</code></li>
+<li><strong>Credential Isolation:</strong> SAST credentials (<code>sast.keyId</code>, <code>sast.token</code>) are strictly isolated from DAST credentials (<code>dast.keyId</code>, <code>dast.token</code>).</li>
+</ul>
         </div>
 
         <footer class="doc-footer">

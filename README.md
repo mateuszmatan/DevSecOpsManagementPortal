@@ -140,6 +140,12 @@ holds an alias inside the value it refers to. A `liquibase` project imports its 
 users inside JDBC URLs and production targets are never imported. The call stores nothing, so the action history does
 not record it.
 
+## Repo Auto-Discovery and Bitbucket PR Decoration
+
+- `POST /api/catalog/inspect-repo`: inspects Bitbucket repository manifests (Maven `pom.xml`, Gradle wrapper and build scripts, Node.js `package.json`, Liquibase `changelog.xml`, Flutter `pubspec.yaml`, Python `requirements.txt`, Dockerfiles and Kubernetes manifests) to auto-populate service configuration in the Smart Wizard.
+- `POST /api/dso/bitbucket/pull-requests/decorate`: receives security scan findings (AppScan SAST line findings with `Noise` filtered out, SonarQube quality and security issues) and decorates Bitbucket Server / Cloud pull requests with inline line comments. Combines Nexus IQ GoldenFix and SAST/Sonar into a single consolidated Static Security PR, while isolating DAST findings into a dedicated Dynamic Security PR.
+- `/api/samm/*`: evaluates OWASP SAMM v2.0 software assurance maturity across 5 business functions and 11 practices, generating department overviews, distribution tiers, and per-pipeline scorecards.
+
 ## Architecture
 
 The service is hexagonal with MVC at its edge, and ArchUnit tests keep the layers apart:
