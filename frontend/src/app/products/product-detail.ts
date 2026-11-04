@@ -11,6 +11,7 @@ import {
   Pipeline,
   Product,
   ServicePipelines,
+  changesDatabase,
   pipelineTypeLabel,
   pipelineTypeOrder,
 } from '../core/models';
@@ -111,6 +112,15 @@ export class ProductDetail {
       ),
   );
 
+  private readonly databaseServices = computed(
+    () =>
+      new Set(
+        (this.product.hasValue() ? this.product.value().services : [])
+          .filter((service) => changesDatabase(service.build.tool, service.database?.changelogFile))
+          .map((service) => service.id),
+      ),
+  );
+
   /** The pipelines of one type that services sharing a repository run in one Jenkins job. */
   protected readonly sharedRepositories = computed(() =>
     byRepository(
@@ -157,6 +167,11 @@ export class ProductDetail {
 
   protected repositoryOf(service: ServicePipelines): string | null {
     return this.repositories().get(service.serviceId) ?? null;
+  }
+
+  /** Whether the service deploys to a target: Liquibase deploys the changes of a service with database changes. */
+  protected deploys(service: ServicePipelines): boolean {
+    return !this.databaseServices().has(service.serviceId);
   }
 
   protected canAddPipeline(service: ServicePipelines): boolean {

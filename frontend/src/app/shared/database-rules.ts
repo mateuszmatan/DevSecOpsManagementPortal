@@ -3,8 +3,8 @@ import { optional } from '@common/shared/form-controls';
 import { DatabaseSettings, PipelineType } from '../core/models';
 
 /**
- * The value formats and rules of a SQL and PL/SQL service and of its Library defaults, as the DevSecOps library and
- * the portal backend check them (DatabaseFormats, OracleUrl and ContextFilter).
+ * The value formats and rules of the database changes of a Liquibase service and of their Library defaults, as the
+ * DevSecOps library and the portal backend check them (DatabaseFormats, OracleUrl and ContextFilter).
  */
 export const PATH = /^(?!(.*\/)?\.\.(\/|$))[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 export const SEARCH_PATH = /^\.$|^(?!(.*\/)?\.\.(\/|$))[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;

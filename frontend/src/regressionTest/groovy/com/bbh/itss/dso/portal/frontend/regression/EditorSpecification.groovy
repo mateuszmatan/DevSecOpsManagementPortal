@@ -8,7 +8,7 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 
 abstract class EditorSpecification extends DsoSpecification {
 
-    /** The Library defaults (SQL and PL/SQL) that the service forms read: the allowed databases and the repositories. */
+    /** The Library defaults (Liquibase database changes) that the service forms read: the allowed databases and the repositories. */
     static final Map DATABASE_DEFAULTS = [allowedTargets       : ['dev-db.bbh.com', 'rd-db.bbh.com', 'qc-db.bbh.com'],
                                           snapshotRepositoryId : 'bbh-db-snapshots',
                                           snapshotRepositoryUrl: 'https://tools.bbh.com/nexus/repository/db-snapshots',

@@ -41,7 +41,7 @@
               automatic setup cannot pick a JDK for Flutter; its modules and credentials are in the
               Flutter section.
             </p>
-          } @else if (builds()) {
+          } @else {
             <dso-tool-command-fields
               [group]="f.controls.build.controls.command"
               [tool]="tool()"
@@ -52,83 +52,81 @@
             />
           }
           <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
-          @if (builds()) {
+          @if (!flutter()) {
             <h4 class="sub-heading span-12">Node.js build (stage 0)</h4>
             <dso-fields [group]="node" [fields]="nodeSwitch()" />
             @if (buildsNode()) {
               <dso-fields [group]="node" [fields]="nodeFields()" />
             }
           }
-          @if (!liquibase()) {
-            <dso-advanced-settings
-              [summary]="buildOptionsSummary()"
-              [controls]="advanced().build"
-              [submitted]="submitted()"
-            >
-              <dso-fields [group]="f.controls.build" [fields]="buildOptions()" />
-              @if (builds()) {
-                <dso-tool-command-fields
-                  [group]="f.controls.build.controls.command"
-                  [tool]="tool()"
-                  path="build"
-                  part="options"
-                />
-                @if (buildsNode()) {
-                  <h4 class="sub-heading span-12">Node.js build</h4>
-                  <dso-fields [group]="node" [fields]="nodeOptions()" />
-                }
+          <dso-advanced-settings
+            [summary]="buildOptionsSummary()"
+            [controls]="advanced().build"
+            [submitted]="submitted()"
+          >
+            <dso-fields [group]="f.controls.build" [fields]="buildOptions()" />
+            @if (!flutter()) {
+              <dso-tool-command-fields
+                [group]="f.controls.build.controls.command"
+                [tool]="tool()"
+                path="build"
+                part="options"
+              />
+              @if (buildsNode()) {
+                <h4 class="sub-heading span-12">Node.js build</h4>
+                <dso-fields [group]="node" [fields]="nodeOptions()" />
               }
-            </dso-advanced-settings>
-          }
+            }
+          </dso-advanced-settings>
         </div>
       }
 
       @case ('database') {
         @let db = f.controls.database;
         <div class="form-fields">
-          <dso-fields [group]="db" [fields]="databaseFields" />
+          <dso-fields [group]="db" [fields]="databaseFields()" />
         </div>
-        @for (target of databaseTargets; track target) {
-          <div class="form-fields block">
-            <h4 class="sub-heading span-12">
-              {{ databaseNames[target] }} <code>database.{{ target.toLowerCase() }}</code>
-            </h4>
-            <dso-fields
-              [group]="f.controls.databaseTargets.controls[target]"
-              [fields]="databaseTargetFields(target)"
-            />
-            @if (target === 'TEST') {
-              <dso-fields [group]="db" [fields]="testReset" />
-              <h4 class="sub-heading span-12">Unit tests with utPLSQL</h4>
-              <dso-fields [group]="db" [fields]="utplsqlSwitch" />
-              @if (db.controls.utplsql.value) {
-                <dso-fields [group]="db" [fields]="utplsqlFields" />
-              }
-            }
-          </div>
-        }
-        <div class="form-fields block">
-          <h4 class="sub-heading span-12">Package and Nexus delivery</h4>
-          <dso-fields [group]="db" [fields]="packageFields()" />
-          <dso-advanced-settings
-            summary="Maven home, contexts, labels, schemas, the checks after a deployment, the options of each database and SonarQube"
-            [controls]="advanced().database"
-            [submitted]="submitted()"
-          >
-            <dso-fields [group]="db" [fields]="databaseOptions()" />
-            @for (target of databaseTargets; track target) {
+        @if (changesDatabase()) {
+          @for (target of databaseTargets; track target) {
+            <div class="form-fields block">
               <h4 class="sub-heading span-12">
                 {{ databaseNames[target] }} <code>database.{{ target.toLowerCase() }}</code>
               </h4>
               <dso-fields
                 [group]="f.controls.databaseTargets.controls[target]"
-                [fields]="databaseTargetOptions(target)"
+                [fields]="databaseTargetFields(target)"
               />
-            }
-            <h4 class="sub-heading span-12">SonarQube analysis of SQL and PL/SQL</h4>
-            <dso-fields [group]="db" [fields]="databaseSonar" />
-          </dso-advanced-settings>
-        </div>
+              @if (target === 'TEST') {
+                <dso-fields [group]="db" [fields]="testReset" />
+                <h4 class="sub-heading span-12">Unit tests with utPLSQL</h4>
+                <dso-fields [group]="db" [fields]="utplsqlSwitch" />
+                @if (db.controls.utplsql.value) {
+                  <dso-fields [group]="db" [fields]="utplsqlFields" />
+                }
+              }
+            </div>
+          }
+          <div class="form-fields block">
+            <h4 class="sub-heading span-12">Package and Nexus delivery</h4>
+            <dso-fields [group]="db" [fields]="packageFields()" />
+            <dso-advanced-settings
+              summary="Maven home, contexts, labels, schemas, the checks after a deployment and the options of each database"
+              [controls]="advanced().database"
+              [submitted]="submitted()"
+            >
+              <dso-fields [group]="db" [fields]="databaseOptions()" />
+              @for (target of databaseTargets; track target) {
+                <h4 class="sub-heading span-12">
+                  {{ databaseNames[target] }} <code>database.{{ target.toLowerCase() }}</code>
+                </h4>
+                <dso-fields
+                  [group]="f.controls.databaseTargets.controls[target]"
+                  [fields]="databaseTargetOptions(target)"
+                />
+              }
+            </dso-advanced-settings>
+          </div>
+        }
       }
 
       @case ('unitTests') {
@@ -236,7 +234,7 @@
         @let scan = f.controls.appScan;
         <div class="form-fields">
           <dso-fields [group]="scan" [fields]="appScan" />
-          @if ((!pipeline() || pipeline() === 'FULL') && !liquibase()) {
+          @if (!pipeline() || pipeline() === 'FULL') {
             <h4 class="sub-heading span-12">Dynamic scan (DAST)</h4>
             <dso-fields [group]="scan" [fields]="dastEnabled" />
             @if (scan.controls.dastEnabled.value) {
@@ -248,8 +246,8 @@
             [controls]="advanced().appScan"
             [submitted]="submitted()"
           >
-            <dso-fields [group]="scan" [fields]="appScanOptions()" />
-            @if (builds() && scan.controls.compile.value) {
+            <dso-fields [group]="scan" [fields]="appScanOptions" />
+            @if (!flutter() && scan.controls.compile.value) {
               <h4 class="sub-heading span-12">Compile command</h4>
               <p class="note span-12">
                 Left empty, the SAST compile runs the build command of the service. Another command
@@ -272,7 +270,7 @@
       @case ('sonar') {
         <div class="form-fields">
           <dso-fields [group]="f.controls.sonar" [fields]="sonarFields()" />
-          @if (builds()) {
+          @if (!flutter()) {
             <dso-tool-command-fields
               [group]="f.controls.sonar.controls.command"
               [tool]="tool()"
@@ -289,7 +287,7 @@
             [submitted]="submitted()"
           >
             <dso-fields [group]="f.controls.sonar" [fields]="sonarOptions()" />
-            @if (builds()) {
+            @if (!flutter()) {
               <dso-tool-command-fields
                 [group]="f.controls.sonar.controls.command"
                 [tool]="tool()"

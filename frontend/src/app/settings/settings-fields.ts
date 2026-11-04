@@ -477,10 +477,10 @@ export const SETTINGS_PAGE: SettingsSection[] = [
   },
   {
     id: 'database',
-    label: 'SQL and PL/SQL (Liquibase)',
+    label: 'Liquibase database changes',
     note:
-      'The tools, the allowed databases and the Nexus repositories of every SQL and PL/SQL ' +
-      'service (build tool Liquibase). A tool left empty is taken from the PATH of the agent. ' +
+      'The tools, the allowed databases and the Nexus repositories of every Liquibase service ' +
+      'with database changes (a changelog file). A tool left empty is taken from the PATH of the agent. ' +
       'Credentials are never set here: each service names the IDs of its own.',
     blocks: [
       {
@@ -547,7 +547,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
       },
       {
         heading: 'Nexus repositories of the database packages',
-        note: 'Where the Full, Security and Extended pipelines upload and fetch the zips of the SQL and PL/SQL services. A service may name its own.',
+        note: 'Where the Full, Security and Extended pipelines upload and fetch the zips of the Liquibase services with database changes. A service may name its own.',
         fields: [
           mono(
             'snapshotRepositoryId',

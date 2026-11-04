@@ -679,7 +679,7 @@ describe('SelfService', () => {
     expect(wizard()['step']()).toBe(3);
   });
 
-  it('keeps SQL and PL/SQL services out of the Nexus IQ wizard and out of the UrbanCode Deploy check', async () => {
+  it('keeps Liquibase services with database changes out of the Nexus IQ wizard and out of the UrbanCode Deploy check', async () => {
     const stored = product({ services: [service(), databaseService({ id: 11 })] });
     const pipelines = [
       servicePipelines(),
@@ -693,7 +693,7 @@ describe('SelfService', () => {
 
     expect(wizard()['step']()).toBe(2);
     expect(all('.choice-error')).toEqual([
-      'A Nexus IQ GoldenFix pipeline scans open source dependencies, which SQL and PL/SQL services do not have. Remove these services from this pipeline: orders-db',
+      'The library runs no Nexus IQ GoldenFix pipeline for a Liquibase service with database changes. Remove these services from this pipeline: orders-db',
     ]);
 
     wizard()['back']();

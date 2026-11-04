@@ -220,7 +220,7 @@ class AddProductSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a product with a SQL and PL/SQL service typed in the editor sends its changelog and its databases"() {
+    def "a product with a Liquibase service typed in the editor sends its changelog and its databases"() {
         given:
         allowDatabases()
         ProductStore.created(api, 3)
@@ -232,18 +232,19 @@ class AddProductSpec extends EditorSpecification {
                                  'Contact e-mail': 'orders-team@bbh.com'])
         fillIn(openService(), ['Service name': 'orders-db', 'Description': 'SQL and PL/SQL of the orders schema'])
         showSection('Build')
-        choose(openService(), 'Build tool', 'SQL and PL/SQL (Liquibase)')
+        choose(openService(), 'Build tool', 'Liquibase (SQL / PL/SQL)')
         checkbox(openService(), 'Set up the build tool automatically').uncheck()
         input(openService(), 'JDK path').fill('/usr/lib/jvm/java-17-openjdk')
+        showSection('Database changes')
+        input(openService(), 'Changelog file').fill('db/changelog-master.xml')
 
         then:
-        assertThat(sectionNames()).hasText(['General', 'Build', 'Database changes', 'Test jobs', 'AppScan SAST and DAST',
-                                            'SonarQube', 'Bitbucket', 'Monitoring'] as String[])
+        assertThat(sectionNames()).hasText(['General', 'Build', 'Database changes', 'Unit tests and coverage', 'Test jobs',
+                                            'AppScan SAST and DAST', 'SonarQube', 'Nexus IQ', 'Bitbucket', 'GoldenFix',
+                                            'Monitoring'] as String[])
 
         when:
-        showSection('Database changes')
-        fillIn(openService().locator('.pane > .form-fields').first(), ['Changelog file'      : 'db/changelog-master.xml',
-                                                                     'Changelog parameters': 'app_role=orders_app_role'])
+        input(openService().locator('.pane > .form-fields').first(), 'Changelog parameters').fill('app_role=orders_app_role')
         input(openService(), 'Group ID').fill('com.bbh.orders')
         fillIn(databaseBlock('test'), ['JDBC URL': 'jdbc:oracle:thin:@//dev-db.bbh.com:1521/ORDERS_CI', 'Credentials ID': 'orders-db-test'])
         checkbox(databaseBlock('test'), 'Run the utPLSQL tests').check()

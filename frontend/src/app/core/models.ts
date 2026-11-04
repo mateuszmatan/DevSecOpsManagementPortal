@@ -361,8 +361,6 @@ export interface DatabaseSettings {
   utplsqlSourcePath: string | null;
   utplsqlTestPath: string | null;
   utplsqlTimeoutMinutes: number | null;
-  sonarSources: string | null;
-  sonarScannerVersion: string | null;
 }
 
 export interface DatabaseTargetSettings {
@@ -400,6 +398,14 @@ export interface ServiceSettings {
   flutter: FlutterSettings | null;
   database?: DatabaseSettings | null;
   databaseTargets?: Partial<Record<DatabaseTarget, DatabaseTargetSettings>>;
+}
+
+/** Whether Liquibase deploys the changes of a service to its databases: a Liquibase service with a changelog. */
+export function changesDatabase(
+  tool: BuildTool,
+  changelogFile: string | null | undefined,
+): boolean {
+  return tool === 'LIQUIBASE' && !!changelogFile?.trim();
 }
 
 export interface Service extends ServiceSettings {

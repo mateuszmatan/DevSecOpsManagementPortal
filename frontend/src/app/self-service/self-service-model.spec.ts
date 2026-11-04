@@ -634,9 +634,9 @@ describe('self-service model', () => {
     expect(serviceSummary('NEXUS_IQ', added())).toBe('Built with Gradle.');
   });
 
-  it('asks for the changelog, the databases and the group ID of a SQL and PL/SQL service, except for Nexus IQ', () => {
+  it('asks for the changelog, the databases and the group ID of a Liquibase service with database changes, except for Nexus IQ', () => {
     const line =
-      'For a SQL and PL/SQL service: its changelog file, the JDBC URL of each database with the ID of its Jenkins credential, and the Maven group ID of its package; the DBA and the DevSecOps team provide them';
+      'For a Liquibase service with database changes: its changelog file, the JDBC URL of each database with the ID of its Jenkins credential, and the Maven group ID of its package; the DBA and the DevSecOps team provide them';
 
     expect((['FULL', 'SECURITY', 'SAST'] as const).map((type) => preparation(type).at(-1))).toEqual(
       [line, line, line],
@@ -644,16 +644,16 @@ describe('self-service model', () => {
     expect(preparation('NEXUS_IQ')).not.toContain(line);
   });
 
-  it('sums up a SQL and PL/SQL service without a build tool or where it runs', () => {
+  it('sums up a Liquibase service with database changes as deploying them, and one without as any other', () => {
     expect(serviceSummary('FULL', added({ tool: 'LIQUIBASE' }))).toBe(
-      'SQL and PL/SQL changes with Liquibase.',
+      'Built with Liquibase (SQL / PL/SQL), runs on virtual machines.',
     );
     expect(serviceSummary('SECURITY', fromService(databaseService()))).toBe(
-      'SQL and PL/SQL changes with Liquibase, repository https://bitbucket.bbh.com/projects/ORD/repos/orders.',
+      'Built with Liquibase (SQL / PL/SQL), deploys its changes to its databases, repository https://bitbucket.bbh.com/projects/ORD/repos/orders.',
     );
   });
 
-  it('asks to move a new SQL and PL/SQL service before the Java service of its repository', () => {
+  it('asks to move a new Liquibase service before the Java service of its repository', () => {
     const stored = [service()];
     const database = added({ name: 'gui-db', tool: 'LIQUIBASE', repositoryUrl: GUI_REPOSITORY });
     const order =

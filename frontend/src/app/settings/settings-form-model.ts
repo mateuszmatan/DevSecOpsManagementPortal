@@ -64,7 +64,7 @@ const absolute = (value: string | null | undefined, ...validators: ValidatorFn[]
 const download = (value: string | null | undefined, file: RegExp, message: string) =>
   text(value, max(1000), matching(TOOL_URL, TOOL_URL_MESSAGE), matching(file, message));
 
-/** The tools, allowed databases and package repositories of every SQL and PL/SQL service. */
+/** The tools, allowed databases and package repositories of every Liquibase service with database changes. */
 function createDatabaseDefaultsForm(d?: DatabaseDefaults | null) {
   const form = new FormGroup({
     liquibaseHome: absolute(d?.liquibaseHome),

@@ -1573,25 +1573,35 @@ describe('followToolDefaults', () => {
   });
 });
 
-describe('SQL and PL/SQL services', () => {
+describe('Liquibase services with and without database changes', () => {
   const ORDERS_DB = 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD';
   const gradle = () => createServiceForm(service());
   const database = (overrides = {}) =>
     createServiceForm(databaseService({ database: databaseSettings(overrides) }));
+  const ids = (sections: { id: string }[]) => sections.map((section) => section.id);
 
-  it('opens a stored database service with its sections and values', () => {
+  it("shows main's sections and the database changes, and hides the deployment once the changelog file is set", () => {
     const form = createServiceForm(databaseService());
+    const plain = createServiceForm(databaseService({ database: null, databaseTargets: {} }));
     const c = form.controls;
 
-    expect(form.valid).toBe(true);
-    expect(visibleSections(form).map((section) => section.id)).toEqual([
+    expect(form.valid && plain.valid).toBe(true);
+    expect(ids(visibleSections(plain))).toEqual([
+      ...ids(visibleSections(gradle())).slice(0, 2),
+      'database',
+      ...ids(visibleSections(gradle())).slice(2),
+    ]);
+    expect(ids(visibleSections(form))).toEqual([
       'general',
       'build',
       'database',
+      'unitTests',
       'testJobs',
       'appScan',
       'sonar',
+      'nexusIq',
       'scm',
+      'goldenFix',
       'metrics',
     ]);
     expect(c.database.controls.parameters.value).toBe('app_role=orders_app_role');
@@ -1600,7 +1610,7 @@ describe('SQL and PL/SQL services', () => {
       false,
     ]);
     expect(c.databaseTargets.controls.QC.controls.credentialsId.value).toBe('orders-db-qc');
-    expect(visibleSectionsForPipeline(form, 'SAST').map((section) => section.id)).toEqual([
+    expect(ids(visibleSectionsForPipeline(form, 'SAST'))).toEqual([
       'general',
       'build',
       'database',
@@ -1609,44 +1619,45 @@ describe('SQL and PL/SQL services', () => {
     ]);
   });
 
-  const APPLIES: Record<string, BuildTool[]> = {
-    'build.command': ['GRADLE', 'MAVEN'],
-    'build.buildPath': ['GRADLE', 'MAVEN', 'FLUTTER'],
-    nodeBuild: ['GRADLE', 'MAVEN'],
-    unitTests: ['GRADLE', 'MAVEN', 'FLUTTER'],
-    'unitTests.command': ['GRADLE', 'MAVEN'],
-    'sonar.command': ['GRADLE', 'MAVEN'],
-    'appScan.compile': ['GRADLE', 'MAVEN', 'FLUTTER'],
-    'appScan.sourceCodeOnly': ['GRADLE', 'MAVEN', 'FLUTTER'],
-    'appScan.compileCommand': ['GRADLE', 'MAVEN'],
-    'appScan.dastEnabled': ['GRADLE', 'MAVEN', 'FLUTTER'],
-    deployment: ['GRADLE', 'MAVEN', 'FLUTTER'],
-    urbanCode: ['GRADLE', 'MAVEN', 'FLUTTER'],
-    urbanCodeApplications: ['GRADLE', 'MAVEN', 'FLUTTER'],
-    sshTargets: ['GRADLE', 'MAVEN', 'FLUTTER'],
-    nexusIq: ['GRADLE', 'MAVEN', 'FLUTTER'],
-    nexusIqApplications: ['GRADLE', 'MAVEN', 'FLUTTER'],
-    goldenFix: ['GRADLE', 'MAVEN', 'FLUTTER'],
-    versionCatalogs: ['GRADLE', 'MAVEN', 'FLUTTER'],
+  type Mode = BuildTool | 'DATABASE';
+  const APPLIES: Record<string, Mode[]> = {
+    'build.command': ['GRADLE', 'MAVEN', 'LIQUIBASE', 'DATABASE'],
+    'build.buildPath': ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DATABASE'],
+    nodeBuild: ['GRADLE', 'MAVEN', 'LIQUIBASE', 'DATABASE'],
+    unitTests: ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DATABASE'],
+    'unitTests.command': ['GRADLE', 'MAVEN', 'LIQUIBASE', 'DATABASE'],
+    'sonar.command': ['GRADLE', 'MAVEN', 'LIQUIBASE', 'DATABASE'],
+    'appScan.dastEnabled': ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DATABASE'],
+    deployment: ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'],
+    urbanCode: ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'],
+    urbanCodeApplications: ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'],
+    sshTargets: ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'],
+    nexusIqApplications: ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DATABASE'],
+    goldenFix: ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DATABASE'],
+    versionCatalogs: ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DATABASE'],
     flutter: ['FLUTTER'],
-    database: ['LIQUIBASE'],
-    databaseTargets: ['LIQUIBASE'],
-    'database.artifactId': ['LIQUIBASE'],
-    'database.groupId': ['LIQUIBASE'],
+    'database.changelogFile': ['LIQUIBASE', 'DATABASE'],
+    'database.searchPath': ['DATABASE'],
+    'database.artifactId': ['DATABASE'],
+    'database.groupId': ['DATABASE'],
     'database.utplsqlSourcePath': [],
+    databaseTargets: ['DATABASE'],
   };
 
-  it.each<BuildTool>(['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'])(
+  it.each<Mode>(['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DATABASE'])(
     'enables only what a %s service uses',
-    (tool) => {
+    (mode) => {
       const form = gradle();
-      form.controls.build.controls.tool.setValue(tool);
+      form.controls.build.controls.tool.setValue(mode === 'DATABASE' ? 'LIQUIBASE' : mode);
+      if (mode === 'DATABASE') {
+        form.controls.database.controls.changelogFile.setValue('db/changelog-master.xml');
+      }
 
       expect(
         Object.fromEntries(Object.keys(APPLIES).map((path) => [path, form.get(path)!.enabled])),
       ).toEqual(
         Object.fromEntries(
-          Object.entries(APPLIES).map(([path, tools]) => [path, tools.includes(tool)]),
+          Object.entries(APPLIES).map(([path, modes]) => [path, modes.includes(mode)]),
         ),
       );
     },
@@ -1683,10 +1694,16 @@ describe('SQL and PL/SQL services', () => {
     expect(d.artifactId.enabled).toBe(true);
   });
 
-  it('sends the values of layout (a) and nothing of the build, deployment or Nexus IQ', () => {
-    const request = toServiceRequest(createServiceForm(databaseService()));
+  it("sends main's request of a Liquibase service, and the two database blocks once its changelog file is set", () => {
+    const form = createServiceForm(databaseService());
+    const { database: block, databaseTargets, ...rest } = toServiceRequest(form);
+    form.controls.database.controls.changelogFile.setValue('');
+    const plain = toServiceRequest(form);
 
-    expect(request.database).toEqual(
+    expect(plain).not.toHaveProperty('database');
+    expect(plain).not.toHaveProperty('databaseTargets');
+    expect(rest).toEqual(plain);
+    expect(block).toEqual(
       databaseSettings({
         parameters: ['app_role=orders_app_role'],
         requireRollback: false,
@@ -1701,26 +1718,7 @@ describe('SQL and PL/SQL services', () => {
         utplsqlTestPath: 'db/test',
       }),
     );
-    expect(request.databaseTargets).toEqual(databaseService().databaseTargets);
-    expect(request).toMatchObject({
-      build: { tool: 'LIQUIBASE', sourceDir: '.', command: NO_COMMAND },
-      unitTests: { command: NO_COMMAND },
-      sonar: { command: NO_COMMAND },
-      appScan: {
-        compile: false,
-        sourceCodeOnly: false,
-        compileCommand: NO_COMMAND,
-        dastEnabled: false,
-        dastTargetUrl: null,
-        dastPresenceId: null,
-      },
-      urbanCodeApplications: [],
-      sshTargets: {},
-      openShiftTargets: {},
-      nexusIqApplications: [],
-      versionCatalogs: [],
-      flutter: null,
-    });
+    expect(databaseTargets).toEqual(databaseService().databaseTargets);
   });
 
   it.each<BuildTool>(['GRADLE', 'MAVEN', 'FLUTTER'])(
@@ -1743,14 +1741,13 @@ describe('SQL and PL/SQL services', () => {
     const before = toServiceRequest(form);
 
     form.controls.build.controls.tool.setValue('LIQUIBASE');
-    expect(toServiceRequest(form).nexusIqApplications).toEqual([]);
+    expect(toServiceRequest(form).nexusIqApplications).toEqual(before.nexusIqApplications);
     form.controls.build.controls.tool.setValue('GRADLE');
 
     expect(toServiceRequest(form)).toEqual(before);
-    expect(form.controls.nexusIqApplications.enabled).toBe(true);
   });
 
-  it('offers the Nexus IQ application of the template only once the service is not a database service', () => {
+  it('offers the Nexus IQ application of the template to a Liquibase service as to any other', () => {
     const form = createServiceForm();
     form.controls.build.controls.tool.setValue('LIQUIBASE');
     TestBed.runInInjectionContext(() =>
@@ -1758,12 +1755,8 @@ describe('SQL and PL/SQL services', () => {
     );
 
     form.controls.name.setValue('orders-db');
-    expect(form.controls.nexusIqApplications.length).toBe(0);
-    expect(form.controls.nexusIqApplications.disabled).toBe(true);
 
-    form.controls.build.controls.tool.setValue('GRADLE');
-    form.controls.name.setValue('orders');
-    expect(form.controls.nexusIqApplications.getRawValue()[0].application).toBe('cert-orders');
+    expect(form.controls.nexusIqApplications.getRawValue()[0].application).toBe('cert-orders-db');
   });
 
   it('sends no hidden, disabled or invalid database value', () => {
@@ -1844,7 +1837,7 @@ describe('SQL and PL/SQL services', () => {
     const d = withDatabaseRules(database(), settings, ['FULL']).controls.database.controls;
 
     expect(d.releaseRepositoryUrl.errors).toEqual({
-      rule: 'Add the release repository URL, set it in the Library defaults (SQL and PL/SQL), or untick Deliver the package to Nexus',
+      rule: 'Add the release repository URL, set it in the Library defaults (Liquibase database changes), or untick Deliver the package to Nexus',
     });
     expect(d.releaseRepositoryId.valid).toBe(true);
   });

@@ -184,7 +184,7 @@ class GlobalSettingsSpec extends DsoSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the SQL and PL/SQL section saves its tools, allowed databases and package repositories"() {
+    def "the Liquibase database changes section saves its tools, allowed databases and package repositories"() {
         given:
         open('/admin/settings')
         def section = page.locator('#settings-database')

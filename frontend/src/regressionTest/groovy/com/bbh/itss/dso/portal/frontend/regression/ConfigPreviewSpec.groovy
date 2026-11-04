@@ -65,14 +65,14 @@ class ConfigPreviewSpec extends ProductPageSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the settings of a product with a SQL and PL/SQL service show its database block and no deployment"() {
+    def "the settings of a product with a Liquibase service with database changes show its database block and no deployment"() {
         given:
         def yaml = fixtureText('product-3-config.yaml')
         open('/admin/products/3')
 
         expect:
         assertThat(serviceCard('orders-db').locator('.service-facts dt')).hasText(['Build tool', 'Bitbucket repository'] as String[])
-        assertThat(serviceCard('orders-db').locator('.service-facts dd').first()).hasText('SQL and PL/SQL (Liquibase)')
+        assertThat(serviceCard('orders-db').locator('.service-facts dd').first()).hasText('Liquibase (SQL / PL/SQL)')
 
         when:
         productAction('Settings sent to Jenkins (devsecops_config.yaml)')

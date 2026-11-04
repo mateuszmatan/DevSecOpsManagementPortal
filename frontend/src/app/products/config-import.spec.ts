@@ -347,7 +347,7 @@ describe('the import into a service form', () => {
     });
   });
 
-  it('fills a SQL and PL/SQL service with its changelog and databases from the file', () => {
+  it('fills a Liquibase service with its changelog and databases from the file', () => {
     const orders = databaseService();
     const form = importedServiceForm({ ...file, name: 'orders-db', service: orders }, null);
 

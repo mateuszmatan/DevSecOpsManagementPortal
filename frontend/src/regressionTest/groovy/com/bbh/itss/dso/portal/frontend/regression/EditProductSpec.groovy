@@ -126,7 +126,7 @@ class EditProductSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a Gradle service switched to SQL and PL/SQL shows Database changes, and switched back saves what was loaded"() {
+    def "a Gradle service switched to Liquibase shows Database changes, drops its deployment once its changelog file is set, and switched back saves what was loaded"() {
         given:
         def loaded = fixture('product-1.json') as Map
         def gradle = ['General', 'Build', 'Unit tests and coverage', 'Test jobs', 'Deployment', 'UrbanCode Deploy', 'SSH targets',
@@ -140,18 +140,19 @@ class EditProductSpec extends EditorSpecification {
         assertThat(sectionNames()).hasText(gradle)
 
         when:
-        choose(openService(), 'Build tool', 'SQL and PL/SQL (Liquibase)')
+        choose(openService(), 'Build tool', 'Liquibase (SQL / PL/SQL)')
 
         then:
-        assertThat(sectionNames()).hasText(['General', 'Build', 'Database changes', 'Test jobs', 'AppScan SAST and DAST',
-                                            'SonarQube', 'Bitbucket', 'Monitoring'] as String[])
-        assertThat(input(openService(), 'Artifact path')).hasCount(0)
+        assertThat(sectionNames()).hasText((gradle[0..1] + 'Database changes' + gradle[2..-1]) as String[])
 
         when:
         showSection('Database changes')
+        input(openService(), 'Changelog file').fill('db/changelog-master.xml')
 
         then:
-        assertThat(input(openService(), 'Changelog file')).isVisible()
+        assertThat(sectionNames()).hasText(['General', 'Build', 'Database changes', 'Unit tests and coverage', 'Test jobs',
+                                            'AppScan SAST and DAST', 'SonarQube', 'Nexus IQ', 'Bitbucket', 'GoldenFix',
+                                            'Monitoring'] as String[])
 
         when:
         showSection('Build')

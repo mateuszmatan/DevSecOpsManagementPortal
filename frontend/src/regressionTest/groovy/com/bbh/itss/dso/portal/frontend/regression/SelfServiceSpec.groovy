@@ -254,7 +254,7 @@ class SelfServiceSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a Security pipeline of a new product gets a SQL and PL/SQL service with its changelog and its databases"() {
+    def "a Security pipeline of a new product gets a Liquibase service with its changelog and its databases"() {
         given:
         allowDatabases()
         def store = ProductStore.created(api, 3)
@@ -263,26 +263,27 @@ class SelfServiceSpec extends EditorSpecification {
         startWizard('Orders Database', 'Security')
 
         then:
-        assertThat(step().locator('.prepare li').last()).hasText('For a SQL and PL/SQL service: its changelog file, the JDBC URL ' +
+        assertThat(step().locator('.prepare li').last()).hasText('For a Liquibase service with database changes: its changelog file, the JDBC URL ' +
                 'of each database with the ID of its Jenkins credential, and the Maven group ID of its package; the DBA and the ' +
                 'DevSecOps team provide them')
 
         when:
         button('Next: Services', true).click()
         addDatabaseService()
+        input(dialog(), 'Changelog file').fill('db/changelog-master.xml')
 
         then:
         assertThat(dialogButton('Add service')).isDisabled()
-        assertThat(dialog().locator('.missing')).hasText('Complete these fields first: Changelog file, Group ID.')
+        assertThat(dialog().locator('.missing')).hasText('Complete these fields first: Group ID.')
 
         when:
-        fillIn(dialog(), ['Changelog file': 'db/changelog-master.xml', 'Group ID': 'com.bbh.orders'])
+        input(dialog(), 'Group ID').fill('com.bbh.orders')
         fillIn(databaseBlock('rd', dialog()), ['JDBC URL'      : 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD',
                                                'Credentials ID': 'orders-db-rd'])
         dialogButton('Add service').click()
 
         then:
-        assertThat(serviceRow('orders-db').locator('.muted')).hasText('SQL and PL/SQL changes with Liquibase.')
+        assertThat(serviceRow('orders-db').locator('.muted')).hasText('Built with Liquibase (SQL / PL/SQL), deploys its changes to its databases.')
 
         when:
         button('Next: Review', true).click()
@@ -309,7 +310,7 @@ class SelfServiceSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a Nexus IQ GoldenFix pipeline asks to remove a SQL and PL/SQL service, which has no open source dependencies"() {
+    def "a Nexus IQ GoldenFix pipeline asks to remove a Liquibase service with database changes, which the library does not scan"() {
         when:
         startWizard('Orders Database', OSA)
         button('Next: Services', true).click()
@@ -320,8 +321,8 @@ class SelfServiceSpec extends EditorSpecification {
 
         then:
         assertThat(currentStep()).hasText('Services')
-        assertThat(choiceError()).hasText('A Nexus IQ GoldenFix pipeline scans open source dependencies, which SQL and PL/SQL ' +
-                'services do not have. Remove these services from this pipeline: orders-db')
+        assertThat(choiceError()).hasText('The library runs no Nexus IQ GoldenFix pipeline for a Liquibase service with database ' +
+                'changes. Remove these services from this pipeline: orders-db')
         api.requests('POST', '/api/products').isEmpty()
         ownErrors().isEmpty()
     }
@@ -338,7 +339,7 @@ class SelfServiceSpec extends EditorSpecification {
         button('Add a service', true).click()
         input(dialog(), 'Service name').fill('orders-db')
         showDialogSection('Build')
-        choose(dialog(), 'Build tool', 'SQL and PL/SQL (Liquibase)')
+        choose(dialog(), 'Build tool', 'Liquibase (SQL / PL/SQL)')
         showDialogSection('AppScan SAST and DAST')
         fillIn(dialog(), ['AppScan application ID': API_APPLICATION, 'AppScan API key ID': APP_SCAN_KEY])
         showDialogSection('Database changes')

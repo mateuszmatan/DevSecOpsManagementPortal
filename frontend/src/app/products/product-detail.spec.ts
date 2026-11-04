@@ -96,16 +96,22 @@ describe('ProductDetail', () => {
     expect(page().querySelector('svg-icon')).toBeNull();
   });
 
-  it('says where each service is deployed, except a SQL and PL/SQL service, which only changes its databases', async () => {
-    await load(product({ services: [service(), databaseService({ id: 11 })] }), [
-      servicePipelines(),
-      servicePipelines({
-        serviceId: 11,
-        serviceName: 'orders-db',
-        buildTool: 'LIQUIBASE',
-        pipelines: [],
+  it('says where each service is deployed, except a Liquibase service with database changes, which changes its databases', async () => {
+    const liquibase = { buildTool: 'LIQUIBASE' as const, pipelines: [] };
+    await load(
+      product({
+        services: [
+          service(),
+          databaseService({ id: 11 }),
+          databaseService({ id: 13, name: 'billing-db', database: null, databaseTargets: {} }),
+        ],
       }),
-    ]);
+      [
+        servicePipelines(),
+        servicePipelines({ serviceId: 11, serviceName: 'orders-db', ...liquibase }),
+        servicePipelines({ serviceId: 13, serviceName: 'billing-db', ...liquibase }),
+      ],
+    );
     const facts = [...page().querySelectorAll('.service-facts')].map((facts) =>
       [...facts.querySelectorAll('dt')].map(text),
     );
@@ -113,10 +119,9 @@ describe('ProductDetail', () => {
     expect(facts).toEqual([
       ['Build tool', 'Deployed to', 'Bitbucket repository'],
       ['Build tool', 'Bitbucket repository'],
+      ['Build tool', 'Deployed to', 'Bitbucket repository'],
     ]);
-    expect(text(page().querySelectorAll('.service-facts dd')[3])).toBe(
-      'SQL and PL/SQL (Liquibase)',
-    );
+    expect(text(page().querySelectorAll('.service-facts dd')[3])).toBe('Liquibase (SQL / PL/SQL)');
   });
 
   it('leaves the department out of a product that is not in one', async () => {

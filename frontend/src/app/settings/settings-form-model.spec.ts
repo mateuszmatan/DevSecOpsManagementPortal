@@ -192,7 +192,7 @@ describe('toSettingsRequest', () => {
   });
 });
 
-describe('Library defaults of SQL and PL/SQL services', () => {
+describe('Library defaults of Liquibase database changes', () => {
   const NONE = {
     liquibaseHome: null,
     liquibaseUrl: null,

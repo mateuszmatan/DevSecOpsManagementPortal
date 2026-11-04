@@ -67,7 +67,7 @@ describe('GlobalSettingsPage', () => {
       'Scans and coverage',
       'Release gate',
       'Service defaults',
-      'SQL and PL/SQL (Liquibase)',
+      'Liquibase database changes',
       'GoldenFix defaults',
     ]);
     expect(
@@ -226,7 +226,7 @@ describe('GlobalSettingsPage', () => {
     await fixture.whenStable();
   });
 
-  it('sets the tools, the allowed databases and the package repositories of SQL and PL/SQL services', async () => {
+  it('sets the tools, the allowed databases and the package repositories of Liquibase database changes', async () => {
     await load();
     const section = page().querySelector('#settings-database')!;
     const type = (label: string, value: string) => {
@@ -235,7 +235,7 @@ describe('GlobalSettingsPage', () => {
       input.dispatchEvent(new Event('input'));
     };
 
-    expect(text(section.querySelector('h2'))).toBe('SQL and PL/SQL (Liquibase)');
+    expect(text(section.querySelector('h2'))).toBe('Liquibase database changes');
     expect([...section.querySelectorAll('.form-block h3')].map(text)).toEqual([
       'Liquibase',
       'Oracle JDBC driver',

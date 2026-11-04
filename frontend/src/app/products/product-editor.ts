@@ -324,7 +324,7 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
     return id === null ? 0 : (this.pipelineCounts().get(id) ?? 0);
   }
 
-  /** The note of a SQL and PL/SQL service that comes after the Gradle or Maven service of its repository. */
+  /** The note of a Liquibase service that comes after the Gradle or Maven service of its repository. */
   protected orderNote(index: number): string | null {
     const services = this.services().map(({ controls }) => ({
       name: controls.name.value.trim(),

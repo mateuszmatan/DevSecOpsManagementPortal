@@ -10,7 +10,7 @@ import {
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { AbstractControl, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { of } from 'rxjs';
-import { BuildTool, DeployTarget, ServiceRequest } from '../core/models';
+import { BuildTool, DeployTarget, ServiceRequest, changesDatabase } from '../core/models';
 import { revalidateAll } from '@common/shared/form-controls';
 import { DIALOG } from '@common/ui/dialog';
 import { FORM_FIELD } from '@common/ui/form-field';
@@ -236,7 +236,7 @@ export class ServiceDialog {
       form.patchValue({ openShiftTargets: initialTargets as any });
     }
 
-    if (s?.nexusIqApplication && tool !== 'LIQUIBASE') {
+    if (s?.nexusIqApplication) {
       form.controls.nexusIqApplications.clear();
       form.controls.nexusIqApplications.push(
         nexusIqApplicationForm(s.nexusIqApplication, build.scanPattern),
@@ -332,6 +332,9 @@ export class ServiceDialog {
       nexusIqApplication: nexusIqApp,
       repositoryUrl,
       nodeDirectory: nodeDirectoryOf(req.nodeBuild),
+      ...(changesDatabase(req.build.tool, req.database?.changelogFile) && {
+        changesDatabase: true,
+      }),
       serviceRequest: req,
     });
   }

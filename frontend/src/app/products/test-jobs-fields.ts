@@ -19,6 +19,7 @@ import {
   ServiceForm,
   TestJobForm,
   createTestJobForm,
+  formChangesDatabase,
   isJobUrl,
   isRemoteJob,
 } from './product-form-model';
@@ -163,7 +164,7 @@ export class TestJobsFields {
           help: 'How often the stage asks a remote Jenkins for the result of a build, unless the job sets its own. Left empty: 15 seconds.',
         },
       ),
-      ...(this.form().controls.build.controls.tool.value === 'LIQUIBASE'
+      ...(formChangesDatabase(this.form())
         ? []
         : [
             check(stage.required, 'Required', `${path}.required`, 0, {

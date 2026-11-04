@@ -171,17 +171,16 @@ export class SelfService implements HasUnsavedChanges {
       ? this.kept()
           .filter(
             (service) =>
-              service.tool !== 'LIQUIBASE' &&
-              (!service.nexusIqApplication || !service.repositoryUrl),
+              !service.changesDatabase && (!service.nexusIqApplication || !service.repositoryUrl),
           )
           .map((service) => service.name)
       : [],
   );
-  /** The SQL and PL/SQL services, which have no open source dependencies for a Nexus IQ scan. */
+  /** The Liquibase services with database changes, for which the library runs no Nexus IQ GoldenFix pipeline. */
   protected readonly databaseOnly = computed(() =>
     this.pipeline() === 'NEXUS_IQ'
       ? this.kept()
-          .filter((service) => service.tool === 'LIQUIBASE')
+          .filter((service) => service.changesDatabase)
           .map((service) => service.name)
       : [],
   );
@@ -191,7 +190,7 @@ export class SelfService implements HasUnsavedChanges {
           .filter(
             (service) =>
               service.target === 'VM' &&
-              service.tool !== 'LIQUIBASE' &&
+              !service.changesDatabase &&
               !this.settingsOf(service)?.urbanCodeApplications.some(({ environments }) =>
                 deploysToDv(environments),
               ),

@@ -57,6 +57,7 @@ import {
   createNexusIqApplicationForm,
   firstInvalidSection,
   sectionInvalid,
+  formChangesDatabase,
   sectionTouched,
   visibleSectionsForPipeline,
 } from './product-form-model';
@@ -74,10 +75,12 @@ const DATABASE_NAMES: Record<DatabaseTarget, string> = {
   ...REGION_NAMES,
 };
 
-const NOTES: Record<Exclude<ServiceSectionId, 'database'>, string> = {
+const NOTES: Record<ServiceSectionId, string> = {
   general: 'The name of the service, used in its Jenkins job names and reports, and what it does.',
   build:
     'How Jenkins builds the service, with an optional Node.js build first, and where the build leaves its result (the artifact). A service in a subfolder of its repository names that folder under Advanced settings.',
+  database:
+    'The database changes of a Liquibase service. Once its changelog file is set, the pipelines check the changes, package them in a zip, install them in the test database for the utPLSQL tests when one is set, and deploy them to RD and QC in place of a deployment of the service. The database users and their passwords stay in Jenkins: the portal keeps only the IDs of their Jenkins credentials. A service with database changes runs on Linux or macOS agents only.',
   unitTests:
     'The unit tests that run after the build, and where their results and coverage reports are. Without a test command the step is skipped.',
   testJobs:
@@ -102,19 +105,10 @@ const NOTES: Record<Exclude<ServiceSectionId, 'database'>, string> = {
   flutter: 'What a Flutter build needs besides the common settings.',
 };
 
-/** The notes of the sections that read differently for a SQL and PL/SQL service. */
+/** The notes of the sections that read differently for a Liquibase service with database changes. */
 const DATABASE_NOTES: Partial<Record<ServiceSectionId, string>> = {
-  build:
-    'Where the SQL and PL/SQL code sits in the repository and which JDK runs Liquibase and utPLSQL. A database service has no build command and no artifact: the pipelines package the changelog and the files it includes into a zip.',
-  database:
-    'The Liquibase changelog of the service, the databases the pipelines deploy it to, and its package in Nexus. The pipelines check the changes, install them in the test database for the utPLSQL tests when one is set, and deploy them to RD and QC. The database users and their passwords stay in Jenkins: the portal keeps only the IDs of their Jenkins credentials. A database service runs on Linux or macOS agents only.',
   testJobs:
-    'The Jenkins jobs that run the smoke, regression and performance tests after a deployment. For a database service a test stage without jobs is not required, so it never turns the run orange.',
-  appScan:
-    'The static security scan (SAST) of the SQL and PL/SQL source files by HCL AppScan. The pipelines send the files without compiling them. A dynamic scan (DAST) does not apply to a database service.',
-  sonar:
-    'The code quality checks of SonarQube. The SQL and PL/SQL files are analysed only when the SonarQube server has a PL/SQL analyzer and the service has a project key; otherwise the stage is not required.',
-  scm: 'The Bitbucket repository of the SQL and PL/SQL code. The services of one repository share one Jenkinsfile and one Jenkins job.',
+    'The Jenkins jobs that run the smoke, regression and performance tests after a deployment. For a service with database changes a test stage without jobs is not required, so it never turns the run orange.',
 };
 
 const SECRET_TEXT = 'The ID of a Jenkins Secret text credential';
@@ -378,16 +372,13 @@ const BITBUCKET_REPOSITORY: Field[] = [
   }),
 ];
 
-const SCANNER_VERSION_HELP =
-  "Selects the Jenkins tool installation named sonar-scanner-cli- followed by this version. Left empty, the sonar-scanner on the agent's PATH runs.";
-const SCANNER_VERSION_ERROR = 'Must be a version such as 5.0.1.3006';
+const CHANGELOG_FILE = mono('changelogFile', 'Changelog file', 'database.changelogFile', 6, {
+  placeholder: 'db/changelog-master.xml',
+  hint: 'the main Liquibase changelog, relative to the search folder; set it for database changes',
+  help: 'The file that lists every change of the service. It ends with .xml, .yaml, .yml, .json or .sql. Once it is set, the pipelines check it, package it with the files it includes, and deploy it to the databases below; empty, the service builds with its Liquibase commands as any other Liquibase service. Its path is part of the identity of every change in the database, so it must not change after the first deployment.',
+});
 
 const DATABASE: Field[] = [
-  mono('changelogFile', 'Changelog file', 'database.changelogFile', 6, {
-    placeholder: 'db/changelog-master.xml',
-    hint: 'the main Liquibase changelog, relative to the search folder',
-    help: 'The file that lists every change of the service. It ends with .xml, .yaml, .yml, .json or .sql. The pipelines check it, package it with the files it includes, and deploy it. Its path is part of the identity of every change in the database, so it must not change after the first deployment.',
-  }),
   mono('searchPath', 'Search folder', 'database.searchPath', 6, {
     placeholder: '.',
     hint: 'relative to the source folder; a dot means the source folder itself',
@@ -507,16 +498,6 @@ const DATABASE_OPTIONS: Field[] = [
   }),
 ];
 
-const DATABASE_SONAR: Field[] = [
-  mono('sonarSources', 'Sources', 'tools.sonar.sources', 6, {
-    help: 'The folders SonarQube analyses. Empty: the folder the package is made of.',
-  }),
-  mono('sonarScannerVersion', 'SonarScanner version', 'tools.sonar.sonarScannerVersion', 6, {
-    help: SCANNER_VERSION_HELP,
-    error: SCANNER_VERSION_ERROR,
-  }),
-];
-
 const FLUTTER_MODULES: Field[] = [
   area('modules', 'Modules', 'tools.flutter.flutterModules', 8, {
     mono: true,
@@ -564,8 +545,8 @@ const FLUTTER_SONAR: Field[] = [
   }),
   mono('sonarScannerVersion', 'SonarScanner version', 'tools.sonar.sonarScannerVersion', 4, {
     placeholder: '5.0.1.3006',
-    help: SCANNER_VERSION_HELP,
-    error: SCANNER_VERSION_ERROR,
+    help: "Selects the Jenkins tool installation named sonar-scanner-cli- followed by this version. Left empty, the sonar-scanner on the agent's PATH runs.",
+    error: 'Must be a version such as 5.0.1.3006',
   }),
   mono('dartAnalyzeCommand', 'Dart analyze command', 'tools.sonar.dartAnalyzeCommand', 8, {
     help: 'Runs when the Flutter plugin is off; its findings, in machine format, are imported into SonarQube as external issues. Left empty: dart analyze --format=machine.',
@@ -638,13 +619,12 @@ export class ServiceFields {
   protected readonly regionNames = REGION_NAMES;
   protected readonly databaseTargets = DATABASE_TARGETS;
   protected readonly databaseNames = DATABASE_NAMES;
-  protected readonly databaseFields = DATABASE;
   protected readonly testReset = TEST_RESET;
   protected readonly utplsqlSwitch = UTPLSQL_SWITCH;
   protected readonly utplsqlFields = UTPLSQL;
-  protected readonly databaseSonar = DATABASE_SONAR;
   protected readonly general = GENERAL;
   protected readonly appScan = APP_SCAN;
+  protected readonly appScanOptions = APP_SCAN_OPTIONS;
   protected readonly dastEnabled = DAST_ENABLED;
   protected readonly dast = DAST;
   protected readonly nexusIqApplication = NEXUS_IQ_APPLICATION;
@@ -707,7 +687,7 @@ export class ServiceFields {
       scm: of(c.scm, 'cloneUrl', 'apiUrl', 'workspace', 'projectKey', 'repoSlug'),
       metrics: of(c.metrics, 'influxUrl', 'influxCredentialsId'),
       database: [
-        ...of(c.database, ...[...this.databaseOptions(), ...DATABASE_SONAR].map(({ key }) => key)),
+        ...of(c.database, ...this.databaseOptions().map(({ key }) => key)),
         ...DATABASE_TARGETS.flatMap((target) =>
           of(
             c.databaseTargets.controls[target],
@@ -736,10 +716,8 @@ export class ServiceFields {
         ? ' Its environments are set under UrbanCode Deploy and SSH targets.'
         : ' Its environments are set under OpenShift targets.',
     };
-    const notes: Partial<Record<ServiceSectionId, string>> = this.liquibase()
-      ? { ...NOTES, ...DATABASE_NOTES }
-      : NOTES;
-    return { label: section?.label ?? '', note: chips((notes[id] ?? '') + (extra[id] ?? '')) };
+    const notes = this.changesDatabase() ? { ...NOTES, ...DATABASE_NOTES } : NOTES;
+    return { label: section?.label ?? '', note: chips(notes[id] + (extra[id] ?? '')) };
   });
 
   /** The fields that need input, in the order of the sections. */
@@ -822,8 +800,8 @@ export class ServiceFields {
       [c.metrics, [...this.metricsFields(), ...this.metricsOptions()]],
       [c.flutter, [...FLUTTER_PLATFORM, ...FLUTTER_MODULES, ...FLUTTER_CREDENTIALS]],
       [c.flutter, [...FLUTTER_SONAR, ...this.flutterDelivery()]],
-      [c.database, [...DATABASE, ...TEST_RESET, ...UTPLSQL_SWITCH, ...UTPLSQL]],
-      [c.database, [...this.packageFields(), ...this.databaseOptions(), ...DATABASE_SONAR]],
+      [c.database, [CHANGELOG_FILE, ...DATABASE, ...TEST_RESET, ...UTPLSQL_SWITCH, ...UTPLSQL]],
+      [c.database, [...this.packageFields(), ...this.databaseOptions()]],
       ...DATABASE_TARGETS.map(
         (target) =>
           [
@@ -864,13 +842,9 @@ export class ServiceFields {
     return this.tool() === 'FLUTTER';
   }
 
-  protected liquibase(): boolean {
-    return this.tool() === 'LIQUIBASE';
-  }
-
-  /** Whether Gradle or Maven builds the service, with the commands that come with them. */
-  protected builds(): boolean {
-    return this.tool() === 'GRADLE' || this.tool() === 'MAVEN';
+  /** Whether Liquibase deploys the changes of the service to its databases: its changelog file is set. */
+  protected changesDatabase(): boolean {
+    return formChangesDatabase(this.form());
   }
 
   protected delivers(): boolean {
@@ -901,22 +875,9 @@ export class ServiceFields {
 
   protected buildFields(): Field[] {
     const maven = this.tool() === 'MAVEN';
-    const liquibase = this.liquibase();
+    const liquibase = this.tool() === 'LIQUIBASE';
+    const database = this.changesDatabase();
     const c = this.form().controls.build.controls;
-    const jdk = liquibase
-      ? {
-          hint: 'the JDK Liquibase and utPLSQL run with, Java 17 or newer',
-          help: 'The absolute path of a JDK 17 or newer installed on the Linux or macOS agent.',
-        }
-      : this.flutter()
-        ? {
-            hint: 'must be set for Flutter builds',
-            help: 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.',
-          }
-        : {
-            hint: 'JAVA_HOME of the Gradle or Maven build and the later stages',
-            help: 'The absolute path of a JDK installed on the Jenkins agent.',
-          };
     return [
       mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
         placeholder: liquibase ? 'db/changelog/*.xml' : maven ? 'target/*.jar' : 'build/libs/*.jar',
@@ -930,7 +891,7 @@ export class ServiceFields {
         error: SHELL_SAFE_ERROR,
       }),
       check('autoSetup', 'Set up the build tool automatically', 'buildToolAutoSetup', 6, {
-        help: liquibase
+        help: database
           ? 'Selects a JDK of the Java version in the Library defaults (17 unless set there) installed on the agent, instead of the JDK path.'
           : 'Gradle and Maven builds: reads the Java version from pom.xml or the Gradle build file and selects a JDK of that version installed on the agent, instead of the JDK path.',
       }),
@@ -939,16 +900,22 @@ export class ServiceFields {
         : [
             mono('javaPath', 'JDK path', 'javaPath', 12, {
               placeholder: '/usr/lib/jvm/java-17-openjdk',
-              ...jdk,
+              hint: this.flutter()
+                ? 'must be set for Flutter builds'
+                : database
+                  ? 'the JDK Liquibase and utPLSQL run with: they need Java 17 or newer'
+                  : liquibase
+                    ? 'optional for Liquibase when java and liquibase are on the agent'
+                    : 'JAVA_HOME of the Gradle or Maven build and the later stages',
+              help: this.flutter()
+                ? 'The library refuses a Flutter build without it but does not set JAVA_HOME from it.'
+                : 'The absolute path of a JDK installed on the Jenkins agent.',
             }),
           ]),
     ];
   }
 
   protected buildOptions(): Field[] {
-    if (this.liquibase()) {
-      return [];
-    }
     return [
       mono('sourceDir', 'Source folder', 'sourceDir', 6, {
         placeholder: '.',
@@ -958,10 +925,9 @@ export class ServiceFields {
     ];
   }
 
-  protected appScanOptions(): Field[] {
-    return this.liquibase()
-      ? APP_SCAN_OPTIONS.filter(({ key }) => key !== 'compile' && key !== 'sourceCodeOnly')
-      : APP_SCAN_OPTIONS;
+  /** The changelog file, and the rest of the database block once it is set. */
+  protected databaseFields(): Field[] {
+    return [CHANGELOG_FILE, ...(this.changesDatabase() ? DATABASE : [])];
   }
 
   protected databaseTargetFields(target: DatabaseTarget): Field[] {

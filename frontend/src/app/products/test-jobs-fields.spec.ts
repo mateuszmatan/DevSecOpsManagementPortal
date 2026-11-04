@@ -66,19 +66,24 @@ describe('TestJobsFields', () => {
     );
   });
 
-  it.each<[BuildTool, boolean]>([
-    ['GRADLE', true],
-    ['MAVEN', true],
-    ['FLUTTER', true],
-    ['LIQUIBASE', false],
-  ])('offers to make a test stage of a %s service required: %s', async (tool, offered) => {
-    await render([job({ name: 'smoke' })]);
-    form.controls.build.controls.tool.setValue(tool);
-    fixture.detectChanges();
-    await fixture.whenStable();
+  it.each<[BuildTool, string, boolean]>([
+    ['GRADLE', '', true],
+    ['MAVEN', '', true],
+    ['FLUTTER', '', true],
+    ['LIQUIBASE', '', true],
+    ['LIQUIBASE', 'db/changelog-master.xml', false],
+  ])(
+    'offers to make a test stage of a %s service with the changelog file "%s" required: %s',
+    async (tool, changelog, offered) => {
+      await render([job({ name: 'smoke' })]);
+      form.controls.build.controls.tool.setValue(tool);
+      form.controls.database.controls.changelogFile.setValue(changelog);
+      fixture.detectChanges();
+      await fixture.whenStable();
 
-    expect(!!checkboxOf(page(), 'Required')).toBe(offered);
-  });
+      expect(!!checkboxOf(page(), 'Required')).toBe(offered);
+    },
+  );
 
   it('lists the jobs of each stage with their counts and parallel limits', async () => {
     await render([

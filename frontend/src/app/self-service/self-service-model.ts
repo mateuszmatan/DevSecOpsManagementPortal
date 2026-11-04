@@ -14,6 +14,7 @@ import {
   ServicePipelines,
   ServiceRequest,
   ServiceTemplateValues,
+  changesDatabase,
   pipelineTypeLabel,
   pipelineTypeOrder,
   pipelineTypeSlug,
@@ -146,7 +147,7 @@ export function preparation(pipeline: WizardPipeline): string[] {
     return [...needs, 'The Nexus IQ application and the Bitbucket repository of each service'];
   }
   const database =
-    'For a SQL and PL/SQL service: its changelog file, the JDBC URL of each database with the ID of its Jenkins credential, and the Maven group ID of its package; the DBA and the DevSecOps team provide them';
+    'For a Liquibase service with database changes: its changelog file, the JDBC URL of each database with the ID of its Jenkins credential, and the Maven group ID of its package; the DBA and the DevSecOps team provide them';
   return deploys(pipeline)
     ? [...needs, 'Whether each service runs on virtual machines or on OpenShift', database]
     : [...needs, database];
@@ -164,6 +165,8 @@ export interface WizardService {
   repositoryUrl: string;
   /** The folder of the Node.js build that runs first, '' for the repository root; null without one. */
   nodeDirectory?: string | null;
+  /** Whether Liquibase deploys the changes of the service to its databases: its changelog file is set. */
+  changesDatabase?: boolean;
   serviceRequest?: ServiceRequest;
 }
 
@@ -198,6 +201,9 @@ export function fromService(service: Service): WizardService {
     nexusIqApplication: nexusIqApplicationOf(service),
     repositoryUrl: repositoryOf(service),
     nodeDirectory: nodeDirectoryOf(service.nodeBuild),
+    ...(changesDatabase(service.build.tool, service.database?.changelogFile) && {
+      changesDatabase: true,
+    }),
   };
 }
 
@@ -220,13 +226,12 @@ function sentence(text: string): string {
 export function serviceSummary(pipeline: WizardPipeline, service: WizardService): string {
   const target = deploysWith(pipeline, service);
   const node = service.nodeDirectory ?? null;
-  const database = service.tool === 'LIQUIBASE';
   const parts = [
-    database
-      ? 'SQL and PL/SQL changes with Liquibase'
-      : `built with ${toolName(service.tool)}${node === null ? '' : ` after ${nodeBuildIn(node)}`}`,
+    `built with ${toolName(service.tool)}${node === null ? '' : ` after ${nodeBuildIn(node)}`}`,
   ];
-  if (target && !database && (deploys(pipeline) || service.id !== null)) {
+  if (service.changesDatabase) {
+    parts.push('deploys its changes to its databases');
+  } else if (target && (deploys(pipeline) || service.id !== null)) {
     parts.push(runsOn(target, target === 'OPENSHIFT' ? service.openShiftProject : ''));
   }
   if (pipeline === 'NEXUS_IQ' && service.nexusIqApplication) {

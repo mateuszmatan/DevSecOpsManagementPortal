@@ -57,8 +57,8 @@ describe('docs/documentation.md', () => {
     ...overrides,
   });
 
-  /** A service that shows every field of its build tool and deployment target. */
-  function everyField(tool: BuildTool, target: DeployTarget): Service {
+  /** A service that shows every field of its build tool and deployment target, and of its database changes. */
+  function everyField(tool: BuildTool, target: DeployTarget, database = false): Service {
     const stored = service();
     return service({
       build: { ...stored.build, tool, autoSetup: false },
@@ -66,7 +66,7 @@ describe('docs/documentation.md', () => {
       deployment: { ...stored.deployment, target },
       appScan: { ...stored.appScan, compile: true, dastEnabled: true },
       goldenFix: { ...stored.goldenFix, minThreatLevel: 7 },
-      ...(tool === 'LIQUIBASE' && {
+      ...(database && {
         database: databaseSettings({ utplsql: true, testReset: true, nexusDelivery: true }),
         databaseTargets: databaseService().databaseTargets,
       }),
@@ -131,8 +131,8 @@ describe('docs/documentation.md', () => {
     30_000,
   );
 
-  it('names every devsecops_config.yaml key of a LIQUIBASE service', async () => {
-    const codes = await serviceCodes(everyField('LIQUIBASE', 'VM'));
+  it('names every devsecops_config.yaml key of a LIQUIBASE service with database changes', async () => {
+    const codes = await serviceCodes(everyField('LIQUIBASE', 'VM', true));
 
     expect(codes).toEqual(
       expect.arrayContaining(['database.changelogFile', 'database.test', 'utplsql.enabled']),

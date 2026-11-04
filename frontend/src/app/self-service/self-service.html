@@ -214,7 +214,7 @@
         <p class="lead">
           A service is one part of the product that is built and deployed on its own, for example
           its API or its web front end; each one gets its own {{ pipelineLabel() }} pipeline. In a
-          repository with Java and database code, add the SQL and PL/SQL service first.
+          repository with Java and database code, add the Liquibase service first.
         </p>
         @if (serviceTemplate.error(); as error) {
           <div class="template-problem">
@@ -325,8 +325,8 @@
         }
         @if (checked() && databaseOnly().length) {
           <p class="choice-error">
-            A Nexus IQ GoldenFix pipeline scans open source dependencies, which SQL and PL/SQL
-            services do not have. Remove these services from this pipeline:
+            The library runs no Nexus IQ GoldenFix pipeline for a Liquibase service with database
+            changes. Remove these services from this pipeline:
             {{ databaseOnly().join(', ') }}
           </p>
         }

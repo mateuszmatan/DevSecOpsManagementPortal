@@ -319,8 +319,6 @@ export function databaseSettings(overrides: Partial<DatabaseSettings> = {}): Dat
     utplsqlSourcePath: null,
     utplsqlTestPath: null,
     utplsqlTimeoutMinutes: null,
-    sonarSources: null,
-    sonarScannerVersion: null,
     ...overrides,
   };
 }
@@ -341,7 +339,7 @@ export function databaseTarget(
   };
 }
 
-/** The orders-db service of layout (a): SQL and PL/SQL changes deployed with Liquibase. */
+/** The orders-db service of layout (a): a Liquibase service with database changes. */
 export function databaseService(overrides: Partial<Service> = {}): Service {
   const stored = service();
   const appId = '6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10';
@@ -627,7 +625,7 @@ export function globalSettings(overrides: Partial<GlobalSettings> = {}): GlobalS
   };
 }
 
-/** The Library defaults of SQL and PL/SQL services, as the regression Global Settings hold them. */
+/** The Library defaults of Liquibase database changes, as the regression Global Settings hold them. */
 export function databaseDefaults(overrides: Partial<DatabaseDefaults> = {}): DatabaseDefaults {
   return {
     liquibaseHome: '/opt/liquibase/4.33.0',

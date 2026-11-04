@@ -201,7 +201,7 @@ describe('ServiceDialog', () => {
     },
   );
 
-  it('asks for the group ID of a SQL and PL/SQL service the Full pipeline delivers and checks its databases', async () => {
+  it('asks for the group ID of a Liquibase service with database changes the Full pipeline delivers and checks its databases', async () => {
     const settings = globalSettings({ database: databaseDefaults() });
     await open({ pipeline: 'FULL', defaults: { ...BBH_DEFAULTS, settings } });
     fillIn('orders-db');
@@ -227,7 +227,7 @@ describe('ServiceDialog', () => {
     expect(submit().disabled).toBe(false);
   });
 
-  it('offers no Nexus IQ application to a SQL and PL/SQL service', async () => {
+  it('offers the Nexus IQ application to a Liquibase service as to any other', async () => {
     await open({
       pipeline: 'SECURITY',
       service: {
@@ -243,8 +243,9 @@ describe('ServiceDialog', () => {
       },
     });
 
-    expect(form().controls.nexusIqApplications.disabled).toBe(true);
-    expect(toServiceRequest(form()).nexusIqApplications).toEqual([]);
+    expect(
+      toServiceRequest(form()).nexusIqApplications.map(({ application }) => application),
+    ).toEqual(['orders']);
   });
 
   it('starts a new service with the Library defaults and the AppScan key of the product', async () => {

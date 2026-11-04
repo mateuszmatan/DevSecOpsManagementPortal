@@ -424,12 +424,17 @@ describe('ServiceFields', () => {
       'General',
       'Build',
       'Database changes',
+      'Unit tests and coverage',
       'Test jobs',
       'AppScan SAST and DAST',
       'SonarQube',
+      'Nexus IQ',
       'Bitbucket',
+      'GoldenFix',
       'Monitoring',
     ];
+    /** A Liquibase service as main has it: no changelog file, so no database changes. */
+    const liquibase = () => databaseService({ database: null, databaseTargets: {} });
     /** A database service that shows every field: utPLSQL, the reset and all three databases. */
     const everyField = () =>
       databaseService({
@@ -468,47 +473,61 @@ describe('ServiceFields', () => {
       expect(errors.every((error) => !!error)).toBe(true);
     }, 45_000);
 
-    it('gives each section of a database service a note of its own', async () => {
-      await render(databaseService());
+    it('gives the sections of a Liquibase service with database changes the notes of their mode', async () => {
       const note = async (label: string) => {
         await open(label);
         return text(pane().querySelector('.pane-header p'));
       };
+      const build =
+        'How Jenkins builds the service, with an optional Node.js build first, and where the build leaves its result (the artifact). A service in a subfolder of its repository names that folder under Advanced settings.';
+      const testJobs =
+        'The Jenkins jobs that run the smoke, regression and performance tests after a deployment. The pipeline starts them and waits for their results.';
+      await render(liquibase());
 
-      expect(await note('Build')).toBe(
-        'Where the SQL and PL/SQL code sits in the repository and which JDK runs Liquibase and utPLSQL. A database service has no build command and no artifact: the pipelines package the changelog and the files it includes into a zip.',
+      expect(await note('Build')).toBe(build);
+      expect(await note('Test jobs')).toBe(testJobs);
+      expect(await note('Database changes')).toContain(
+        'Once its changelog file is set, the pipelines check the changes, package them in a zip',
+      );
+
+      form.controls.database.controls.changelogFile.setValue('db/changelog-master.xml');
+      expect(await note('Build')).toBe(build);
+      expect(await note('Test jobs')).toContain(
+        'For a service with database changes a test stage without jobs is not required, so it never turns the run orange.',
       );
       expect(await note('Database changes')).toContain(
-        'The database users and their passwords stay in Jenkins: the portal keeps only the IDs of their Jenkins credentials. A database service runs on Linux or macOS agents only.',
+        'A service with database changes runs on Linux or macOS agents only.',
       );
-      expect(await note('Test jobs')).toContain(
-        'For a database service a test stage without jobs is not required, so it never turns the run orange.',
-      );
-      expect(await note('AppScan SAST and DAST')).toContain(
-        'A dynamic scan (DAST) does not apply to a database service.',
-      );
-      expect(await note('SonarQube')).toContain(
-        'only when the SonarQube server has a PL/SQL analyzer and the service has a project key',
-      );
-      expect(await note('Bitbucket')).toBe(
-        'The Bitbucket repository of the SQL and PL/SQL code. The services of one repository share one Jenkinsfile and one Jenkins job.',
-      );
-    });
+    }, 15_000);
 
-    it('builds nothing: no command, no artifact path and no Node.js build', async () => {
-      await render(databaseService());
-      await open('Build');
+    it.each([
+      ['without', liquibase],
+      ['with', databaseService],
+    ])(
+      "keeps main's Liquibase commands of the build, the unit tests, SonarQube and the AppScan compile %s database changes",
+      async (_, stored) => {
+        const settings = stored();
+        await render({ ...settings, appScan: { ...settings.appScan, compile: true } });
+        const commands = async (label: string) => {
+          await open(label);
+          return pane().querySelectorAll('dso-tool-command-fields').length;
+        };
 
-      expect(labels(pane())).toEqual([
-        'Build tool',
-        'Source folder',
-        'Set up the build tool automatically',
-        'JDK path',
-      ]);
-      expect(pane().querySelector('dso-tool-command-fields, dso-advanced-settings')).toBeNull();
-      expect(hints()).toContain(
-        'The folder of the SQL and PL/SQL code; a dot means the repository root · sourceDir',
-      );
+        expect(await commands('Build')).toBe(2);
+        expect(await commands('Unit tests and coverage')).toBeGreaterThan(0);
+        expect(await commands('SonarQube')).toBe(2);
+        expect(await commands('AppScan SAST and DAST')).toBe(1);
+        expect(labels(pane())).toContain('Dynamic scan');
+      },
+      15_000,
+    );
+
+    it('shows only the changelog file of a Liquibase service without database changes', async () => {
+      await render(liquibase());
+      await open('Database changes');
+
+      expect(labels(pane()).concat(labels(pane(), true))).toEqual(['Changelog file']);
+      expect(railLabels()).toContain('Deployment');
     });
 
     it('shows the changelog, the three databases and the package, with the options under Advanced settings', async () => {
@@ -568,9 +587,6 @@ describe('ServiceFields', () => {
           'Changelog parameters',
           'Timeout',
         ]),
-        'SonarQube analysis of SQL and PL/SQL',
-        'Sources',
-        'SonarScanner version',
       ]);
       expect(text(fieldOf(pane(), 'JDBC URL')?.querySelector('dso-hint'))).toBe(
         'A database of its own, never the RD or QC database · url',
@@ -668,20 +684,6 @@ describe('ServiceFields', () => {
       expect(helpFor('Owner of the tests')).toBe(
         'The schema that owns the packages and their tests. Empty: the default schema of the test database, else the schema of the database user.',
       );
-    });
-
-    it('scans the SQL and PL/SQL files without compiling them and without DAST', async () => {
-      await render(databaseService());
-      await open('AppScan SAST and DAST');
-      const all = labels(pane()).concat(labels(pane(), true));
-
-      expect(all).not.toContain('Compile before preparing the IRX');
-      expect(all).not.toContain('Source code only');
-      expect(all.some((label) => label.includes('DAST'))).toBe(false);
-      expect(pane().querySelector('dso-tool-command-fields')).toBeNull();
-
-      await open('SonarQube');
-      expect(pane().querySelector('dso-tool-command-fields')).toBeNull();
     });
   });
 

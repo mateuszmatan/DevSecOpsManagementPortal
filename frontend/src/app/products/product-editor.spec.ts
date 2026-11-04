@@ -480,7 +480,7 @@ describe('ProductEditor', () => {
     await fixture.whenStable();
   });
 
-  it('asks a stored SQL and PL/SQL service for what its own pipelines deliver and to come before the Java service of its repository', async () => {
+  it('asks a stored Liquibase service with database changes for what its own pipelines deliver and to come before the Java service of its repository', async () => {
     const orders = databaseService({
       id: 11,
       database: databaseSettings({ groupId: null }),
@@ -513,7 +513,7 @@ describe('ProductEditor', () => {
     });
     expect(database.releaseRepositoryId.valid).toBe(true);
     expect(text(panels()[1].querySelector('.panel-description'))).toBe(
-      'SQL and PL/SQL (Liquibase)1 pipeline',
+      'Liquibase (SQL / PL/SQL)1 pipeline',
     );
     expect(text(panels()[1].querySelector('.banner'))).toBe(note);
     expect(panels()[0].querySelector('.banner')).toBeNull();

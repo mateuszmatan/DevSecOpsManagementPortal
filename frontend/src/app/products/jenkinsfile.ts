@@ -87,7 +87,7 @@ export const RUN_IN_ORDER =
   'the services of one repository run in their order, so the database changes reach RD before the application that needs them';
 
 /**
- * The Gradle or Maven service of the same repository that a SQL and PL/SQL service comes after, or null: its
+ * The Gradle or Maven service of the same repository that a Liquibase service comes after, or null: its
  * database changes must come first.
  */
 export function buildBefore(services: readonly OrderedService[], index: number): string | null {

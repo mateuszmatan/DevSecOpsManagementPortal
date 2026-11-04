@@ -41,6 +41,7 @@ import {
   UrbanCodeApplicationSettings,
   UrbanCodeComponent,
   VersionCatalogRepo,
+  changesDatabase,
   pipelineTypeLabel,
 } from '../core/models';
 import { FieldProblem, PRODUCT_CODE } from '@common/core/models';
@@ -384,9 +385,10 @@ const DELIVERY_ITEMS: Record<RepositoryKey, string> = {
 };
 
 /**
- * Adds the rules the pipelines of the types set for a SQL and PL/SQL service: what delivering its package to Nexus
- * needs, unless the Library defaults give it, and, once the Global Settings are known, the databases they allow. The
- * rules apply only while the controls are enabled, that is for the build tool Liquibase with the delivery ticked.
+ * Adds the rules the pipelines of the types set for a Liquibase service with database changes: what delivering its
+ * package to Nexus needs, unless the Library defaults give it, and, once the Global Settings are known, the databases
+ * they allow. The rules apply only while the controls are enabled, that is once the changelog file is set and with the
+ * delivery ticked.
  */
 export function withDatabaseRules(
   form: ServiceForm,
@@ -415,7 +417,7 @@ export function withDatabaseRules(
       add(
         d[key],
         requiredRule(
-          `Add the ${DELIVERY_ITEMS[key]}, set it in the Library defaults (SQL and PL/SQL), or untick Deliver the package to Nexus`,
+          `Add the ${DELIVERY_ITEMS[key]}, set it in the Library defaults (Liquibase database changes), or untick Deliver the package to Nexus`,
         ),
       );
     }
@@ -596,12 +598,11 @@ const parameters = (values: string[] | undefined) =>
     return problem ? { rule: problem } : null;
   });
 
-/** The Liquibase changes of a SQL and PL/SQL service; an untouched box keeps the library default. */
+/** The database changes of a Liquibase service, used once its changelog file is set; an untouched box keeps the library default. */
 export function createDatabaseForm(d?: Partial<DatabaseSettings> | null) {
   return new FormGroup({
     changelogFile: text(
       d?.changelogFile,
-      filled,
       max(500),
       matching(PATH, CHANGELOG_PATH_MESSAGE),
       matching(CHANGELOG_SUFFIX, CHANGELOG_SUFFIX_MESSAGE),
@@ -636,8 +637,6 @@ export function createDatabaseForm(d?: Partial<DatabaseSettings> | null) {
     utplsqlSourcePath: searchRootPath(d?.utplsqlSourcePath),
     utplsqlTestPath: searchRootPath(d?.utplsqlTestPath),
     utplsqlTimeoutMinutes: integer(d?.utplsqlTimeoutMinutes, 1, 240),
-    sonarSources: text(d?.sonarSources, max(500)),
-    sonarScannerVersion: text(d?.sonarScannerVersion, Validators.pattern(SCANNER_VERSION), max(50)),
   });
 }
 
@@ -677,7 +676,7 @@ function addRule(
   target.updateValueAndValidity({ emitEvent: false });
 }
 
-/** The rules of a SQL and PL/SQL service that read more than one field. */
+/** The rules of the database changes that read more than one field. */
 function requireDatabaseRules(form: ServiceForm): void {
   const d = form.controls.database.controls;
   const { TEST, RD, QC } = form.controls.databaseTargets.controls;
@@ -808,21 +807,19 @@ export function createServiceGoldenFixForm(policy?: Partial<GoldenFixPolicy> | n
     enabled: new FormControl<boolean | null>(policy?.enabled ?? null),
     ...goldenFixControls(policy),
   });
-  form.controls.inherit.valueChanges.subscribe(() => syncOverrides(form));
-  syncOverrides(form);
+  const sync = () => {
+    for (const [key, control] of Object.entries(form.controls)) {
+      if (key !== 'inherit' && key !== 'enabled') {
+        setEnabled(control, !form.controls.inherit.value);
+      }
+    }
+  };
+  form.controls.inherit.valueChanges.subscribe(sync);
+  sync();
   return form;
 }
 
 export type ServiceGoldenFixForm = ReturnType<typeof createServiceGoldenFixForm>;
-
-/** Enables the overrides of the GoldenFix policy only while the service does not inherit it. */
-function syncOverrides(form: ServiceGoldenFixForm): void {
-  for (const [key, control] of Object.entries(form.controls)) {
-    if (key !== 'inherit' && key !== 'enabled') {
-      setEnabled(control, !form.controls.inherit.value);
-    }
-  }
-}
 
 export function toServiceGoldenFixPolicy(
   value: ReturnType<ServiceGoldenFixForm['getRawValue']>,
@@ -1161,6 +1158,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     appScan.controls.compile,
     appScan.controls.dastEnabled,
     nodeBuild.controls.enabled,
+    form.controls.database.controls.changelogFile,
     form.controls.database.controls.utplsql,
     form.controls.database.controls.nexusDelivery,
   ];
@@ -1280,9 +1278,8 @@ function rename(
   const before = namedValues(service, template, previous, credentials);
   const after = namedValues(service, template, next, credentials);
   const application = after[NEXUS_IQ_APPLICATION];
-  const tool = service.controls.build.controls.tool.value;
-  if (application && tool !== 'LIQUIBASE') {
-    const { scanPattern } = buildDefaults(template, tool);
+  if (application) {
+    const { scanPattern } = buildDefaults(template, service.controls.build.controls.tool.value);
     const apps = service.controls.nexusIqApplications;
     const first = apps.at(0);
     if (!first && !offered) {
@@ -1362,60 +1359,71 @@ function syncApplicability(form: ServiceForm): void {
   const vm = deployment.target.value === 'VM';
   const delivers = !deployment.nexusDeliveryDisabled.value;
   const flutter = tool === 'FLUTTER';
-  const liquibase = tool === 'LIQUIBASE';
-  const builds = tool === 'GRADLE' || tool === 'MAVEN';
-  setEnabled(form.controls.build.controls.command, builds);
-  setEnabled(form.controls.build.controls.buildPath, !liquibase);
+  const database = formChangesDatabase(form);
+  setEnabled(form.controls.build.controls.command, !flutter);
   if (flutter) {
     form.controls.build.controls.autoSetup.setValue(false);
   }
   setEnabled(form.controls.build.controls.autoSetup, !flutter);
   const node = form.controls.nodeBuild;
-  if (!builds && node.controls.enabled.value) {
+  if (flutter && node.controls.enabled.value) {
     node.controls.enabled.setValue(false);
   }
-  setEnabled(node, builds);
+  setEnabled(node, !flutter);
   Object.entries(node.controls).forEach(
     ([key, control]) => key === 'enabled' || setEnabled(control, node.controls.enabled.value),
   );
-  setEnabled(form.controls.unitTests, !liquibase);
-  setEnabled(form.controls.unitTests.controls.command, builds);
-  setEnabled(form.controls.sonar.controls.command, builds);
+  setEnabled(form.controls.unitTests.controls.command, !flutter);
+  setEnabled(form.controls.sonar.controls.command, !flutter);
   const appScan = form.controls.appScan.controls;
-  [appScan.compile, appScan.sourceCodeOnly, appScan.dastEnabled].forEach((control) =>
-    setEnabled(control, !liquibase),
-  );
-  setEnabled(appScan.compileCommand, builds && appScan.compile.value);
+  setEnabled(appScan.compileCommand, !flutter && appScan.compile.value);
   [appScan.dastTargetUrl, appScan.dastPresenceId].forEach((control) =>
-    setEnabled(control, !liquibase && appScan.dastEnabled.value),
+    setEnabled(control, appScan.dastEnabled.value),
   );
-  setEnabled(form.controls.deployment, !liquibase);
-  setEnabled(form.controls.delivery, vm && tool === 'MAVEN' && delivers);
+  setEnabled(form.controls.deployment, !database);
+  setEnabled(form.controls.delivery, !database && vm && tool === 'MAVEN' && delivers);
   toolCommands(form).forEach((command) =>
     setEnabled(command.controls.mavenHome, command.enabled && tool === 'MAVEN'),
   );
-  setEnabled(form.controls.urbanCode, vm && !liquibase);
-  setEnabled(form.controls.urbanCodeApplications, vm && !liquibase);
-  setEnabled(form.controls.sshTargets, vm && !liquibase);
-  setEnabled(form.controls.openShiftTargets, !vm && !liquibase);
-  [form.controls.nexusIq, form.controls.nexusIqApplications, form.controls.goldenFix].forEach(
-    (control) => setEnabled(control, !liquibase),
-  );
-  if (!liquibase) {
-    syncOverrides(form.controls.goldenFix);
-  }
-  setEnabled(form.controls.versionCatalogs, !liquibase);
+  setEnabled(form.controls.urbanCode, !database && vm);
+  setEnabled(form.controls.urbanCodeApplications, !database && vm);
+  setEnabled(form.controls.sshTargets, !database && vm);
+  setEnabled(form.controls.openShiftTargets, !database && !vm);
   setEnabled(form.controls.flutter, flutter);
-  setEnabled(form.controls.database, liquibase);
-  setEnabled(form.controls.databaseTargets, liquibase);
+  [deployment.artifactName, deployment.baseArtifactName].forEach((control) =>
+    setEnabled(control, !database && delivers),
+  );
+  OPENSHIFT_IMAGE_DELIVERY.forEach((key) =>
+    setEnabled(
+      form.controls.openShiftTargets.controls.RD.controls[key],
+      !database && !vm && delivers,
+    ),
+  );
+  syncDatabase(form, tool === 'LIQUIBASE', database);
+  const f = form.controls.flutter.controls;
+  [f.deliveryGroup, f.deliveryArtifact, f.deliveryPlugin].forEach((control) =>
+    setEnabled(control, flutter && delivers),
+  );
+}
+
+/**
+ * Enables the changelog file of a Liquibase service, and the rest of its database block and its databases only once
+ * the changelog file is set.
+ */
+function syncDatabase(form: ServiceForm, liquibase: boolean, database: boolean): void {
   const d = form.controls.database.controls;
+  setEnabled(form.controls.database, liquibase);
+  Object.entries(d).forEach(
+    ([key, control]) => key === 'changelogFile' || setEnabled(control, database),
+  );
+  setEnabled(form.controls.databaseTargets, database);
   [
     d.utplsqlPaths,
     d.utplsqlOwner,
     d.utplsqlSourcePath,
     d.utplsqlTestPath,
     d.utplsqlTimeoutMinutes,
-  ].forEach((control) => setEnabled(control, liquibase && d.utplsql.value));
+  ].forEach((control) => setEnabled(control, database && d.utplsql.value));
   [
     d.groupId,
     d.mvnPath,
@@ -1423,19 +1431,14 @@ function syncApplicability(form: ServiceForm): void {
     d.snapshotRepositoryUrl,
     d.releaseRepositoryId,
     d.releaseRepositoryUrl,
-  ].forEach((control) => setEnabled(control, liquibase && d.nexusDelivery.value));
-  [deployment.artifactName, deployment.baseArtifactName].forEach((control) =>
-    setEnabled(control, delivers && !liquibase),
-  );
-  OPENSHIFT_IMAGE_DELIVERY.forEach((key) =>
-    setEnabled(
-      form.controls.openShiftTargets.controls.RD.controls[key],
-      !vm && delivers && !liquibase,
-    ),
-  );
-  const f = form.controls.flutter.controls;
-  [f.deliveryGroup, f.deliveryArtifact, f.deliveryPlugin].forEach((control) =>
-    setEnabled(control, flutter && delivers),
+  ].forEach((control) => setEnabled(control, database && d.nexusDelivery.value));
+}
+
+/** Whether the form is a Liquibase service with database changes: its changelog file is set. */
+export function formChangesDatabase(form: ServiceForm): boolean {
+  return changesDatabase(
+    form.controls.build.controls.tool.value,
+    form.controls.database.controls.changelogFile.value,
   );
 }
 
@@ -1616,8 +1619,6 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
   const v = withoutUntouchedDefaults(form);
   const tool = v.build.tool;
   const flutter = tool === 'FLUTTER';
-  const liquibase = tool === 'LIQUIBASE';
-  const builds = tool === 'GRADLE' || tool === 'MAVEN';
   const vm = v.deployment.target === 'VM';
   const command = (group: ToolCommandForm, applies: boolean) =>
     applies ? toToolCommand(group) : { ...NO_COMMAND };
@@ -1628,48 +1629,42 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
     build: {
       ...sent(v.build),
       sourceDir: optional(v.build.sourceDir) ?? '.',
-      command: command(c.build.controls.command, builds),
+      command: command(c.build.controls.command, !flutter),
     },
     nodeBuild: toNodeBuild(c.nodeBuild, v.nodeBuild),
     unitTests: {
       ...sent(v.unitTests),
-      command: command(c.unitTests.controls.command, builds),
+      command: command(c.unitTests.controls.command, !flutter),
     },
     tests: { ...v.tests },
     testJobs: c.testJobs.controls.map(toTestJob),
     deployment: sent(v.deployment),
     delivery: command(c.delivery, vm && tool === 'MAVEN'),
     urbanCode: sent(v.urbanCode),
-    urbanCodeApplications:
-      vm && !liquibase ? c.urbanCodeApplications.controls.map(toUrbanCodeApplication) : [],
-    sshTargets:
-      vm && !liquibase ? keyedTargets(REGIONS, (region) => sent(v.sshTargets[region])) : {},
-    openShiftTargets:
-      vm || liquibase ? {} : keyedTargets(REGIONS, (region) => sent(v.openShiftTargets[region])),
+    urbanCodeApplications: vm ? c.urbanCodeApplications.controls.map(toUrbanCodeApplication) : [],
+    sshTargets: vm ? keyedTargets(REGIONS, (region) => sent(v.sshTargets[region])) : {},
+    openShiftTargets: vm ? {} : keyedTargets(REGIONS, (region) => sent(v.openShiftTargets[region])),
     appScan: {
       ...sent(v.appScan),
       includedDirs: lines(v.appScan.includedDirs),
       excludedDirs: lines(v.appScan.excludedDirs),
       compileCommand: command(
         c.appScan.controls.compileCommand,
-        builds && passesValidators(c.appScan.controls.compileCommand),
+        !flutter && passesValidators(c.appScan.controls.compileCommand),
       ),
-      dastTargetUrl: liquibase ? null : kept(c.appScan.controls.dastTargetUrl),
-      dastPresenceId: liquibase ? null : kept(c.appScan.controls.dastPresenceId),
-      ...(liquibase && { compile: false, sourceCodeOnly: false, dastEnabled: false }),
+      dastTargetUrl: kept(c.appScan.controls.dastTargetUrl),
+      dastPresenceId: kept(c.appScan.controls.dastPresenceId),
     },
     sonar: {
       ...sent(v.sonar),
-      command: command(c.sonar.controls.command, builds),
+      command: command(c.sonar.controls.command, !flutter),
     },
     nexusIq: sent(v.nexusIq),
-    nexusIqApplications: liquibase
-      ? []
-      : v.nexusIqApplications.map((application) => ({
-          ...sent(application),
-          scanPatterns: lines(application.scanPatterns),
-          stage: optional(application.stage) ?? 'build',
-        })),
+    nexusIqApplications: v.nexusIqApplications.map((application) => ({
+      ...sent(application),
+      scanPatterns: lines(application.scanPatterns),
+      stage: optional(application.stage) ?? 'build',
+    })),
     scm: {
       ...sent(v.scm),
       reviewers: words(v.scm.reviewers),
@@ -1679,7 +1674,7 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
     versionCatalogRepo: toVersionCatalogRepo(v.versionCatalogRepo),
     metrics: sent(v.metrics),
     flutter: flutter ? toFlutterSettings(v.flutter) : null,
-    ...(liquibase && {
+    ...(formChangesDatabase(form) && {
       database: liveValues<DatabaseSettings>(c.database),
       databaseTargets: keyedTargets(DATABASE_TARGETS, (target) =>
         liveValues<DatabaseTargetSettings>(c.databaseTargets.controls[target]),
@@ -1794,15 +1789,15 @@ export interface ServiceSection {
   label: string;
   icon: string;
   keys: ServiceControlKey[];
-  applies?: (tool: BuildTool, target: DeployTarget) => boolean;
+  applies?: (tool: BuildTool, target: DeployTarget, database: boolean) => boolean;
 }
 
-const onVm: ServiceSection['applies'] = (tool, target) => tool !== 'LIQUIBASE' && target === 'VM';
-const onOpenShift: ServiceSection['applies'] = (tool, target) =>
-  tool !== 'LIQUIBASE' && target === 'OPENSHIFT';
+const deploys: ServiceSection['applies'] = (_, __, database) => !database;
+const onVm: ServiceSection['applies'] = (_, target, database) => !database && target === 'VM';
+const onOpenShift: ServiceSection['applies'] = (_, target, database) =>
+  !database && target === 'OPENSHIFT';
 const onFlutter: ServiceSection['applies'] = (tool) => tool === 'FLUTTER';
 const onLiquibase: ServiceSection['applies'] = (tool) => tool === 'LIQUIBASE';
-const buildsCode: ServiceSection['applies'] = (tool) => tool !== 'LIQUIBASE';
 
 const section = (
   id: ServiceSectionId,
@@ -1816,15 +1811,15 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   section('general', 'General', 'badge', ['name', 'description']),
   section('build', 'Build', 'build', ['build', 'nodeBuild']),
   section('database', 'Database changes', 'storage', ['database', 'databaseTargets'], onLiquibase),
-  section('unitTests', 'Unit tests and coverage', 'fact_check', ['unitTests'], buildsCode),
+  section('unitTests', 'Unit tests and coverage', 'fact_check', ['unitTests']),
   section('testJobs', 'Test jobs', 'science', ['tests', 'testJobs']),
-  section('deployment', 'Deployment', 'rocket_launch', ['deployment', 'delivery'], buildsCode),
+  section('deployment', 'Deployment', 'rocket_launch', ['deployment', 'delivery'], deploys),
   section('urbanCode', 'UrbanCode Deploy', 'hub', ['urbanCode', 'urbanCodeApplications'], onVm),
   section('ssh', 'SSH targets', 'dns', ['sshTargets'], onVm),
   section('openShift', 'OpenShift targets', 'cloud', ['openShiftTargets'], onOpenShift),
   section('appScan', 'AppScan SAST and DAST', 'security', ['appScan']),
   section('sonar', 'SonarQube', 'analytics', ['sonar']),
-  section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq', 'nexusIqApplications'], buildsCode),
+  section('nexusIq', 'Nexus IQ', 'inventory', ['nexusIq', 'nexusIqApplications']),
   section('scm', 'Bitbucket', 'merge', ['scm']),
   section('goldenFix', 'GoldenFix', 'auto_fix_high', ['goldenFix', 'versionCatalogs', 'versionCatalogRepo']),
   section('metrics', 'Monitoring', 'insights', ['metrics']),
@@ -1834,7 +1829,8 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
 export function visibleSections(form: ServiceForm): ServiceSection[] {
   const tool = form.controls.build.controls.tool.value;
   const target = form.controls.deployment.controls.target.value;
-  return SERVICE_SECTIONS.filter((section) => section.applies?.(tool, target) ?? true);
+  const database = formChangesDatabase(form);
+  return SERVICE_SECTIONS.filter((section) => section.applies?.(tool, target, database) ?? true);
 }
 
 export function visibleSectionsForPipeline(

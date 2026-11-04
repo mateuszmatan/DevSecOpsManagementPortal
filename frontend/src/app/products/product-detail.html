@@ -179,7 +179,7 @@
                   <dt>Build tool</dt>
                   <dd>{{ toolLabels[service.buildTool] }}</dd>
                 </div>
-                @if (service.buildTool !== 'LIQUIBASE') {
+                @if (deploys(service)) {
                   <div>
                     <dt>Deployed to</dt>
                     <dd>{{ targetLabels[service.deployTarget] }}</dd>
