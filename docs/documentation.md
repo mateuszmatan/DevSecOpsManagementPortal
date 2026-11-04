@@ -199,7 +199,7 @@ In a repository with Java and database code, add the Liquibase service first.
 
 1. Click "Add a service". The dialog "Add a service" opens. Its tag shows the pipeline.
 2. To start from another service of the product, choose it in "Copy values from". To start from a file, click "Import devsecops_config.yaml". Both are optional. See [chapter 10](#10-import-a-devsecops_configyaml-and-copy-a-service).
-3. Alternatively, use **Repo Auto-Discovery / Smart Wizard (Scan & Auto-fill)**: Type the Bitbucket repository URL and branch, then click "Scan & Auto-fill". The portal queries the repository tree via Bitbucket REST API and automatically populates the build tool (Maven, Gradle, Liquibase, Flutter), Java/Node versions, test runners, and OpenShift target. See [chapter 16](#16-repo-auto-discovery-and-smart-wizard).
+3. Alternatively, use **Repo Auto-Discovery / Smart Wizard (Scan & Auto-fill)**: Type the Bitbucket repository URL and branch, then click "Scan & Auto-fill". The portal queries the repository tree via Bitbucket REST API and fills in the build tool (Maven, Gradle, Liquibase, Flutter) with its build and unit test commands, ticks the Node.js build when it finds a `package.json`, sets the deployment target, Virtual machine or OpenShift, and fills in the SonarQube project key when it is empty. It sets no Java or Node.js version and no test runner. A service with database changes keeps all of these except the SonarQube project key. See [chapter 16](#16-repo-auto-discovery-and-smart-wizard).
 4. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.
 5. In Build, choose or verify the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven, "The code has a pubspec.yaml file" means Flutter and "The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties" means Liquibase (SQL / PL/SQL); for its commands and its database changes see [chapter 7](#add-a-liquibase-service-in-the-wizard). The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
 6. If the repository holds a frontend that npm builds, for example an Angular application, tick "Build the frontend with Node.js first". Type the "Folder with package.json", for example `frontend`. Leave the other Node.js fields as they are. See [chapter 6](#6-build-the-frontend-with-nodejs-first-stage-0).
@@ -1283,40 +1283,40 @@ Onboarding new repositories into DevSecOps typically requires developers to know
 
 ### How it works
 
-1. When adding or editing a service in the Self-service wizard or Admin editor, enter the **Bitbucket repository URL** and target **Branch** (defaults to `main` or `master`).
+1. When adding or editing a service in the Self-service wizard or Admin editor, enter the **Bitbucket repository URL** and target **Branch** (`main` when it is empty).
 2. Click **Scan & Auto-fill**.
 3. The portal executes an inspection against Bitbucket REST API v2 (`/api/catalog/inspect-repo`), walks the directory structure, and analyzes configuration manifests.
-4. The service form is populated immediately with tailored defaults, which developers can review and tweak before saving.
+4. The service form is filled in immediately, and developers can review and tweak it before saving. The scan fills in only the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key; every other field keeps its value.
 
 ### Supported Stacks and Heuristics
 
 The detector (`RepoStackDetector`) inspects manifests in priority order:
 
 - **Maven**: Detected via `pom.xml`.
-  - Parses `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, or `<release>` properties to determine the exact Java JDK version.
-  - Automatically configures default tasks (`clean verify`), artifact path (`target/*.jar`), and enables JaCoCo XML discovery.
-  - Detects Kotlin plugins (`kotlin-maven-plugin`) and configures Kotlin support.
-- **Gradle**: Detected via `build.gradle`, `build.gradle.kts`, or `gradle/wrapper/gradle-wrapper.properties`.
-  - Reads `distributionUrl` in wrapper properties to identify the exact Gradle release (e.g. Gradle 8.5) and appropriate JDK.
-  - Automatically configures default tasks (`build`), artifact path (`build/libs/*.jar`), and enables JaCoCo test reporting.
+  - Parses `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, `<maven.compiler.release>` or `<jdk.version>` to determine the Java version, which the scan message names; it sets no JDK path.
+  - Fills in the build goals `clean verify` and the unit test goals `test`, or `test jacoco:report` when the `pom.xml` mentions JaCoCo. It sets no artifact path and no coverage reports.
+  - Detects Kotlin plugins (`kotlin-maven-plugin`) and names Kotlin in the scan message.
+- **Gradle**: Detected via `build.gradle`, `build.gradle.kts`, or `gradlew`.
+  - Reads `distributionUrl` in `gradle/wrapper/gradle-wrapper.properties` to identify the exact Gradle release (e.g. Gradle 8.5) and a Java version, which the scan message names; it sets no JDK path.
+  - Fills in the build tasks `clean build` and the unit test tasks `test`, or `test jacocoTestReport` when the build file mentions JaCoCo. It sets no artifact path and no coverage reports.
   - Detects Kotlin DSL (`build.gradle.kts`) and Kotlin compiler plugins.
 - **Node.js (Stage 0)**: Detected via `package.json` at root or in common frontend directories (`frontend/`, `web/`, `client/`, `ui/`).
-  - Automatically enables Stage 0 Node.js pre-build (`build.node.enabled: true`) and sets the folder.
-  - Parses `engines.node` to select the compatible Node.js installation.
-  - Inspects `dependencies` and `devDependencies` to detect frontend frameworks (Angular, React, Vue) and test runners (Cypress, Jest), preconfiguring unit test commands and coverage paths (`coverage/lcov.info`).
+  - Automatically enables Stage 0 Node.js pre-build (`build.node.enabled: true`). The Folder with package.json and the other Node.js fields keep their values.
+  - Parses `engines.node`, but selects no Node.js installation.
+  - Inspects `package.json` to detect the frontend frameworks Angular and React and the test runners Cypress and Jest, and names them in the scan message. It sets no coverage paths, and it writes build and unit test commands only when it finds one of the four build tools (Gradle, Maven, Flutter, Liquibase), never npm commands. For a repository with only npm, the scan ticks the Node.js build, sets the deployment target and fills in an empty SonarQube project key; the build tool and the commands of the service stay as they are.
 - **Liquibase (SQL / PL/SQL)**: Detected via `changelog.xml`, `liquibase.properties`, or `db/changelog/` directories.
-  - Automatically selects `LIQUIBASE` as the primary build tool, setting default commands (`updateSQL`) and verification tasks (`validate`).
+  - Automatically selects `LIQUIBASE` as the primary build tool when the repository has no `pubspec.yaml`, `pom.xml` or Gradle build, setting the build command `validate` and the unit test commands `updateSQL validate`.
   - It fills only the Liquibase commands. To check, package and deploy the database changes, fill in "Database changes" with the changelog file yourself; see [chapter 7](#7-sql-and-plsql-changes-with-liquibase).
   - A service with database changes keeps its build tool, its commands and its deployment settings when it is scanned, also when the scan finds Gradle or Maven at the root of the repository, as in a multi-module build. The scan then fills in only an empty SonarQube project key, and its message says that the service keeps Liquibase and names the build tool found at the root.
 - **Flutter / Dart**: Detected via `pubspec.yaml`.
-  - Configures the Flutter toolchain, artifact type (`APK`), and unit test runner (`flutter test`).
+  - Selects `FLUTTER` as the build tool. It fills in no commands and no Flutter field, such as the platform.
 - **Python / pip**: Detected via `requirements.txt`, `pyproject.toml`, `setup.py`, or `Pipfile`.
   - The detector recognises a Python project, but the portal has no Python build tool, so the scan sets no build tool and no commands for it.
 - **OpenShift Deployment Target**: Detected via `Dockerfile`, `Containerfile`, or manifests in `openshift/`, `k8s/`, or `helm/`.
-  - Sets the deployment target to `OPENSHIFT` and preconfigures default image build and rollout templates.
+  - Sets the deployment target to `OPENSHIFT`, and to `VM` when it finds none of them. It fills in no OpenShift target.
 - **SonarQube Static Analysis**:
   - Checks if `sonar-project.properties` is present.
-  - When omitted, infers default project key (`com.bbh:<derivedKey>`), discovers submodules from `pom.xml` (`<module>`) or `settings.gradle` (`include`), infers source paths (`src/main/java`, `src/main/kotlin`, `lib`, etc.) and test paths (`src/test/java`, `test`), and preconfigures `tools.sonar.projectKey`.
+  - When omitted, infers default project key (`com.bbh:<derivedKey>`), discovers submodules from `pom.xml` (`<module>`) or `settings.gradle` (`include`), infers source paths (`src/main/java`, `src/main/kotlin`, `lib`, etc.) and test paths (`src/test/java`, `test`), and preconfigures `tools.sonar.projectKey`. The form takes only the project key, and only while its Project key is empty; the modules and the source and test paths are returned by the REST API only.
 
 ### REST API of the auto-discovery
 

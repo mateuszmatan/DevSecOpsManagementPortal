@@ -13,7 +13,7 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
     - `package.json` -> Enables Node.js Stage 0 pre-build, extracts Node version from `engines.node`, detects test runners (Cypress, Jest, Angular, React).
     - `changelog.xml` / `liquibase.properties` / `db/changelog` -> Liquibase build tool for SQL/PL-SQL.
     - `pubspec.yaml` -> Flutter / Dart mobile applications.
-    - `requirements.txt` / `pyproject.toml` / `setup.py` / `Pipfile` -> Python / pip build tool (`PIP`).
+    - `requirements.txt` / `pyproject.toml` / `setup.py` / `Pipfile` -> Python is recognised, but the portal has no Python build tool, so the scan fills in no build tool and no commands.
     - `Dockerfile` / `Containerfile` / `openshift/` / `k8s/` / `helm/` -> OpenShift deployment target (`OPENSHIFT`).
     - SonarQube default configuration -> Checks for `sonar-project.properties`; if missing, automatically infers `com.bbh:<projectKey>`, discovers multi-module configurations from Maven/Gradle manifests, detects sources/tests, and auto-fills `tools.sonar.projectKey`.
 - **Bitbucket Pull Request Decoration & Shift-Left Feedback**:
@@ -55,6 +55,7 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
   - The `database` block is rendered after `build`, with the `database.test`, `database.rd` and `database.qc` databases. A service with database changes renders no `deployTarget`, `appName`, `artifactName`, `baseArtifactName`, `deploy` or `delivery`, and its Nexus IQ GoldenFix pipeline is refused with 409 Conflict. The form checks the JDBC URLs, the credentials IDs, the context filters and the changelog parameters, and the save checks the Nexus delivery of each pipeline type.
   - Global Settings section "Liquibase database changes": the tools, the allowed databases and the Nexus repositories of the database packages (`defaults.tools.liquibase`, `defaults.tools.oracleJdbc`, `defaults.tools.utplsql`, `defaults.database`), rendered only while they are set. The default build tool of a new service cannot be Liquibase.
   - The import reads the `database` block of a Liquibase project and never takes a database password, a JDBC URL with a user or a password, or a production database.
+  - "Scan & Auto-fill" keeps the build tool, the commands and the deployment settings of a service with database changes, also when it finds Gradle or Maven at the root of the repository, and fills in only an empty SonarQube project key.
   - The Directory of the SonarQube command (`tools.sonar.liquibase.dir`) of a service with database changes must be `.` or a relative path inside the repository that holds the package folder and, while the utPLSQL tests run, the folder of the test packages, as the library checks it: the form shows the problem under the field and the save refuses it.
   - Changeset `037-sql-plsql-services.sql` adds the database columns and the table `DSO_SERVICE_DATABASE_TARGET`.
   - Guide chapter 7, "SQL and PL/SQL changes with Liquibase", describes both kinds of Liquibase service, the three repository layouts, the portal steps and the Library defaults; the examples add the products `ORDERSDB` and `ORDERSGRADLE`.
