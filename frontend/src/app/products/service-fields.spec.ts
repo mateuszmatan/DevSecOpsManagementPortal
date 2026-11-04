@@ -17,6 +17,7 @@ import {
   unexplained,
 } from '@common/testing/dom';
 import {
+  command,
   databaseDefaults,
   databaseService,
   databaseSettings,
@@ -32,6 +33,8 @@ import {
   ServiceForm,
   createNexusIqApplicationForm,
   createServiceForm,
+  formChangesDatabase,
+  toServiceRequest,
 } from './product-form-model';
 import { applyLibraryDefaults } from './library-defaults';
 import { ServiceFields } from './service-fields';
@@ -64,6 +67,27 @@ describe('ServiceFields', () => {
     item!.click();
     await fixture.whenStable();
   }
+
+  /** Renders the stored service with a repository scan that finds the stack. */
+  async function renderScanning(stack: Partial<DiscoveredStack>, stored: Partial<Service>) {
+    TestBed.configureTestingModule({
+      providers: [{ provide: ProductsApi, useValue: { inspectRepo: () => of(stack) } }],
+    });
+    await render(stored);
+  }
+
+  /** Scans the repository with the button of the Bitbucket section. */
+  async function scanRepository() {
+    await open('Bitbucket');
+    buttonOf(pane(), 'Scan & Auto-fill').click();
+    await fixture.whenStable();
+  }
+
+  /** The tasks of the build command and of the unit test command. */
+  const toolCommands = () => [
+    form.controls.build.controls.command.controls.tasks.value,
+    form.controls.unitTests.controls.command.controls.tasks.value,
+  ];
 
   const railLabels = () =>
     [...page().querySelectorAll('.rail-item span:not(.problem-mark)')].map(
@@ -419,6 +443,45 @@ describe('ServiceFields', () => {
       expect(form.controls.nodeBuild.controls.nodePath.errors).toEqual({ rule: NODE_TWICE });
       expect(pane().querySelector('dso-advanced-settings .has-errors')).not.toBeNull();
     });
+
+    it.each([
+      [
+        'a Python project',
+        {
+          buildTool: 'PIP',
+          buildTasks: 'pip install -r requirements.txt',
+          unitTestTasks: 'pytest',
+          deployTarget: 'VM',
+          nodeBuildEnabled: false,
+          summaryMessage:
+            'Discovered stack: PIP (PYTHON), Runner: PYTEST, Framework: PIP, Target: VM',
+        },
+      ],
+      [
+        'an npm project only',
+        {
+          buildTool: null,
+          buildTasks: 'npm run build',
+          unitTestTasks: 'npm test',
+          deployTarget: 'OPENSHIFT',
+          nodeBuildEnabled: true,
+          summaryMessage:
+            'Discovered stack: NODEJS (TYPESCRIPT), Node.js Stage 0, Target: OPENSHIFT',
+        },
+      ],
+    ])(
+      'keeps the build tool and its commands when the repository scan finds %s',
+      async (_, stack) => {
+        await renderScanning(stack, service());
+        await scanRepository();
+
+        expect(form.controls.build.controls.tool.value).toBe('GRADLE');
+        expect(toolCommands()).toEqual(['clean build', 'test jacocoTestReport']);
+        expect(form.controls.deployment.controls.target.value).toBe(stack.deployTarget);
+        expect(form.controls.nodeBuild.controls.enabled.value).toBe(stack.nodeBuildEnabled);
+        expect(text(pane())).toContain(stack.summaryMessage);
+      },
+    );
   });
 
   describe('Database changes', () => {
@@ -521,34 +584,107 @@ describe('ServiceFields', () => {
         deployTarget: 'VM',
         nodeBuildEnabled: false,
         summaryMessage: 'Liquibase detected.',
-      } as DiscoveredStack;
-      TestBed.configureTestingModule({
-        providers: [{ provide: ProductsApi, useValue: { inspectRepo: () => of(stack) } }],
-      });
-      const commands = () => [
-        form.controls.build.controls.command.controls.tasks.value,
-        form.controls.unitTests.controls.command.controls.tasks.value,
-      ];
-      const scan = async () => {
-        await open('Bitbucket');
-        buttonOf(pane(), 'Scan & Auto-fill').click();
-        await fixture.whenStable();
       };
 
-      await render(databaseService());
-      const before = commands();
-      await scan();
-      expect(commands()).toEqual(before);
+      await renderScanning(stack, databaseService());
+      const before = toolCommands();
+      await scanRepository();
+      expect(toolCommands()).toEqual(before);
       expect(text(pane())).toContain('Liquibase detected.');
+      expect(text(pane())).not.toContain('the scan found the build tool');
 
       TestBed.resetTestingModule();
-      TestBed.configureTestingModule({
-        providers: [{ provide: ProductsApi, useValue: { inspectRepo: () => of(stack) } }],
-      });
-      await render(liquibase());
-      await scan();
-      expect(commands()).toEqual(['validate', 'updateSQL validate']);
+      await renderScanning(stack, liquibase());
+      await scanRepository();
+      expect(toolCommands()).toEqual(['validate', 'updateSQL validate']);
     });
+
+    /** A database service on a VM with an UrbanCode Deploy application, an SSH target and its own commands. */
+    const deployedDatabaseService = () => {
+      const stored = databaseService();
+      return databaseService({
+        build: { ...stored.build, command: command({ tasks: ['validate'] }) },
+        unitTests: { ...stored.unitTests, command: command({ tasks: ['updateSQL'] }) },
+        deployment: { ...stored.deployment, target: 'VM' },
+        urbanCodeApplications: service().urbanCodeApplications,
+        sshTargets: service().sshTargets,
+      });
+    };
+    const rootBuilds = [
+      [
+        'Maven',
+        {
+          buildTool: 'MAVEN',
+          buildTasks: 'clean verify',
+          unitTestTasks: 'test jacoco:report',
+          deployTarget: 'OPENSHIFT',
+          nodeBuildEnabled: true,
+          liquibaseDetected: true,
+          sonarProjectKey: 'com.bbh:orders',
+          summaryMessage: 'Discovered stack: MAVEN (JAVA), Node.js Stage 0, Target: OPENSHIFT',
+        },
+      ],
+      [
+        'Gradle',
+        {
+          buildTool: 'GRADLE',
+          buildTasks: 'clean build',
+          unitTestTasks: 'test jacocoTestReport',
+          deployTarget: 'OPENSHIFT',
+          nodeBuildEnabled: true,
+          liquibaseDetected: true,
+          sonarProjectKey: 'com.bbh:orders',
+          summaryMessage: 'Discovered stack: GRADLE (JAVA), Node.js Stage 0, Target: OPENSHIFT',
+        },
+      ],
+    ] as const;
+
+    it.each(rootBuilds)(
+      'keeps the build tool, commands, deployment and databases of a service with database changes in a repository with a %s build at its root',
+      async (found, stack) => {
+        await renderScanning(stack, deployedDatabaseService());
+        await scanRepository();
+
+        expect(form.controls.build.controls.tool.value).toBe('LIQUIBASE');
+        expect(formChangesDatabase(form)).toBe(true);
+        expect(toolCommands()).toEqual(['validate', 'updateSQL']);
+        expect(form.controls.nodeBuild.controls.enabled.value).toBe(false);
+        expect(form.controls.deployment.controls.target.value).toBe('VM');
+        expect(form.controls.sonar.controls.projectKey.value).toBe('bbh-orders-db');
+        expect(text(pane())).toContain(
+          `${stack.summaryMessage} The service keeps the build tool Liquibase with database changes; ` +
+            `the scan found the build tool ${found} at the repository root.`,
+        );
+
+        const request = toServiceRequest(form);
+        expect(request.build.tool).toBe('LIQUIBASE');
+        expect(request.build.command.tasks).toEqual(['validate']);
+        expect(request.unitTests.command.tasks).toEqual(['updateSQL']);
+        expect(request.deployment.target).toBe('VM');
+        expect(request.urbanCodeApplications.map((app) => app.applicationName)).toEqual([
+          'CERT-GUI',
+        ]);
+        expect(Object.keys(request.sshTargets)).toEqual(['QC']);
+        expect(request.database?.changelogFile).toBe('db/changelog-master.xml');
+        expect(Object.keys(request.databaseTargets ?? {})).toEqual(['TEST', 'RD', 'QC']);
+      },
+    );
+
+    it.each(rootBuilds)(
+      'switches a Liquibase service without database changes to the %s build the repository scan finds',
+      async (found, stack) => {
+        await renderScanning(stack, liquibase());
+        await scanRepository();
+
+        expect(form.controls.build.controls.tool.value).toBe(stack.buildTool);
+        expect(formChangesDatabase(form)).toBe(false);
+        expect(toolCommands()).toEqual([stack.buildTasks, stack.unitTestTasks]);
+        expect(form.controls.nodeBuild.controls.enabled.value).toBe(true);
+        expect(form.controls.deployment.controls.target.value).toBe('OPENSHIFT');
+        expect(text(pane())).toContain(stack.summaryMessage);
+        expect(text(pane())).not.toContain(`the scan found the build tool ${found}`);
+      },
+    );
 
     it.each([
       ['without', liquibase],

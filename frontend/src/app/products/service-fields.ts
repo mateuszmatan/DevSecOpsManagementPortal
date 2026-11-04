@@ -48,7 +48,7 @@ import {
 } from '@common/shared/form-controls';
 import { DsoHelp } from '@common/ui/help';
 import { TOGGLES } from '@common/ui/toggle-group';
-import { BUILD_TOOLS, TOOL_HINTS } from '../shared/build-options';
+import { BUILD_TOOLS, TOOL_HINTS, TOOL_LABELS } from '../shared/build-options';
 import { RepositoryKey } from '../shared/database-rules';
 import { AdvancedSettings } from './advanced-settings';
 import { GoldenFixFields } from './golden-fix-fields';
@@ -68,6 +68,9 @@ import {
 import { TestJobsFields } from './test-jobs-fields';
 import { ToolCommandFields, commandFields } from './tool-command-fields';
 import { URBAN_CODE_APPLICATION, URBAN_CODE_COMPONENT, UrbanCodeFields } from './urban-code-fields';
+
+/** The build tools of the portal: a repository scan may also find one it has none for, such as PIP, or none. */
+const KNOWN_TOOLS: readonly BuildTool[] = ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'];
 
 const REGION_NAMES: Record<Region, string> = {
   RD: 'RD, the lower test region',
@@ -1411,8 +1414,10 @@ export class ServiceFields {
       .subscribe({
         next: (stack) => {
           this.inspectingRepo.set(false);
-          this.applyDiscoveredStack(stack);
-          this.inspectSuccess.set(stack.summaryMessage || 'Stack detected and form auto-filled successfully.');
+          const kept = this.applyDiscoveredStack(stack);
+          const summary =
+            stack.summaryMessage || 'Stack detected and form auto-filled successfully.';
+          this.inspectSuccess.set(kept ? `${summary} ${kept}` : summary);
         },
         error: (err) => {
           this.inspectingRepo.set(false);
@@ -1421,26 +1426,43 @@ export class ServiceFields {
       });
   }
 
-  private applyDiscoveredStack(stack: DiscoveredStack): void {
-    const c = this.form().controls;
-    if (stack.buildTool && ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'].includes(stack.buildTool)) {
-      c.build.controls.tool.setValue(stack.buildTool as BuildTool);
-    }
-    if (stack.deployTarget && ['VM', 'OPENSHIFT'].includes(stack.deployTarget)) {
-      c.deployment.controls.target.setValue(stack.deployTarget as DeployTarget);
-    }
-    if (stack.nodeBuildEnabled) {
-      c.nodeBuild.controls.enabled.setValue(true);
-    }
+  /**
+   * Fills the form from the scanned repository. A service with database changes keeps its build tool, its commands
+   * and its hidden deployment settings, since the scan takes the build tool from the repository root. Returns the
+   * note for the success message when such a service keeps Liquibase although the scan found another build tool,
+   * otherwise null.
+   */
+  private applyDiscoveredStack(stack: DiscoveredStack): string | null {
     const database = formChangesDatabase(this.form());
-    if (stack.buildTasks && !database) {
-      c.build.controls.command.controls.tasks.setValue(stack.buildTasks);
-    }
-    if (stack.unitTestTasks && !database) {
-      c.unitTests.controls.command.controls.tasks.setValue(stack.unitTestTasks);
+    const c = this.form().controls;
+    const tool = KNOWN_TOOLS.find((known) => known === stack.buildTool);
+    if (!database) {
+      if (tool) {
+        c.build.controls.tool.setValue(tool);
+      }
+      if (stack.deployTarget && ['VM', 'OPENSHIFT'].includes(stack.deployTarget)) {
+        c.deployment.controls.target.setValue(stack.deployTarget as DeployTarget);
+      }
+      if (stack.nodeBuildEnabled) {
+        c.nodeBuild.controls.enabled.setValue(true);
+      }
+      if (tool && stack.buildTasks) {
+        c.build.controls.command.controls.tasks.setValue(stack.buildTasks);
+      }
+      if (tool && stack.unitTestTasks) {
+        c.unitTests.controls.command.controls.tasks.setValue(stack.unitTestTasks);
+      }
     }
     if (stack.sonarProjectKey && !c.sonar.controls.projectKey.value) {
       c.sonar.controls.projectKey.setValue(stack.sonarProjectKey);
     }
+    if (!database || !stack.buildTool || stack.buildTool === 'LIQUIBASE') {
+      return null;
+    }
+    const found = tool ? TOOL_LABELS[tool] : stack.buildTool;
+    return (
+      'The service keeps the build tool Liquibase with database changes; ' +
+      `the scan found the build tool ${found} at the repository root.`
+    );
   }
 }
