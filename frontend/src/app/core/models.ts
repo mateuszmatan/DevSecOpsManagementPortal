@@ -46,6 +46,11 @@ export interface DiscoveredStack {
   dockerDetected: boolean;
   detectedMarkers: readonly string[];
   summaryMessage: string;
+  sonarPropertiesDetected?: boolean;
+  sonarProjectKey?: string | null;
+  sonarModules?: readonly string[];
+  sonarSources?: string | null;
+  sonarTests?: string | null;
 }
 
 export interface InspectRepoRequest {

@@ -813,6 +813,9 @@ The detector (`RepoStackDetector`) inspects manifests in priority order:
   - Configures `PIP` build tool with isolated virtualenv execution.
 - **OpenShift Deployment Target**: Detected via `Dockerfile`, `Containerfile`, or manifests in `openshift/`, `k8s/`, or `helm/`.
   - Sets the deployment target to `OPENSHIFT` and preconfigures default image build and rollout templates.
+- **SonarQube Static Analysis**:
+  - Checks if `sonar-project.properties` is present.
+  - When omitted, infers default project key (`com.bbh:<derivedKey>`), discovers submodules from `pom.xml` (`<module>`) or `settings.gradle` (`include`), infers source paths (`src/main/java`, `src/main/kotlin`, `lib`, etc.) and test paths (`src/test/java`, `test`), and preconfigures `tools.sonar.projectKey`.
 
 ### REST API
 

@@ -168,4 +168,50 @@ kotlin {
         stack.testRunner == 'PYTEST'
         stack.unitTestTasks == 'pytest'
     }
+
+    def "detects sonar defaults when sonar-project.properties is missing"() {
+        given:
+        def tree = [
+                fileExists     : { String p -> p == 'pom.xml' },
+                directoryExists: { String p -> false },
+                listFiles      : { String p -> [] },
+                readFile       : { String p ->
+                    Optional.of('''<project>
+    <artifactId>payment-service</artifactId>
+    <modules>
+        <module>core-service</module>
+        <module>api-service</module>
+    </modules>
+</project>''')
+                }
+        ] as RepoFileTree
+
+        when:
+        def stack = RepoStackDetector.detect(tree)
+
+        then:
+        !stack.sonarPropertiesDetected
+        stack.sonarProjectKey == 'com.bbh:payment-service'
+        stack.sonarModules == ['core-service', 'api-service']
+        stack.sonarSources == 'src/main/java'
+        stack.sonarTests == 'src/test/java'
+        stack.summaryMessage.contains('com.bbh:payment-service')
+    }
+
+    def "detects existing sonar-project.properties"() {
+        given:
+        def tree = [
+                fileExists     : { String p -> p in ['pom.xml', 'sonar-project.properties'] },
+                directoryExists: { String p -> false },
+                listFiles      : { String p -> [] },
+                readFile       : { String p -> Optional.of('<project><artifactId>demo</artifactId></project>') }
+        ] as RepoFileTree
+
+        when:
+        def stack = RepoStackDetector.detect(tree)
+
+        then:
+        stack.sonarPropertiesDetected
+        stack.detectedMarkers.contains('sonar-project.properties')
+    }
 }

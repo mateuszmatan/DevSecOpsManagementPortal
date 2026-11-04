@@ -15,6 +15,7 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
     - `pubspec.yaml` -> Flutter / Dart mobile applications.
     - `requirements.txt` / `pyproject.toml` / `setup.py` / `Pipfile` -> Python / pip build tool (`PIP`).
     - `Dockerfile` / `Containerfile` / `openshift/` / `k8s/` / `helm/` -> OpenShift deployment target (`OPENSHIFT`).
+    - SonarQube default configuration -> Checks for `sonar-project.properties`; if missing, automatically infers `com.bbh:<projectKey>`, discovers multi-module configurations from Maven/Gradle manifests, detects sources/tests, and auto-fills `tools.sonar.projectKey`.
 - **Bitbucket Pull Request Decoration & Shift-Left Feedback**:
   - Direct pull request decoration endpoint (`POST /api/dso/bitbucket/pull-requests/decorate`):
     - AppScan SAST: adds inline line comments on exact file and line with vulnerability description and suggested remediation, skipping findings with status `Noise`.

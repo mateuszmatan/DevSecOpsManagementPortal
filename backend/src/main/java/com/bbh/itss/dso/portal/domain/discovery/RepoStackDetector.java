@@ -170,7 +170,38 @@ public final class RepoStackDetector {
             }
         }
 
-        String summary = buildSummaryMessage(buildTool, language, framework, deployTarget, javaVersion, gradleVersion, nodeBuildEnabled, testRunner);
+        boolean sonarPropertiesDetected = tree.fileExists("sonar-project.properties");
+        if (sonarPropertiesDetected) {
+            markers.add("sonar-project.properties");
+        }
+
+        List<String> sonarModules = detectSonarModules(tree);
+        String sonarProjectKey = null;
+        String sonarSources = null;
+        String sonarTests = null;
+
+        if (!sonarPropertiesDetected) {
+            String derivedName = deriveProjectName(tree, buildTool);
+            sonarProjectKey = "com.bbh:" + derivedName;
+            if ("DART".equals(language)) {
+                sonarSources = "lib";
+                sonarTests = "test";
+            } else if ("SQL".equals(language)) {
+                sonarSources = "db";
+                sonarTests = "";
+            } else if ("PYTHON".equals(language)) {
+                sonarSources = "src";
+                sonarTests = "tests";
+            } else if ("KOTLIN".equals(language)) {
+                sonarSources = "src/main/kotlin";
+                sonarTests = "src/test/kotlin";
+            } else {
+                sonarSources = "src/main/java";
+                sonarTests = "src/test/java";
+            }
+        }
+
+        String summary = buildSummaryMessage(buildTool, language, framework, deployTarget, javaVersion, gradleVersion, nodeBuildEnabled, testRunner, sonarProjectKey, sonarPropertiesDetected);
 
         return new DiscoveredStack(
                 buildTool,
@@ -187,7 +218,12 @@ public final class RepoStackDetector {
                 liquibaseDetected,
                 dockerDetected,
                 markers,
-                summary
+                summary,
+                sonarPropertiesDetected,
+                sonarProjectKey,
+                sonarModules,
+                sonarSources,
+                sonarTests
         );
     }
 
@@ -236,7 +272,8 @@ public final class RepoStackDetector {
     }
 
     private static String buildSummaryMessage(String buildTool, String language, String framework, String deployTarget,
-                                               String javaVersion, String gradleVersion, boolean node, String testRunner) {
+                                               String javaVersion, String gradleVersion, boolean node, String testRunner,
+                                               String sonarProjectKey, boolean sonarPropertiesDetected) {
         StringBuilder sb = new StringBuilder("Discovered stack: ");
         if (buildTool != null) {
             sb.append(buildTool);
@@ -264,6 +301,59 @@ public final class RepoStackDetector {
             sb.append(", Framework: ").append(framework);
         }
         sb.append(", Target: ").append(deployTarget);
+        if (!sonarPropertiesDetected && sonarProjectKey != null) {
+            sb.append(", Sonar defaults (").append(sonarProjectKey).append(")");
+        }
         return sb.toString();
+    }
+
+    private static String deriveProjectName(RepoFileTree tree, String buildTool) {
+        if ("MAVEN".equals(buildTool) || tree.fileExists("pom.xml")) {
+            String pom = tree.readFile("pom.xml").orElse("");
+            Matcher m = Pattern.compile("<artifactId>\\s*([^<\\s]+)\\s*<").matcher(pom);
+            if (m.find()) {
+                return m.group(1).trim();
+            }
+        }
+        if (tree.fileExists("settings.gradle") || tree.fileExists("settings.gradle.kts")) {
+            String settings = tree.readFile("settings.gradle.kts").or(() -> tree.readFile("settings.gradle")).orElse("");
+            Matcher m = Pattern.compile("rootProject\\.name\\s*=\\s*['\"]([^'\"]+)['\"]").matcher(settings);
+            if (m.find()) {
+                return m.group(1).trim();
+            }
+        }
+        if (tree.fileExists("package.json")) {
+            String pkg = tree.readFile("package.json").orElse("");
+            Matcher m = Pattern.compile("\"name\"\\s*:\\s*\"([^\"]+)\"").matcher(pkg);
+            if (m.find()) {
+                return m.group(1).trim();
+            }
+        }
+        return "app";
+    }
+
+    private static List<String> detectSonarModules(RepoFileTree tree) {
+        List<String> modules = new ArrayList<>();
+        if (tree.fileExists("pom.xml")) {
+            String pom = tree.readFile("pom.xml").orElse("");
+            Matcher m = Pattern.compile("<module>\\s*([^<\\s]+)\\s*</module>").matcher(pom);
+            while (m.find()) {
+                String mod = m.group(1).trim();
+                if (!mod.isBlank() && !modules.contains(mod)) {
+                    modules.add(mod);
+                }
+            }
+        }
+        if (modules.isEmpty() && (tree.fileExists("settings.gradle") || tree.fileExists("settings.gradle.kts"))) {
+            String settings = tree.readFile("settings.gradle.kts").or(() -> tree.readFile("settings.gradle")).orElse("");
+            Matcher m = Pattern.compile("include\\s*\\(?\\s*['\"](?::)?([^'\",\\s)]+)['\"]").matcher(settings);
+            while (m.find()) {
+                String mod = m.group(1).trim();
+                if (!mod.isBlank() && !modules.contains(mod)) {
+                    modules.add(mod);
+                }
+            }
+        }
+        return modules;
     }
 }

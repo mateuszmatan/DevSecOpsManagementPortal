@@ -1160,5 +1160,8 @@ export class ServiceFields {
     if (stack.unitTestTasks) {
       c.unitTests.controls.command.controls.tasks.setValue(stack.unitTestTasks);
     }
+    if (stack.sonarProjectKey && !c.sonar.controls.projectKey.value) {
+      c.sonar.controls.projectKey.setValue(stack.sonarProjectKey);
+    }
   }
 }

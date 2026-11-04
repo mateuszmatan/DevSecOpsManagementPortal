@@ -893,6 +893,12 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <li>Sets the deployment target to <code>OPENSHIFT</code> and preconfigures default image build and rollout templates.</li>
 </ul>
 </li>
+<li><strong>SonarQube Static Analysis</strong>:
+<ul>
+<li>Checks if <code>sonar-project.properties</code> is present.</li>
+<li>When omitted, infers default project key (<code>com.bbh:&lt;derivedKey&gt;</code>), discovers submodules from <code>pom.xml</code> (<code>&lt;module&gt;</code>) or <code>settings.gradle</code> (<code>include</code>), infers source paths (<code>src/main/java</code>, <code>src/main/kotlin</code>, <code>lib</code>, etc.) and test paths (<code>src/test/java</code>, <code>test</code>), and preconfigures <code>tools.sonar.projectKey</code>.</li>
+</ul>
+</li>
 </ul>
 <h3 id="rest-api">REST API</h3>
 <ul>
