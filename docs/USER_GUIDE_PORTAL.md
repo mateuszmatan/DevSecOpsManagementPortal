@@ -434,6 +434,7 @@ Direct feedback in developer pull requests accelerates remediation and prevents 
         keyId: "11111111-2222-3333-4444-555555555555"
         token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
 * **Credential Isolation:** SAST credentials (`sast.keyId`, `sast.token`) are strictly isolated from DAST credentials (`dast.keyId`, `dast.token`).
-* **SAST Scan Deduplication:** When multiple services in `devsecops_config.yaml`, `config.yaml`, or configured in the Portal share the same AppScan application ID (`appId`), the SAST scan is executed only once. The primary service prepares the IRX and queues the scan, while subsequent services skip duplicate IRX preparation, wait for the shared scan, and reuse the completed findings and reports.
+* **Static Scan Deduplication (SAST, SonarQube, Nexus IQ):** When multiple services sharing the same Git/Bitbucket repository (e.g. multi-module monorepos or shared sources) configure the same scan identifier (`appId` for AppScan SAST, `projectKey` for SonarQube, or `application` for Nexus IQ), the respective scan or policy evaluation is executed only once. Secondary services automatically reuse the existing scan IDs, findings, HTML/PDF reports, quality gate verdicts, and vulnerability counts.
+* **Multi-Repository Products & ID Isolation:** Products can configure services across independent Bitbucket repositories (including separate Bitbucket projects and repository URLs). When services point to different Bitbucket repository URLs, they are strictly required to use distinct AppScan application IDs, SonarQube project keys, and Nexus IQ applications. Attempting to share scan identifiers across different repositories is prevented both in Portal validation and at pipeline initialization.
 
 

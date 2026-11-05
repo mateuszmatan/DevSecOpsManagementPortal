@@ -1845,7 +1845,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 <tr><th>Field</th><th>Key</th><th>Notes</th></tr>
 </thead>
 <tbody>
-<tr><td>AppScan application ID</td><td><code>appId</code></td><td>required; when multiple services share the same appId, the SAST scan runs only once and findings are reused</td></tr>
+<tr><td>AppScan application ID</td><td><code>appId</code></td><td>required; when multiple services in the same repository share the same appId, the SAST scan runs only once and findings are reused. Services across different repositories must have distinct appIds.</td></tr>
 <tr><td>AppScan API key ID</td><td><code>asoc.keyId</code></td><td>required</td></tr>
 <tr><td>API key secret credentials ID</td><td><code>asoc.token</code></td><td>left empty: the key ID names the credential</td></tr>
 <tr><td>Run DAST against the deployed application</td><td><code>dast.enabled</code></td><td>Full pipeline</td></tr>
@@ -1870,7 +1870,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 </thead>
 <tbody>
 <tr><td>Project name</td><td><code>tools.sonar.projectName</code></td><td></td></tr>
-<tr><td>Project key</td><td><code>tools.sonar.projectKey</code></td><td></td></tr>
+<tr><td>Project key</td><td><code>tools.sonar.projectKey</code></td><td>when multiple services in the same repository share the projectKey, analysis runs only once and findings are reused. Services across different repositories must have distinct project keys.</td></tr>
 <tr><td>Jenkins installation</td><td><code>tools.sonar.installationName</code></td><td>Library default</td></tr>
 <tr><td>Analysis command</td><td><code>tools.sonar.gradle.tasks</code>, <code>tools.sonar.maven.goals</code> and the other command fields</td><td>required with a project key</td></tr>
 <tr><td>Token credentials ID (Advanced)</td><td><code>tools.sonar.authToken</code></td><td></td></tr>
@@ -1889,7 +1889,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 <tr><th>Field</th><th>Key</th><th>Notes</th></tr>
 </thead>
 <tbody>
-<tr><td>Application</td><td><code>application</code></td><td><code>tools.nexusIq.application</code></td></tr>
+<tr><td>Application</td><td><code>application</code></td><td><code>tools.nexusIq.application</code>; when multiple services in the same repository share the application, evaluation runs only once and verdicts are reused. Services across different repositories must have distinct application IDs.</td></tr>
 <tr><td>Stage</td><td><code>stage</code></td><td><code>tools.nexusIq.stage</code>, by default <code>build</code></td></tr>
 <tr><td>Treat a network error as a failed scan</td><td><code>failOnNetworkError</code></td><td><code>tools.nexusIq.failOnNetworkError</code></td></tr>
 <tr><td>Scan patterns</td><td><code>scanPatterns</code></td><td><code>tools.nexusIq.scanPatterns</code></td></tr>

@@ -1724,7 +1724,7 @@ Each region has its own section: `deploy.openshift.rd` and `deploy.openshift.qc`
 
 | Field | Key | Notes |
 |-------|-----|-------|
-| AppScan application ID | `appId` | required; when multiple services share the same appId, the SAST scan runs only once and findings are reused |
+| AppScan application ID | `appId` | required; when multiple services in the same repository share the same appId, the SAST scan runs only once and findings are reused. Services across different repositories must have distinct appIds. |
 | AppScan API key ID | `asoc.keyId` | required |
 | API key secret credentials ID | `asoc.token` | left empty: the key ID names the credential |
 | Run DAST against the deployed application | `dast.enabled` | Full pipeline |
@@ -1747,7 +1747,7 @@ The address of AppScan on Cloud comes from the Library defaults and is written t
 | Field | Key | Notes |
 |-------|-----|-------|
 | Project name | `tools.sonar.projectName` | |
-| Project key | `tools.sonar.projectKey` | |
+| Project key | `tools.sonar.projectKey` | when multiple services in the same repository share the projectKey, analysis runs only once and findings are reused. Services across different repositories must have distinct project keys. |
 | Jenkins installation | `tools.sonar.installationName` | Library default |
 | Analysis command | `tools.sonar.gradle.tasks`, `tools.sonar.maven.goals` and the other command fields | required with a project key |
 | Token credentials ID (Advanced) | `tools.sonar.authToken` | |
@@ -1764,7 +1764,7 @@ A service scans one Nexus IQ application, written under `tools.nexusIq.applicati
 
 | Field | Key | Notes |
 |-------|-----|-------|
-| Application | `application` | `tools.nexusIq.application` |
+| Application | `application` | `tools.nexusIq.application`; when multiple services in the same repository share the application, evaluation runs only once and verdicts are reused. Services across different repositories must have distinct application IDs. |
 | Stage | `stage` | `tools.nexusIq.stage`, by default `build` |
 | Treat a network error as a failed scan | `failOnNetworkError` | `tools.nexusIq.failOnNetworkError` |
 | Scan patterns | `scanPatterns` | `tools.nexusIq.scanPatterns` |

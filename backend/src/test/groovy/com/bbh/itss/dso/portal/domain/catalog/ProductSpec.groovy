@@ -287,4 +287,69 @@ class ProductSpec extends Specification {
         where:
         factory << [{ new Service(1L, 'gui', null, 0, null) }, { new ServiceDraft(1L, 'gui', null, null) }]
     }
+
+    def "services in different Bitbucket repositories cannot share SAST AppId, SonarQube projectKey, or Nexus IQ application"() {
+        given:
+        def scmA = ScmSettings.of('https://bitbucket.bbh.com/projects/PROJ/repos/repo-a', 'bb-creds')
+        def scmB = ScmSettings.of('https://bitbucket.bbh.com/projects/PROJ/repos/repo-b', 'bb-creds')
+
+        when:
+        Product.create(details(), [
+                draft(name: 'service-a', scm: scmA, appScan: appScan(applicationId: 'shared-app-id')),
+                draft(name: 'service-b', scm: scmB, appScan: appScan(applicationId: 'shared-app-id'))
+        ], nobody)
+
+        then:
+        def e1 = thrown(InvalidRequestException)
+        e1.problems()*.field == ['services[1].appScan.applicationId']
+        e1.problems()[0].message.contains('services in different Bitbucket repositories cannot share the same AppScan application ID')
+
+        when:
+        Product.create(details(), [
+                draft(name: 'service-a', scm: scmA, appScan: appScan(applicationId: 'app-a'),
+                        sonar: SonarSettings.of(null, 'shared-sonar-key', ToolCommand.of(['sonarqube'], []))),
+                draft(name: 'service-b', scm: scmB, appScan: appScan(applicationId: 'app-b'),
+                        sonar: SonarSettings.of(null, 'shared-sonar-key', ToolCommand.of(['sonarqube'], [])))
+        ], nobody)
+
+        then:
+        def e2 = thrown(InvalidRequestException)
+        e2.problems()*.field == ['services[1].sonar.projectKey']
+        e2.problems()[0].message.contains('services in different Bitbucket repositories cannot share the same SonarQube project key')
+
+        when:
+        Product.create(details(), [
+                draft(name: 'service-a', scm: scmA, appScan: appScan(applicationId: 'app-a'),
+                        sonar: SonarSettings.of(null, 'sonar-a', ToolCommand.of(['sonarqube'], [])),
+                        nexusIqApplications: [NexusIqApplication.of('shared-niq-app', ['**/*.jar'])]),
+                draft(name: 'service-b', scm: scmB, appScan: appScan(applicationId: 'app-b'),
+                        sonar: SonarSettings.of(null, 'sonar-b', ToolCommand.of(['sonarqube'], [])),
+                        nexusIqApplications: [NexusIqApplication.of('shared-niq-app', ['**/*.war'])])
+        ], nobody)
+
+        then:
+        def e3 = thrown(InvalidRequestException)
+        e3.problems()*.field == ['services[1].nexusIq.applications']
+        e3.problems()[0].message.contains('services in different Bitbucket repositories cannot share the same Nexus IQ application')
+    }
+
+    def "services in the same Bitbucket repository can share SAST AppId, SonarQube projectKey, and Nexus IQ application"() {
+        given:
+        def sharedScm = ScmSettings.of('https://bitbucket.bbh.com/projects/PROJ/repos/monorepo.git', 'bb-creds')
+
+        when:
+        def product = Product.create(details(), [
+                draft(name: 'module-a', scm: sharedScm, appScan: appScan(applicationId: 'shared-app-id'),
+                        sonar: SonarSettings.of(null, 'shared-sonar-key', ToolCommand.of(['sonarqube'], [])),
+                        nexusIqApplications: [NexusIqApplication.of('shared-niq-app', ['**/*.jar'])]),
+                draft(name: 'module-b', scm: sharedScm, appScan: appScan(applicationId: 'shared-app-id'),
+                        sonar: SonarSettings.of(null, 'shared-sonar-key', ToolCommand.of(['sonarqube'], [])),
+                        nexusIqApplications: [NexusIqApplication.of('shared-niq-app', ['**/*.jar'])])
+        ], nobody)
+
+        then:
+        product.services()*.name() == ['module-a', 'module-b']
+        product.services()*.settings()*.appScan()*.applicationId() == ['shared-app-id', 'shared-app-id']
+        product.services()*.settings()*.sonar()*.projectKey() == ['shared-sonar-key', 'shared-sonar-key']
+    }
 }

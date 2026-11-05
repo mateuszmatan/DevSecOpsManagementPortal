@@ -40,7 +40,60 @@ final class ProductRules {
                 at.add("name", "another service of this product already uses this name");
             }
         }
+        validateCrossServiceScanIds(services, problems);
         problems.throwIfAny();
+    }
+
+    private void validateCrossServiceScanIds(List<ServiceDraft> services, ValidationProblems problems) {
+        for (int i = 0; i < services.size(); i++) {
+            ServiceDraft a = services.get(i);
+            String repoA = normalizeRepo(a.settings().scm().repositoryUrl());
+            String sastA = a.settings().appScan().applicationId();
+            String sonarA = a.settings().sonar().projectKey();
+
+            for (int j = i + 1; j < services.size(); j++) {
+                ServiceDraft b = services.get(j);
+                String repoB = normalizeRepo(b.settings().scm().repositoryUrl());
+                boolean diffRepo = !repoA.isEmpty() && !repoB.isEmpty() && !repoA.equalsIgnoreCase(repoB);
+                if (diffRepo) {
+                    String sastB = b.settings().appScan().applicationId();
+                    if (sastA != null && !sastA.isBlank() && sastA.equalsIgnoreCase(sastB)) {
+                        problems.at("services[" + j + "].appScan")
+                                .add("applicationId", "services in different Bitbucket repositories cannot share the same AppScan application ID (" + sastB + " is already used by " + a.name() + ")");
+                    }
+                    String sonarB = b.settings().sonar().projectKey();
+                    if (sonarA != null && !sonarA.isBlank() && sonarA.equalsIgnoreCase(sonarB)) {
+                        problems.at("services[" + j + "].sonar")
+                                .add("projectKey", "services in different Bitbucket repositories cannot share the same SonarQube project key (" + sonarB + " is already used by " + a.name() + ")");
+                    }
+                    for (NexusIqApplication niqA : a.settings().nexusIqApplications()) {
+                        String appA = niqA.application();
+                        if (appA == null || appA.isBlank()) continue;
+                        for (NexusIqApplication niqB : b.settings().nexusIqApplications()) {
+                            String appB = niqB.application();
+                            if (appB != null && !appB.isBlank() && appA.equalsIgnoreCase(appB)) {
+                                problems.at("services[" + j + "].nexusIq")
+                                        .add("applications", "services in different Bitbucket repositories cannot share the same Nexus IQ application (" + appB + " is already used by " + a.name() + ")");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static String normalizeRepo(String url) {
+        if (url == null || url.isBlank()) {
+            return "";
+        }
+        String u = url.trim().toLowerCase(ROOT);
+        if (u.endsWith(".git")) {
+            u = u.substring(0, u.length() - 4);
+        }
+        while (u.endsWith("/")) {
+            u = u.substring(0, u.length() - 1);
+        }
+        return u;
     }
 
     private void requireIdentity(ProductDetails details, List<ServiceDraft> services) {

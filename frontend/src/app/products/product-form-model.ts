@@ -1035,7 +1035,15 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       QC: createOpenShiftTargetForm(s?.openShiftTargets?.QC),
     }),
     appScan: new FormGroup({
-      applicationId: text(s?.appScan?.applicationId, filled, Validators.pattern(UUID)),
+      applicationId: text(
+        s?.appScan?.applicationId,
+        filled,
+        Validators.pattern(UUID),
+        uniqueForDifferentRepos(
+          'appScan.applicationId',
+          'services in different Bitbucket repositories cannot share the same AppScan application ID',
+        ),
+      ),
       keyId: text(s?.appScan?.keyId, filled, max(200)),
       scanName: text(s?.appScan?.scanName, Validators.pattern(SCAN_NAME), max(200)),
       includedDirs: folders(s?.appScan?.includedDirs),
@@ -1053,7 +1061,15 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     }),
     sonar: new FormGroup({
       projectName: text(s?.sonar?.projectName, max(200)),
-      projectKey: text(s?.sonar?.projectKey, Validators.pattern(SONAR_KEY), max(400)),
+      projectKey: text(
+        s?.sonar?.projectKey,
+        Validators.pattern(SONAR_KEY),
+        max(400),
+        uniqueForDifferentRepos(
+          'sonar.projectKey',
+          'services in different Bitbucket repositories cannot share the same SonarQube project key',
+        ),
+      ),
       installationName: text(s?.sonar?.installationName, max(200)),
       credentialsId: text(s?.sonar?.credentialsId, max(200)),
       authTokenCredentialsId: text(s?.sonar?.authTokenCredentialsId, max(200)),
@@ -1549,12 +1565,53 @@ export const SAME_NAME = 'another service of this product already uses this name
 export const ONE_APPLICATION = 'A service scans one Nexus IQ application: remove the others';
 export const BADGE_TWICE = 'Give the badge token or its credentials ID, not both';
 export const NODE_TWICE = 'Give the Node.js installation or its home on the agent, not both';
-export const PRODUCT_WIDE_FIELD = /^services\[\d+]\.name$/;
+export const PRODUCT_WIDE_FIELD =
+  /^services\[\d+]\.(name|appScan\.applicationId|sonar\.projectKey|nexusIq\.applications)$/;
 
 const valueAt = (item: AbstractControl, key: string) =>
   String(item.get(key)?.value ?? '')
     .trim()
     .toLowerCase() || null;
+
+const normalizeRepoUrl = (url: unknown) => {
+  const raw = String(url ?? '').trim().toLowerCase();
+  if (!raw) return '';
+  let u = raw.endsWith('.git') ? raw.slice(0, -4) : raw;
+  while (u.endsWith('/')) u = u.slice(0, -1);
+  return u;
+};
+
+function serviceFormOf(control: AbstractControl): AbstractControl | null {
+  let curr: AbstractControl | null = control;
+  while (curr && curr.parent) {
+    if (curr.parent instanceof FormArray) {
+      return curr;
+    }
+    curr = curr.parent;
+  }
+  return null;
+}
+
+function uniqueForDifferentRepos(keyPath: string, message: string): ValidatorFn {
+  return (control) => {
+    const service = serviceFormOf(control);
+    const services = service?.parent;
+    if (!service || !(services instanceof FormArray)) {
+      return null;
+    }
+    const ownVal = valueAt(service, keyPath);
+    if (!ownVal) return null;
+    const ownRepo = normalizeRepoUrl(service.get('scm.repositoryUrl')?.value);
+    const hasDuplicateInDifferentRepo = services.controls.some((other) => {
+      if (other === service) return false;
+      const otherVal = valueAt(other, keyPath);
+      if (!otherVal || otherVal !== ownVal) return false;
+      const otherRepo = normalizeRepoUrl(other.get('scm.repositoryUrl')?.value);
+      return (ownRepo !== '' || otherRepo !== '') && ownRepo !== otherRepo;
+    });
+    return hasDuplicateInDifferentRepo ? { rule: message } : null;
+  };
+}
 
 function unique(key: string, message: string): ValidatorFn {
   return (control) => {
@@ -1587,7 +1644,11 @@ function notWith(other: string, message: string, whileOn?: string): ValidatorFn 
 }
 
 function revalidateUniqueValues(form: ProductForm): void {
-  form.controls.services.controls.forEach((service) => revalidate(service.controls.name));
+  form.controls.services.controls.forEach((service) => {
+    revalidate(service.controls.name);
+    revalidate(service.controls.appScan.controls.applicationId);
+    revalidate(service.controls.sonar.controls.projectKey);
+  });
 }
 
 function revalidate(control: AbstractControl): void {

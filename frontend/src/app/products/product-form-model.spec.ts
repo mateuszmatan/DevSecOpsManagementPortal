@@ -1262,6 +1262,32 @@ describe('values unique within a product', () => {
     expect(form.valid).toBe(true);
   });
 
+  it('flags duplicate scan IDs across services with different Bitbucket repositories, but permits them for the same repository', () => {
+    const { form, first, second } = twoServices();
+    first.controls.scm.controls.repositoryUrl.setValue('https://bitbucket.bbh.com/projects/PROJ/repos/repo-a');
+    first.controls.scm.controls.credentialsId.setValue('cred');
+    second.controls.scm.controls.repositoryUrl.setValue('https://bitbucket.bbh.com/projects/PROJ/repos/repo-b');
+    second.controls.scm.controls.credentialsId.setValue('cred');
+
+    second.controls.appScan.controls.applicationId.setValue(first.controls.appScan.controls.applicationId.value);
+    expect(second.controls.appScan.controls.applicationId.errors).toEqual({
+      rule: 'services in different Bitbucket repositories cannot share the same AppScan application ID',
+    });
+
+    second.controls.scm.controls.repositoryUrl.setValue('https://bitbucket.bbh.com/projects/PROJ/repos/repo-a');
+    expect(second.controls.appScan.controls.applicationId.valid).toBe(true);
+
+    second.controls.scm.controls.repositoryUrl.setValue('https://bitbucket.bbh.com/projects/PROJ/repos/repo-b');
+    second.controls.appScan.controls.applicationId.setValue('3a1b2c3d-9999-4a5b-8c9d-0e1f2a3b4c5d');
+    second.controls.sonar.controls.projectKey.setValue(first.controls.sonar.controls.projectKey.value);
+    expect(second.controls.sonar.controls.projectKey.errors).toEqual({
+      rule: 'services in different Bitbucket repositories cannot share the same SonarQube project key',
+    });
+
+    second.controls.scm.controls.repositoryUrl.setValue('https://bitbucket.bbh.com/projects/PROJ/repos/repo-a.git');
+    expect(second.controls.sonar.controls.projectKey.valid).toBe(true);
+  });
+
   it('lets a service scan one Nexus IQ application, and a legacy second one fails until removed', () => {
     const { form, first } = twoServices();
     const applications = first.controls.nexusIqApplications;

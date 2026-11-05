@@ -366,7 +366,7 @@ pre code {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         BBH DevSecOps
       </div>
-      <div class="sidebar-subbrand">Comprehensive Guide for the Portal-Integrated Version</div>
+      <div class="sidebar-subbrand">Comprehensive Enterprise Documentation</div>
       <ul class="sidebar-nav">
         <li><a href='#contents' >Contents</a></li>
 <li><a href='#1-overview-and-architecture' ><span style='color:#94a3b8;font-weight:600;'>1.</span> Overview and Architecture</a></li>
@@ -417,7 +417,7 @@ pre code {
       <div class="content-container">
         <header class="doc-header">
           <h1>DevSecOps Management Portal &amp; DSOEnhanced User Guide</h1>
-          <p>Comprehensive Guide for the Portal-Integrated Version</p>
+          <p>Comprehensive Enterprise Documentation</p>
           <div class="doc-meta">
             <span class="meta-chip">Brown Brothers Harriman</span>
             <span class="meta-chip">DevSecOps Shared Library</span>
@@ -1144,7 +1144,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
         keyId: "11111111-2222-3333-4444-555555555555"
         token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"</code></li>
 <li><strong>Disabling Auto-Resolve:</strong> To enforce strict manual configuration, set <code>autoresolve parameters: false</code>:
-  <code>yaml
+  ```yaml
   projects:
     payment-service:
       autoresolve parameters: false
@@ -1153,9 +1153,10 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
       appId: "APP-54321"
       asoc:
         keyId: "11111111-2222-3333-4444-555555555555"
-        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"</code></li>
+        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"</li>
 <li><strong>Credential Isolation:</strong> SAST credentials (<code>sast.keyId</code>, <code>sast.token</code>) are strictly isolated from DAST credentials (<code>dast.keyId</code>, <code>dast.token</code>).</li>
-<li><strong>SAST Scan Deduplication:</strong> When multiple services in <code>devsecops_config.yaml</code>, <code>config.yaml</code>, or configured in the Portal share the same AppScan application ID (<code>appId</code>), the SAST scan is executed only once. The primary service prepares the IRX and queues the scan, while subsequent services skip duplicate IRX preparation, wait for the shared scan, and reuse the completed findings and reports.</li>
+<li><strong>Static Scan Deduplication (SAST, SonarQube, Nexus IQ):</strong> When multiple services sharing the same Git/Bitbucket repository (e.g. multi-module monorepos or shared sources) configure the same scan identifier (<code>appId</code> for AppScan SAST, <code>projectKey</code> for SonarQube, or <code>application</code> for Nexus IQ), the respective scan or policy evaluation is executed only once. Secondary services automatically reuse the existing scan IDs, findings, HTML/PDF reports, quality gate verdicts, and vulnerability counts.</li>
+<li><strong>Multi-Repository Products &amp; ID Isolation:</strong> Products can configure services across independent Bitbucket repositories (including separate Bitbucket projects and repository URLs). When services point to different Bitbucket repository URLs, they are strictly required to use distinct AppScan application IDs, SonarQube project keys, and Nexus IQ applications. Attempting to share scan identifiers across different repositories is prevented both in Portal validation and at pipeline initialization.</li>
 </ul>
         </div>
 
