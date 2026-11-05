@@ -157,7 +157,8 @@ const APP_SCAN: Field[] = [
   mono('applicationId', 'AppScan application ID', 'appId', 4, {
     placeholder: '109f44ac-cc06-4ca0-884e-d944904f7019',
     hint: "the service's application in AppScan on Cloud",
-    help: 'The static and dynamic scans of the service are uploaded to this application, where AppScan on Cloud keeps their results.',
+    help:
+      'The static and dynamic scans of the service are uploaded to this application, where AppScan on Cloud keeps their results. When multiple services share the same application ID, the SAST scan is executed only once and its results are reused across them.',
     error: 'Must be the application UUID from AppScan on Cloud',
   }),
   mono('keyId', 'AppScan API key ID', 'asoc.keyId', 4, {

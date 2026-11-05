@@ -433,7 +433,7 @@ Direct feedback in developer pull requests accelerates remediation and prevents 
       asoc:
         keyId: "11111111-2222-3333-4444-555555555555"
         token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
-  ```
 * **Credential Isolation:** SAST credentials (`sast.keyId`, `sast.token`) are strictly isolated from DAST credentials (`dast.keyId`, `dast.token`).
+* **SAST Scan Deduplication:** When multiple services in `devsecops_config.yaml`, `config.yaml`, or configured in the Portal share the same AppScan application ID (`appId`), the SAST scan is executed only once. The primary service prepares the IRX and queues the scan, while subsequent services skip duplicate IRX preparation, wait for the shared scan, and reuse the completed findings and reports.
 
 

@@ -1155,6 +1155,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
         keyId: "11111111-2222-3333-4444-555555555555"
         token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"</code></li>
 <li><strong>Credential Isolation:</strong> SAST credentials (<code>sast.keyId</code>, <code>sast.token</code>) are strictly isolated from DAST credentials (<code>dast.keyId</code>, <code>dast.token</code>).</li>
+<li><strong>SAST Scan Deduplication:</strong> When multiple services in <code>devsecops_config.yaml</code>, <code>config.yaml</code>, or configured in the Portal share the same AppScan application ID (<code>appId</code>), the SAST scan is executed only once. The primary service prepares the IRX and queues the scan, while subsequent services skip duplicate IRX preparation, wait for the shared scan, and reuse the completed findings and reports.</li>
 </ul>
         </div>
 

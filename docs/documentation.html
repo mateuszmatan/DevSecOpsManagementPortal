@@ -1845,7 +1845,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 <tr><th>Field</th><th>Key</th><th>Notes</th></tr>
 </thead>
 <tbody>
-<tr><td>AppScan application ID</td><td><code>appId</code></td><td>required</td></tr>
+<tr><td>AppScan application ID</td><td><code>appId</code></td><td>required; when multiple services share the same appId, the SAST scan runs only once and findings are reused</td></tr>
 <tr><td>AppScan API key ID</td><td><code>asoc.keyId</code></td><td>required</td></tr>
 <tr><td>API key secret credentials ID</td><td><code>asoc.token</code></td><td>left empty: the key ID names the credential</td></tr>
 <tr><td>Run DAST against the deployed application</td><td><code>dast.enabled</code></td><td>Full pipeline</td></tr>

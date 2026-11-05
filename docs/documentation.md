@@ -1724,7 +1724,7 @@ Each region has its own section: `deploy.openshift.rd` and `deploy.openshift.qc`
 
 | Field | Key | Notes |
 |-------|-----|-------|
-| AppScan application ID | `appId` | required |
+| AppScan application ID | `appId` | required; when multiple services share the same appId, the SAST scan runs only once and findings are reused |
 | AppScan API key ID | `asoc.keyId` | required |
 | API key secret credentials ID | `asoc.token` | left empty: the key ID names the credential |
 | Run DAST against the deployed application | `dast.enabled` | Full pipeline |
