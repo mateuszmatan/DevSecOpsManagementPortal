@@ -142,6 +142,12 @@ public final class RepoStackDetector {
             boolean hasJacoco = gradle.contains("jacoco");
             unitTestTasks = hasJacoco ? "test jacocoTestReport" : "test";
             buildTasks = "clean build";
+        } else if (dotnetMarker(tree) != null) {
+            String marker = dotnetMarker(tree);
+            buildTool = "DOTNET";
+            language = marker.endsWith(".fsproj") ? "FSHARP" : marker.endsWith(".vbproj") ? "VBNET" : "CSHARP";
+            framework = "DOTNET";
+            markers.add(marker);
         } else if (liquibaseDetected) {
             buildTool = "LIQUIBASE";
             language = "SQL";
@@ -192,6 +198,9 @@ public final class RepoStackDetector {
             } else if ("PYTHON".equals(language)) {
                 sonarSources = "src";
                 sonarTests = "tests";
+            } else if ("DOTNET".equals(framework)) {
+                sonarSources = ".";
+                sonarTests = "";
             } else if ("KOTLIN".equals(language)) {
                 sonarSources = "src/main/kotlin";
                 sonarTests = "src/test/kotlin";
@@ -200,6 +209,19 @@ public final class RepoStackDetector {
                 sonarTests = "src/test/java";
             }
         }
+
+        List<ResolvedParameter> resolved = new ArrayList<>();
+        add(resolved, "buildTool", buildTool, buildToolReason(tree, buildTool));
+        add(resolved, "build.javaVersion", javaVersion, "read from the build files");
+        add(resolved, "build.gradle.version", gradleVersion, "distributionUrl of gradle-wrapper.properties");
+        add(resolved, "build.node.enabled", nodeBuildEnabled ? "true" : null, "package.json found");
+        add(resolved, "build.tasks", buildTasks, "default build command of " + buildTool);
+        add(resolved, "tests.unitTests.tasks", unitTestTasks, unitTestTasks != null && unitTestTasks.contains("jacoco") ? "JaCoCo found" : "default test command");
+        add(resolved, "tests.unitTests.runner", testRunner, "test framework in package.json");
+        add(resolved, "deployTarget", dockerDetected ? deployTarget : null, "container or OpenShift files found");
+        add(resolved, "tools.sonar.projectKey", sonarProjectKey, "com.bbh: and the project name");
+        add(resolved, "tools.sonar.sources", sonarSources, "default sources of " + language);
+        add(resolved, "tools.sonar.tests", sonarTests == null || sonarTests.isEmpty() ? null : sonarTests, "default tests of " + language);
 
         String summary = buildSummaryMessage(buildTool, language, framework, deployTarget, javaVersion, gradleVersion, nodeBuildEnabled, testRunner, sonarProjectKey, sonarPropertiesDetected);
 
@@ -223,8 +245,46 @@ public final class RepoStackDetector {
                 sonarProjectKey,
                 sonarModules,
                 sonarSources,
-                sonarTests
+                sonarTests,
+                resolved
         );
+    }
+
+    private static void add(List<ResolvedParameter> resolved, String field, String value, String reason) {
+        if (value != null) {
+            resolved.add(new ResolvedParameter(field, value, reason));
+        }
+    }
+
+    private static String buildToolReason(RepoFileTree tree, String buildTool) {
+        if (buildTool == null) {
+            return null;
+        }
+        return switch (buildTool) {
+            case "FLUTTER" -> "pubspec.yaml found";
+            case "MAVEN" -> "pom.xml found";
+            case "GRADLE" -> tree.fileExists("build.gradle.kts") ? "build.gradle.kts found (Kotlin DSL)" : "Gradle build script found";
+            case "DOTNET" -> dotnetMarker(tree) + " found (C# / .NET)";
+            case "LIQUIBASE" -> "Liquibase changelog found";
+            default -> "Python project files found";
+        };
+    }
+
+    private static String dotnetMarker(RepoFileTree tree) {
+        for (String file : List.of("global.json", "Directory.Packages.props", "Directory.Build.props", "packages.config", "build.cake")) {
+            if (tree.fileExists(file)) {
+                return file;
+            }
+        }
+        List<String> all = tree.listFiles("");
+        for (String extension : List.of(".sln", ".csproj", ".fsproj", ".vbproj")) {
+            for (String file : all) {
+                if (file.endsWith(extension)) {
+                    return file;
+                }
+            }
+        }
+        return null;
     }
 
     private static Optional<String> findPackageJson(RepoFileTree tree) {

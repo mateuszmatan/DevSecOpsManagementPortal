@@ -37,6 +37,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.invalid;
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.SECRET;
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.REPOSITORY_FILE;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.DOTNET;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
@@ -146,8 +147,11 @@ final class ServiceConfigReader {
         throw expected("CredentialsAuth with its credentials ID");
     };
 
+    private static final Conversion BUILD_TOOL = value -> choice(BuildTool.values(), Enum::name)
+            .apply("msbuild".equalsIgnoreCase(text(value).trim()) ? "dotnet" : value);
+
     private static final List<Rule> DEFAULTED = List.of(
-            rule("buildTool", "build.tool", choice(BuildTool.values(), Enum::name)),
+            rule("buildTool", "build.tool", BUILD_TOOL),
             rule("deployTarget", "deployment.target", choice(DeployTarget.values(), Enum::name)),
             rule("sourceDir", "build.sourceDir", TEXT));
     private static final List<Rule> PROJECT = projectRules();
@@ -171,7 +175,8 @@ final class ServiceConfigReader {
     private static final Map<BuildTool, List<Rule>> COMMANDS = Map.of(
             GRADLE, concat(List.of(rule("tasks", "tasks", WORDS)), COMMAND),
             MAVEN, concat(List.of(rule("goals", "tasks", WORDS), rule("mvnPath", "mavenHome", TEXT)), COMMAND),
-            LIQUIBASE, concat(List.of(rule("commands", "tasks", WORDS), rule("tasks", "tasks", WORDS)), COMMAND));
+            LIQUIBASE, concat(List.of(rule("commands", "tasks", WORDS), rule("tasks", "tasks", WORDS)), COMMAND),
+            DOTNET, concat(List.of(rule("commands", "tasks", WORDS), rule("tasks", "tasks", WORDS)), COMMAND));
     private static final List<Rule> TEST_JOB = concat(
             same(TEXT, "name", "remoteJenkins", "remoteJenkinsUrl", "credentialsId", "tokenCredentialsId"),
             same(FLAG, "abortTriggeredJob", "overrideTrustAllCertificates", "preventRemoteBuildQueue",
@@ -337,7 +342,7 @@ final class ServiceConfigReader {
      */
     private static void readCommands(ConfigInput project, BuildTool tool, List<Block> blocks, ConfigTree request) {
         for (Block block : blocks) {
-            for (BuildTool blockTool : List.of(GRADLE, MAVEN, LIQUIBASE)) {
+            for (BuildTool blockTool : List.of(GRADLE, MAVEN, LIQUIBASE, DOTNET)) {
                 String key = block.key() + "." + blockTool.name().toLowerCase(ROOT);
                 if (blockTool == tool) {
                     read(project, prefixed(key + ".", block.field() + ".", COMMANDS.get(tool)), request);

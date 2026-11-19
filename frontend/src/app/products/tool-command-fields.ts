@@ -14,12 +14,27 @@ export function commandFields(
 ): Field[] {
   const maven = tool === 'MAVEN';
   const liquibase = tool === 'LIQUIBASE';
-  const toolName = liquibase ? 'liquibase' : maven ? 'maven' : 'gradle';
+  const dotnet = tool === 'DOTNET';
+  const toolName = dotnet ? 'dotnet' : liquibase ? 'liquibase' : maven ? 'maven' : 'gradle';
   const key = `${path}.${toolName}`;
-  const taskKey = liquibase ? 'commands' : maven ? 'goals' : 'tasks';
-  const taskLabel = liquibase ? 'Liquibase commands' : maven ? 'Maven goals' : 'Gradle tasks';
-  const taskPlaceholder = liquibase ? liquibaseExample : maven ? mavenExample : gradleExample;
-  const taskHelp = liquibase
+  const taskKey = liquibase || dotnet ? 'commands' : maven ? 'goals' : 'tasks';
+  const taskLabel = dotnet
+    ? '.NET commands'
+    : liquibase
+      ? 'Liquibase commands'
+      : maven
+        ? 'Maven goals'
+        : 'Gradle tasks';
+  const taskPlaceholder = dotnet
+    ? 'dotnet build MySolution.sln -c Release'
+    : liquibase
+      ? liquibaseExample
+      : maven
+        ? mavenExample
+        : gradleExample;
+  const taskHelp = dotnet
+    ? 'Optional full commands that replace the automatic .NET step. Left empty, the library detects the mode from the repository (dotnet SDK CLI, classic MSBuild + NuGet, hybrid, Cake or NUKE) and runs restore, build, test with coverage or the SonarScanner for .NET begin/build/end.'
+    : liquibase
     ? path === 'tools.sonar'
       ? 'SonarScanner runs automatically for SQL and PL/SQL files; set Flags under Advanced settings when overriding -Dsonar.sources, -Dsonar.inclusions, or -Dsonar.plsql.file.suffixes.'
       : path === 'tests.unitTests'
@@ -67,7 +82,9 @@ export function commandFields(
           : '--changelog-file=src/main/resources/changelog.xml'
         : maven
           ? '-B'
-          : '--refresh-dependencies',
+          : dotnet
+            ? '-p:TreatWarningsAsErrors=false'
+            : '--refresh-dependencies',
       hint: 'one per line',
       help:
         liquibase && path === 'tools.sonar'

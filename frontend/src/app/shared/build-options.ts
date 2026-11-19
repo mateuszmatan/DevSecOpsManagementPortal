@@ -14,6 +14,7 @@ export const TOOL_LABELS: Record<BuildTool, string> = {
   MAVEN: 'Maven',
   FLUTTER: 'Flutter',
   LIQUIBASE: 'Liquibase (SQL / PL/SQL)',
+  DOTNET: 'C# / .NET (dotnet or MSBuild)',
 };
 
 /** How to tell the build tool of a service from its code. */
@@ -22,6 +23,7 @@ export const TOOL_HINTS: Record<BuildTool, string> = {
   MAVEN: 'The code has a pom.xml file',
   FLUTTER: 'The code has a pubspec.yaml file',
   LIQUIBASE: 'The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties',
+  DOTNET: 'The code has a .sln, .csproj, .fsproj or .vbproj file, global.json or packages.config',
 };
 
 export const TARGET_LABELS: Record<DeployTarget, string> = {

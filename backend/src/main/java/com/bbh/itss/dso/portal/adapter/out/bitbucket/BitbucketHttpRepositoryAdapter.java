@@ -227,6 +227,10 @@ public class BitbucketHttpRepositoryAdapter implements BitbucketRepositoryPort {
         } else if (lower.contains("flutter") || lower.contains("dart")) {
             files.add("pubspec.yaml");
             contents.put("pubspec.yaml", "name: sample_flutter\nenvironment:\n  sdk: '>=3.0.0 <4.0.0'");
+        } else if (lower.contains("dotnet") || lower.contains("csharp")) {
+            files.add("App.sln");
+            files.add("src/App/App.csproj");
+            contents.put("src/App/App.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>");
         } else if (lower.contains("liquibase")) {
             files.add("changelog.xml");
             contents.put("changelog.xml", "<databaseChangeLog></databaseChangeLog>");
@@ -274,7 +278,7 @@ public class BitbucketHttpRepositoryAdapter implements BitbucketRepositoryPort {
 
         @Override
         public List<String> listFiles(String directoryPath) {
-            String prefix = directoryPath.endsWith("/") ? directoryPath : directoryPath + "/";
+            String prefix = directoryPath.isEmpty() || directoryPath.endsWith("/") ? directoryPath : directoryPath + "/";
             List<String> result = new ArrayList<>();
             for (String f : files) {
                 if (f.startsWith(prefix)) {

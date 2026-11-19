@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.application.report.port.in;
 
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
+import com.bbh.itss.dso.portal.domain.report.AutoResolvedSetting;
 import com.bbh.itss.dso.portal.domain.report.PipelineReport;
 
 import java.time.Instant;
@@ -24,6 +25,6 @@ public interface ManagePipelineReportUseCase {
     record RecordReportCommand(String pipelineKey, String jobName, Long buildNumber, RunResult result,
                                String branch, String commitHash, Long durationSeconds, Instant finishedAt,
                                Long stagesTotal, Long passed, Long warned, Long failed, Long blocked,
-                               Long skipped, String reportHtml) {
+                               Long skipped, String reportHtml, List<AutoResolvedSetting> autoResolved) {
     }
 }

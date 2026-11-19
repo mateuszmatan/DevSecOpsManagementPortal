@@ -22,7 +22,8 @@ public record DiscoveredStack(
         String sonarProjectKey,
         List<String> sonarModules,
         String sonarSources,
-        String sonarTests
+        String sonarTests,
+        List<ResolvedParameter> resolvedParameters
 ) {
     public DiscoveredStack(
             String buildTool,
@@ -61,7 +62,8 @@ public record DiscoveredStack(
                 null,
                 List.of(),
                 null,
-                null
+                null,
+                List.of()
         );
     }
 }

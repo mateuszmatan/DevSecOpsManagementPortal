@@ -389,6 +389,18 @@
             @if (inspectSuccess(); as msg) {
               <div class="banner success-banner" role="status">{{ msg }}</div>
             }
+            @if (autoResolved().length) {
+              <table class="auto-resolved" aria-label="Auto-resolved settings">
+                <thead>
+                  <tr><th>Setting</th><th>Auto-resolved value</th><th>Why</th></tr>
+                </thead>
+                <tbody>
+                  @for (p of autoResolved(); track p.field) {
+                    <tr><td><code>{{ p.field }}</code></td><td><code>{{ p.value }}</code></td><td>{{ p.reason }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            }
           </div>
           <dso-fields [group]="f.controls.scm" [fields]="scm" />
           <dso-advanced-settings

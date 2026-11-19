@@ -675,7 +675,7 @@ class ServiceConfigReaderSpec extends Specification {
         then:
         result.notes() == [problem('other', UNKNOWN)]
         result.services()[0].notes() as Set == [
-                problem('buildTool', 'not imported: expected one of gradle, maven, flutter, liquibase'),
+                problem('buildTool', 'not imported: expected one of gradle, maven, flutter, liquibase, dotnet'),
                 problem('tests.maxParallel', 'not imported: expected a whole number'),
                 problem('tests.smoke.required', 'not imported: expected true or false'),
                 problem('tools.sonar.projectKey', 'not imported: expected a single value'),

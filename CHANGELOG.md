@@ -5,6 +5,8 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
 ## [Unreleased]
 
 ### Added
+- **C# / .NET services**: the build tool `DOTNET` (rendered as `buildTool: dotnet`, imported from `dotnet` or `msbuild`) with its optional commands under `build.dotnet`, `tests.unitTests.dotnet`, `tools.sonar.dotnet` and `asoc.dotnet`; no JDK and no commands are required, since the library detects the .NET mode on the agent. The repository scan selects it from `*.sln`, `*.csproj`, `*.fsproj`, `*.vbproj`, `global.json`, `Directory.Packages.props`, `Directory.Build.props`, `packages.config` or `build.cake`. Liquibase changeset 038 allows `DOTNET` in `DSO_SERVICE` and `DSO_GLOBAL_SETTINGS`.
+- **Auto-resolved settings**: *Scan & Auto-fill* returns `resolvedParameters` (setting, value, why) and the service form lists them under the result. A report upload may carry the library's `autoResolved` list (service, setting, value, why), which is stored with the run (`DSO_PIPELINE_REPORT.AUTO_RESOLVED`) and returned by `GET /api/pipelines/{id}/report`.
 - **Repo Auto-Discovery & Smart Wizard (Automatyczne wykrywanie stosu)**:
   - One-Click Inspect repository analysis (`POST /api/catalog/inspect-repo`, "Scan & Auto-fill" button in service form).
   - Reads Bitbucket repository structure via REST API and automatically populates service configuration:
@@ -93,6 +95,7 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
   - Added help icons (`dso-help`) with descriptive tooltips across all form fields in the portal.
 
 ### Fixed
+- **Scan ID uniqueness**: a service without its own Bitbucket repository (it uses the pipeline repository) may share an AppScan application ID or a SonarQube project key with another service, so a copied service with an empty repository is valid.
 - **Liquibase Services**:
   - Changeset 037 recreates the build tool checks of `DSO_SERVICE` and `DSO_GLOBAL_SETTINGS` with `LIQUIBASE`, which they lacked, so a Liquibase service can be saved.
   - The help of the Liquibase commands says what the library runs when they are empty: `updateSQL` with the changelog it finds, through the run-time auto-resolve, and for a service with database changes `validate` only when Flags is set. A new service is prefilled with `updateSQL`.

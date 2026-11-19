@@ -49,7 +49,8 @@ public class PipelineReportService implements ManagePipelineReportUseCase {
                 command.failed(),
                 command.blocked(),
                 command.skipped(),
-                command.reportHtml()
+                command.reportHtml(),
+                command.autoResolved()
         );
         return reports.save(report);
     }

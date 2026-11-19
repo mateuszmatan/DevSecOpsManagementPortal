@@ -101,7 +101,7 @@ The platform natively supports complex enterprise project structures:
 
 ## 5. Supported Languages, Build Tools, and Frameworks
 
-The pipelines know these languages and build tools; the Portal offers Gradle, Maven, Flutter and Liquibase:
+The pipelines know these languages and build tools; the Portal offers Gradle, Maven, Flutter, Liquibase and C# / .NET:
 
 | Language / Stack | Build Tool | Standard Build Command | Use Case |
 |---|---|---|---|
@@ -110,6 +110,7 @@ The pipelines know these languages and build tools; the Portal offers Gradle, Ma
 | **Groovy** | Gradle / Maven | `clean build -x test` | Automation utilities & libraries |
 | **Node.js / TypeScript** | npm (Stage 0) | `npm run build` | Web backends & BFF services |
 | **Angular** | npm (Stage 0) | `npm ci && npm run build --prod` | Client-facing web apps |
+| **C# / F# / VB.NET** | C# / .NET (`dotnet` CLI or classic `MSBuild.exe` + `NuGet.exe`) | detected by the library: `dotnet build`, or `NuGet.exe restore` + `MSBuild.exe /t:Build` on Windows | .NET Framework 4.x, .NET Core and .NET 6–9+ services on Windows or Linux agents |
 | **Python** | none in the Portal | – | Not supported: the Portal has no Python (pip) build tool, and the repository scan sets no build tool for a Python repository |
 | **SQL / PL-SQL** | Liquibase | `liquibase update` | Oracle & PostgreSQL migrations |
 | **Flutter / Dart** | flutter / pub | `flutter build` | Mobile & desktop applications |
@@ -332,12 +333,15 @@ The **Repo Auto-Discovery / Smart Wizard** removes over 80% of onboarding fricti
 3. The Portal executes an inspection (`/api/catalog/inspect-repo`) that reads only the root folder of the branch through the Bitbucket REST API, and fills in the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key; every other field keeps its value. A marker in a subfolder, such as `frontend/package.json` or `gradle/wrapper/gradle-wrapper.properties`, is never found through Bitbucket. A Liquibase service with database changes (one whose Changelog file is set; see chapter 7, "SQL and PL/SQL changes with Liquibase", of the Portal guide `docs/documentation.md`) keeps its build tool, its commands and its deployment settings; the scan fills in only an empty SonarQube project key.
 4. Developers review the suggestions, make any project-specific adjustments, and click **Save**.
 
+Below the result the form lists every setting the scan filled in, with its value and why (for example `buildTool` = `DOTNET`, *App.sln found (C# / .NET)*). The pipeline report of every run shows the settings the library auto-resolved in its *Auto-resolved settings* card, and the report upload stores the same list (service, setting, value, why) with the run, returned as `autoResolved` by `GET /api/pipelines/{id}/report`.
+
 ### Stack Detection Matrix:
 - **Maven (`pom.xml`)**: Identifies the Maven build tool and fills in the goals `clean verify` and `test`, or `test jacoco:report` when the `pom.xml` mentions JaCoCo. It names the Java version of `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, `<maven.compiler.release>` or `<jdk.version>` and the Kotlin plugins in the scan message, and sets no JDK and no coverage reports.
 - **Gradle (`build.gradle`, `build.gradle.kts`, `gradlew`)**: Identifies the Gradle build tool and fills in the tasks `clean build` and `test`, or `test jacocoTestReport` when the build file mentions JaCoCo. It names Kotlin DSL and a Java version in the scan message, and sets no JDK and no test reports. The Gradle wrapper version is in `gradle/wrapper/gradle-wrapper.properties`, a subfolder, so the scan never reads it through Bitbucket.
 - **Node.js Stage 0 (`package.json`)**: Ticks the Stage 0 pre-build (`build.node.enabled: true`) when the root of the branch holds a `package.json`; a `package.json` in `frontend/`, `web/`, `client/` or `ui/` is never found through Bitbucket. It names Cypress or Jest in the scan message, and sets no Node.js version, no folder of the `package.json` and no test runner.
 - **Liquibase (`changelog.xml`, `liquibase.properties`)**: Selects Liquibase when the repository has no `pubspec.yaml`, `pom.xml` or Gradle build, with the build command `validate` and the unit test commands `updateSQL validate`. A service with database changes keeps its build tool, its commands and its deployment settings, also when the scan finds Gradle or Maven at the root of the repository.
 - **Flutter / Dart (`pubspec.yaml`)**: Selects the Flutter build tool. It fills in no commands and no Flutter field, such as the platform.
+- **C# / .NET (`*.sln`, `*.csproj`, `*.fsproj`, `*.vbproj`, `global.json`, `Directory.Packages.props`, `Directory.Build.props`, `packages.config`, `build.cake`)**: Selects the C# / .NET build tool after Maven and Gradle. It fills in no commands: the library detects the mode (`dotnet` SDK CLI, classic MSBuild + NuGet, hybrid, Cake or NUKE) on the agent, and SonarQube uses `.` as sources.
 - **Python / pip (`requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile`)**: Recognised, but the Portal has no Python build tool, so the scan sets no build tool and no commands.
 - **OpenShift Target**: Detects `Dockerfile`, `Containerfile`, or an `openshift/`, `k8s/` or `helm/` folder at the root by its name, and sets the target to OpenShift, else to Virtual machine. It fills in no OpenShift target, and a service with database changes keeps its deployment settings.
 
@@ -359,6 +363,8 @@ Any parameters omitted from the Portal or configuration file are dynamically res
 | Build Tool | `buildTool` | `build.gradle` or `build.gradle.kts` present | `gradle` |
 | Build Tool | `buildTool` | `changelog.xml`, `changelog.yaml`, `liquibase.properties` | `liquibase` |
 | Build Tool | `buildTool` | `pubspec.yaml` present | `flutter` |
+| Build Tool | `buildTool` | `*.sln`, `*.csproj`, `*.fsproj`, `*.vbproj`, `global.json`, `Directory.Packages.props`, `Directory.Build.props`, `packages.config`, `build.cake` | `dotnet` |
+| .NET mode | `build.dotnet.mode` | Empty or invalid (logged as `[WARN]`): SDK-style projects or a Linux agent -> `dotnet`; `packages.config` or .NET Framework 4.x projects on Windows -> `msbuild`; both -> `hybrid`; `build.cake` / `.nuke` -> `cake` / `nuke` | `auto` |
 | Build Tool | `buildTool` | `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` | `pip` |
 | Build Tool Auto Setup | `buildToolAutoSetup` | Set to `true` whenever Maven or Gradle is detected | `true` |
 | Java / JDK Version | `build.maven.javaVersion` / `build.gradle.javaVersion` | `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, `<release>` in `pom.xml`, or `jvmToolchain`, `sourceCompatibility` in `build.gradle` | Matched JDK version (`17`, `21`, `11`, `8`) |

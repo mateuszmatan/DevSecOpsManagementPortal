@@ -3,7 +3,10 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
 import com.bbh.itss.dso.portal.domain.report.PipelineReport;
 
+import com.bbh.itss.dso.portal.domain.report.AutoResolvedSetting;
+
 import java.time.Instant;
+import java.util.List;
 
 public record PipelineReportResponse(
         Long id,
@@ -21,7 +24,8 @@ public record PipelineReportResponse(
         Long warned,
         Long failed,
         Long blocked,
-        Long skipped
+        Long skipped,
+        List<AutoResolvedSetting> autoResolved
 ) {
 
     public static PipelineReportResponse of(PipelineReport report) {
@@ -41,7 +45,8 @@ public record PipelineReportResponse(
                 report.warned(),
                 report.failed(),
                 report.blocked(),
-                report.skipped()
+                report.skipped(),
+                report.autoResolved()
         );
     }
 }

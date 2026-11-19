@@ -32,3 +32,6 @@ databaseChangeLog:
   - include:
       file: oracle/037-sql-plsql-services.sql
       relativeToChangelogFile: true
+  - include:
+      file: oracle/038-dotnet-and-auto-resolved.sql
+      relativeToChangelogFile: true

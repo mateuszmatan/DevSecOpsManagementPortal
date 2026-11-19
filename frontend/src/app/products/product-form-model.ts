@@ -41,7 +41,9 @@ import {
   UrbanCodeApplicationSettings,
   UrbanCodeComponent,
   VersionCatalogRepo,
+  autoCommands,
   changesDatabase,
+  needsJdk,
   pipelineTypeLabel,
 } from '../core/models';
 import { FieldProblem, PRODUCT_CODE } from '@common/core/models';
@@ -1185,7 +1187,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   const vm = () => target.value === 'VM';
   requireWhile(
     build.controls.command.controls.tasks,
-    () => tool.value !== 'LIQUIBASE' && tool.value !== 'FLUTTER',
+    () => !autoCommands(tool.value),
     tool,
   );
   form.controls.delivery.controls.tasks.addValidators(filled);
@@ -1196,7 +1198,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
   revalidateOnChange(nodeBuild.controls.nodePath, nodeBuild.controls.installationName);
   requireWhile(
     build.controls.javaPath,
-    () => (tool.value === 'FLUTTER' || !build.controls.autoSetup.value) && tool.value !== 'LIQUIBASE',
+    () => (tool.value === 'FLUTTER' || !build.controls.autoSetup.value) && needsJdk(tool.value),
     tool,
     build.controls.autoSetup,
   );
@@ -1223,7 +1225,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     unitTests.controls.command.controls.tasks,
     () =>
       unitTestsConfigured(form) &&
-      tool.value !== 'LIQUIBASE' &&
+      !autoCommands(tool.value) &&
       !unitTests.controls.cypressEnabled.value,
     unitTests,
     tool,
@@ -1232,14 +1234,14 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     sonar.controls.command.controls.tasks,
     () =>
       (!!optional(sonar.controls.projectKey.value) || commandEntered(sonar.controls.command)) &&
-      tool.value !== 'LIQUIBASE',
+      !autoCommands(tool.value),
     sonar.controls.projectKey,
     sonar.controls.command,
     tool,
   );
   requireWhile(
     appScan.controls.compileCommand.controls.tasks,
-    () => commandEntered(appScan.controls.compileCommand) && tool.value !== 'LIQUIBASE',
+    () => commandEntered(appScan.controls.compileCommand) && !autoCommands(tool.value),
     appScan.controls.compileCommand,
     tool,
   );
@@ -1607,7 +1609,7 @@ function uniqueForDifferentRepos(keyPath: string, message: string): ValidatorFn 
       const otherVal = valueAt(other, keyPath);
       if (!otherVal || otherVal !== ownVal) return false;
       const otherRepo = normalizeRepoUrl(other.get('scm.repositoryUrl')?.value);
-      return (ownRepo !== '' || otherRepo !== '') && ownRepo !== otherRepo;
+      return ownRepo !== '' && otherRepo !== '' && ownRepo !== otherRepo;
     });
     return hasDuplicateInDifferentRepo ? { rule: message } : null;
   };

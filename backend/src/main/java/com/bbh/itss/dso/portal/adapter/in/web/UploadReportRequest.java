@@ -2,8 +2,10 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.application.report.port.in.ManagePipelineReportUseCase.RecordReportCommand;
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
+import com.bbh.itss.dso.portal.domain.report.AutoResolvedSetting;
 
 import java.time.Instant;
+import java.util.List;
 
 public record UploadReportRequest(
         String pipelineKey,
@@ -19,7 +21,8 @@ public record UploadReportRequest(
         Long failed,
         Long blocked,
         Long skipped,
-        String reportHtml
+        String reportHtml,
+        List<AutoResolvedSetting> autoResolved
 ) {
 
     public RecordReportCommand toCommand() {
@@ -39,7 +42,8 @@ public record UploadReportRequest(
                 failed,
                 blocked,
                 skipped,
-                reportHtml
+                reportHtml,
+                autoResolved
         );
     }
 

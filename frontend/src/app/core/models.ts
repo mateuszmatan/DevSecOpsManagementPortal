@@ -1,7 +1,22 @@
 import { FieldProblem, Department as PortalDepartment } from '@common/core/models';
 import { labelOf } from '@common/shared/formatting';
 
-export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER' | 'LIQUIBASE';
+export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER' | 'LIQUIBASE' | 'DOTNET';
+
+/** Build tools whose commands the library picks itself when the service gives none. */
+export const autoCommands = (tool: BuildTool | null | undefined): boolean =>
+  tool === 'LIQUIBASE' || tool === 'FLUTTER' || tool === 'DOTNET';
+
+/** Build tools that need a JDK on the agent. */
+export const needsJdk = (tool: BuildTool | null | undefined): boolean =>
+  tool !== 'LIQUIBASE' && tool !== 'DOTNET';
+
+/** A setting the auto-discovery or the library filled in, with the value and why. */
+export interface ResolvedParameter {
+  field: string;
+  value: string;
+  reason: string;
+}
 export type DeployTarget = 'VM' | 'OPENSHIFT';
 export type PipelineType = 'FULL' | 'SECURITY' | 'EXTENDED' | 'SAST' | 'NEXUS_IQ';
 export type KeyStatus = 'ACTIVE' | 'REVOKED';
@@ -53,6 +68,7 @@ export interface DiscoveredStack {
   sonarModules?: readonly string[];
   sonarSources?: string | null;
   sonarTests?: string | null;
+  resolvedParameters?: readonly ResolvedParameter[];
 }
 
 export interface InspectRepoRequest {
@@ -698,6 +714,12 @@ export interface PipelineReport {
   blocked: number | null;
   skipped: number | null;
   reportHtml?: string | null;
+  autoResolved?: readonly AutoResolvedSetting[];
+}
+
+/** A setting the library auto-resolved for one service of a run. */
+export interface AutoResolvedSetting extends ResolvedParameter {
+  service: string;
 }
 
 export interface PipelineRun {

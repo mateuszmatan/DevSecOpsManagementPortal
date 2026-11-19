@@ -518,7 +518,7 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 </ul>
 <hr />
 <h2 id="5-supported-languages-build-tools-and-frameworks">5. Supported Languages, Build Tools, and Frameworks</h2>
-<p>The pipelines know these languages and build tools; the Portal offers Gradle, Maven, Flutter and Liquibase:</p>
+<p>The pipelines know these languages and build tools; the Portal offers Gradle, Maven, Flutter, Liquibase and C# / .NET:</p>
 <div class="table-wrapper"><table>
 <thead>
 <tr>
@@ -558,6 +558,12 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 <td>npm (Stage 0)</td>
 <td><code>npm ci &amp;&amp; npm run build --prod</code></td>
 <td>Client-facing web apps</td>
+</tr>
+<tr>
+<td><strong>C# / F# / VB.NET</strong></td>
+<td>C# / .NET (<code>dotnet</code> CLI or classic <code>MSBuild.exe</code> + <code>NuGet.exe</code>)</td>
+<td>detected by the library: <code>dotnet build</code>, or <code>NuGet.exe restore</code> + <code>MSBuild.exe /t:Build</code> on Windows</td>
+<td>.NET Framework 4.x, .NET Core and .NET 6–9+ services on Windows or Linux agents</td>
 </tr>
 <tr>
 <td><strong>Python</strong></td>
@@ -938,6 +944,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <li>The Portal executes an inspection (<code>/api/catalog/inspect-repo</code>) that reads only the root folder of the branch through the Bitbucket REST API, and fills in the build tool, the build and unit test commands, the Node.js build switch, the deployment target and an empty SonarQube project key; every other field keeps its value. A marker in a subfolder, such as <code>frontend/package.json</code> or <code>gradle/wrapper/gradle-wrapper.properties</code>, is never found through Bitbucket. A Liquibase service with database changes (one whose Changelog file is set; see chapter 7, "SQL and PL/SQL changes with Liquibase", of the Portal guide <code>docs/documentation.md</code>) keeps its build tool, its commands and its deployment settings; the scan fills in only an empty SonarQube project key.</li>
 <li>Developers review the suggestions, make any project-specific adjustments, and click <strong>Save</strong>.</li>
 </ol>
+<p>Below the result the form lists every setting the scan filled in, with its value and why (for example <code>buildTool</code> = <code>DOTNET</code>, <em>App.sln found (C# / .NET)</em>). The pipeline report of every run shows the settings the library auto-resolved in its <em>Auto-resolved settings</em> card, and the report upload stores the same list (service, setting, value, why) with the run, returned as <code>autoResolved</code> by <code>GET /api/pipelines/{id}/report</code>.</p>
 <h3 id="stack-detection-matrix">Stack Detection Matrix:</h3>
 <ul>
 <li><strong>Maven (<code>pom.xml</code>)</strong>: Identifies the Maven build tool and fills in the goals <code>clean verify</code> and <code>test</code>, or <code>test jacoco:report</code> when the <code>pom.xml</code> mentions JaCoCo. It names the Java version of <code>&lt;java.version&gt;</code>, <code>&lt;maven.compiler.source&gt;</code>, <code>&lt;maven.compiler.target&gt;</code>, <code>&lt;maven.compiler.release&gt;</code> or <code>&lt;jdk.version&gt;</code> and the Kotlin plugins in the scan message, and sets no JDK and no coverage reports.</li>
@@ -945,6 +952,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <li><strong>Node.js Stage 0 (<code>package.json</code>)</strong>: Ticks the Stage 0 pre-build (<code>build.node.enabled: true</code>) when the root of the branch holds a <code>package.json</code>; a <code>package.json</code> in <code>frontend/</code>, <code>web/</code>, <code>client/</code> or <code>ui/</code> is never found through Bitbucket. It names Cypress or Jest in the scan message, and sets no Node.js version, no folder of the <code>package.json</code> and no test runner.</li>
 <li><strong>Liquibase (<code>changelog.xml</code>, <code>liquibase.properties</code>)</strong>: Selects Liquibase when the repository has no <code>pubspec.yaml</code>, <code>pom.xml</code> or Gradle build, with the build command <code>validate</code> and the unit test commands <code>updateSQL validate</code>. A service with database changes keeps its build tool, its commands and its deployment settings, also when the scan finds Gradle or Maven at the root of the repository.</li>
 <li><strong>Flutter / Dart (<code>pubspec.yaml</code>)</strong>: Selects the Flutter build tool. It fills in no commands and no Flutter field, such as the platform.</li>
+<li><strong>C# / .NET (<code>*.sln</code>, <code>*.csproj</code>, <code>*.fsproj</code>, <code>*.vbproj</code>, <code>global.json</code>, <code>Directory.Packages.props</code>, <code>Directory.Build.props</code>, <code>packages.config</code>, <code>build.cake</code>)</strong>: Selects the C# / .NET build tool after Maven and Gradle. It fills in no commands: the library detects the mode (<code>dotnet</code> SDK CLI, classic MSBuild + NuGet, hybrid, Cake or NUKE) on the agent, and SonarQube uses <code>.</code> as sources.</li>
 <li><strong>Python / pip (<code>requirements.txt</code>, <code>pyproject.toml</code>, <code>setup.py</code>, <code>Pipfile</code>)</strong>: Recognised, but the Portal has no Python build tool, so the scan sets no build tool and no commands.</li>
 <li><strong>OpenShift Target</strong>: Detects <code>Dockerfile</code>, <code>Containerfile</code>, or an <code>openshift/</code>, <code>k8s/</code> or <code>helm/</code> folder at the root by its name, and sets the target to OpenShift, else to Virtual machine. It fills in no OpenShift target, and a service with database changes keeps its deployment settings.</li>
 </ul>
@@ -987,6 +995,18 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <td><code>buildTool</code></td>
 <td><code>pubspec.yaml</code> present</td>
 <td><code>flutter</code></td>
+</tr>
+<tr>
+<td>Build Tool</td>
+<td><code>buildTool</code></td>
+<td><code>*.sln</code>, <code>*.csproj</code>, <code>*.fsproj</code>, <code>*.vbproj</code>, <code>global.json</code>, <code>Directory.Packages.props</code>, <code>Directory.Build.props</code>, <code>packages.config</code>, <code>build.cake</code></td>
+<td><code>dotnet</code></td>
+</tr>
+<tr>
+<td>.NET mode</td>
+<td><code>build.dotnet.mode</code></td>
+<td>Empty or invalid (logged as <code>[WARN]</code>): SDK-style projects or a Linux agent -&gt; <code>dotnet</code>; <code>packages.config</code> or .NET Framework 4.x projects on Windows -&gt; <code>msbuild</code>; both -&gt; <code>hybrid</code>; <code>build.cake</code> / <code>.nuke</code> -&gt; <code>cake</code> / <code>nuke</code></td>
+<td><code>auto</code></td>
 </tr>
 <tr>
 <td>Build Tool</td>

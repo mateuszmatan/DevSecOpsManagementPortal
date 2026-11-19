@@ -248,7 +248,7 @@ describe('GlobalSettingsPage', () => {
     );
     expect(
       optionsOf(selectOf(page().querySelector('#settings-serviceDefaults')!, 'Build tool')),
-    ).toEqual(['Gradle', 'Maven', 'Flutter']);
+    ).toEqual(['Gradle', 'Maven', 'Flutter', 'C# / .NET (dotnet or MSBuild)']);
 
     type('Liquibase folder on the agent', ' /opt/liquibase/4.33.0 ');
     type('Allowed databases', 'rd-db*.bbh.com\nqc-db.bbh.com/ORDERS_QC');

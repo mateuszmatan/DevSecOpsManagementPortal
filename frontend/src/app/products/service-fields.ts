@@ -22,6 +22,7 @@ import {
   PipelineType,
   REGIONS,
   Region,
+  ResolvedParameter,
 } from '../core/models';
 import { ProductsApi } from '../core/api';
 import {
@@ -70,7 +71,7 @@ import { ToolCommandFields, commandFields } from './tool-command-fields';
 import { URBAN_CODE_APPLICATION, URBAN_CODE_COMPONENT, UrbanCodeFields } from './urban-code-fields';
 
 /** The build tools of the portal: a repository scan may also find one it has none for, such as PIP, or none. */
-const KNOWN_TOOLS: readonly BuildTool[] = ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE'];
+const KNOWN_TOOLS: readonly BuildTool[] = ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DOTNET'];
 
 const REGION_NAMES: Record<Region, string> = {
   RD: 'RD, the lower test region',
@@ -1393,6 +1394,7 @@ export class ServiceFields {
   protected readonly inspectingRepo = signal(false);
   protected readonly inspectError = signal<string | null>(null);
   protected readonly inspectSuccess = signal<string | null>(null);
+  protected readonly autoResolved = signal<readonly ResolvedParameter[]>([]);
 
   protected autoDiscover(): void {
     const scm = this.form().controls.scm.controls;
@@ -1405,6 +1407,7 @@ export class ServiceFields {
     this.inspectingRepo.set(true);
     this.inspectError.set(null);
     this.inspectSuccess.set(null);
+    this.autoResolved.set([]);
 
     this.api
       .inspectRepo({
@@ -1419,6 +1422,7 @@ export class ServiceFields {
           const summary =
             stack.summaryMessage || 'Stack detected and form auto-filled successfully.';
           this.inspectSuccess.set(kept ? `${summary} ${kept}` : summary);
+          this.autoResolved.set(stack.resolvedParameters ?? []);
         },
         error: (err) => {
           this.inspectingRepo.set(false);

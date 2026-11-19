@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.domain.monitoring.RunResult;
+import com.bbh.itss.dso.portal.domain.report.AutoResolvedSetting;
 import com.bbh.itss.dso.portal.domain.report.PipelineReport;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -80,6 +81,10 @@ public class PipelineReportEntity {
     @Column(name = "REPORT_HTML")
     private String reportHtml;
 
+    @Lob
+    @Column(name = "AUTO_RESOLVED")
+    private String autoResolved;
+
     public PipelineReportEntity(PipelineReport domain) {
         this.pipelineId = domain.pipelineId();
         this.pipelineKey = domain.pipelineKey();
@@ -97,6 +102,7 @@ public class PipelineReportEntity {
         this.blocked = domain.blocked();
         this.skipped = domain.skipped();
         this.reportHtml = domain.reportHtml();
+        this.autoResolved = AutoResolvedSetting.encode(domain.autoResolved());
     }
 
     public PipelineReport toDomain() {
@@ -117,7 +123,8 @@ public class PipelineReportEntity {
                 failed,
                 blocked,
                 skipped,
-                reportHtml
+                reportHtml,
+                AutoResolvedSetting.decode(autoResolved)
         );
     }
 }
