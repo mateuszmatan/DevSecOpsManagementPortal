@@ -1569,31 +1569,31 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 </table>
 <p>The Gradle, Maven, or Liquibase command of the build has the command fields of the next table.</p>
 <h3 id="command-fields">Command fields</h3>
-<p>Five steps share the same command fields: the build, the unit tests, the SonarQube analysis, the compile of the AppScan static scan and the Nexus delivery of a Maven service on virtual machines. The keys depend on the build tool.</p>
+<p>Six steps share the same command fields: the build, the unit tests, the SonarQube analysis, the compile of the AppScan static scan, and the upload and the download of the Nexus delivery of a service on virtual machines. The keys depend on the build tool. A Maven upload is <code>delivery.push.maven</code> once the Delivery lists its artifacts and <code>delivery.maven</code>, the single upload of <code>build.buildPath</code>, without them. A Gradle upload and download take only their flags and environment variables, because the library runs its own task with the Gradle wrapper of the service.</p>
 <table>
 <thead>
-<tr><th>Field</th><th>Build</th><th>Unit tests</th><th>SonarQube</th><th>AppScan compile</th><th>Nexus delivery</th></tr>
+<tr><th>Field</th><th>Build</th><th>Unit tests</th><th>SonarQube</th><th>AppScan compile</th><th>Nexus delivery upload</th><th>Nexus delivery download</th></tr>
 </thead>
 <tbody>
-<tr><td>Gradle tasks</td><td><code>build.gradle.tasks</code></td><td><code>tests.unitTests.gradle.tasks</code></td><td><code>tools.sonar.gradle.tasks</code></td><td><code>asoc.gradle.tasks</code></td><td></td></tr>
-<tr><td>Maven goals</td><td><code>build.maven.goals</code></td><td><code>tests.unitTests.maven.goals</code></td><td><code>tools.sonar.maven.goals</code></td><td><code>asoc.maven.goals</code></td><td><code>delivery.maven.goals</code></td></tr>
-<tr><td>Liquibase commands</td><td><code>build.liquibase.commands</code></td><td><code>tests.unitTests.liquibase.commands</code></td><td><code>tools.sonar.liquibase.commands</code></td><td><code>asoc.liquibase.commands</code></td><td></td></tr>
-<tr><td>Directory (Gradle)</td><td><code>build.gradle.dir</code></td><td><code>tests.unitTests.gradle.dir</code></td><td><code>tools.sonar.gradle.dir</code></td><td><code>asoc.gradle.dir</code></td><td></td></tr>
-<tr><td>Directory (Maven)</td><td><code>build.maven.dir</code></td><td><code>tests.unitTests.maven.dir</code></td><td><code>tools.sonar.maven.dir</code></td><td><code>asoc.maven.dir</code></td><td><code>delivery.maven.dir</code></td></tr>
-<tr><td>Directory (Liquibase)</td><td><code>build.liquibase.dir</code></td><td><code>tests.unitTests.liquibase.dir</code></td><td><code>tools.sonar.liquibase.dir</code></td><td><code>asoc.liquibase.dir</code></td><td></td></tr>
-<tr><td>Maven home</td><td><code>build.maven.mvnPath</code></td><td><code>tests.unitTests.maven.mvnPath</code></td><td><code>tools.sonar.maven.mvnPath</code></td><td><code>asoc.maven.mvnPath</code></td><td><code>delivery.maven.mvnPath</code></td></tr>
-<tr><td>Flags (Gradle)</td><td><code>build.gradle.flags</code></td><td><code>tests.unitTests.gradle.flags</code></td><td><code>tools.sonar.gradle.flags</code></td><td><code>asoc.gradle.flags</code></td><td></td></tr>
-<tr><td>Flags (Maven)</td><td><code>build.maven.flags</code></td><td><code>tests.unitTests.maven.flags</code></td><td><code>tools.sonar.maven.flags</code></td><td><code>asoc.maven.flags</code></td><td><code>delivery.maven.flags</code></td></tr>
-<tr><td>Flags (Liquibase)</td><td><code>build.liquibase.flags</code></td><td><code>tests.unitTests.liquibase.flags</code></td><td><code>tools.sonar.liquibase.flags</code></td><td><code>asoc.liquibase.flags</code></td><td></td></tr>
-<tr><td>Environment variables (Gradle)</td><td><code>build.gradle.env</code></td><td><code>tests.unitTests.gradle.env</code></td><td><code>tools.sonar.gradle.env</code></td><td><code>asoc.gradle.env</code></td><td></td></tr>
-<tr><td>Environment variables (Maven)</td><td><code>build.maven.env</code></td><td><code>tests.unitTests.maven.env</code></td><td><code>tools.sonar.maven.env</code></td><td><code>asoc.maven.env</code></td><td><code>delivery.maven.env</code></td></tr>
-<tr><td>Environment variables (Liquibase)</td><td><code>build.liquibase.env</code></td><td><code>tests.unitTests.liquibase.env</code></td><td><code>tools.sonar.liquibase.env</code></td><td><code>asoc.liquibase.env</code></td><td></td></tr>
-<tr><td>Step label (Gradle)</td><td><code>build.gradle.label</code></td><td><code>tests.unitTests.gradle.label</code></td><td><code>tools.sonar.gradle.label</code></td><td><code>asoc.gradle.label</code></td><td></td></tr>
-<tr><td>Step label (Maven)</td><td><code>build.maven.label</code></td><td><code>tests.unitTests.maven.label</code></td><td><code>tools.sonar.maven.label</code></td><td><code>asoc.maven.label</code></td><td><code>delivery.maven.label</code></td></tr>
-<tr><td>Step label (Liquibase)</td><td><code>build.liquibase.label</code></td><td><code>tests.unitTests.liquibase.label</code></td><td><code>tools.sonar.liquibase.label</code></td><td><code>asoc.liquibase.label</code></td><td></td></tr>
-<tr><td>Return the output to the pipeline (Gradle)</td><td><code>build.gradle.returnStdout</code></td><td><code>tests.unitTests.gradle.returnStdout</code></td><td><code>tools.sonar.gradle.returnStdout</code></td><td><code>asoc.gradle.returnStdout</code></td><td></td></tr>
-<tr><td>Return the output to the pipeline (Maven)</td><td><code>build.maven.returnStdout</code></td><td><code>tests.unitTests.maven.returnStdout</code></td><td><code>tools.sonar.maven.returnStdout</code></td><td><code>asoc.maven.returnStdout</code></td><td><code>delivery.maven.returnStdout</code></td></tr>
-<tr><td>Return the output to the pipeline (Liquibase)</td><td><code>build.liquibase.returnStdout</code></td><td><code>tests.unitTests.liquibase.returnStdout</code></td><td><code>tools.sonar.liquibase.returnStdout</code></td><td><code>asoc.liquibase.returnStdout</code></td><td></td></tr>
+<tr><td>Gradle tasks</td><td><code>build.gradle.tasks</code></td><td><code>tests.unitTests.gradle.tasks</code></td><td><code>tools.sonar.gradle.tasks</code></td><td><code>asoc.gradle.tasks</code></td><td></td><td></td></tr>
+<tr><td>Maven goals</td><td><code>build.maven.goals</code></td><td><code>tests.unitTests.maven.goals</code></td><td><code>tools.sonar.maven.goals</code></td><td><code>asoc.maven.goals</code></td><td><code>delivery.maven.goals</code>, <code>delivery.push.maven.goals</code></td><td><code>delivery.pull.maven.goals</code></td></tr>
+<tr><td>Liquibase commands</td><td><code>build.liquibase.commands</code></td><td><code>tests.unitTests.liquibase.commands</code></td><td><code>tools.sonar.liquibase.commands</code></td><td><code>asoc.liquibase.commands</code></td><td></td><td></td></tr>
+<tr><td>Directory (Gradle)</td><td><code>build.gradle.dir</code></td><td><code>tests.unitTests.gradle.dir</code></td><td><code>tools.sonar.gradle.dir</code></td><td><code>asoc.gradle.dir</code></td><td></td><td></td></tr>
+<tr><td>Directory (Maven)</td><td><code>build.maven.dir</code></td><td><code>tests.unitTests.maven.dir</code></td><td><code>tools.sonar.maven.dir</code></td><td><code>asoc.maven.dir</code></td><td><code>delivery.maven.dir</code>, <code>delivery.push.maven.dir</code></td><td><code>delivery.pull.maven.dir</code></td></tr>
+<tr><td>Directory (Liquibase)</td><td><code>build.liquibase.dir</code></td><td><code>tests.unitTests.liquibase.dir</code></td><td><code>tools.sonar.liquibase.dir</code></td><td><code>asoc.liquibase.dir</code></td><td></td><td></td></tr>
+<tr><td>Maven home</td><td><code>build.maven.mvnPath</code></td><td><code>tests.unitTests.maven.mvnPath</code></td><td><code>tools.sonar.maven.mvnPath</code></td><td><code>asoc.maven.mvnPath</code></td><td><code>delivery.maven.mvnPath</code>, <code>delivery.push.maven.mvnPath</code></td><td><code>delivery.pull.maven.mvnPath</code></td></tr>
+<tr><td>Flags (Gradle)</td><td><code>build.gradle.flags</code></td><td><code>tests.unitTests.gradle.flags</code></td><td><code>tools.sonar.gradle.flags</code></td><td><code>asoc.gradle.flags</code></td><td><code>delivery.push.gradle.flags</code></td><td><code>delivery.pull.gradle.flags</code></td></tr>
+<tr><td>Flags (Maven)</td><td><code>build.maven.flags</code></td><td><code>tests.unitTests.maven.flags</code></td><td><code>tools.sonar.maven.flags</code></td><td><code>asoc.maven.flags</code></td><td><code>delivery.maven.flags</code>, <code>delivery.push.maven.flags</code></td><td><code>delivery.pull.maven.flags</code></td></tr>
+<tr><td>Flags (Liquibase)</td><td><code>build.liquibase.flags</code></td><td><code>tests.unitTests.liquibase.flags</code></td><td><code>tools.sonar.liquibase.flags</code></td><td><code>asoc.liquibase.flags</code></td><td></td><td></td></tr>
+<tr><td>Environment variables (Gradle)</td><td><code>build.gradle.env</code></td><td><code>tests.unitTests.gradle.env</code></td><td><code>tools.sonar.gradle.env</code></td><td><code>asoc.gradle.env</code></td><td><code>delivery.push.gradle.env</code></td><td><code>delivery.pull.gradle.env</code></td></tr>
+<tr><td>Environment variables (Maven)</td><td><code>build.maven.env</code></td><td><code>tests.unitTests.maven.env</code></td><td><code>tools.sonar.maven.env</code></td><td><code>asoc.maven.env</code></td><td><code>delivery.maven.env</code>, <code>delivery.push.maven.env</code></td><td><code>delivery.pull.maven.env</code></td></tr>
+<tr><td>Environment variables (Liquibase)</td><td><code>build.liquibase.env</code></td><td><code>tests.unitTests.liquibase.env</code></td><td><code>tools.sonar.liquibase.env</code></td><td><code>asoc.liquibase.env</code></td><td></td><td></td></tr>
+<tr><td>Step label (Gradle)</td><td><code>build.gradle.label</code></td><td><code>tests.unitTests.gradle.label</code></td><td><code>tools.sonar.gradle.label</code></td><td><code>asoc.gradle.label</code></td><td></td><td></td></tr>
+<tr><td>Step label (Maven)</td><td><code>build.maven.label</code></td><td><code>tests.unitTests.maven.label</code></td><td><code>tools.sonar.maven.label</code></td><td><code>asoc.maven.label</code></td><td><code>delivery.maven.label</code>, <code>delivery.push.maven.label</code></td><td><code>delivery.pull.maven.label</code></td></tr>
+<tr><td>Step label (Liquibase)</td><td><code>build.liquibase.label</code></td><td><code>tests.unitTests.liquibase.label</code></td><td><code>tools.sonar.liquibase.label</code></td><td><code>asoc.liquibase.label</code></td><td></td><td></td></tr>
+<tr><td>Return the output to the pipeline (Gradle)</td><td><code>build.gradle.returnStdout</code></td><td><code>tests.unitTests.gradle.returnStdout</code></td><td><code>tools.sonar.gradle.returnStdout</code></td><td><code>asoc.gradle.returnStdout</code></td><td></td><td></td></tr>
+<tr><td>Return the output to the pipeline (Maven)</td><td><code>build.maven.returnStdout</code></td><td><code>tests.unitTests.maven.returnStdout</code></td><td><code>tools.sonar.maven.returnStdout</code></td><td><code>asoc.maven.returnStdout</code></td><td><code>delivery.maven.returnStdout</code>, <code>delivery.push.maven.returnStdout</code></td><td><code>delivery.pull.maven.returnStdout</code></td></tr>
+<tr><td>Return the output to the pipeline (Liquibase)</td><td><code>build.liquibase.returnStdout</code></td><td><code>tests.unitTests.liquibase.returnStdout</code></td><td><code>tools.sonar.liquibase.returnStdout</code></td><td><code>asoc.liquibase.returnStdout</code></td><td></td><td></td></tr>
 </tbody>
 </table>
 <p>For a service with database changes, the Directory of the SonarQube command, <code>tools.sonar.liquibase.dir</code>, must be <code>.</code> or a relative path inside the repository that holds the package folder and, while the utPLSQL tests run, the Folder of the test packages; see <a href="#when-a-service-with-database-changes-stops">When a service with database changes stops</a>.</p>
@@ -1724,13 +1724,30 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 </thead>
 <tbody>
 <tr><td>Virtual machine or OpenShift</td><td><code>deployTarget</code></td><td><code>vm</code> or <code>openshift</code></td></tr>
-<tr><td>Disable Nexus Delivery</td><td><code>deploy.vm.rd.nexusDeliveryEnabled</code>, <code>deploy.openshift.rd.nexusDeliveryEnabled</code></td><td>written only as <code>false</code>, in the section of the deployment target</td></tr>
+<tr><td>Disable Nexus Delivery</td><td><code>delivery.nexusDeliveryEnabled</code></td><td>written only as <code>false</code>; the library reads it before <code>deploy.vm.rd.nexusDeliveryEnabled</code> or <code>deploy.openshift.rd.nexusDeliveryEnabled</code> of older configs, which the import still reads without it</td></tr>
 <tr><td>Application name</td><td><code>appName</code></td><td>required on OpenShift</td></tr>
 <tr><td>Artifact name</td><td><code>artifactName</code></td><td>required on OpenShift</td></tr>
 <tr><td>Built file name (Advanced)</td><td><code>baseArtifactName</code></td><td></td></tr>
-<tr><td>Delivery (Maven on virtual machines)</td><td><code>delivery.maven.goals</code> and the other command fields</td><td></td></tr>
+<tr><td>Delivery (Maven or Gradle on virtual machines)</td><td>the command fields of the upload and the download, see <a href="#command-fields">Command fields</a></td><td></td></tr>
 </tbody>
 </table>
+<h4 id="nexus-delivery">Nexus delivery</h4>
+<p>A service on virtual machines that builds with Maven or Gradle sets the files of the snapshot delivery stage and the download of the Extended pipeline under Deployment. Each artifact is a line: a glob of the workspace for the upload, a file name for the download, optionally followed by a space and its classifier. The portal writes each line as an entry with its <code>path</code> and, when the line names one, its <code>classifier</code>. Without a classifier the library takes the file name without its extension. The upload and the download share one group, artifact and repository, so the import keeps the first one it reads and leaves out a different one with a note.</p>
+<table>
+<thead>
+<tr><th>Field</th><th>Key</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Artifacts (Delivery)</td><td><code>delivery.push.maven.artifacts</code>, <code>delivery.push.gradle.artifacts</code></td><td>a Maven service without them uploads <code>build.buildPath</code> with <code>delivery.maven</code>; a Gradle service without them is not required in the snapshot delivery stage</td></tr>
+<tr><td>Group</td><td><code>delivery.push.gradle.group</code>, <code>delivery.pull.group</code></td><td>required with artifacts to upload with Gradle or to download</td></tr>
+<tr><td>Artifact</td><td><code>delivery.push.gradle.artifact</code>, <code>delivery.pull.artifact</code></td><td>required with artifacts to upload with Gradle or to download</td></tr>
+<tr><td>Repository URL</td><td><code>delivery.push.gradle.repositoryUrl</code>, <code>delivery.pull.gradle.repositoryUrl</code></td><td>Gradle only, required with artifacts</td></tr>
+<tr><td>Allow an http repository</td><td><code>delivery.push.gradle.allowInsecureProtocol</code>, <code>delivery.pull.gradle.allowInsecureProtocol</code></td><td>Gradle only, written only as <code>true</code></td></tr>
+<tr><td>Artifacts (Download in the Extended pipeline)</td><td><code>delivery.pull.maven.artifacts</code>, <code>delivery.pull.gradle.artifacts</code></td><td>without them the Extended pipeline downloads nothing; a Maven download also needs its goals, for example <code>org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get</code></td></tr>
+<tr><td>Download folder</td><td><code>delivery.pull.outputDirectory</code></td><td>left empty: <code>downloaded-artifacts</code></td></tr>
+</tbody>
+</table>
+<p>The Gradle steps of the delivery run only <code>publishNexusDeliveryPublicationToNexusRepository</code> and <code>pullNexusArtifacts</code>, so the portal refuses other tasks and the flags the library sets itself: <code>-p</code>, <code>-b</code>, <code>-x</code>, <code>-m</code>, <code>--dry-run</code>, <code>--project-dir</code>, <code>--build-file</code>, <code>--exclude-task</code> and <code>-PnexusManifest</code>.</p>
 <h3 id="urbancode-deploy">UrbanCode Deploy</h3>
 <p>The settings of the section sit under <code>deploy.vm.dod</code>.</p>
 <table>

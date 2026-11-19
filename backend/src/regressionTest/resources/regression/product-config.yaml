@@ -331,6 +331,7 @@ projects:
       - flutter-prod-license
       - flutter-test-license
     delivery:
+      nexusDeliveryEnabled: false
       group: com.bbh.ledger
       artifact: ledger-mobile
       plugin: ledger-plugin
@@ -362,7 +363,6 @@ projects:
           siteName: deploy.bbh.com
           deployProcess: tomcat-app-process
         rd:
-          nexusDeliveryEnabled: false
           host: rdltaapps1.testbbh.com
           user: taadmin
           deployScript: scripts/deployment/zero-downtime-deployment.sh

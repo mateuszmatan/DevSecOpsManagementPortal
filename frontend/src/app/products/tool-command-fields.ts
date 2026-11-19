@@ -127,7 +127,7 @@ export class ToolCommandFields {
   readonly gradleExample = input('');
   readonly mavenExample = input('');
   readonly liquibaseExample = input('updateSQL');
-  readonly part = input<'all' | 'tasks' | 'options'>('all');
+  readonly part = input<'all' | 'tasks' | 'options' | 'flags'>('all');
 
   protected fields(): Field[] {
     const part = this.part();
@@ -138,6 +138,9 @@ export class ToolCommandFields {
       this.mavenExample(),
       this.liquibaseExample(),
     );
+    if (part === 'flags') {
+      return fields.filter((field) => field.key === 'flags' || field.key === 'environment');
+    }
     return part === 'all'
       ? fields
       : fields.filter((field) => (field.key === 'tasks') === (part === 'tasks'));

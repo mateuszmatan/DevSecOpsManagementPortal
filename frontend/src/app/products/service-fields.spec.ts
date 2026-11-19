@@ -995,7 +995,7 @@ describe('ServiceFields', () => {
         [...pane().querySelectorAll('dso-form-field dso-label')].map((label) => text(label));
       const box = () => checkboxOf(pane(), 'Disable Nexus Delivery');
 
-      expect(text(box().closest('dso-checkbox'))).toContain('deploy.vm.rd.nexusDeliveryEnabled');
+      expect(text(box().closest('dso-checkbox'))).toContain('delivery.nexusDeliveryEnabled');
       expect(labels()).toContain('Artifact name');
       expect(fieldOf(pane(), 'Built file name')?.closest('dso-advanced-settings')).not.toBeNull();
       expect(pane().querySelector('.block h4')?.textContent).toBe('Delivery');
@@ -1011,9 +1011,7 @@ describe('ServiceFields', () => {
       form.controls.deployment.controls.target.setValue('OPENSHIFT');
       await fixture.whenStable();
 
-      expect(text(box().closest('dso-checkbox'))).toContain(
-        'deploy.openshift.rd.nexusDeliveryEnabled',
-      );
+      expect(text(box().closest('dso-checkbox'))).toContain('delivery.nexusDeliveryEnabled');
       await open('OpenShift targets');
 
       expect(text(pane())).not.toContain('Image build');
@@ -1022,6 +1020,50 @@ describe('ServiceFields', () => {
       expect(text(pane())).toContain(
         'the RD deployment uses this build tag and is skipped without one',
       );
+    });
+  });
+
+  describe('Nexus delivery', () => {
+    const headings = () => [...pane().querySelectorAll('.block h4')].map((heading) => text(heading));
+
+    it('shows the upload and the download of a Gradle service with their keys and no Gradle tasks', async () => {
+      await render(service());
+      await open('Deployment');
+
+      expect(headings()).toEqual(['Delivery', 'Download in the Extended pipeline']);
+      [
+        'delivery.push.gradle.artifacts',
+        'delivery.push.gradle.group',
+        'delivery.push.gradle.repositoryUrl',
+        'delivery.push.gradle.allowInsecureProtocol',
+        'delivery.push.gradle.flags',
+        'delivery.pull.gradle.artifacts',
+        'delivery.pull.gradle.flags',
+        'delivery.pull.outputDirectory',
+      ].forEach((key) => expect(text(pane())).toContain(key));
+      expect(fieldOf(pane(), 'Gradle tasks')).toBeNull();
+    });
+
+    it('moves the Maven upload goals to delivery.push.maven once the files to upload are listed', async () => {
+      await render(service({ build: { ...service().build, tool: 'MAVEN' } }));
+      await open('Deployment');
+
+      expect(text(pane())).toContain('delivery.maven.goals');
+      expect(text(pane())).toContain('delivery.pull.group');
+
+      form.controls.nexusDelivery.controls.artifacts.setValue('target/*.jar');
+      await fixture.whenStable();
+
+      expect(text(pane())).toContain('delivery.push.maven.goals');
+      expect(text(pane())).not.toContain('delivery.maven.goals');
+      expect(text(pane())).toContain('delivery.pull.maven.goals');
+    });
+
+    it('is not shown on OpenShift', async () => {
+      await render(service({ deployment: { ...service().deployment, target: 'OPENSHIFT' } }));
+      await open('Deployment');
+
+      expect(headings()).toEqual([]);
     });
   });
 

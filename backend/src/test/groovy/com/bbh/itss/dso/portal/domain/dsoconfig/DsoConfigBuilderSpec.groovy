@@ -87,7 +87,8 @@ class DsoConfigBuilderSpec extends Specification {
                 [serverUrl: 'https://sonar.cert.bbh.com', badgeCredentialsId: 'sonar-badge']
         entry.tools.nexusIq.subMap(['serverUrl', 'credentialsId', 'application']) ==
                 [serverUrl: 'https://iq.cert.bbh.com', credentialsId: 'cert-iq', application: 'cert-gui']
-        entry.deploy.vm.rd.nexusDeliveryEnabled == false
+        entry.delivery.nexusDeliveryEnabled == false
+        entry.deploy.vm.rd.nexusDeliveryEnabled == null
     }
 
     def "a service writes its Node.js build only when it is enabled and its shared version catalogs only when it lists them"() {

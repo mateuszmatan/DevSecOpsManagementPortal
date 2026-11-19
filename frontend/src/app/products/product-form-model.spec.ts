@@ -27,6 +27,7 @@ import {
   NODE_TWICE,
   notHeldBySonarFolder,
   NO_COMMAND,
+  NO_NEXUS_DELIVERY,
   ONE_APPLICATION,
   OPENSHIFT_RD_REQUIRED,
   PRODUCT_WIDE_FIELD,
@@ -1127,6 +1128,62 @@ describe('toServiceRequest', () => {
     const stored = service();
 
     expect(toServiceRequest(createServiceForm(stored))).toEqual({ ...stored, flutter: null });
+  });
+
+  it('sends the Nexus delivery of a Gradle service on a VM with only the flags of its commands', () => {
+    const form = createServiceForm(service());
+    form.patchValue({
+      delivery: { tasks: 'publish', flags: '--info', environment: 'GRADLE_OPTS=-Xmx1g' },
+      nexusDelivery: {
+        artifacts: 'build/libs/*.jar\nbuild/docs.zip docs',
+        group: 'com.bbh.cert',
+        artifact: 'cert-gui',
+        repositoryUrl: 'https://tools.bbh.com/nexus/repository/snapshots',
+        allowInsecureProtocol: true,
+        pull: { tasks: 'pull', flags: '--offline' },
+        pullArtifacts: 'cert-gui.jar',
+        pullOutputDirectory: 'nexus',
+      },
+    });
+
+    const request = toServiceRequest(form);
+
+    expect(form.controls.delivery.controls.tasks.enabled).toBe(false);
+    expect(request.delivery).toEqual(command({ flags: ['--info'], environment: ['GRADLE_OPTS=-Xmx1g'] }));
+    expect(request.nexusDelivery).toEqual({
+      artifacts: ['build/libs/*.jar', 'build/docs.zip docs'],
+      group: 'com.bbh.cert',
+      artifact: 'cert-gui',
+      repositoryUrl: 'https://tools.bbh.com/nexus/repository/snapshots',
+      allowInsecureProtocol: true,
+      pull: command({ flags: ['--offline'] }),
+      pullArtifacts: ['cert-gui.jar'],
+      pullOutputDirectory: 'nexus',
+    });
+  });
+
+  it('requires the coordinates, the repository and the download goals the listed artifacts need', () => {
+    const gradle = createServiceForm(service());
+    const nexus = gradle.controls.nexusDelivery.controls;
+
+    expect([nexus.group.valid, nexus.artifact.valid, nexus.repositoryUrl.valid]).toEqual([true, true, true]);
+    nexus.artifacts.setValue('build/libs/*.jar');
+    expect([nexus.group.valid, nexus.artifact.valid, nexus.repositoryUrl.valid]).toEqual([false, false, false]);
+
+    const maven = createServiceForm(service({ build: { ...service().build, tool: 'MAVEN' } }));
+    const download = maven.controls.nexusDelivery.controls;
+    expect(maven.controls.build.controls.buildPath.valid).toBe(true);
+    download.pullArtifacts.setValue('cert-gui.jar');
+    expect([download.group.valid, download.pull.controls.tasks.valid]).toEqual([false, false]);
+    expect(download.repositoryUrl.enabled).toBe(false);
+    download.pullArtifacts.setValue('README');
+    expect(download.pullArtifacts.valid).toBe(false);
+  });
+
+  it('sends no Nexus delivery for a service on OpenShift', () => {
+    const form = createServiceForm(service({ deployment: { ...service().deployment, target: 'OPENSHIFT' } }));
+
+    expect(toServiceRequest(form).nexusDelivery).toEqual(NO_NEXUS_DELIVERY);
   });
 
   it('round-trips the Bitbucket repository GoldenFix raises its pull requests against', () => {

@@ -47,6 +47,8 @@ final class InputFormats {
     static final String COMMAND_MESSAGE = "one command per entry, without line breaks or other control characters";
     static final String ENVIRONMENT = "^[A-Za-z_][A-Za-z0-9_+]*=.*$";
     static final String ENVIRONMENT_MESSAGE = "write each variable as NAME=value";
+    static final String NO_QUOTES = "^[^'\"\\p{Cntrl}]*$";
+    static final String NO_QUOTES_MESSAGE = "must not contain quotes";
     static final String NO_WHITESPACE = "^\\S*$";
     static final String NO_WHITESPACE_MESSAGE = "must not contain whitespace";
     static final String AGENT_LABEL = "^[^,\\p{Cntrl}]{1,100}$";

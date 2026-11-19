@@ -45,7 +45,8 @@ class ServiceSettingsSpec extends Specification {
         expect:
         ServiceSettings.builder().build(build()).deployment(deployment()).appScan(appScan()).build() ==
                 new ServiceSettings(build(), NodeBuildSettings.NONE, UnitTestSettings.NONE, DEFAULTS, [], deployment(),
-                        NONE, UrbanCodeSettings.DEFAULTS, [], [:], [:], appScan(), SonarSettings.NONE, NexusIqSettings.NONE,
+                        NONE, NexusDeliverySettings.NONE, UrbanCodeSettings.DEFAULTS, [], [:], [:], appScan(),
+                        SonarSettings.NONE, NexusIqSettings.NONE,
                         null, ScmSettings.NONE, INHERITED, null, VersionCatalogRepo.NONE, MetricsSettings.DEFAULTS,
                         FlutterSettings.NONE, DatabaseSettings.NONE, [:])
     }
@@ -202,7 +203,7 @@ class ServiceSettingsSpec extends Specification {
         reported(settings(build: build(tool: MAVEN), delivery: NONE))*.field ==
                 ['build.buildPath', 'delivery.tasks']
         reported(settings(build: build(tool: MAVEN), delivery: NONE))[0].message ==
-                'is required for Maven on VMs: the Nexus delivery publishes the artifact found there'
+                'is required for Maven on VMs without the artifacts of the Nexus delivery: the delivery then publishes the artifact found there'
         reported(settings(build: build(tool: FLUTTER, javaPath: null)))*.field ==
                 ['build.javaPath', 'flutter.modules', 'flutter.testModules', 'flutter.signingPasswordCredentialsId',
                  'flutter.prodLicenseCredentialsId', 'flutter.testLicenseCredentialsId', 'flutter.deliveryGroup',
@@ -210,6 +211,89 @@ class ServiceSettingsSpec extends Specification {
         reported(settings(build: build(tool: MAVEN), delivery: NONE,
                 deployment: deployment(target: OPENSHIFT, appName: 'cert', artifactName: 'cert.jar'),
                 openShiftTargets: [(RD): fullSettings().openShiftTargets()[RD]])) == []
+    }
+
+    def "a Maven service on a VM uploads its listed artifacts with delivery.push.maven and downloads them with delivery.pull"() {
+        given:
+        def upload = command(['deploy:deploy-file'], ['-DrepositoryId=bbh-snapshots', '-DgroupId=com.bbh.cert'])
+        def delivery = NexusDeliverySettings.builder().artifacts(['target/*.jar', 'target/cert-docs.zip docs'])
+                .group('com.bbh.cert').artifact('cert-gui')
+                .pull(command(['org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get'],
+                        ['-DremoteRepositories=bbh::default::https://tools.bbh.com/nexus/repository/snapshots']))
+                .pullArtifacts(['cert-gui.jar', 'cert-docs.zip docs']).pullOutputDirectory('nexus').build()
+        def service = settings(build: build(tool: MAVEN, buildPath: null), delivery: upload, nexusDelivery: delivery)
+
+        when:
+        def config = written(service).toMap()
+
+        then:
+        reported(service) == []
+        config.delivery == [
+                push: [maven: [goals: ['deploy:deploy-file'],
+                               flags: ['-DrepositoryId=bbh-snapshots', '-DgroupId=com.bbh.cert'],
+                               artifacts: [[path: 'target/*.jar'], [path: 'target/cert-docs.zip', classifier: 'docs']]]],
+                pull: [outputDirectory: 'nexus', group: 'com.bbh.cert', artifact: 'cert-gui',
+                       maven: [goals: ['org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get'],
+                               flags: ['-DremoteRepositories=bbh::default::https://tools.bbh.com/nexus/repository/snapshots'],
+                               artifacts: [[path: 'cert-gui.jar'], [path: 'cert-docs.zip', classifier: 'docs']]]]]
+    }
+
+    def "a Maven service on a VM without the artifacts of the delivery keeps the upload of delivery.maven"() {
+        expect:
+        written(settings(build: build(tool: MAVEN), delivery: command(['deploy:deploy-file'], ['-B']))).toMap().delivery ==
+                [maven: [goals: ['deploy:deploy-file'], flags: ['-B']]]
+    }
+
+    def "a Gradle service on a VM uploads with delivery.push.gradle and passes its flags to the upload and the download"() {
+        given:
+        def delivery = NexusDeliverySettings.builder().artifacts(['build/libs/*.jar']).group('com.bbh.cert')
+                .artifact('cert-api').repositoryUrl('http://nexus.bbh.com/repository/snapshots').allowInsecureProtocol(true)
+                .pull(ToolCommand.builder().flags(['--offline']).build()).pullArtifacts(['cert-api.jar']).build()
+        def service = settings(build: build(tool: GRADLE), nexusDelivery: delivery,
+                delivery: ToolCommand.builder().flags(['--info']).environment(['GRADLE_OPTS=-Xmx1g']).build())
+
+        when:
+        def config = written(service).toMap()
+
+        then:
+        reported(service) == []
+        config.delivery == [
+                push: [gradle: [group: 'com.bbh.cert', artifact: 'cert-api',
+                                repositoryUrl: 'http://nexus.bbh.com/repository/snapshots', allowInsecureProtocol: true,
+                                flags: ['--info'], env: [GRADLE_OPTS: '-Xmx1g'], artifacts: [[path: 'build/libs/*.jar']]]],
+                pull: [group: 'com.bbh.cert', artifact: 'cert-api',
+                       gradle: [repositoryUrl: 'http://nexus.bbh.com/repository/snapshots', allowInsecureProtocol: true,
+                                flags: ['--offline'], artifacts: [[path: 'cert-api.jar']]]]]
+    }
+
+    def "a Gradle service without the artifacts of the delivery renders no upload"() {
+        expect:
+        written(settings(build: build(tool: GRADLE))).toMap().delivery == null
+    }
+
+    def "the Nexus delivery needs what the library reads to upload and download: #fields"() {
+        expect:
+        reported(settings(build: build(tool: tool, buildPath: 'target/*.jar'), delivery: upload, nexusDelivery: delivery))*.field == fields
+
+        where:
+        tool   | upload                                            | delivery                                                                                                || fields
+        MAVEN  | command(['deploy:deploy-file'], [])               | NexusDeliverySettings.builder().pullArtifacts(['cert.jar']).build()                                     || ['nexusDelivery.group', 'nexusDelivery.artifact', 'nexusDelivery.pull.tasks']
+        GRADLE | NONE                                              | NexusDeliverySettings.builder().artifacts(['build/libs/*.jar']).build()                                 || ['nexusDelivery.group', 'nexusDelivery.artifact', 'nexusDelivery.repositoryUrl']
+        GRADLE | ToolCommand.builder().flags(['--project-dir=x']).build() | NexusDeliverySettings.NONE                                                                        || ['delivery.flags']
+        GRADLE | ToolCommand.builder().tasks(['publish']).build()  | NexusDeliverySettings.NONE                                                                              || ['delivery.tasks']
+        MAVEN  | command(['deploy:deploy-file'], [])               | NexusDeliverySettings.builder().artifacts(['target/*.jar a b']).build()                                 || ['nexusDelivery.artifacts']
+        MAVEN  | command(['deploy:deploy-file'], [])               | NexusDeliverySettings.builder().group('com.bbh').artifact('cert').pull(command(['get'], []))
+                .pullArtifacts(['cert.jar', 'lib/cert.jar']).build()                                                                                                                       || ['nexusDelivery.pullArtifacts']
+        MAVEN  | command(['deploy:deploy-file'], [])               | NexusDeliverySettings.builder().group('com.bbh').artifact('cert').pull(command(['get'], []))
+                .pullArtifacts(['README']).build()                                                                                                                                         || ['nexusDelivery.pullArtifacts']
+        GRADLE | NONE                                              | NexusDeliverySettings.builder().artifacts(['a.jar']).group('com bbh').artifact('cert')
+                .repositoryUrl('ftp://nexus').build()                                                                                                                                      || ['nexusDelivery.group', 'nexusDelivery.repositoryUrl']
+    }
+
+    def "a service whose Nexus delivery is off is not checked for its delivery settings"() {
+        expect:
+        reported(settings(build: build(tool: GRADLE), deployment: deployment(nexusDeliveryDisabled: true),
+                nexusDelivery: NexusDeliverySettings.builder().artifacts(['a.jar']).build())) == []
     }
 
     def "an OpenShift service needs an RD target that can build its image"() {
@@ -227,7 +311,7 @@ class ServiceSettingsSpec extends Specification {
                 ['is required for OpenShift: the Nexus snapshot delivery builds the image in the RD project']
     }
 
-    def "a service that does not deliver to Nexus needs none of the fields only the delivery reads and renders the switch at #path"() {
+    def "a service that does not deliver to Nexus needs none of the fields only the delivery reads and renders delivery.nexusDeliveryEnabled on #target"() {
         given:
         def undelivered = settings(build: build(tool: tool), delivery: NONE,
                 deployment: deployment(target: target, appName: 'cert', nexusDeliveryDisabled: true),
@@ -236,11 +320,12 @@ class ServiceSettingsSpec extends Specification {
 
         expect:
         reported(undelivered) == []
-        written(undelivered).get(path) == [nexusDeliveryEnabled: false]
-        written(settings(deployment: deployment(target: target))).get(path + '.nexusDeliveryEnabled') == null
+        written(undelivered).get('delivery.nexusDeliveryEnabled') == false
+        written(undelivered).get(legacy + '.nexusDeliveryEnabled') == null
+        written(settings(deployment: deployment(target: target))).get('delivery.nexusDeliveryEnabled') == null
 
         where:
-        tool    | target    || path
+        tool    | target    || legacy
         MAVEN   | VM        || 'deploy.vm.rd'
         FLUTTER | VM        || 'deploy.vm.rd'
         GRADLE  | OPENSHIFT || 'deploy.openshift.rd'

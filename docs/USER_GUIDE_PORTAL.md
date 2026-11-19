@@ -221,10 +221,15 @@ Nexus IQ identifies known open-source vulnerabilities (CVEs) and license complia
 The delivery module packages artifacts and deploys services to target infrastructure.
 
 ### "Disable Nexus Delivery" Checkbox:
-- Allows skipping artifact publishing to Nexus:
-  - For VM targets: `deploy.vm.rd.nexusDeliveryEnabled: false`
-  - For OpenShift targets: `deploy.openshift.rd.nexusDeliveryEnabled: false`
-- When checked, delivery fields are hidden and their validation is bypassed.
+- Allows skipping artifact publishing to Nexus, on VM and OpenShift targets alike: the portal renders `delivery.nexusDeliveryEnabled: false`.
+- The library reads `delivery.nexusDeliveryEnabled` before the older `deploy.vm.rd.nexusDeliveryEnabled` and `deploy.openshift.rd.nexusDeliveryEnabled`, so configs written before keep working, and *Import config* reads either key.
+- When checked, delivery fields are hidden and their validation is bypassed, and the Extended pipeline downloads nothing.
+
+### Nexus Delivery of a Service on Virtual Machines (Maven and Gradle):
+- **Delivery (upload, stage 6):** the files of the snapshot, one glob per line, optionally followed by a classifier (`target/docs.zip docs`). Every file goes up under the one snapshot version of the run, `<BUILD_NUMBER>-<yyyyMMdd-HHmmss>-SNAPSHOT`, and the tag is written to `build.tag`.
+  - Maven: the goals and flags of the upload (for example `deploy:deploy-file` with `-DrepositoryId`, `-Durl`, `-DgroupId`, `-DartifactId`), rendered as `delivery.push.maven` once artifacts are listed. Without artifacts the one file of the artifact path is uploaded with `delivery.maven`, as before.
+  - Gradle: group, artifact, repository URL and, for an `http://` repository, *Allow an http repository*, rendered as `delivery.push.gradle`. Only flags and environment variables can be added, because the library runs its own `maven-publish` task with the Gradle wrapper of the service. Without artifacts the service is not required in stage 6.
+- **Download in the Extended pipeline:** the file names of the snapshot to download, the download folder (`downloaded-artifacts` when left empty) and, for Maven, the group, artifact and goals of the download (for example `org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get`). It is rendered as `delivery.pull` and runs in the stage *Download artifacts from Nexus Repo* with the version in `build.tag`. Without file names nothing is downloaded.
 
 ### OpenShift QC Region Validation:
 - The QC region configuration is **entirely optional**.

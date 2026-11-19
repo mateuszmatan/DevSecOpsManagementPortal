@@ -10,6 +10,7 @@ import com.bbh.itss.dso.portal.domain.catalog.BuildSettings
 import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget
 import com.bbh.itss.dso.portal.domain.catalog.DatabaseTargetSettings
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
+import com.bbh.itss.dso.portal.domain.catalog.NexusDeliverySettings
 import com.bbh.itss.dso.portal.domain.catalog.ServiceSettings
 import com.bbh.itss.dso.portal.domain.catalog.SonarSettings
 import com.bbh.itss.dso.portal.domain.catalog.ToolCommand
@@ -85,6 +86,15 @@ class ServiceConfigReaderSpec extends Specification {
             tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(), urbanCode: MAVEN_VM.urbanCode(),
             urbanCodeApplications: MAVEN_VM.urbanCodeApplications(), sshTargets: MAVEN_VM.sshTargets(),
             appScan: MAVEN_VM.appScan(), sonar: MAVEN_VM.sonar(), scm: MAVEN_VM.scm(), metrics: MAVEN_VM.metrics())
+    static final ServiceSettings GRADLE_VM = settings(build: build(tool: GRADLE),
+            delivery: ToolCommand.builder().flags(['--info']).environment(['GRADLE_OPTS=-Xmx1g']).build(),
+            nexusDelivery: NexusDeliverySettings.builder().artifacts(['build/libs/*.jar', 'build/docs.zip docs'])
+                    .group('com.bbh.cert').artifact('cert-api').repositoryUrl('http://nexus.bbh.com/repository/snapshots')
+                    .allowInsecureProtocol(true).pull(ToolCommand.builder().flags(['--offline']).build())
+                    .pullArtifacts(['cert-api.jar', 'docs.zip docs']).pullOutputDirectory('nexus').build(),
+            tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(), urbanCode: MAVEN_VM.urbanCode(),
+            urbanCodeApplications: MAVEN_VM.urbanCodeApplications(), sshTargets: MAVEN_VM.sshTargets(),
+            appScan: MAVEN_VM.appScan(), sonar: MAVEN_VM.sonar(), scm: MAVEN_VM.scm(), metrics: MAVEN_VM.metrics())
     static final ServiceSettings LIQUIBASE_VM = settings(
             build: build(tool: LIQUIBASE, sourceDir: 'db', javaPath: null),
             unitTests: MAVEN_VM.unitTests(), tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(),
@@ -117,6 +127,7 @@ class ServiceConfigReaderSpec extends Specification {
         where:
         settings                     || notes
         MAVEN_VM                     || []
+        GRADLE_VM                    || []
         GRADLE_OPENSHIFT             || [problem('deploy.openshift.rd.buildTag', RUN_TIME),
                                          problem('deploy.openshift.rd.internalDockerUrl', RUN_TIME)]
         GRADLE_OPENSHIFT_NO_DELIVERY || []
@@ -408,6 +419,86 @@ class ServiceConfigReaderSpec extends Specification {
         then:
         !service.service().deployment().nexusDeliveryDisabled()
         service.notes() == [problem('deploy.openshift.rd.nexusDeliveryEnabled', 'not imported: the service deploys to vm')]
+    }
+
+    def "delivery.nexusDeliveryEnabled wins over the switch of the deploy target, which is read without it"() {
+        when:
+        def service = imported(config.stripIndent()).services()[0]
+
+        then:
+        service.service().deployment().nexusDeliveryDisabled() == disabled
+        service.notes() == notes
+
+        where:
+        config                                                                     || disabled | notes
+        LEGACY_SWITCH                                                              || true     | []
+        LEGACY_SWITCH + 'delivery: {nexusDeliveryEnabled: true}\n'                 || false    | [problem('deploy.vm.rd.nexusDeliveryEnabled', 'not imported: delivery.nexusDeliveryEnabled wins over it')]
+        'deployTarget: vm\ndelivery: {nexusDeliveryEnabled: false}\n'             || true     | []
+    }
+
+    def "a Maven service imports delivery.push.maven and leaves out delivery.maven, which it replaces"() {
+        when:
+        def service = imported('''
+            buildTool: maven
+            deployTarget: vm
+            delivery:
+              maven: {goals: [deploy:deploy-file], flags: [-Dold=1]}
+              push:
+                maven:
+                  goals: [deploy:deploy-file]
+                  flags: [-DrepositoryId=bbh-snapshots]
+                  artifacts: [target/*.jar, {path: target/docs.zip, classifier: docs}]
+              pull:
+                group: com.bbh.cert
+                artifact: cert-gui
+                maven:
+                  goals: [org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get]
+                  artifacts: [{path: cert-gui.jar}]
+            '''.stripIndent()).services()[0]
+        def delivery = service.service().nexusDelivery()
+
+        then:
+        service.notes() == [problem('delivery.maven', 'not imported: delivery.push.maven replaces it')]
+        service.service().delivery().tasks() == ['deploy:deploy-file']
+        service.service().delivery().flags() == ['-DrepositoryId=bbh-snapshots']
+        delivery.artifacts() == ['target/*.jar', 'target/docs.zip docs']
+        delivery.group() == 'com.bbh.cert'
+        delivery.artifact() == 'cert-gui'
+        delivery.pull().tasks() == ['org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get']
+        delivery.pullArtifacts() == ['cert-gui.jar']
+    }
+
+    def "a Gradle service keeps one group of its upload and download and leaves out another task or group with a note"() {
+        when:
+        def service = imported('''
+            buildTool: gradle
+            deployTarget: vm
+            delivery:
+              gradle: {tasks: [publish]}
+              push:
+                gradle:
+                  group: com.bbh.cert
+                  artifact: cert-api
+                  repositoryUrl: https://nexus.bbh.com/repository/snapshots
+                  tasks: [publish]
+                  artifacts: [build/libs/*.jar]
+              pull:
+                group: com.bbh.other
+                gradle:
+                  tasks: [pullNexusArtifacts]
+                  artifacts: [cert-api.jar]
+            '''.stripIndent()).services()[0]
+        def delivery = service.service().nexusDelivery()
+
+        then:
+        service.notes() as Set == [
+                problem('delivery.gradle', 'not imported: a Gradle service uploads with delivery.push.gradle'),
+                problem('delivery.pull.group', 'not imported: the portal uploads and downloads with one group, com.bbh.cert'),
+                problem('delivery.push.gradle.tasks', 'not imported: the Gradle step of the Nexus delivery runs only publishNexusDeliveryPublicationToNexusRepository')] as Set
+        delivery.group() == 'com.bbh.cert'
+        delivery.repositoryUrl() == 'https://nexus.bbh.com/repository/snapshots'
+        delivery.artifacts() == ['build/libs/*.jar']
+        delivery.pullArtifacts() == ['cert-api.jar']
     }
 
     def "a Liquibase SQL/PL-SQL config imports build, unit test, SAST and SonarQube sources, inclusions and exclusions"() {
@@ -736,6 +827,14 @@ class ServiceConfigReaderSpec extends Specification {
     }
 
     /** A Liquibase service with every database setting that is not the library's default. */
+    static final String LEGACY_SWITCH = '''
+            deployTarget: vm
+            deploy:
+              vm:
+                rd:
+                  nexusDeliveryEnabled: false
+            '''.stripIndent()
+
     static final ServiceSettings ORDERS_DB = databaseSettings(
             build: new BuildSettings(LIQUIBASE, 'orders-db', '/usr/lib/jvm/java-17-openjdk', true, null, null),
             database: database().toBuilder().searchPath('src/main/resources').oracleVersion('23.4').defaultSchema('APP')

@@ -119,6 +119,16 @@ export function service(overrides: Partial<Service> = {}): Service {
       nexusDeliveryDisabled: false,
     },
     delivery: command(),
+    nexusDelivery: {
+      artifacts: [],
+      group: null,
+      artifact: null,
+      repositoryUrl: null,
+      allowInsecureProtocol: false,
+      pull: command(),
+      pullArtifacts: [],
+      pullOutputDirectory: null,
+    },
     urbanCode: {
       siteName: null,
       deployProcess: null,

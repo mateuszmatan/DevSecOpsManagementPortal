@@ -22,6 +22,7 @@ import {
   GlobalGoldenFixPolicy,
   GlobalSettings,
   GoldenFixPolicy,
+  NexusDeliverySettings,
   NexusIqApplication,
   NodeBuildSettings,
   OpenShiftTarget,
@@ -230,6 +231,75 @@ export function toToolCommand(form: ToolCommandForm): ToolCommand {
     environment: lines(v.environment, false),
     label: optional(v.label),
     returnStdout: v.returnStdout,
+  };
+}
+
+/** A glob of the workspace, or a file name to download, optionally followed by its classifier. */
+const DELIVERY_ARTIFACT = /^[^\s,'"]{1,300}(\s+[A-Za-z0-9_.-]{1,100})?$/;
+const DOWNLOADED_ARTIFACT = /^[^\s,'"]*[^\s,'"/]\.[A-Za-z0-9_-]+(\s+[A-Za-z0-9_.-]{1,100})?$/;
+export const NEXUS_COORDINATE = /^[A-Za-z0-9_.-]*$/;
+const NO_QUOTES = /^[^'"\p{Cc}]*$/u;
+const artifactLines = (values: string[] | null | undefined, pattern: RegExp, message: string) =>
+  text(
+    joinLines(values),
+    maxLines(50, false),
+    eachItem(tokenLines, pattern, message),
+    fitsColumn(tokenLines, '\n', 4000),
+  );
+
+export function createNexusDeliveryForm(d?: Partial<NexusDeliverySettings> | null) {
+  return new FormGroup({
+    artifacts: artifactLines(
+      d?.artifacts,
+      DELIVERY_ARTIFACT,
+      'Write a path without commas or quotes, optionally followed by a classifier',
+    ),
+    group: text(d?.group, Validators.pattern(NEXUS_COORDINATE), max(200)),
+    artifact: text(d?.artifact, Validators.pattern(NEXUS_COORDINATE), max(200)),
+    repositoryUrl: url(d?.repositoryUrl),
+    allowInsecureProtocol: flag(d?.allowInsecureProtocol),
+    pull: createToolCommandForm(d?.pull),
+    pullArtifacts: artifactLines(
+      d?.pullArtifacts,
+      DOWNLOADED_ARTIFACT,
+      'Write a file name with its extension, optionally followed by a classifier',
+    ),
+    pullOutputDirectory: text(d?.pullOutputDirectory, Validators.pattern(NO_QUOTES), max(500)),
+  });
+}
+
+export type NexusDeliveryForm = ReturnType<typeof createNexusDeliveryForm>;
+
+/** The Nexus delivery of a service that does not deliver to Nexus from virtual machines. */
+export const NO_NEXUS_DELIVERY: NexusDeliverySettings = {
+  artifacts: [],
+  group: null,
+  artifact: null,
+  repositoryUrl: null,
+  allowInsecureProtocol: false,
+  pull: NO_COMMAND,
+  pullArtifacts: [],
+  pullOutputDirectory: null,
+};
+
+/** The flags and environment variables of a command, the only parts a Gradle step of the Nexus delivery takes. */
+export function toFlagsOnly(form: ToolCommandForm): ToolCommand {
+  const v = form.getRawValue();
+  return { ...NO_COMMAND, flags: lines(v.flags, false), environment: lines(v.environment, false) };
+}
+
+export function toNexusDelivery(form: NexusDeliveryForm, tool: BuildTool): NexusDeliverySettings {
+  const v = form.getRawValue();
+  const gradle = tool === 'GRADLE';
+  return {
+    artifacts: lines(v.artifacts, false),
+    group: optional(v.group),
+    artifact: optional(v.artifact),
+    repositoryUrl: gradle ? optional(v.repositoryUrl) : null,
+    allowInsecureProtocol: gradle && v.allowInsecureProtocol,
+    pull: gradle ? toFlagsOnly(form.controls.pull) : toToolCommand(form.controls.pull),
+    pullArtifacts: lines(v.pullArtifacts, false),
+    pullOutputDirectory: optional(v.pullOutputDirectory),
   };
 }
 
@@ -1009,6 +1079,7 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       nexusDeliveryDisabled: flag(s?.deployment?.nexusDeliveryDisabled),
     }),
     delivery: createToolCommandForm(s?.delivery),
+    nexusDelivery: createNexusDeliveryForm(s?.nexusDelivery),
     urbanCode: new FormGroup({
       siteName: text(s?.urbanCode?.siteName, max(200)),
       deployProcess: text(s?.urbanCode?.deployProcess, max(200)),
@@ -1195,12 +1266,38 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
     tool,
     build.controls.autoSetup,
   );
+  const nexus = form.controls.nexusDelivery.controls;
+  const uploads = () => lines(nexus.artifacts.value).length > 0;
+  const downloads = () => lines(nexus.pullArtifacts.value).length > 0;
   requireWhile(
     build.controls.buildPath,
-    () => vm() && tool.value === 'MAVEN' && !deliveryDisabled.value,
+    () => vm() && tool.value === 'MAVEN' && !deliveryDisabled.value && !uploads(),
     tool,
     target,
     deliveryDisabled,
+    nexus.artifacts,
+  );
+  [nexus.group, nexus.artifact].forEach((control) =>
+    requireWhile(
+      control,
+      () => downloads() || (tool.value === 'GRADLE' && uploads()),
+      tool,
+      nexus.artifacts,
+      nexus.pullArtifacts,
+    ),
+  );
+  requireWhile(
+    nexus.repositoryUrl,
+    () => tool.value === 'GRADLE' && (uploads() || downloads()),
+    tool,
+    nexus.artifacts,
+    nexus.pullArtifacts,
+  );
+  requireWhile(
+    nexus.pull.controls.tasks,
+    () => tool.value === 'MAVEN' && downloads(),
+    tool,
+    nexus.pullArtifacts,
   );
   [
     flutter.controls.deliveryGroup,
@@ -1480,7 +1577,18 @@ function syncApplicability(form: ServiceForm): void {
     setEnabled(control, appScan.dastEnabled.value),
   );
   setEnabled(form.controls.deployment, !database);
-  setEnabled(form.controls.delivery, !database && vm && tool === 'MAVEN' && delivers);
+  const nexusDelivery = !database && vm && (tool === 'MAVEN' || tool === 'GRADLE') && delivers;
+  setEnabled(form.controls.delivery, nexusDelivery);
+  const nexus = form.controls.nexusDelivery;
+  setEnabled(nexus, nexusDelivery);
+  [nexus.controls.repositoryUrl, nexus.controls.allowInsecureProtocol].forEach((control) =>
+    setEnabled(control, nexusDelivery && tool === 'GRADLE'),
+  );
+  [form.controls.delivery, nexus.controls.pull].forEach((command) =>
+    [command.controls.tasks, command.controls.directory, command.controls.label, command.controls.returnStdout].forEach(
+      (control) => setEnabled(control, nexusDelivery && tool === 'MAVEN'),
+    ),
+  );
   toolCommands(form).forEach((command) =>
     setEnabled(command.controls.mavenHome, command.enabled && tool === 'MAVEN'),
   );
@@ -1549,6 +1657,7 @@ function toolCommands(form: ServiceForm): ToolCommandForm[] {
     c.sonar.controls.command,
     c.appScan.controls.compileCommand,
     c.delivery,
+    c.nexusDelivery.controls.pull,
   ];
 }
 
@@ -1770,7 +1879,12 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
     tests: { ...v.tests },
     testJobs: c.testJobs.controls.map(toTestJob),
     deployment: sent(v.deployment),
-    delivery: command(c.delivery, vm && tool === 'MAVEN'),
+    delivery:
+      vm && tool === 'GRADLE' ? toFlagsOnly(c.delivery) : command(c.delivery, vm && tool === 'MAVEN'),
+    nexusDelivery:
+      vm && (tool === 'MAVEN' || tool === 'GRADLE')
+        ? toNexusDelivery(c.nexusDelivery, tool)
+        : { ...NO_NEXUS_DELIVERY, pull: { ...NO_COMMAND } },
     urbanCode: sent(v.urbanCode),
     urbanCodeApplications: vm ? c.urbanCodeApplications.controls.map(toUrbanCodeApplication) : [],
     sshTargets: vm ? keyedTargets(REGIONS, (region) => sent(v.sshTargets[region])) : {},
@@ -1944,7 +2058,7 @@ export const SERVICE_SECTIONS: ServiceSection[] = [
   section('database', 'Database changes', 'storage', ['database', 'databaseTargets'], onLiquibase),
   section('unitTests', 'Unit tests and coverage', 'fact_check', ['unitTests']),
   section('testJobs', 'Test jobs', 'science', ['tests', 'testJobs']),
-  section('deployment', 'Deployment', 'rocket_launch', ['deployment', 'delivery'], deploys),
+  section('deployment', 'Deployment', 'rocket_launch', ['deployment', 'delivery', 'nexusDelivery'], deploys),
   section('urbanCode', 'UrbanCode Deploy', 'hub', ['urbanCode', 'urbanCodeApplications'], onVm),
   section('ssh', 'SSH targets', 'dns', ['sshTargets'], onVm),
   section('openShift', 'OpenShift targets', 'cloud', ['openShiftTargets'], onOpenShift),

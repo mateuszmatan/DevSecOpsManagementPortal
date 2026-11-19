@@ -182,6 +182,23 @@ export interface DeploymentSettings {
   nexusDeliveryDisabled: boolean;
 }
 
+/**
+ * The Nexus snapshot delivery of a service on virtual machines beyond its upload command: the files of the upload
+ * (delivery.push), the Maven coordinates and repository of a Gradle upload, and the download of the Extended
+ * pipeline (delivery.pull). Each artifact is a line of a glob, for the download a file name, optionally followed by
+ * its classifier.
+ */
+export interface NexusDeliverySettings {
+  artifacts: string[];
+  group: string | null;
+  artifact: string | null;
+  repositoryUrl: string | null;
+  allowInsecureProtocol: boolean;
+  pull: ToolCommand;
+  pullArtifacts: string[];
+  pullOutputDirectory: string | null;
+}
+
 export interface UrbanCodeSettings {
   siteName: string | null;
   deployProcess: string | null;
@@ -424,6 +441,7 @@ export interface ServiceSettings {
   testJobs: TestJob[];
   deployment: DeploymentSettings;
   delivery: ToolCommand;
+  nexusDelivery?: NexusDeliverySettings | null;
   urbanCode: UrbanCodeSettings;
   urbanCodeApplications: UrbanCodeApplicationSettings[];
   sshTargets: Partial<Record<Region, SshTarget>>;

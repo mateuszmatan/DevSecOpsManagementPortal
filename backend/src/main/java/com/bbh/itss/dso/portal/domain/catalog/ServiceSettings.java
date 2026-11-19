@@ -32,7 +32,7 @@ import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 @Builder
 public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, UnitTestSettings unitTests,
                               TestSettings tests, List<TestJob> testJobs, DeploymentSettings deployment,
-                              ToolCommand delivery, UrbanCodeSettings urbanCode,
+                              ToolCommand delivery, NexusDeliverySettings nexusDelivery, UrbanCodeSettings urbanCode,
                               List<UrbanCodeApplicationSettings> urbanCodeApplications,
                               Map<Region, SshTarget> sshTargets, Map<Region, OpenShiftTarget> openShiftTargets,
                               AppScanSettings appScan, SonarSettings sonar, NexusIqSettings nexusIq,
@@ -51,6 +51,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         tests = getIfNull(tests, DEFAULTS);
         testJobs = List.copyOf(emptyIfNull(testJobs));
         delivery = getIfNull(delivery, ToolCommand.NONE);
+        nexusDelivery = getIfNull(nexusDelivery, NexusDeliverySettings.NONE);
         urbanCode = getIfNull(urbanCode, UrbanCodeSettings.DEFAULTS);
         urbanCodeApplications = List.copyOf(emptyIfNull(urbanCodeApplications));
         sshTargets = withoutEmpty(Region.class, sshTargets, SshTarget::isEmpty);
@@ -113,9 +114,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         if (!deploys) {
             database.writeTo(config, databaseTargets);
         } else if (deployment.target() == VM) {
-            if (tool == MAVEN) {
-                delivery.writeTo(config, "delivery", MAVEN);
-            }
+            nexusDelivery.writeTo(config, tool, delivery);
             urbanCode.writeTo(config, urbanCodeApplications);
             sshTargets.forEach((region, target) -> config.set("deploy.vm." + region.configKey(), target.toConfig()));
         } else {
@@ -123,8 +122,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
                     config.set("deploy.openshift." + region.configKey(), target.toConfig()));
         }
         if (deploys && deployment.nexusDeliveryDisabled()) {
-            String rd = deployment.target() == VM ? "deploy.vm.rd" : "deploy.openshift.rd";
-            config.set(rd + ".nexusDeliveryEnabled", false);
+            config.set("delivery.nexusDeliveryEnabled", false);
         }
         if (tool == FLUTTER) {
             flutter.writeTo(config);
@@ -162,10 +160,15 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
             flutter.validate(problems.at("flutter"), deployment);
         }
         if (deploys && deployment.deliversToNexus(VM) && tool == MAVEN) {
-            problems.require("build.buildPath", build.buildPath(),
-                    "is required for Maven on VMs: the Nexus delivery publishes the artifact found there");
+            if (nexusDelivery.artifacts().isEmpty()) {
+                problems.require("build.buildPath", build.buildPath(), "is required for Maven on VMs without the"
+                        + " artifacts of the Nexus delivery: the delivery then publishes the artifact found there");
+            }
             problems.require("delivery.tasks", delivery.tasks(),
                     "add the Maven goals that upload the snapshot, for example deploy:deploy-file");
+        }
+        if (deploys && deployment.deliversToNexus(VM)) {
+            nexusDelivery.validate(problems.at("nexusDelivery"), problems.at("delivery"), tool, delivery);
         }
         if (deploys) {
             delivery.validate(problems.at("delivery"));

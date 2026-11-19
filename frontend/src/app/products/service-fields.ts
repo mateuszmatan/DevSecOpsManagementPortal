@@ -44,6 +44,7 @@ import {
   POWERSHELL_PATH_ERROR,
   SHELL_SAFE_ERROR,
   addItem,
+  lines,
   optional,
   removeItem,
 } from '@common/shared/form-controls';
@@ -785,6 +786,7 @@ export class ServiceFields {
       c.sonar.controls.command,
       c.appScan.controls.compileCommand,
       c.delivery,
+      c.nexusDelivery.controls.pull,
     ];
     const groups: (readonly [AbstractControl, readonly Field[]])[] = [
       [form, [...GENERAL, ...VERSION_CATALOGS]],
@@ -792,6 +794,7 @@ export class ServiceFields {
       [c.nodeBuild, [...this.nodeSwitch(), ...this.nodeFields(), ...this.nodeOptions()]],
       [c.unitTests, [...this.unitTestFields(), ...UNIT_TEST_OPTIONS]],
       [c.deployment, [...this.deploymentFields(), ...this.deploymentOptions()]],
+      [c.nexusDelivery, [...this.nexusUploadFields(), ...this.nexusDownloadFields()]],
       [c.appScan, [...APP_SCAN, ...APP_SCAN_OPTIONS, ...DAST_ENABLED, ...DAST]],
       [c.sonar, [...this.sonarFields(), ...this.sonarOptions()]],
       [c.nexusIq, this.nexusIqFields()],
@@ -883,7 +886,7 @@ export class ServiceFields {
       mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
         placeholder: liquibase ? 'db/changelog/*.xml' : maven ? 'target/*.jar' : 'build/libs/*.jar',
         hint:
-          this.isVm() && maven && this.delivers()
+          this.isVm() && maven && this.delivers() && this.uploadPath() === 'delivery'
             ? 'the artifact the Nexus snapshot delivery uploads'
             : liquibase
               ? 'optional for Liquibase database migrations'
@@ -1135,11 +1138,11 @@ export class ServiceFields {
       check(
         'nexusDeliveryDisabled',
         'Disable Nexus Delivery',
-        `deploy.${target}.rd.nexusDeliveryEnabled`,
+        'delivery.nexusDeliveryEnabled',
         12,
         {
           help: this.isVm()
-            ? 'The snapshot delivery stage still reports the build and the unit tests but publishes nothing to Nexus. The deployments and the release delivery (Nexus delivery - Safe Artifact) still run.'
+            ? `The snapshot delivery stage still reports the build and the unit tests but publishes nothing to Nexus, and the Extended pipeline downloads nothing. The deployments and the release delivery (Nexus delivery - Safe Artifact) still run. Rendered as delivery.nexusDeliveryEnabled: false, which the library reads before deploy.${target}.rd.nexusDeliveryEnabled of older configs.`
             : 'The snapshot delivery stage still reports the build and the unit tests but builds and pushes no image. The OpenShift deployments then use the pinned build tags, QC falling back to the RD tag, and a region left without a tag is skipped. The release delivery (Nexus delivery - Safe Artifact) still runs.',
         },
       ),
@@ -1156,6 +1159,92 @@ export class ServiceFields {
               hint: openShift,
               help: 'The file, in the folder of the artifact path, that is copied into the image build context under this name.',
               error: SHELL_SAFE_ERROR,
+            }),
+          ]
+        : []),
+    ];
+  }
+
+  /** The upload command of a Maven service: delivery.push.maven with the files to upload, else delivery.maven. */
+  protected uploadPath(): string {
+    const artifacts = this.form().controls.nexusDelivery.controls.artifacts.value;
+    return lines(artifacts).length > 0 ? 'delivery.push' : 'delivery';
+  }
+
+  protected nexusUploadFields(): Field[] {
+    const gradle = this.tool() === 'GRADLE';
+    const block = gradle ? 'delivery.push.gradle' : 'delivery.push.maven';
+    return [
+      area('artifacts', 'Artifacts', `${block}.artifacts`, 12, {
+        mono: true,
+        placeholder: gradle
+          ? 'build/libs/*.jar\nbuild/distributions/docs.zip docs'
+          : 'target/*.jar\ntarget/docs.zip docs',
+        hint: 'one glob per line, optionally followed by a space and a classifier',
+        help: gradle
+          ? 'The files uploaded under the one snapshot version of the run, <build number>-<UTC time>-SNAPSHOT. Each takes the classifier after it or, without one, its file name without the extension. Left empty, the Gradle service is not required in the snapshot delivery stage.'
+          : 'The files the one deploy-file upload sends under the snapshot version of the run, <build number>-<UTC time>-SNAPSHOT, rendered as delivery.push.maven. Each takes the classifier after it or, without one, its file name without the extension. Left empty, the one file of the artifact path is uploaded without a classifier with delivery.maven, as before.',
+      }),
+      ...(gradle
+        ? [
+            mono('group', 'Group', `${block}.group`, 4, {
+              placeholder: 'com.bbh.cert',
+              hint: 'required with artifacts',
+              help: 'The Maven group ID of the upload; the download of the Extended pipeline uses it too.',
+              error: 'Letters, digits and . _ - only',
+            }),
+            mono('artifact', 'Artifact', `${block}.artifact`, 4, {
+              placeholder: 'cert-api',
+              hint: 'required with artifacts',
+              help: 'The Maven artifact ID of the upload; the download of the Extended pipeline uses it too.',
+              error: 'Letters, digits and . _ - only',
+            }),
+            mono('repositoryUrl', 'Repository URL', `${block}.repositoryUrl`, 4, {
+              placeholder: 'https://tools.bbh.com/nexus/repository/snapshots',
+              hint: 'required with artifacts',
+              help: 'The Nexus repository maven-publish uploads to and the download reads from.',
+              error: HTTP_URL_ERROR,
+            }),
+            check(
+              'allowInsecureProtocol',
+              'Allow an http repository',
+              `${block}.allowInsecureProtocol`,
+              12,
+              {
+                help: 'Lets Gradle upload to and download from a repository URL that starts with http://.',
+              },
+            ),
+          ]
+        : []),
+    ];
+  }
+
+  protected nexusDownloadFields(): Field[] {
+    const maven = this.tool() === 'MAVEN';
+    return [
+      area('pullArtifacts', 'Artifacts', `delivery.pull.${maven ? 'maven' : 'gradle'}.artifacts`, 6, {
+        mono: true,
+        placeholder: 'cert-gui.jar\ndocs.zip docs',
+        hint: 'one file name per line, optionally followed by a space and a classifier',
+        help: 'The files of the snapshot to download, each saved under its name. The classifier is the name without its extension unless the line names one, so list them as they were uploaded.',
+      }),
+      mono('pullOutputDirectory', 'Download folder', 'delivery.pull.outputDirectory', 6, {
+        placeholder: 'downloaded-artifacts',
+        help: 'The folder of the workspace the files are saved in. Left empty: downloaded-artifacts.',
+      }),
+      ...(maven
+        ? [
+            mono('group', 'Group', 'delivery.pull.group', 6, {
+              placeholder: 'com.bbh.cert',
+              hint: 'required with artifacts',
+              help: 'The Maven group ID the upload used, as in -DgroupId of its flags.',
+              error: 'Letters, digits and . _ - only',
+            }),
+            mono('artifact', 'Artifact', 'delivery.pull.artifact', 6, {
+              placeholder: 'cert-gui',
+              hint: 'required with artifacts',
+              help: 'The Maven artifact ID the upload used, as in -DartifactId of its flags.',
+              error: 'Letters, digits and . _ - only',
             }),
           ]
         : []),

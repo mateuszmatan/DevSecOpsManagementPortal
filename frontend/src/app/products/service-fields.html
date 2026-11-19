@@ -191,18 +191,50 @@
             </dso-advanced-settings>
           }
         </div>
-        @if (isVm() && tool() === 'MAVEN' && delivers()) {
+        @if (isVm() && (tool() === 'MAVEN' || tool() === 'GRADLE') && delivers()) {
           <div class="form-fields block">
             <h4 class="sub-heading span-12">Delivery</h4>
             <p class="note span-12">
-              The Maven goals that upload the snapshot the VM deployment installs; required for a
-              Maven service deployed to virtual machines.
+              @if (tool() === 'MAVEN') {
+                The Maven goals that upload the snapshot the VM deployment installs, and the files
+                they upload; the goals are required for a Maven service deployed to virtual machines.
+              } @else {
+                The files the Gradle wrapper of the service uploads as the snapshot of the run with
+                maven-publish; without them the snapshot delivery stage is not required for the service.
+              }
             </p>
+            @if (tool() === 'MAVEN') {
+              <dso-tool-command-fields
+                [group]="f.controls.delivery"
+                [tool]="tool()"
+                [path]="uploadPath()"
+                mavenExample="deploy:deploy-file"
+              />
+            }
+            <dso-fields [group]="f.controls.nexusDelivery" [fields]="nexusUploadFields()" />
+            @if (tool() === 'GRADLE') {
+              <dso-tool-command-fields
+                [group]="f.controls.delivery"
+                [tool]="tool()"
+                path="delivery.push"
+                part="flags"
+              />
+            }
+          </div>
+          <div class="form-fields block">
+            <h4 class="sub-heading span-12">Download in the Extended pipeline</h4>
+            <p class="note span-12">
+              The files of the snapshot of its security run the Extended pipeline downloads in the
+              stage Download artifacts from Nexus Repo, by the version in build.tag; without them it
+              downloads nothing.
+            </p>
+            <dso-fields [group]="f.controls.nexusDelivery" [fields]="nexusDownloadFields()" />
             <dso-tool-command-fields
-              [group]="f.controls.delivery"
+              [group]="f.controls.nexusDelivery.controls.pull"
               [tool]="tool()"
-              path="delivery"
-              mavenExample="deploy:deploy-file"
+              path="delivery.pull"
+              [part]="tool() === 'GRADLE' ? 'flags' : 'all'"
+              mavenExample="org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get"
             />
           </div>
         }

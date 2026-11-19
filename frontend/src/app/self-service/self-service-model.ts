@@ -502,6 +502,7 @@ export function serviceRequest(
       ...existing,
       build: retooled ? undefined : existing.build,
       delivery: retooled || moved ? undefined : existing.delivery,
+      nexusDelivery: retooled || moved ? undefined : existing.nexusDelivery,
       deployment: moved ? undefined : existing.deployment,
       openShiftTargets: moved ? undefined : existing.openShiftTargets,
     },

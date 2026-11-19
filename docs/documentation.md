@@ -1480,29 +1480,29 @@ The Gradle, Maven, or Liquibase command of the build has the command fields of t
 
 ### Command fields
 
-Five steps share the same command fields: the build, the unit tests, the SonarQube analysis, the compile of the AppScan static scan and the Nexus delivery of a Maven service on virtual machines. The keys depend on the build tool.
+Six steps share the same command fields: the build, the unit tests, the SonarQube analysis, the compile of the AppScan static scan, and the upload and the download of the Nexus delivery of a service on virtual machines. The keys depend on the build tool. A Maven upload is `delivery.push.maven` once the Delivery lists its artifacts and `delivery.maven`, the single upload of `build.buildPath`, without them. A Gradle upload and download take only their flags and environment variables, because the library runs its own task with the Gradle wrapper of the service.
 
-| Field | Build | Unit tests | SonarQube | AppScan compile | Nexus delivery |
-|-------|-------|------------|-----------|-----------------|----------------|
-| Gradle tasks | `build.gradle.tasks` | `tests.unitTests.gradle.tasks` | `tools.sonar.gradle.tasks` | `asoc.gradle.tasks` | |
-| Maven goals | `build.maven.goals` | `tests.unitTests.maven.goals` | `tools.sonar.maven.goals` | `asoc.maven.goals` | `delivery.maven.goals` |
-| Liquibase commands | `build.liquibase.commands` | `tests.unitTests.liquibase.commands` | `tools.sonar.liquibase.commands` | `asoc.liquibase.commands` | |
-| Directory (Gradle) | `build.gradle.dir` | `tests.unitTests.gradle.dir` | `tools.sonar.gradle.dir` | `asoc.gradle.dir` | |
-| Directory (Maven) | `build.maven.dir` | `tests.unitTests.maven.dir` | `tools.sonar.maven.dir` | `asoc.maven.dir` | `delivery.maven.dir` |
-| Directory (Liquibase) | `build.liquibase.dir` | `tests.unitTests.liquibase.dir` | `tools.sonar.liquibase.dir` | `asoc.liquibase.dir` | |
-| Maven home | `build.maven.mvnPath` | `tests.unitTests.maven.mvnPath` | `tools.sonar.maven.mvnPath` | `asoc.maven.mvnPath` | `delivery.maven.mvnPath` |
-| Flags (Gradle) | `build.gradle.flags` | `tests.unitTests.gradle.flags` | `tools.sonar.gradle.flags` | `asoc.gradle.flags` | |
-| Flags (Maven) | `build.maven.flags` | `tests.unitTests.maven.flags` | `tools.sonar.maven.flags` | `asoc.maven.flags` | `delivery.maven.flags` |
-| Flags (Liquibase) | `build.liquibase.flags` | `tests.unitTests.liquibase.flags` | `tools.sonar.liquibase.flags` | `asoc.liquibase.flags` | |
-| Environment variables (Gradle) | `build.gradle.env` | `tests.unitTests.gradle.env` | `tools.sonar.gradle.env` | `asoc.gradle.env` | |
-| Environment variables (Maven) | `build.maven.env` | `tests.unitTests.maven.env` | `tools.sonar.maven.env` | `asoc.maven.env` | `delivery.maven.env` |
-| Environment variables (Liquibase) | `build.liquibase.env` | `tests.unitTests.liquibase.env` | `tools.sonar.liquibase.env` | `asoc.liquibase.env` | |
-| Step label (Gradle) | `build.gradle.label` | `tests.unitTests.gradle.label` | `tools.sonar.gradle.label` | `asoc.gradle.label` | |
-| Step label (Maven) | `build.maven.label` | `tests.unitTests.maven.label` | `tools.sonar.maven.label` | `asoc.maven.label` | `delivery.maven.label` |
-| Step label (Liquibase) | `build.liquibase.label` | `tests.unitTests.liquibase.label` | `tools.sonar.liquibase.label` | `asoc.liquibase.label` | |
-| Return the output to the pipeline (Gradle) | `build.gradle.returnStdout` | `tests.unitTests.gradle.returnStdout` | `tools.sonar.gradle.returnStdout` | `asoc.gradle.returnStdout` | |
-| Return the output to the pipeline (Maven) | `build.maven.returnStdout` | `tests.unitTests.maven.returnStdout` | `tools.sonar.maven.returnStdout` | `asoc.maven.returnStdout` | `delivery.maven.returnStdout` |
-| Return the output to the pipeline (Liquibase) | `build.liquibase.returnStdout` | `tests.unitTests.liquibase.returnStdout` | `tools.sonar.liquibase.returnStdout` | `asoc.liquibase.returnStdout` | |
+| Field | Build | Unit tests | SonarQube | AppScan compile | Nexus delivery upload | Nexus delivery download |
+|-------|-------|------------|-----------|-----------------|-----------------------|-------------------------|
+| Gradle tasks | `build.gradle.tasks` | `tests.unitTests.gradle.tasks` | `tools.sonar.gradle.tasks` | `asoc.gradle.tasks` | | |
+| Maven goals | `build.maven.goals` | `tests.unitTests.maven.goals` | `tools.sonar.maven.goals` | `asoc.maven.goals` | `delivery.maven.goals`, `delivery.push.maven.goals` | `delivery.pull.maven.goals` |
+| Liquibase commands | `build.liquibase.commands` | `tests.unitTests.liquibase.commands` | `tools.sonar.liquibase.commands` | `asoc.liquibase.commands` | | |
+| Directory (Gradle) | `build.gradle.dir` | `tests.unitTests.gradle.dir` | `tools.sonar.gradle.dir` | `asoc.gradle.dir` | | |
+| Directory (Maven) | `build.maven.dir` | `tests.unitTests.maven.dir` | `tools.sonar.maven.dir` | `asoc.maven.dir` | `delivery.maven.dir`, `delivery.push.maven.dir` | `delivery.pull.maven.dir` |
+| Directory (Liquibase) | `build.liquibase.dir` | `tests.unitTests.liquibase.dir` | `tools.sonar.liquibase.dir` | `asoc.liquibase.dir` | | |
+| Maven home | `build.maven.mvnPath` | `tests.unitTests.maven.mvnPath` | `tools.sonar.maven.mvnPath` | `asoc.maven.mvnPath` | `delivery.maven.mvnPath`, `delivery.push.maven.mvnPath` | `delivery.pull.maven.mvnPath` |
+| Flags (Gradle) | `build.gradle.flags` | `tests.unitTests.gradle.flags` | `tools.sonar.gradle.flags` | `asoc.gradle.flags` | `delivery.push.gradle.flags` | `delivery.pull.gradle.flags` |
+| Flags (Maven) | `build.maven.flags` | `tests.unitTests.maven.flags` | `tools.sonar.maven.flags` | `asoc.maven.flags` | `delivery.maven.flags`, `delivery.push.maven.flags` | `delivery.pull.maven.flags` |
+| Flags (Liquibase) | `build.liquibase.flags` | `tests.unitTests.liquibase.flags` | `tools.sonar.liquibase.flags` | `asoc.liquibase.flags` | | |
+| Environment variables (Gradle) | `build.gradle.env` | `tests.unitTests.gradle.env` | `tools.sonar.gradle.env` | `asoc.gradle.env` | `delivery.push.gradle.env` | `delivery.pull.gradle.env` |
+| Environment variables (Maven) | `build.maven.env` | `tests.unitTests.maven.env` | `tools.sonar.maven.env` | `asoc.maven.env` | `delivery.maven.env`, `delivery.push.maven.env` | `delivery.pull.maven.env` |
+| Environment variables (Liquibase) | `build.liquibase.env` | `tests.unitTests.liquibase.env` | `tools.sonar.liquibase.env` | `asoc.liquibase.env` | | |
+| Step label (Gradle) | `build.gradle.label` | `tests.unitTests.gradle.label` | `tools.sonar.gradle.label` | `asoc.gradle.label` | | |
+| Step label (Maven) | `build.maven.label` | `tests.unitTests.maven.label` | `tools.sonar.maven.label` | `asoc.maven.label` | `delivery.maven.label`, `delivery.push.maven.label` | `delivery.pull.maven.label` |
+| Step label (Liquibase) | `build.liquibase.label` | `tests.unitTests.liquibase.label` | `tools.sonar.liquibase.label` | `asoc.liquibase.label` | | |
+| Return the output to the pipeline (Gradle) | `build.gradle.returnStdout` | `tests.unitTests.gradle.returnStdout` | `tools.sonar.gradle.returnStdout` | `asoc.gradle.returnStdout` | | |
+| Return the output to the pipeline (Maven) | `build.maven.returnStdout` | `tests.unitTests.maven.returnStdout` | `tools.sonar.maven.returnStdout` | `asoc.maven.returnStdout` | `delivery.maven.returnStdout`, `delivery.push.maven.returnStdout` | `delivery.pull.maven.returnStdout` |
+| Return the output to the pipeline (Liquibase) | `build.liquibase.returnStdout` | `tests.unitTests.liquibase.returnStdout` | `tools.sonar.liquibase.returnStdout` | `asoc.liquibase.returnStdout` | | |
 
 For a service with database changes, the Directory of the SonarQube command, `tools.sonar.liquibase.dir`, must be `.` or a relative path inside the repository that holds the package folder and, while the utPLSQL tests run, the Folder of the test packages; see [When a service with database changes stops](#when-a-service-with-database-changes-stops).
 
@@ -1618,11 +1618,27 @@ Each job is an entry of its stage list:
 | Field | Key | Notes |
 |-------|-----|-------|
 | Virtual machine or OpenShift | `deployTarget` | `vm` or `openshift` |
-| Disable Nexus Delivery | `deploy.vm.rd.nexusDeliveryEnabled`, `deploy.openshift.rd.nexusDeliveryEnabled` | written only as `false`, in the section of the deployment target |
+| Disable Nexus Delivery | `delivery.nexusDeliveryEnabled` | written only as `false`; the library reads it before `deploy.vm.rd.nexusDeliveryEnabled` or `deploy.openshift.rd.nexusDeliveryEnabled` of older configs, which the import still reads without it |
 | Application name | `appName` | required on OpenShift |
 | Artifact name | `artifactName` | required on OpenShift |
 | Built file name (Advanced) | `baseArtifactName` | |
-| Delivery (Maven on virtual machines) | `delivery.maven.goals` and the other command fields | |
+| Delivery (Maven or Gradle on virtual machines) | the command fields of the upload and the download, see [Command fields](#command-fields) | |
+
+#### Nexus delivery
+
+A service on virtual machines that builds with Maven or Gradle sets the files of the snapshot delivery stage and the download of the Extended pipeline under Deployment. Each artifact is a line: a glob of the workspace for the upload, a file name for the download, optionally followed by a space and its classifier. The portal writes each line as an entry with its `path` and, when the line names one, its `classifier`. Without a classifier the library takes the file name without its extension. The upload and the download share one group, artifact and repository, so the import keeps the first one it reads and leaves out a different one with a note.
+
+| Field | Key | Notes |
+|-------|-----|-------|
+| Artifacts (Delivery) | `delivery.push.maven.artifacts`, `delivery.push.gradle.artifacts` | a Maven service without them uploads `build.buildPath` with `delivery.maven`; a Gradle service without them is not required in the snapshot delivery stage |
+| Group | `delivery.push.gradle.group`, `delivery.pull.group` | required with artifacts to upload with Gradle or to download |
+| Artifact | `delivery.push.gradle.artifact`, `delivery.pull.artifact` | required with artifacts to upload with Gradle or to download |
+| Repository URL | `delivery.push.gradle.repositoryUrl`, `delivery.pull.gradle.repositoryUrl` | Gradle only, required with artifacts |
+| Allow an http repository | `delivery.push.gradle.allowInsecureProtocol`, `delivery.pull.gradle.allowInsecureProtocol` | Gradle only, written only as `true` |
+| Artifacts (Download in the Extended pipeline) | `delivery.pull.maven.artifacts`, `delivery.pull.gradle.artifacts` | without them the Extended pipeline downloads nothing; a Maven download also needs its goals, for example `org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get` |
+| Download folder | `delivery.pull.outputDirectory` | left empty: `downloaded-artifacts` |
+
+The Gradle steps of the delivery run only `publishNexusDeliveryPublicationToNexusRepository` and `pullNexusArtifacts`, so the portal refuses other tasks and the flags the library sets itself: `-p`, `-b`, `-x`, `-m`, `--dry-run`, `--project-dir`, `--build-file`, `--exclude-task` and `-PnexusManifest`.
 
 ### UrbanCode Deploy
 

@@ -524,8 +524,10 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         then:
         created.status == 201
         created.json.services*.deployment*.nexusDeliveryDisabled == [true, true]
-        projects[0].ledger.deploy.vm.rd.nexusDeliveryEnabled == false
-        projects[1].api.deploy == [openshift: [rd: [nexusDeliveryEnabled: false]]]
+        projects[0].ledger.delivery == [nexusDeliveryEnabled: false]
+        projects[0].ledger.deploy.vm.rd.nexusDeliveryEnabled == null
+        projects[1].api.delivery == [nexusDeliveryEnabled: false]
+        projects[1].api.deploy == null
     }
 
     def "a product onboarded for Nexus IQ GoldenFix gives each scanned service a pipeline whose key reads the nexusiq config"() {

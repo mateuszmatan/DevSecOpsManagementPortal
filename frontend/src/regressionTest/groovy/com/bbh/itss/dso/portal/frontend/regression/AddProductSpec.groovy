@@ -2,8 +2,11 @@ package com.bbh.itss.dso.portal.frontend.regression
 
 import com.bbh.itss.dso.portal.frontend.support.ProductStore
 import com.microsoft.playwright.Locator
+import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.FilePayload
 import groovy.json.JsonSlurper
+
+import java.util.regex.Pattern
 
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
@@ -125,7 +128,7 @@ class AddProductSpec extends EditorSpecification {
         choose(openService(), 'Build tool', 'Maven')
         fillIn(openService(), ['Artifact path': 'target/*.jar', 'Maven goals': 'clean verify'])
         showSection('Deployment')
-        input(openService(), 'Maven goals').fill('deploy')
+        input(deliveryBlock(), 'Maven goals').fill('deploy')
         addUrbanCodeApplication('CERT-API', 'target')
         showSection('AppScan SAST and DAST')
         input(openService(), 'AppScan application ID').fill(TAKEN_APPLICATION)
@@ -271,5 +274,10 @@ class AddProductSpec extends EditorSpecification {
 
     static Object expected(String name) {
         new JsonSlurper().parse(AddProductSpec.getResource(name))
+    }
+
+    private Locator deliveryBlock() {
+        openService().locator('.form-fields.block').filter(new Locator.FilterOptions()
+                .setHas(page.locator('h4.sub-heading', new Page.LocatorOptions().setHasText(Pattern.compile('^Delivery$')))))
     }
 }

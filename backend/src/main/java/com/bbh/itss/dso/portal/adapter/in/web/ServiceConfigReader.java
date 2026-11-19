@@ -8,6 +8,7 @@ import com.bbh.itss.dso.portal.domain.catalog.BuildTool;
 import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget;
 import com.bbh.itss.dso.portal.domain.catalog.DeployTarget;
 import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform;
+import com.bbh.itss.dso.portal.domain.catalog.NexusDeliverySettings;
 import com.bbh.itss.dso.portal.domain.catalog.OracleUrl;
 import com.bbh.itss.dso.portal.domain.catalog.Region;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
@@ -120,6 +121,19 @@ final class ServiceConfigReader {
         }
         throw expected("a map of variables");
     };
+    private static final Conversion ARTIFACTS = value -> {
+        List<String> lines = new ArrayList<>();
+        for (Object entry : value instanceof Collection<?> entries ? entries : List.of(value)) {
+            Object path = entry instanceof Map<?, ?> map ? map.get("path") : entry;
+            Object classifier = entry instanceof Map<?, ?> map ? map.get("classifier") : null;
+            if (path == null || isBlank(text(path)) || text(path).trim().contains(" ")) {
+                throw expected("a list of paths without spaces, each a text or a map with its path and classifier");
+            }
+            lines.add(text(path).trim() + (classifier == null || isBlank(text(classifier)) ? ""
+                    : " " + text(classifier).trim()));
+        }
+        return lines;
+    };
     private static final Conversion MAP = value -> {
         if (value instanceof Map<?, ?> parameters) {
             return pairs(parameters);
@@ -165,10 +179,11 @@ final class ServiceConfigReader {
             .filter(rule -> UNUSED_BY_DATABASE.stream().noneMatch(key -> (rule.key() + ".").startsWith(key + ".")))
             .toList();
     private static final String MAVEN_HOME = "build.maven.mvnPath";
-    private static final String DELIVERY = "deploy.%s.rd.nexusDeliveryEnabled";
+    private static final String DELIVERY = "delivery.nexusDeliveryEnabled";
+    private static final String LEGACY_DELIVERY = "deploy.%s.rd.nexusDeliveryEnabled";
     private static final List<Block> COMMAND_BLOCKS = List.of(new Block("build", "build.command"),
             new Block("tests.unitTests", "unitTests.command"), new Block("tools.sonar", "sonar.command"),
-            new Block("asoc", "appScan.compileCommand"), new Block("delivery", "delivery"));
+            new Block("asoc", "appScan.compileCommand"));
     private static final List<Block> DATABASE_BLOCKS = COMMAND_BLOCKS.stream()
             .filter(block -> !UNUSED_BY_DATABASE.contains(block.key())).toList();
     private static final List<Rule> COMMAND = List.of(rule("flags", "flags", WORDS), rule("dir", "directory", TEXT),
@@ -295,7 +310,7 @@ final class ServiceConfigReader {
         }
         readCommands(project, tool, database ? DATABASE_BLOCKS : COMMAND_BLOCKS, request);
         if (!database) {
-            readDelivery(project, target, request);
+            readDelivery(project, target, tool, request);
             request.set("urbanCodeApplications", project.entries("deploy.vm.dod.applications", null, null).stream()
                     .map(application -> entry(application, URBAN_CODE_APPLICATION, new ConfigTree()
                             .set("components", application.entries("components", null, null).stream()
@@ -384,16 +399,114 @@ final class ServiceConfigReader {
         }
     }
 
-    /** Reads the delivery switch of the service's deploy target; the switch of the other target is left out. */
-    private static void readDelivery(ConfigInput project, DeployTarget target, ConfigTree request) {
+    /**
+     * Reads the delivery switch, delivery.nexusDeliveryEnabled or, without it, that of the service's deploy target,
+     * and the Nexus delivery of the service's build tool. The portal keeps one group, artifact and repository for the
+     * upload and the download, so a differing second value is left out with a note.
+     */
+    private static void readDelivery(ConfigInput project, DeployTarget target, BuildTool tool, ConfigTree request) {
+        read(project, List.of(rule(DELIVERY, "deployment.nexusDeliveryDisabled", DISABLED)), request);
+        boolean switched = request.get("deployment.nexusDeliveryDisabled") != null;
         for (DeployTarget each : DeployTarget.values()) {
-            String key = DELIVERY.formatted(each.name().toLowerCase(ROOT));
-            if (each == target) {
+            String key = LEGACY_DELIVERY.formatted(each.name().toLowerCase(ROOT));
+            if (each == target && !switched) {
                 read(project, List.of(rule(key, "deployment.nexusDeliveryDisabled", DISABLED)), request);
             } else if (project.take(key) != null) {
-                project.note(key, "not imported: the service deploys to " + target.name().toLowerCase(ROOT));
+                project.note(key, each == target ? "not imported: " + DELIVERY + " wins over it"
+                        : "not imported: the service deploys to " + target.name().toLowerCase(ROOT));
             }
         }
+        for (BuildTool blockTool : List.of(GRADLE, MAVEN, LIQUIBASE, DOTNET)) {
+            String key = "delivery." + blockTool.name().toLowerCase(ROOT);
+            if ((blockTool != tool || tool == GRADLE) && project.unread(key) && project.take(key) != null) {
+                project.note(key, tool == GRADLE && blockTool == GRADLE
+                        ? "not imported: a Gradle service uploads with delivery.push.gradle"
+                        : "not imported: the service builds with " + tool.name().toLowerCase(ROOT));
+            }
+        }
+        if (tool == MAVEN) {
+            readMavenDelivery(project, request);
+        } else if (tool == GRADLE) {
+            readGradleDelivery(project, request);
+        }
+    }
+
+    /** The upload of delivery.push.maven or, without it, delivery.maven, and the download of delivery.pull.maven. */
+    private static void readMavenDelivery(ConfigInput project, ConfigTree request) {
+        boolean push = project.unread("delivery.push.maven");
+        read(project, prefixed(push ? "delivery.push.maven." : "delivery.maven.", "delivery.", COMMANDS.get(MAVEN)),
+                request);
+        if (push) {
+            read(project, List.of(rule("delivery.push.maven.artifacts", "nexusDelivery.artifacts", ARTIFACTS)),
+                    request);
+            if (project.unread("delivery.maven") && project.take("delivery.maven") != null) {
+                project.note("delivery.maven", "not imported: delivery.push.maven replaces it");
+            }
+        }
+        readCoordinates(project, request, List.of("group", "artifact"), "delivery.pull.maven.", "delivery.pull.");
+        read(project, concat(prefixed("delivery.pull.maven.", "nexusDelivery.pull.", COMMANDS.get(MAVEN)),
+                pullRules("delivery.pull.maven.")), request);
+    }
+
+    /** The upload of delivery.push.gradle and the download of delivery.pull.gradle, with their flags. */
+    private static void readGradleDelivery(ConfigInput project, ConfigTree request) {
+        readCoordinates(project, request, List.of("group", "artifact", "repositoryUrl"), "delivery.push.gradle.",
+                "delivery.pull.gradle.", "delivery.pull.");
+        readCoordinates(project, request, List.of("allowInsecureProtocol"), "delivery.push.gradle.",
+                "delivery.pull.gradle.");
+        read(project, List.of(rule("delivery.push.gradle.artifacts", "nexusDelivery.artifacts", ARTIFACTS),
+                rule("delivery.push.gradle.flags", "delivery.flags", WORDS),
+                rule("delivery.push.gradle.env", "delivery.environment", ENV),
+                rule("delivery.push.gradle.tasks", null, gradleTask(NexusDeliverySettings.GRADLE_PUSH_TASK)),
+                rule("delivery.pull.gradle.flags", "nexusDelivery.pull.flags", WORDS),
+                rule("delivery.pull.gradle.env", "nexusDelivery.pull.environment", ENV),
+                rule("delivery.pull.gradle.tasks", null, gradleTask(NexusDeliverySettings.GRADLE_PULL_TASK))), request);
+        read(project, pullRules("delivery.pull.gradle."), request);
+    }
+
+    private static List<Rule> pullRules(String block) {
+        return List.of(rule(block + "artifacts", "nexusDelivery.pullArtifacts", ARTIFACTS),
+                rule("delivery.pull.outputDirectory", "nexusDelivery.pullOutputDirectory", TEXT));
+    }
+
+    /**
+     * Reads the group, artifact, repository URL and insecure switch from the first block that has each; the same value
+     * in a later block is read along, a different one is left out with a note.
+     */
+    private static void readCoordinates(ConfigInput project, ConfigTree request, List<String> keys,
+                                        String... blocks) {
+        for (String key : keys) {
+            Conversion conversion = "allowInsecureProtocol".equals(key) ? FLAG : TEXT;
+            String field = "nexusDelivery." + key;
+            for (String block : blocks) {
+                Object value = project.take(block + key);
+                if (value == null) {
+                    continue;
+                }
+                try {
+                    Object converted = conversion.apply(value);
+                    Object kept = request.get(field);
+                    if (kept == null) {
+                        request.set(field, converted);
+                    } else if (!String.valueOf(kept).trim().equals(String.valueOf(converted).trim())) {
+                        project.note(block + key, "not imported: the portal uploads and downloads with one " + key
+                                + ", " + kept);
+                    }
+                } catch (NotImported e) {
+                    project.note(block + key, e.getMessage());
+                }
+            }
+        }
+    }
+
+    /** The tasks of a Gradle step of the Nexus delivery: only its one task, which the portal does not keep. */
+    private static Conversion gradleTask(String task) {
+        return value -> {
+            if (!items(value, "\\s+").equals(List.of(task))) {
+                throw new NotImported("not imported: the Gradle step of the Nexus delivery runs only " + task);
+            }
+            return null;
+        };
     }
 
     /** The jobs of every test stage, with the stage's defaults under each and its URLs as jobs of their own. */

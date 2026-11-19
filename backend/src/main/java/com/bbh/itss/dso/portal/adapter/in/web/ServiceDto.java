@@ -16,6 +16,7 @@ import com.bbh.itss.dso.portal.domain.catalog.FlutterPlatform;
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings;
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy;
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings;
+import com.bbh.itss.dso.portal.domain.catalog.NexusDeliverySettings;
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication;
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings;
 import com.bbh.itss.dso.portal.domain.catalog.NodeBuildSettings;
@@ -63,6 +64,8 @@ import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.IMAGE_TAG_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.MODULE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.MODULE_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_QUOTES;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_QUOTES_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.NO_WHITESPACE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.POWERSHELL_PATH;
@@ -117,6 +120,7 @@ public record ServiceDto(
         @Size(max = 1000) List<@NotNull @Valid TestJobDto> testJobs,
         @NotNull @Valid DeploymentSettingsDto deployment,
         @Valid ToolCommandDto delivery,
+        @Valid NexusDeliverySettingsDto nexusDelivery,
         @Valid UrbanCodeSettingsDto urbanCode,
         @Size(max = 20) List<@NotNull @Valid UrbanCodeApplicationSettingsDto> urbanCodeApplications,
         Map<Region, @Valid SshTargetDto> sshTargets,
@@ -222,6 +226,18 @@ public record ServiceDto(
             List<@Pattern(regexp = ENVIRONMENT, message = ENVIRONMENT_MESSAGE) @Size(max = 500) String> environment,
             @Size(max = 200) String label,
             Boolean returnStdout) implements Mirrors<ToolCommand> {
+    }
+
+    public record NexusDeliverySettingsDto(
+            @Size(max = 50) List<@NotBlank @Size(max = 500) String> artifacts,
+            @Size(max = 200) String group,
+            @Size(max = 200) String artifact,
+            @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String repositoryUrl,
+            Boolean allowInsecureProtocol,
+            @Valid ToolCommandDto pull,
+            @Size(max = 50) List<@NotBlank @Size(max = 300) String> pullArtifacts,
+            @Size(max = 500) @Pattern(regexp = NO_QUOTES, message = NO_QUOTES_MESSAGE) String pullOutputDirectory)
+            implements Mirrors<NexusDeliverySettings> {
     }
 
     public record NodeBuildSettingsDto(

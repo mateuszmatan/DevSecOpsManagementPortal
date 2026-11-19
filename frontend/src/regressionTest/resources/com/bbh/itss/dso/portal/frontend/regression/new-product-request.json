@@ -94,6 +94,24 @@
         "label": null,
         "returnStdout": false
       },
+      "nexusDelivery": {
+        "artifacts": [],
+        "group": null,
+        "artifact": null,
+        "repositoryUrl": null,
+        "allowInsecureProtocol": false,
+        "pull": {
+          "tasks": [],
+          "flags": [],
+          "directory": null,
+          "mavenHome": null,
+          "environment": [],
+          "label": null,
+          "returnStdout": false
+        },
+        "pullArtifacts": [],
+        "pullOutputDirectory": null
+      },
       "urbanCode": {
         "siteName": null,
         "deployProcess": null,
@@ -325,6 +343,24 @@
         "environment": [],
         "label": null,
         "returnStdout": false
+      },
+      "nexusDelivery": {
+        "artifacts": [],
+        "group": null,
+        "artifact": null,
+        "repositoryUrl": null,
+        "allowInsecureProtocol": false,
+        "pull": {
+          "tasks": [],
+          "flags": [],
+          "directory": null,
+          "mavenHome": null,
+          "environment": [],
+          "label": null,
+          "returnStdout": false
+        },
+        "pullArtifacts": [],
+        "pullOutputDirectory": null
       },
       "urbanCode": {
         "siteName": null,

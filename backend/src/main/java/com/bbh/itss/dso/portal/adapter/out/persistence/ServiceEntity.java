@@ -152,6 +152,7 @@ public class ServiceEntity extends AuditedEntity {
             TestSettingsEmbeddable tests,
             DeploymentSettingsEmbeddable deployment,
             @EmbeddedColumnNaming("DELIVERY_%s") ToolCommandEmbeddable delivery,
+            @EmbeddedColumnNaming("NEXUS_DELIVERY_%s") NexusDeliverySettingsEmbeddable nexusDelivery,
             @EmbeddedColumnNaming("UCD_%s") UrbanCodeSettingsEmbeddable urbanCode,
             AppScanSettingsEmbeddable appScan,
             @EmbeddedColumnNaming("SONAR_%s") SonarSettingsEmbeddable sonar,
@@ -228,6 +229,13 @@ public class ServiceEntity extends AuditedEntity {
             @Convert(converter = DelimitedListConverter.Tokens.class) List<String> tasks,
             @Convert(converter = DelimitedListConverter.Tokens.class) List<String> flags,
             String directory, String mavenHome, List<String> environment, String label, Boolean returnStdout) {
+    }
+
+    @Embeddable
+    public record NexusDeliverySettingsEmbeddable(List<String> artifacts, String group, String artifact,
+            String repositoryUrl, Boolean allowInsecureProtocol,
+            @EmbeddedColumnNaming("PULL_%s") ToolCommandEmbeddable pull, List<String> pullArtifacts,
+            String pullOutputDirectory) {
     }
 
     @Embeddable

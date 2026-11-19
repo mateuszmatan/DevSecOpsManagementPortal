@@ -11,6 +11,7 @@ import com.bbh.itss.dso.portal.domain.catalog.DeploymentSettings
 import com.bbh.itss.dso.portal.domain.catalog.FlutterSettings
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.catalog.MetricsSettings
+import com.bbh.itss.dso.portal.domain.catalog.NexusDeliverySettings
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqApplication
 import com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings
 import com.bbh.itss.dso.portal.domain.catalog.NodeBuildSettings
@@ -122,7 +123,8 @@ final class Fixtures {
         ServiceSettings.builder().build(build).nodeBuild(args.nodeBuild as NodeBuildSettings)
                 .unitTests(args.unitTests as UnitTestSettings)
                 .tests(args.tests as TestSettings).testJobs(args.testJobs as List<TestJob>).deployment(deployment)
-                .delivery(delivery).urbanCode(args.urbanCode as UrbanCodeSettings)
+                .delivery(delivery).nexusDelivery(args.nexusDelivery as NexusDeliverySettings)
+                .urbanCode(args.urbanCode as UrbanCodeSettings)
                 .urbanCodeApplications(args.urbanCodeApplications as List<UrbanCodeApplicationSettings>)
                 .sshTargets(args.sshTargets as Map<Region, SshTarget>)
                 .openShiftTargets(args.openShiftTargets as Map<Region, OpenShiftTarget>)
@@ -196,6 +198,9 @@ final class Fixtures {
                         TestJob.builder().stage(PERFORMANCE).job('https://jenkins-qc.bbh.com/job/load/').build()])
                 .deployment(new DeploymentSettings(VM, "cert-${name}", "cert-${name}.war", 'cert-base', true))
                 .delivery(fullCommand('delivery'))
+                .nexusDelivery(NexusDeliverySettings.builder().artifacts(["target/cert-${name}.war" as String, 'target/docs.zip docs'])
+                        .group('com.bbh.cert').artifact("cert-${name}" as String).pull(fullCommand('pull'))
+                        .pullArtifacts(["cert-${name}.war" as String, 'docs.zip docs']).pullOutputDirectory('nexus').build())
                 .urbanCode(new UrbanCodeSettings('BBH-RD', 'Deploy', true, false, true, false, true, 'release', 'a=b'))
                 .urbanCodeApplications([
                         UrbanCodeApplicationSettings.builder().applicationName('Cert').order(1)
