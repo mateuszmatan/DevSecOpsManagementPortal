@@ -37,7 +37,7 @@ class ServiceFormsMigrationSpec extends MigrationSpecification {
         service(pay, 'gateway', 0, null)
 
         when:
-        liquibase.update('')
+        updateBefore('040-')
 
         then:
         columns('DSO_PRODUCT').intersect(PRODUCT_ACCOUNT) == []
@@ -62,10 +62,33 @@ class ServiceFormsMigrationSpec extends MigrationSpecification {
                 [CERT: ['bbh_api', 'api-secret'], PAY: [null, null]]
 
         when:
-        liquibase.update('')
+        updateBefore('040-')
 
         then:
         serviceKeys() == [api: ['bbh_api', 'api-secret'], gateway: [null, null], gui: ['bbh_api', 'cert-secret']]
+    }
+
+    def "040 drops the AppScan key of every service, and its rollback brings the columns back empty"() {
+        given:
+        liquibase.update('')
+        rollBackSince('040-')
+        long orders = insert('DSO_PRODUCT', [CODE: 'ORD', NAME: 'Orders'])
+        service(orders, 'orders-gui', 0, 'orders-secret')
+        jdbc.update("UPDATE DSO_SERVICE SET APPSCAN_KEY_ID = 'bbh_orders' WHERE NAME = 'orders-gui'")
+
+        when:
+        liquibase.update('')
+
+        then:
+        columns('DSO_SERVICE').intersect(['APPSCAN_KEY_ID', 'APPSCAN_SECRET_CREDENTIALS_ID']) == []
+        jdbc.queryForList("SELECT APPSCAN_APP_ID FROM DSO_SERVICE WHERE NAME = 'orders-gui'", String) ==
+                ['109f44ac-cc06-4ca0-884e-d944904f7019']
+
+        when:
+        rollBackSince('040-')
+
+        then:
+        serviceKeys()['orders-gui'] == [null, null]
     }
 
     private void service(long productId, String name, int displayOrder, String secretCredentialsId) {

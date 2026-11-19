@@ -108,16 +108,16 @@ class ConfigSectionsSpec extends Specification {
     def "AppScan settings store the application ID in lower case and start at the library's defaults"() {
         when:
         def appScan = new AppScanSettings(' 109F44AC-CC06-4CA0-884E-D944904F7019 ', [' src ', '', 'src', null], null,
-                null, null, null, null, ' ', null, null, ' ', ' ', null, ' bbh_key ', ' ')
+                null, null, null, null, ' ', null, null, ' ', ' ', ' ')
 
         then:
         appScan == new AppScanSettings(APP_ID, ['src'], [], true, false, false, false, null, NONE, false, null, null,
-                null, 'bbh_key', null)
+                null)
         written { appScan.writeTo(it, GRADLE) } ==
-                [appId: APP_ID, includedDirs: 'src', asoc: [keyId: 'bbh_key'], dast: [enabled: false]]
-        written { AppScanSettings.of(APP_ID, 'bbh_key').writeTo(it, MAVEN) } ==
-                [appId: APP_ID, asoc: [keyId: 'bbh_key'], dast: [enabled: false]]
-        AppScanSettings.of(null, null).applicationId() == null
+                [appId: APP_ID, includedDirs: 'src', dast: [enabled: false]]
+        written { AppScanSettings.of(APP_ID).writeTo(it, MAVEN) } ==
+                [appId: APP_ID, dast: [enabled: false]]
+        AppScanSettings.of(null).applicationId() == null
     }
 
     def "every AppScan option that differs from the library's default is written"() {
@@ -125,13 +125,12 @@ class ConfigSectionsSpec extends Specification {
         def compileCommand = ToolCommand.builder().tasks(['compileJava']).flags(['--offline']).directory('gui')
                 .mavenHome('/opt/maven').environment(['JAVA_OPTS=-Xmx2g']).build()
         def appScan = new AppScanSettings(APP_ID, ['src/main', ' lib '], ['src/test'], false, true, true, true,
-                ' /opt/appscan ', compileCommand, true, ' https://rdl1.testbbh.com ', ' p-1 ', ' cert-secret ',
-                ' bbh_key ', ' cert-gui-sast ')
+                ' /opt/appscan ', compileCommand, true, ' https://rdl1.testbbh.com ', ' p-1 ', ' cert-gui-sast ')
 
         expect:
         written { appScan.writeTo(it, GRADLE) } ==
                 [appId      : APP_ID, includedDirs: 'src/main,lib', excludedDirs: 'src/test', appscanPath: '/opt/appscan',
-                 asoc       : [keyId    : 'bbh_key', token: 'cert-secret', doCompile: false, sourceCodeOnly: true,
+                 asoc       : [doCompile: false, sourceCodeOnly: true,
                                useAppScanConfig: true, insecureTls: true,
                                gradle   : [tasks: ['compileJava'], flags: ['--offline'], dir: 'gui',
                                            env  : [JAVA_OPTS: '-Xmx2g']]],
@@ -141,7 +140,7 @@ class ConfigSectionsSpec extends Specification {
 
     def "the AppScan compile command goes under asoc.#key for #tool"() {
         given:
-        def appScan = AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key')
+        def appScan = AppScanSettings.builder().applicationId(APP_ID)
                 .compileCommand(ToolCommand.builder().tasks(['compile']).mavenHome('/opt/maven').build()).build()
 
         expect:
@@ -149,25 +148,25 @@ class ConfigSectionsSpec extends Specification {
 
         where:
         tool      || key         | asoc
-        GRADLE    || 'gradle'    | [keyId: 'bbh_key', gradle: [tasks: ['compile']]]
-        MAVEN     || 'maven'     | [keyId: 'bbh_key', maven: [goals: ['compile'], mvnPath: '/opt/maven']]
-        LIQUIBASE || 'liquibase' | [keyId: 'bbh_key', liquibase: [commands: ['compile']]]
-        FLUTTER   || 'none'      | [keyId: 'bbh_key']
+        GRADLE    || 'gradle'    | [gradle: [tasks: ['compile']]]
+        MAVEN     || 'maven'     | [maven: [goals: ['compile'], mvnPath: '/opt/maven']]
+        LIQUIBASE || 'liquibase' | [liquibase: [commands: ['compile']]]
+        FLUTTER   || 'none'      | null
     }
 
-    def "every service needs its AppScan key ID, and enabled DAST needs a target URL"() {
+    def "every service needs its AppScan application ID, and enabled DAST needs a target URL"() {
         expect:
         reported { dast(null).validate(it, GRADLE) }.collect { [it.field, it.message] } ==
                 [['dastTargetUrl', 'is required when DAST is enabled']]
         problems { dast('https://x').validate(it, GRADLE) } == []
-        problems { AppScanSettings.of(APP_ID, 'bbh_key').validate(it, MAVEN) } == []
-        reported { AppScanSettings.of(APP_ID, ' ').validate(it, MAVEN) }.collect { [it.field, it.message] } ==
-                [['keyId', 'is required']]
+        problems { AppScanSettings.of(APP_ID).validate(it, MAVEN) } == []
+        reported { AppScanSettings.of(' ').validate(it, MAVEN) }.collect { [it.field, it.message] } ==
+                [['applicationId', 'is required']]
     }
 
     def "a #tool compile command that sets #description reports #fields"() {
         given:
-        def appScan = AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key').compile(compile)
+        def appScan = AppScanSettings.builder().applicationId(APP_ID).compile(compile)
                 .compileCommand(command).build()
 
         expect:
@@ -399,13 +398,12 @@ class ConfigSectionsSpec extends Specification {
         written { SonarSettings.builder().serverUrl(' https://sonar.bbh.com ').build().writeTo(it, GRADLE) } ==
                 [tools: [sonar: [serverUrl: 'https://sonar.bbh.com']]]
         written {
-            AppScanSettings.builder().applicationId(APP_ID).keyId(' bbh_key ').secretCredentialsId(' cert-secret ')
-                    .scanName(' cert-gui-sast ').build().writeTo(it, GRADLE)
-        }.subMap(['asoc', 'sast']) == [asoc: [keyId: 'bbh_key', token: 'cert-secret'], sast: [scanName: 'cert-gui-sast']]
+            AppScanSettings.builder().applicationId(APP_ID).scanName(' cert-gui-sast ').build().writeTo(it, GRADLE)
+        }.subMap(['asoc', 'sast']) == [sast: [scanName: 'cert-gui-sast']]
     }
 
     private static AppScanSettings dast(String targetUrl) {
-        AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key').dastEnabled(true).dastTargetUrl(targetUrl)
+        AppScanSettings.builder().applicationId(APP_ID).dastEnabled(true).dastTargetUrl(targetUrl)
                 .build()
     }
 }

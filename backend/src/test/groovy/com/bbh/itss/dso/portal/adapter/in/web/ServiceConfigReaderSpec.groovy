@@ -26,6 +26,7 @@ import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.MAX_LENGTH
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigFileParser.SELF_REFERENCE
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.SECRET
 import static com.bbh.itss.dso.portal.adapter.in.web.ConfigInput.UNKNOWN
+import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.APPSCAN_KEY
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.GLOBAL
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.LONG_PATHS
 import static com.bbh.itss.dso.portal.adapter.in.web.ServiceConfigReader.MAX_PROJECTS
@@ -497,10 +498,10 @@ class ServiceConfigReaderSpec extends Specification {
         result.services()*.name() == ['gui', 'backend-api']
         result.pipeline() == null
         result.notes() == []
-        result.services()[0].notes() == [problem('jenkins.pipeline.extendedPipeline', PIPELINE),
+        result.services()[0].notes() == [problem('asoc.keyId', APPSCAN_KEY), problem('jenkins.pipeline.extendedPipeline', PIPELINE),
                                          problem('asoc.keySecret', SECRET), problem('influx.token', SECRET),
                                          problem('sca.scanName', UNKNOWN), problem('dast.scanName', UNKNOWN)]
-        result.services()[1].notes() == [problem('asoc.keySecret', SECRET), problem('influx.token', SECRET),
+        result.services()[1].notes() == [problem('asoc.keyId', APPSCAN_KEY), problem('asoc.keySecret', SECRET), problem('influx.token', SECRET),
                                          problem('sca.scanName', UNKNOWN), problem('dast.scanName', UNKNOWN),
                                          problem('build.maven.javaPath', UNKNOWN)]
         !json.writeValueAsString(result).contains('O4c95brMewp')
@@ -508,9 +509,7 @@ class ServiceConfigReaderSpec extends Specification {
         with(gui) {
             [build.tool(), build.sourceDir(), build.javaPath()] == [GRADLE, '.', '/usr/lib/jvm/java-17-openjdk']
             [build.command().tasks(), build.command().flags()] == [['clean', 'build', 'bootJar'], ['--refresh-dependencies']]
-            [appScan.applicationId(), appScan.keyId(), appScan.secretCredentialsId(), appScan.scanName()] ==
-                    ['209f44ac-dd06-4ca0-884e-d944904f8020', 'bbh_b81fbc9f-39c1-8eb4-38b5-b702268969b9', null,
-                     'CertScanner-GUI-SAST']
+            [appScan.applicationId(), appScan.scanName()] == ['209f44ac-dd06-4ca0-884e-d944904f8020', 'CertScanner-GUI-SAST']
             [appScan.dastEnabled(), appScan.dastTargetUrl(), appScan.dastPresenceId()] ==
                     [true, 'http://rdltaapps1.testbbh.com', null]
             metrics == new MetricsSettingsDto(true, 'CertScanner', 'test', null, null)
@@ -750,7 +749,7 @@ class ServiceConfigReaderSpec extends Specification {
                     .contexts('rd').labels('core').defaultSchema('APP').liquibaseSchema('LB').parameters(['a=1'])
                     .timeoutMinutes(45).build()],
             appScan: appScan(includedDirs: ['orders-db'], useConfigFile: true, insecureTls: true, clientPath: '/opt/appscan',
-                    secretCredentialsId: 'orders-secret', scanName: 'orders-db-sast'),
+                    scanName: 'orders-db-sast'),
             sonar: SonarSettings.of('Orders DB', 'bbh-orders-db', ToolCommand.of([], ['-Dsonar.sources=db'])),
             scm: ScmSettings.of('https://bitbucket.bbh.com/projects/ORD/repos/orders', 'bitbucket-http-credentials'),
             tests: MAVEN_VM.tests(), testJobs: MAVEN_VM.testJobs(), metrics: MAVEN_VM.metrics())

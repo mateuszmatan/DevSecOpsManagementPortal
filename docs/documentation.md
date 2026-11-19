@@ -119,7 +119,7 @@ A service has sections. The left-hand list of the service form shows them. A red
 | UrbanCode Deploy | Virtual machines only: the UrbanCode Deploy applications and components. |
 | SSH targets | Virtual machines only: the hosts of the RD and QC test regions. |
 | OpenShift targets | OpenShift only: the build and deployment projects of each region. |
-| AppScan SAST and DAST | The AppScan application, the API key and the static and dynamic scans. |
+| AppScan SAST and DAST | The AppScan application and the static and dynamic scans. |
 | SonarQube | The SonarQube project and the analysis command. |
 | Nexus IQ | The Nexus IQ application and its scan patterns. |
 | Bitbucket | The repository where GoldenFix opens its pull requests. |
@@ -144,7 +144,7 @@ The admin editor always shows every section that applies. Once the changelog fil
 
 Fields marked * are required. Some fields are required only in a situation:
 
-- The service name, the AppScan application ID and the AppScan API key ID are always required. Every pipeline, the Nexus IQ GoldenFix pipeline included, signs in to AppScan with the key of the service.
+- The service name and the AppScan application ID are always required. A service has no AppScan API key: every pipeline signs in to AppScan on Cloud with the API key of the functional user, which the DevSecOps team keeps in the defaults of the library (`asoc.keyId` and `asoc.token` of `resources/com/bbh/devsecops/defaults.yaml`).
 - The Gradle tasks or Maven goals of the build are required, except for Flutter and Liquibase.
 - The JDK path is required for Flutter and while "Set up the build tool automatically" is off, except for a Liquibase service without database changes.
 - The artifact path is required for a Maven service on virtual machines that delivers to Nexus.
@@ -171,7 +171,7 @@ The Self-service wizard is the easiest way to set up the pipelines of a product.
 
 Have these at hand:
 
-- The name of each service, its AppScan application ID and the AppScan API key ID. The DevSecOps team gives you the AppScan values.
+- The name of each service and its AppScan application ID. The DevSecOps team gives you the application ID and adds the application to the AppScan functional user.
 - Whether each service is built with Gradle or Maven. A developer of the service knows.
 - The folder of its `package.json` when Node.js builds its frontend first.
 - For the OSA pipeline: the Nexus IQ application and the Bitbucket repository of each service.
@@ -203,7 +203,7 @@ In a repository with Java and database code, add the Liquibase service first.
 4. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.
 5. In Build, choose or verify the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven, "The code has a pubspec.yaml file" means Flutter and "The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties" means Liquibase (SQL / PL/SQL); for its commands and its database changes see [chapter 7](#add-a-liquibase-service-in-the-wizard). The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
 6. If the repository holds a frontend that npm builds, for example an Angular application, tick "Build the frontend with Node.js first". Type the "Folder with package.json", for example `frontend`. Leave the other Node.js fields as they are. See [chapter 6](#6-build-the-frontend-with-nodejs-first-stage-0).
-7. In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.
+7. In AppScan SAST and DAST, type the AppScan application ID. There is no API key to type: the library signs in with the key of the functional user.
 8. For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.
 9. For the Full pipeline on virtual machines, add an UrbanCode Deploy application for DV.
 10. For the Security and Full pipelines, choose Virtual machine or OpenShift in Deployment. On OpenShift, fill in the RD build fields of OpenShift targets.
@@ -463,7 +463,7 @@ Four parties prepare a service with database changes. A service without database
 7. Under "Test database, for the utPLSQL tests", "RD, the lower test region" and "QC, the higher test region", type the JDBC URL and the Credentials ID of each database the pipelines deploy to. Leave a database empty when the pipelines do not deploy to it.
 8. To run the utPLSQL tests, tick "Run the utPLSQL tests" under the test database. Type the "Folder of the packages" and the "Folder of the test packages", such as `db/code` and `db/test`.
 9. Under "Package and Nexus delivery", type the Group ID, such as `com.bbh.orders`. The Full and Security pipelines need it while "Deliver the package to Nexus" is ticked. While the Library defaults name no Nexus repositories for database packages, the repository fields appear here as well and need values; otherwise they are under Advanced settings.
-10. In AppScan SAST and DAST, type the AppScan application ID and the AppScan API key ID, as for every service.
+10. In AppScan SAST and DAST, type the AppScan application ID, as for every service.
 11. For the Security and Full pipelines of a service without database changes, choose the deployment as for every service ([step 3 of chapter 4](#step-3-services)).
 12. For the Security and Full pipelines, type the SonarQube project key; left empty, the library uses `com.bbh:<service name>`. A service with database changes is analysed only on a SonarQube server that analyses PL/SQL; otherwise its SonarQube stage is not required.
 13. When nothing is missing, click "Add service".
@@ -787,8 +787,6 @@ projects:
     appId:     "<AppScan application id>"
     buildTool: liquibase
     javaPath:  /usr/lib/jvm/java-17-openjdk        # or buildToolAutoSetup: true
-    asoc:
-      keyId: "<AppScan key id>"
     database:
       changelogFile: db/changelog-master.xml
       package:
@@ -797,7 +795,7 @@ projects:
         releaseRepository:  {id: bbh-db-releases,  url: "https://tools.bbh.com/nexus/repository/db-releases"}
 ```
 
-The SAST pipeline needs only `appId`, `buildTool`, `javaPath` or `buildToolAutoSetup`, `asoc.keyId` and `database.changelogFile`. Without Nexus, `database.package.nexusDelivery: false` replaces the group ID and the repositories.
+The SAST pipeline needs only `appId`, `buildTool`, `javaPath` or `buildToolAutoSetup` and `database.changelogFile`. Without Nexus, `database.package.nexusDelivery: false` replaces the group ID and the repositories.
 
 ### Production deployments from the package
 
@@ -1058,8 +1056,6 @@ Database passwords, users inside JDBC URLs and production databases are never im
 
 A copy keeps the Bitbucket credentials ID of its source, even an empty one. In the admin editor, a copy also keeps an empty repository URL, so a copy of a service without a repository needs no credentials ID. In the Self-service dialog, the service template fills in an empty repository URL from the name, and a copy without a Bitbucket credentials ID then needs one.
 
-A new service in the Self-service wizard also takes the AppScan API key ID of another service of the product.
-
 ## 11. GoldenFix
 
 GoldenFix runs in the Nexus IQ stage of the Full, Security and Nexus IQ GoldenFix pipelines. When Nexus IQ reports a policy violation, it looks up a safe version, changes the build files, builds the service and opens a pull request in the Bitbucket repository of the service. A developer of the service reviews and merges it.
@@ -1083,7 +1079,7 @@ GoldenFix runs in the Nexus IQ stage of the Full, Security and Nexus IQ GoldenFi
 
 ### The policy fields
 
-Three rules are fixed by the library and have no field: GoldenFix changes only direct dependencies, it changes only the last number of a version (the patch, so `1.2.3` may become `1.2.4` but never `1.3.0`, and a dependency without such a version is left untouched), and it opens a pull request only after the pre-check build of the changed manifests has passed. A shared version catalog repository is built the same way before its pull request.
+Three rules are fixed by the library and have no field: GoldenFix changes only direct dependencies, it changes only the last number of a version (the patch, so `1.2.3` may become `1.2.4` but never `1.3.0`, and a dependency without such a version is left untouched), and it opens a pull request only after the pre-check build of the changed manifests and their unit tests have passed. A shared version catalog repository is built the same way before its pull request.
 
 | Field | Meaning |
 |-------|---------|
@@ -1091,9 +1087,9 @@ Three rules are fixed by the library and have no field: GoldenFix changes only d
 | Minimum threat level | Only violations that Nexus IQ rates at least this high, from 0 to 10. 2 and above is moderate, 4 and above severe, 8 and above critical. |
 | Golden version types | The Nexus IQ remediation types labelled Nexus IQ Golden Version in the pull request. |
 | Excluded folders | Folder names, at any depth, whose manifests GoldenFix leaves alone. A list replaces the library list of `.git`, `node_modules`, `target`, `build` and similar folders. |
-| Attempts | How many pre-check builds GoldenFix may run. When a build fails, it lowers the versions and builds again. |
+| Attempts | How many pre-check builds GoldenFix may run. When a build or a unit test fails, it lowers the versions and builds again. |
 | Timeout (minutes) | The limit of each check: one check for each folder in which a changed manifest or catalog is built. |
-| Maven, Gradle, npm, pip, pub and NuGet command | The command that builds the fix. Left empty, the library runs `mvn -B -q -DskipTests compile`, `./gradlew --no-daemon --console=plain classes`, `npm ci --ignore-scripts`, `python3 -m pip install --dry-run`, `flutter pub get` or `dotnet build --no-incremental` (`nuget restore` and `MSBuild` on Windows). |
+| Maven, Gradle, npm, pip, pub and NuGet command | The command that builds the fix and runs its unit tests. Left empty, the library runs `mvn -B -q test`, `./gradlew --no-daemon --console=plain test`, `npm ci --ignore-scripts` followed by `npm test` when `package.json` has a test script, `pip install` in a temporary virtual environment followed by `pytest` (a folder without tests passes), `flutter pub get` and `flutter test` (`dart pub get` and `dart test` for a Dart package) or `dotnet test`. On Windows a classic .NET Framework project is restored with `nuget restore` and built with `MSBuild`, without its tests. |
 | Author name, Author e-mail | The author of the GoldenFix commit. |
 | Time zone | The time zone of the branch and pull request name `GoldenFix-YYYYMMDDHHMM`. |
 
@@ -1379,19 +1375,16 @@ The library leaves a Liquibase service with database changes alone: it resolves 
 devSecOpsPipeline(pipelineKey: '<key from DevSecOps portal>')
 ```
 
-#### 2. Standalone Version without Portal (DSOEnhancedWithoutPortal and DSOEnhancedAppScanApiOnly)
+#### 2. Standalone Version without Portal (DSOEnhancedWithoutPortal)
 - **Default Mode**: `autoresolve parameters: true` is enabled by default in `devsecops_config.yaml`.
 - **Minimal Configuration**:
 ```yaml
 projects:
   payment-service:
     appId: "APP-12345"
-    asoc:
-      keyId: "11111111-2222-3333-4444-555555555555"
-      token: "APPSCAN_CREDENTIALS_ID"
 ```
 - **Disabling Auto-Resolve**: Set `autoresolve parameters: false` under the service to enforce strict manual configuration.
-- **REST API SAST (`DSOEnhancedAppScanApiOnly`)**: Authenticates via AppScan REST API v4, isolates SAST credentials (`sast.keyId`, `sast.token`), and ignores findings marked as `Noise`.
+- **REST API SAST**: SAST and DAST go through the AppScan on Cloud REST API v4 and sign in with the one API key of the functional user from the library defaults (`asoc.keyId`, `asoc.token`); a key in `devsecops_config.yaml` is ignored with a warning, and findings marked as `Noise` are left out.
 
 ### REST API of the auto-discovery
 
@@ -1726,8 +1719,6 @@ Each region has its own section: `deploy.openshift.rd` and `deploy.openshift.qc`
 | Field | Key | Notes |
 |-------|-----|-------|
 | AppScan application ID | `appId` | required; when multiple services in the same repository share the same appId, the SAST scan runs only once and findings are reused. Services across different repositories must have distinct appIds. |
-| AppScan API key ID | `asoc.keyId` | required |
-| API key secret credentials ID | `asoc.token` | left empty: the key ID names the credential |
 | Run DAST against the deployed application | `dast.enabled` | Full pipeline |
 | DAST target URL | `dast.targetUrl` | |
 | Presence ID | `dast.presenceId` | |
@@ -2006,11 +1997,18 @@ Before 037 these checks refused the build tool Liquibase, which the form and the
 > [!WARNING]
 > A rollback of 037 stops at the build tool checks while a service has the build tool Liquibase (SQL / PL/SQL). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.
 
+### Upgrade note: changeset 040
+
+Changeset 040 (`040-drop-service-appscan-key`) drops `APPSCAN_KEY_ID` and `APPSCAN_SECRET_CREDENTIALS_ID` from `DSO_SERVICE`. The library signs in to AppScan on Cloud with the one API key of the functional user, which the DevSecOps team sets in `asoc.keyId` and `asoc.token` of `resources/com/bbh/devsecops/defaults.yaml` of the library, so a service keeps only its AppScan application ID. The configuration sent to Jenkins no longer holds `asoc.keyId` or `asoc.token`, and an imported `devsecops_config.yaml` that sets them gets a note that they are not imported.
+
+> [!WARNING]
+> The key IDs and credential IDs of the services are dropped with the columns, and a rollback brings the columns back empty. Before the upgrade, make sure the key of the functional user is in the defaults of the library.
+
 ## 22. Troubleshooting
 
 ### "Add service" stays disabled
 
-The text next to the button names the missing fields, for example "Complete these fields first: AppScan API key ID". Click a field name. The form opens its section, under Advanced settings if needed, and puts the cursor in the field.
+The text next to the button names the missing fields, for example "Complete these fields first: AppScan application ID". Click a field name. The form opens its section, under Advanced settings if needed, and puts the cursor in the field.
 
 ### A service shows "Needs attention"
 

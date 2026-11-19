@@ -22,7 +22,6 @@ import static com.bbh.itss.dso.portal.domain.catalog.TestStage.SMOKE
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE
 import static com.bbh.itss.dso.portal.support.Fixtures.APP_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.JDK
-import static com.bbh.itss.dso.portal.support.Fixtures.KEY_ID
 import static com.bbh.itss.dso.portal.support.Fixtures.appScan
 import static com.bbh.itss.dso.portal.support.Fixtures.build
 import static com.bbh.itss.dso.portal.support.Fixtures.command
@@ -318,7 +317,7 @@ class ServiceSettingsSpec extends Specification {
 
         when:
         def problems = reported(settings(build: build(command: command), nodeBuild: nodeBuild,
-                appScan: AppScanSettings.builder().applicationId(APP_ID).keyId('bbh_key').includedDirs(longDirs)
+                appScan: AppScanSettings.builder().applicationId(APP_ID).includedDirs(longDirs)
                         .excludedDirs(['test']).compile(false).compileCommand(command).build(),
                 scm: ScmSettings.builder().repositoryUrl(REPO).credentialsId('bb-creds').reviewers(reviewers).build(),
                 goldenFix: GoldenFixPolicy.builder().excludeDirs(longDirs).build(), versionCatalogs: longDirs))
@@ -436,7 +435,7 @@ class ServiceSettingsSpec extends Specification {
                                            flags   : ['--changelog-file=db/changelog/db.changelog-master.xml']],
                                node     : [enabled: true, dir: 'web', commands: ['npm ci']]],
             deployTarget    : 'vm', appName: 'billing', baseArtifactName: 'billing-db', appId: APP_ID,
-            asoc            : [keyId: KEY_ID, liquibase: [commands: ['updateSQL']]],
+            asoc            : [liquibase: [commands: ['updateSQL']]],
             dast            : [enabled: true, targetUrl: 'https://billing.rd.bbh.com'],
             influx          : [enabled: true, env: 'test'],
             tests           : [unitTests: [liquibase: [commands: ['validate']], unitTestResult: '**/utplsql/*.xml'],

@@ -18,9 +18,9 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
     - `requirements.txt` / `pyproject.toml` / `setup.py` / `Pipfile` -> Python is recognised, but the portal has no Python build tool, so the scan fills in no build tool and no commands.
     - `Dockerfile` / `Containerfile` / `openshift/` / `k8s/` / `helm/` -> OpenShift deployment target (`OPENSHIFT`).
     - SonarQube default configuration -> Checks for `sonar-project.properties`; if missing, automatically infers `com.bbh:<projectKey>`, discovers multi-module configurations from Maven/Gradle manifests, detects sources/tests, and auto-fills `tools.sonar.projectKey`.
-  - Pipeline runtime auto-resolution (`RepoStackAutoResolver`) enabled by default (`autoresolve parameters: true`) across both portal-integrated and standalone execution modes, allowing minimal configurations (`appId`, `asoc.keyId`, `asoc.token`).
-- **AppScan SAST Credential Isolation & REST API v4**:
-  - Isolated SAST credentials (`sast.keyId`, `sast.token`) from DAST credentials (`dast.keyId`, `dast.token`), preventing credential mismatch errors during REST API authentication.
+  - Pipeline runtime auto-resolution (`RepoStackAutoResolver`) enabled by default (`autoresolve parameters: true`) across both portal-integrated and standalone execution modes, allowing minimal configurations (`appId` only).
+- **AppScan REST API v4**:
+  - The library signs in to AppScan on Cloud through the REST API v4 with the one API key of the functional user from its defaults, for SAST and DAST of every service.
   - Automatically filters out findings with status `Noise` from AppScan SAST reports.
 - **Bitbucket Pull Request Decoration & Shift-Left Feedback**:
   - Direct pull request decoration endpoint (`POST /api/dso/bitbucket/pull-requests/decorate`):
@@ -95,6 +95,8 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
   - Added help icons (`dso-help`) with descriptive tooltips across all form fields in the portal.
 
 ### Changed
+- **One AppScan API key for every service**: the AppScan API key ID and the secret credentials ID are gone from the service form, the Self-service wizard, the API (`appScan.keyId`, `appScan.secretCredentialsId`) and the rendered configuration (`asoc.keyId`, `asoc.token`). The library signs in with the API key of the functional user, which the DevSecOps team sets in `asoc.keyId` and `asoc.token` of its `resources/com/bbh/devsecops/defaults.yaml`; a service needs only its AppScan application ID. The import of a `devsecops_config.yaml` notes `asoc.keyId` and `asoc.token` as not imported. Liquibase changeset 040 drops `APPSCAN_KEY_ID` and `APPSCAN_SECRET_CREDENTIALS_ID` from `DSO_SERVICE`.
+- **GoldenFix pre-check runs the unit tests**: the help texts of the GoldenFix commands name the new library defaults, which build the fix and run its unit tests (`mvn -B -q test`, `./gradlew test`, `npm test`, `pytest`, `flutter test` or `dart test`, `dotnet test`); classic .NET Framework projects on Windows are still only restored and built.
 - **GoldenFix rules are fixed**: the library raises only direct dependencies, only to a patch-level version (`1.2.3` may become `1.2.5`, never `1.3.0` or `2.0.0`), and opens a pull request only after the pre-check build of the upgraded manifests passes. The settings *Only direct dependencies* and *Verify with a build* are removed from the service form, the global settings and the API; `goldenFix.onlyDirectDependencies` and `goldenFix.verify.enabled` are no longer written, and an imported configuration that still carries them is accepted and the keys are ignored. The old `DSO_SERVICE` and `DSO_GLOBAL_SETTINGS` columns stay in the database, unmapped.
 - **NuGet in GoldenFix**: `nuget` joins the GoldenFix ecosystems (also in the global defaults), and the pre-check command for NuGet is written as `goldenFix.verify.commands.nuget`. Liquibase changeset 039 adds `GOLDEN_FIX_VERIFY_NUGET` to `DSO_SERVICE` and `DSO_GLOBAL_SETTINGS`.
 

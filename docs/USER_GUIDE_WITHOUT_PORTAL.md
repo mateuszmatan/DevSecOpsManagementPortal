@@ -24,7 +24,7 @@
 - [14. Auto-Resolve in Standalone Mode (`autoresolve parameters: true`)](#14-auto-resolve-in-standalone-mode-autoresolve-parameters-true)
 - [15. Auto-Resolved Parameters Reference](#15-auto-resolved-parameters-reference)
 - [16. Bitbucket Pull Request Decoration & Shift-Left Feedback](#16-bitbucket-pull-request-decoration--shift-left-feedback)
-- [17. SAST REST API & Credential Isolation](#17-sast-rest-api--credential-isolation)
+- [17. SAST REST API and the AppScan API key](#17-sast-rest-api-and-the-appscan-api-key)
 
 ---
 
@@ -133,12 +133,9 @@ Static security analysis executed in the cloud:
   - Generates the IRX archive and submits the scan to HCL ASOC in the background.
   - Unit tests and Nexus IQ execute concurrently while ASOC processes the code. Results are retrieved at the end of the static stage.
 - **Credentials Configuration:**
-  - Configured per service in the `asoc:` section:
+  - A service sets only its application ID. SAST and DAST sign in with the one API key of the AppScan on Cloud functional user, which the DevSecOps team keeps in `asoc.keyId` and `asoc.token` of `resources/com/bbh/devsecops/defaults.yaml` of the library; a key in `devsecops_config.yaml` is ignored with a `[WARN]` line:
     ```yaml
-    asoc:
-      keyId: 'asoc-key-id-backend'
-      token: 'asoc-secret-id-backend'
-      appId: '10982'
+    appId: '10982'
     ```
 - **Custom Scan Name:**
   - Optional `sast.scanName` defines custom scan naming in ASOC.
@@ -276,10 +273,7 @@ projects:
       # reportPath: empty = auto-detect JaCoCo XML & LCOV throughout project
 
     # 4. Static Application Security Testing (HCL AppScan SAST)
-    asoc:
-      keyId: 'asoc-key-id-backend'                # Jenkins credentials ID
-      token: 'asoc-secret-id-backend'             # Jenkins credentials ID
-      appId: '10982'                              # Application ID in HCL ASOC
+    appId: '10982'                                # Application ID in HCL ASOC; the API key is the functional user's one in the library defaults
     sast:
       scanName: 'PAYHUB-BACKEND-API'              # Optional custom scan label
 
@@ -335,10 +329,7 @@ projects:
     coverage:
       minimum: 80
 
-    asoc:
-      keyId: 'asoc-key-id-gui'
-      token: 'asoc-secret-id-gui'
-      appId: '10983'
+    appId: '10983'
 
     tools:
       nexusIq:
@@ -377,7 +368,7 @@ projects:
 | `unitTests.cypress.command` | Custom Cypress command | `npx cypress run --component` | <span class="badge badge-optional">OPTIONAL</span> |
 | `unitTests.cypress.reportsDir` | Cypress JUnit reports dir | `cypress/results` | <span class="badge badge-optional">OPTIONAL</span> |
 | `coverage.minimum` | Quality gate threshold | `80` | <span class="badge badge-default">DEFAULT 80</span> |
-| `asoc.keyId` & `asoc.token` | AppScan SAST credentials | `asoc-cred-id` (from Jenkins) | <span class="badge badge-required">YES</span> |
+| `appId` | AppScan on Cloud application of the service; the API key (`asoc.keyId`, `asoc.token`) is the functional user's one in the library defaults | `10982` | <span class="badge badge-required">YES</span> |
 | `sast.scanName` | ASOC scan display name | `PAYHUB-NIGHTLY` | <span class="badge badge-optional">OPTIONAL</span> |
 | `tools.sonar.authToken` | SonarQube authentication secret | `sonar-token-id` | <span class="badge badge-required">YES</span> |
 | `tools.sonar.badgeToken` | Sonar badge token (raw) | `raw-token-string` | <span class="badge badge-optional">1 OF 2</span> |
@@ -396,14 +387,11 @@ The standalone library features automated repository stack detection (`RepoStack
 Auto-resolve is enabled by default (`autoresolve parameters: true`). Application teams can omit build tool details, compiler paths, Node.js directories, and Sonar properties from `devsecops_config.yaml`.
 
 ### Minimal Configuration Example:
-Application teams need to provide only the application ID and AppScan key ID in `devsecops_config.yaml`:
+Application teams need to provide only the application ID in `devsecops_config.yaml`; the AppScan API key is the one of the functional user in the library defaults:
 ```yaml
 projects:
   payment-service:
     appId: "APP-54321"
-    asoc:
-      keyId: "11111111-2222-3333-4444-555555555555"
-      token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
 ```
 
 The pipeline automatically resolves the build tool (Maven, Gradle, Liquibase, Flutter, or Python), compiler version, Stage 0 Node.js frontend, OpenShift target, and SonarQube properties from the repository workspace files.
@@ -417,9 +405,6 @@ projects:
     buildTool: maven
     deployTarget: vm
     appId: "APP-54321"
-    asoc:
-      keyId: "11111111-2222-3333-4444-555555555555"
-      token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
 ```
 
 ---
@@ -465,11 +450,11 @@ Security feedback is reported directly in Bitbucket Pull Requests:
 
 ---
 
-## 17. SAST REST API & Credential Isolation
+## 17. SAST REST API and the AppScan API key
 
-In `DSOEnhancedAppScanApiOnly`, static analysis communicates directly with HCL AppScan via REST API v4:
-- **Authentication:** Obtains an API bearer token using `sast.keyId` (or `asoc.keyId`) and `sast.token` (or `asoc.token`).
-- **Credential Isolation:** SAST authentication strictly uses SAST credentials and never uses DAST credentials (`dast.keyId`, `dast.token`), preventing authentication mismatch errors.
+Static analysis communicates directly with HCL AppScan on Cloud via REST API v4:
+- **Authentication:** Obtains an API bearer token with the one API key of the functional user, `asoc.keyId` and the Secret text credential named in `asoc.token` of `resources/com/bbh/devsecops/defaults.yaml` of the library. DAST reuses the token of SAST. A `keyId`, `token` or `credentialsId` under `asoc`, `sast` or `dast` of a service is ignored with a `[WARN]` line.
+- **No secret on the console:** the sign-in body is written to the temporary folder of the build and removed after the call.
 - **Noise Filtering:** Findings marked with status `Noise` in the AppScan portal are filtered out and not counted against the release quality gate.
 
 

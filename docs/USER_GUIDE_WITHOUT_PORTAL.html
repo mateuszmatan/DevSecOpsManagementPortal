@@ -396,7 +396,7 @@ pre code {
 <li><a href='#disabling-auto-resolve' style='padding-left: 20px; font-size: 0.8rem;'>Disabling Auto-Resolve:</a></li>
 <li><a href='#15-auto-resolved-parameters-reference' ><span style='color:#94a3b8;font-weight:600;'>15.</span> Auto-Resolved Parameters Reference</a></li>
 <li><a href='#16-bitbucket-pull-request-decoration--shift-left-feedback' ><span style='color:#94a3b8;font-weight:600;'>16.</span> Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</a></li>
-<li><a href='#17-sast-rest-api--credential-isolation' ><span style='color:#94a3b8;font-weight:600;'>17.</span> SAST REST API &amp; Credential Isolation</a></li>
+<li><a href='#17-sast-rest-api-and-the-appscan-api-key' ><span style='color:#94a3b8;font-weight:600;'>17.</span> SAST REST API and the AppScan API key</a></li>
       </ul>
     </aside>
 
@@ -439,7 +439,7 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 <li><a href="#14-auto-resolve-in-standalone-mode-autoresolve-parameters-true">14. Auto-Resolve in Standalone Mode (<code>autoresolve parameters: true</code>)</a></li>
 <li><a href="#15-auto-resolved-parameters-reference">15. Auto-Resolved Parameters Reference</a></li>
 <li><a href="#16-bitbucket-pull-request-decoration--shift-left-feedback">16. Bitbucket Pull Request Decoration &amp; Shift-Left Feedback</a></li>
-<li><a href="#17-sast-rest-api--credential-isolation">17. SAST REST API &amp; Credential Isolation</a></li>
+<li><a href="#17-sast-rest-api-and-the-appscan-api-key">17. SAST REST API and the AppScan API key</a></li>
 </ul>
 <hr />
 <h2 id="1-overview-and-standalone-model">1. Overview and Standalone Model</h2>
@@ -535,12 +535,9 @@ devSecOpsPipeline(
 <li>Generates the IRX archive and submits the scan to HCL ASOC in the background.</li>
 <li>Unit tests and Nexus IQ execute concurrently while ASOC processes the code. Results are retrieved at the end of the static stage.</li>
 <li><strong>Credentials Configuration:</strong></li>
-<li>Configured per service in the <code>asoc:</code> section:
+<li>A service sets only its application ID. SAST and DAST sign in with the one API key of the AppScan on Cloud functional user, which the DevSecOps team keeps in <code>asoc.keyId</code> and <code>asoc.token</code> of <code>resources/com/bbh/devsecops/defaults.yaml</code> of the library; a key in <code>devsecops_config.yaml</code> is ignored with a <code>[WARN]</code> line:
     <code>yaml
-    asoc:
-      keyId: 'asoc-key-id-backend'
-      token: 'asoc-secret-id-backend'
-      appId: '10982'</code></li>
+    appId: '10982'</code></li>
 <li><strong>Custom Scan Name:</strong></li>
 <li>Optional <code>sast.scanName</code> defines custom scan naming in ASOC.</li>
 </ul>
@@ -661,10 +658,7 @@ projects:
       # reportPath: empty = auto-detect JaCoCo XML &amp; LCOV throughout project
 
     # 4. Static Application Security Testing (HCL AppScan SAST)
-    asoc:
-      keyId: 'asoc-key-id-backend'                # Jenkins credentials ID
-      token: 'asoc-secret-id-backend'             # Jenkins credentials ID
-      appId: '10982'                              # Application ID in HCL ASOC
+    appId: '10982'                                # Application ID in HCL ASOC; the API key is the functional user's one in the library defaults
     sast:
       scanName: 'PAYHUB-BACKEND-API'              # Optional custom scan label
 
@@ -720,10 +714,7 @@ projects:
     coverage:
       minimum: 80
 
-    asoc:
-      keyId: 'asoc-key-id-gui'
-      token: 'asoc-secret-id-gui'
-      appId: '10983'
+    appId: '10983'
 
     tools:
       nexusIq:
@@ -818,9 +809,9 @@ projects:
 <td style="text-align: center;"><span class="badge badge-default">DEFAULT 80</span></td>
 </tr>
 <tr>
-<td><code>asoc.keyId</code> &amp; <code>asoc.token</code></td>
-<td>AppScan SAST credentials</td>
-<td><code>asoc-cred-id</code> (from Jenkins)</td>
+<td><code>appId</code></td>
+<td>AppScan on Cloud application of the service; the API key (<code>asoc.keyId</code>, <code>asoc.token</code>) is the functional user's one in the library defaults</td>
+<td><code>10982</code></td>
 <td style="text-align: center;"><span class="badge badge-required">YES</span></td>
 </tr>
 <tr>
@@ -873,13 +864,10 @@ projects:
 <h3 id="default-behaviour">Default Behaviour:</h3>
 <p>Auto-resolve is enabled by default (<code>autoresolve parameters: true</code>). Application teams can omit build tool details, compiler paths, Node.js directories, and Sonar properties from <code>devsecops_config.yaml</code>.</p>
 <h3 id="minimal-configuration-example">Minimal Configuration Example:</h3>
-<p>Application teams need to provide only the application ID and AppScan key ID in <code>devsecops_config.yaml</code>:</p>
+<p>Application teams need to provide only the application ID in <code>devsecops_config.yaml</code>; the AppScan API key is the one of the functional user in the library defaults:</p>
 <pre><code class="language-yaml">projects:
   payment-service:
     appId: &quot;APP-54321&quot;
-    asoc:
-      keyId: &quot;11111111-2222-3333-4444-555555555555&quot;
-      token: &quot;APPSCAN_KEY_SECRET_CREDENTIAL_ID&quot;
 </code></pre>
 <p>The pipeline automatically resolves the build tool (Maven, Gradle, Liquibase, Flutter, or Python), compiler version, Stage 0 Node.js frontend, OpenShift target, and SonarQube properties from the repository workspace files.</p>
 <h3 id="disabling-auto-resolve">Disabling Auto-Resolve:</h3>
@@ -890,9 +878,6 @@ projects:
     buildTool: maven
     deployTarget: vm
     appId: &quot;APP-54321&quot;
-    asoc:
-      keyId: &quot;11111111-2222-3333-4444-555555555555&quot;
-      token: &quot;APPSCAN_KEY_SECRET_CREDENTIAL_ID&quot;
 </code></pre>
 <hr />
 <h2 id="15-auto-resolved-parameters-reference">15. Auto-Resolved Parameters Reference</h2>
@@ -1055,10 +1040,10 @@ projects:
 2. <strong>Dynamic Analysis Dedicated Pull Request</strong>:
    - DAST dynamic runtime findings are placed in a dedicated separate Pull Request to isolate runtime operational issues from source code changes.</p>
 <hr />
-<h2 id="17-sast-rest-api-credential-isolation">17. SAST REST API &amp; Credential Isolation</h2>
-<p>In <code>DSOEnhancedAppScanApiOnly</code>, static analysis communicates directly with HCL AppScan via REST API v4:
-- <strong>Authentication:</strong> Obtains an API bearer token using <code>sast.keyId</code> (or <code>asoc.keyId</code>) and <code>sast.token</code> (or <code>asoc.token</code>).
-- <strong>Credential Isolation:</strong> SAST authentication strictly uses SAST credentials and never uses DAST credentials (<code>dast.keyId</code>, <code>dast.token</code>), preventing authentication mismatch errors.
+<h2 id="17-sast-rest-api-and-the-appscan-api-key">17. SAST REST API and the AppScan API key</h2>
+<p>Static analysis communicates directly with HCL AppScan on Cloud via REST API v4:
+- <strong>Authentication:</strong> Obtains an API bearer token with the one API key of the functional user, <code>asoc.keyId</code> and the Secret text credential named in <code>asoc.token</code> of <code>resources/com/bbh/devsecops/defaults.yaml</code> of the library. DAST reuses the token of SAST. A <code>keyId</code>, <code>token</code> or <code>credentialsId</code> under <code>asoc</code>, <code>sast</code> or <code>dast</code> of a service is ignored with a <code>[WARN]</code> line.
+- <strong>No secret on the console:</strong> the sign-in body is written to the temporary folder of the build and removed after the call.
 - <strong>Noise Filtering:</strong> Findings marked with status <code>Noise</code> in the AppScan portal are filtered out and not counted against the release quality gate.</p>
         </div>
 

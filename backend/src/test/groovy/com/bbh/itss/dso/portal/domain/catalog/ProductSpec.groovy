@@ -85,7 +85,7 @@ class ProductSpec extends Specification {
         then:
         tree.get('buildTool') == 'gradle'
         tree.get('tests.smoke.jobs') == [[name: 'smoke', job: 'CERT/gui-smoke']]
-        tree.get('asoc') == [keyId: 'bbh_key-id']
+        tree.get('asoc') == null
         tree.get('influx.project') == 'CERT-gui'
         tree.get('appId') == '109f44ac-cc06-4ca0-884e-d944904f7019'
     }
@@ -180,7 +180,7 @@ class ProductSpec extends Specification {
         noExceptionThrown()
     }
 
-    def "a product needs a code, a name, a department and named services, each with its own AppScan key"() {
+    def "a product needs a code, a name, a department and named services, each with its own AppScan application ID"() {
         when:
         Product.create(new ProductDetails(' ', null, null, null, null, null), [draft(name: ' ')], nobody)
 
@@ -191,11 +191,11 @@ class ProductSpec extends Specification {
 
         when:
         product(services: [[name: 'gui', id: 10]]).update(0L, details(), [
-                draft(id: 10, name: 'gui'), draft(name: 'api', appScan: appScan(keyId: ' '))], nobody)
+                draft(id: 10, name: 'gui'), draft(name: 'api', appScan: appScan(applicationId: ' '))], nobody)
 
         then:
         def missing = thrown(InvalidRequestException)
-        missing.problems()*.field == ['services[1].appScan.keyId']
+        missing.problems()*.field == ['services[1].appScan.applicationId']
         missing.problems()*.message == ['is required']
     }
 

@@ -631,7 +631,7 @@ describe('SelfService', () => {
     expect(request.request.body.services.map((service: { name: string }) => service.name)).toEqual([
       'archive-api',
     ]);
-    expect(request.request.body.services[0].appScan.keyId).toBe('bbh_key');
+    expect(request.request.body.services[0].appScan.keyId).toBeUndefined();
     request.flush(product());
     http.expectOne('/api/products/1/pipelines').flush([]);
     await fixture.whenStable();
@@ -709,29 +709,17 @@ describe('SelfService', () => {
     );
   });
 
-  it('flags a service in the portal without the AppScan API key ID and continues once it has one', async () => {
-    const keyless = service({ appScan: { ...service().appScan, keyId: '' } });
-    await chooseProduct(3, product({ services: [keyless] }));
+  it('asks for no AppScan API key ID, which the library holds for every service', async () => {
+    await chooseProduct(3, product({ services: [service()] }));
     await next();
     wizard()['pipeline'].set('SAST');
     await next();
-
-    expect(all('.service-problem')).toEqual(['Needs the AppScan API key ID']);
-
-    await next();
-
-    expect(wizard()['step']()).toBe(2);
-    expect(all('.choice-error')).toEqual([
-      'Use Change to add the AppScan API key ID of these services, which every pipeline signs in with: gui',
-    ]);
-
-    wizard()['services'].update(([gui]) => [{ ...gui, serviceRequest: service() }]);
-    await fixture.whenStable();
 
     expect(all('.service-problem')).toEqual([]);
 
     await next();
 
+    expect(all('.choice-error')).toEqual([]);
     expect(wizard()['step']()).toBe(3);
   });
 

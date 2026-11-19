@@ -176,7 +176,6 @@ export function service(overrides: Partial<Service> = {}): Service {
     openShiftTargets: {},
     appScan: {
       applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019',
-      keyId: 'bbh_key',
       scanName: null,
       includedDirs: [],
       excludedDirs: [],
@@ -189,7 +188,6 @@ export function service(overrides: Partial<Service> = {}): Service {
       dastEnabled: false,
       dastTargetUrl: null,
       dastPresenceId: null,
-      secretCredentialsId: null,
     },
     sonar: {
       projectName: 'CertScanner GUI',
@@ -354,9 +352,7 @@ export function databaseService(overrides: Partial<Service> = {}): Service {
     appScan: {
       ...stored.appScan,
       applicationId: appId,
-      keyId: `bbh_${appId}`,
       compile: false,
-      secretCredentialsId: 'appscan-orders-key-secret',
     },
     sonar: { ...stored.sonar, projectName: null, projectKey: 'bbh-orders-db', command: command() },
     nexusIqApplications: [],

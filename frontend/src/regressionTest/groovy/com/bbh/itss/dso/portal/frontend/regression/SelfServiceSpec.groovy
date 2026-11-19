@@ -11,7 +11,6 @@ class SelfServiceSpec extends EditorSpecification {
 
     static final String API_APPLICATION = '4b1c2d3e-1111-4a5b-8c9d-0e1f2a3b4c5d'
     static final String GUI_APPLICATION = '4b1c2d3e-2222-4a5b-8c9d-0e1f2a3b4c5d'
-    static final String APP_SCAN_KEY = 'bbh_9a1b2c3d-0000-4abc-9def-123456789abc'
     static final String SAST_KEY_OF_GUI = '2c0ca4f4-a1a6-472a-9685-0c75f22fe713'
     static final String SAST = 'SAST (Static Application Security Tests) - HCL AppScan'
     static final String OSA = 'OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull Request)'
@@ -76,11 +75,11 @@ class SelfServiceSpec extends EditorSpecification {
         input(dialog(), 'AppScan application ID').fill(API_APPLICATION)
 
         then:
-        assertThat(dialogButton('Add service')).isDisabled()
-        assertThat(dialog().locator('.missing')).hasText('Complete these fields first: AppScan API key ID.')
+        assertThat(dialog().locator('.missing')).hasCount(0)
+        assertThat(dialog().locator("dso-label:text-is('AppScan API key ID')")).hasCount(0)
+        assertThat(dialogButton('Add service')).isEnabled()
 
         when:
-        input(dialog(), 'AppScan API key ID').fill(APP_SCAN_KEY)
         dialogButton('Add service').click()
         addService('archive-gui', GUI_APPLICATION, 'Gradle')
 
@@ -114,7 +113,7 @@ class SelfServiceSpec extends EditorSpecification {
             !containsKey('appScan')
             services*.name == ['archive-api', 'archive-gui']
             services*.appScan*.applicationId == [SelfServiceSpec.API_APPLICATION, SelfServiceSpec.GUI_APPLICATION]
-            services*.appScan*.keyId == [SelfServiceSpec.APP_SCAN_KEY, SelfServiceSpec.APP_SCAN_KEY]
+            services.every { !(it.appScan as Map).containsKey('keyId') }
             services*.build*.tool == ['MAVEN', 'GRADLE']
             services*.nodeBuild*.enabled == [true, false]
             services[0].nodeBuild.directory == 'frontend'
@@ -160,7 +159,6 @@ class SelfServiceSpec extends EditorSpecification {
         input(dialog(), 'Folder with package.json').fill('frontend')
         showDialogSection('AppScan SAST and DAST')
         input(dialog(), 'AppScan application ID').fill(GUI_APPLICATION)
-        input(dialog(), 'AppScan API key ID').fill(APP_SCAN_KEY)
 
         then:
         assertThat(dialog().locator("dso-advanced-settings .panel-toggle:text-is('Hide')")).hasCount(0)
@@ -184,7 +182,7 @@ class SelfServiceSpec extends EditorSpecification {
             nodeBuild.directory == 'frontend'
             nodeBuild.commands == []
             appScan.applicationId == SelfServiceSpec.GUI_APPLICATION
-            appScan.keyId == SelfServiceSpec.APP_SCAN_KEY
+            !appScan.containsKey('keyId')
             scm.repositoryUrl == 'https://bitbucket.bbh.com/projects/TRADEARCHIVE/repos/tradearchive-archive-web'
             nexusIqApplications*.application == ['tradearchive-archive-web']
             nexusIqApplications*.scanPatterns == [['**/build/libs/*.jar']]
@@ -341,7 +339,7 @@ class SelfServiceSpec extends EditorSpecification {
         showDialogSection('Build')
         choose(dialog(), 'Build tool', 'Liquibase (SQL / PL/SQL)')
         showDialogSection('AppScan SAST and DAST')
-        fillIn(dialog(), ['AppScan application ID': API_APPLICATION, 'AppScan API key ID': APP_SCAN_KEY])
+        fillIn(dialog(), ['AppScan application ID': API_APPLICATION])
         showDialogSection('Database changes')
     }
 

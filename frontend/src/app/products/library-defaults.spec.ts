@@ -85,7 +85,7 @@ describe('Library defaults of a new service', () => {
 
     it('in a new service whose home is typed', () => {
       const form = createServiceForm();
-      prefillNewService(form, globalSettings(), []);
+      prefillNewService(form, globalSettings());
       const node = form.controls.nodeBuild.controls;
       node.enabled.setValue(true);
       node.nodePath.setValue('/opt/node-20');
@@ -107,7 +107,7 @@ describe('Library defaults of a new service', () => {
         { file: 'config.yaml', name: 'web', service: atHome(), notes: [], agentLabels: [] },
         null,
       );
-      prefillNewService(form, globalSettings(), []);
+      prefillNewService(form, globalSettings());
 
       usesTheHome(form);
     });

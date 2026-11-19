@@ -215,7 +215,7 @@ describe('ServiceFields', () => {
       form.patchValue({
         name: '',
         nodeBuild: { enabled: true, installationName: 'NodeJS-20', nodePath: '/opt/node-20' },
-        appScan: { keyId: '' },
+        appScan: { applicationId: '' },
       });
 
       expect(
@@ -224,7 +224,7 @@ describe('ServiceFields', () => {
         'general: Service name',
         'build: Node.js installation',
         'build: Node.js home on the agent',
-        'appScan: AppScan API key ID',
+        'appScan: AppScan application ID',
         'nexusIq: Nexus IQ',
       ]);
     });
@@ -1128,21 +1128,16 @@ describe('ServiceFields', () => {
   });
 
   describe('AppScan', () => {
-    it('asks for the key of the service with the application and keeps the scan name and folders under Advanced settings', async () => {
+    it('asks only for the application of the service, no API key, and keeps the scan name and folders under Advanced settings', async () => {
       await render();
       await open('AppScan SAST and DAST');
       const main = [...pane().querySelectorAll(':scope > .form-fields > dso-fields dso-label')].map(
         (label) => text(label),
       );
 
-      expect(main).toEqual([
-        'AppScan application ID',
-        'AppScan API key ID',
-        'API key secret credentials ID',
-      ]);
-      expect(text(fieldOf(pane(), 'API key secret credentials ID'))).toContain(
-        'Left empty: the key ID · asoc.token',
-      );
+      expect(main).toEqual(['AppScan application ID']);
+      expect(fieldOf(pane(), 'AppScan API key ID')).toBeNull();
+      expect(fieldOf(pane(), 'API key secret credentials ID')).toBeNull();
       expect(text(fieldOf(pane(), 'SAST scan name'))).toContain('sast.scanName');
       ['SAST scan name', 'Included folders', 'Excluded folders'].forEach((label) =>
         expect(fieldOf(pane(), label)?.closest('dso-advanced-settings'), label).not.toBeNull(),
@@ -1284,7 +1279,7 @@ describe('ServiceFields', () => {
       expect(help('Maven command')).toContain(
         'When a shared pom with a name other than pom.xml is built in its own folder, the library adds -f and its file name at the end of the command. ' +
           'It does so for a command set here too, so write it as one mvn call, for example mvn -B -q -DskipTests verify. ' +
-          'Exit code 0 passes the check. When no command is set, the library runs mvn -B -q -DskipTests compile.',
+          'Exit code 0 passes the check. When no command is set, the library runs mvn -B -q test, which compiles the code and runs its unit tests.',
       );
       expect(help('npm command')).toContain(
         'A command set here runs as it is, without the refresh of package-lock.json',

@@ -69,7 +69,7 @@ describe('ServiceDialog', () => {
   function fillIn(name = 'new-service') {
     form().patchValue({
       name,
-      appScan: { applicationId: APP_ID, keyId: 'bbh_key' },
+      appScan: { applicationId: APP_ID },
       scm: { repositoryUrl: REPOSITORY },
     });
   }
@@ -90,15 +90,15 @@ describe('ServiceDialog', () => {
 
     expect(submit().disabled).toBe(true);
     expect(text(page().querySelector('.missing'))).toBe(
-      'Complete these fields first: Service name, AppScan application ID, AppScan API key ID.',
+      'Complete these fields first: Service name, AppScan application ID.',
     );
     expect(marked()).toEqual(['General', 'AppScan SAST and DAST']);
 
-    buttonOf(page().querySelector('.missing')!, 'AppScan API key ID').click();
+    buttonOf(page().querySelector('.missing')!, 'AppScan application ID').click();
     await fixture.whenStable();
 
     expect(text(page().querySelector('.rail-item.active span'))).toBe('AppScan SAST and DAST');
-    expect(document.activeElement).toBe(inputOf(page(), 'AppScan API key ID'));
+    expect(document.activeElement).toBe(inputOf(page(), 'AppScan application ID'));
 
     fillIn();
     await fixture.whenStable();
@@ -248,7 +248,7 @@ describe('ServiceDialog', () => {
     ).toEqual(['orders']);
   });
 
-  it('starts a new service with the Library defaults and the AppScan key of the product', async () => {
+  it('starts a new service with the Library defaults and no AppScan key, which the library holds', async () => {
     await open({
       defaults: { ...BBH_DEFAULTS, settings: globalSettings() },
       sources: [{ name: 'gui', request: service() }],
@@ -257,7 +257,7 @@ describe('ServiceDialog', () => {
 
     expect(c.build.controls.sourceDir.value).toBe('app');
     expect(c.sonar.controls.installationName.value).toBe('SonarQube');
-    expect(c.appScan.controls.keyId.value).toBe('bbh_key');
+    expect(Object.keys(c.appScan.controls)).not.toContain('keyId');
   });
 
   it('starts without Library defaults while the global settings are not loaded', async () => {

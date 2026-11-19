@@ -166,7 +166,6 @@ class ServiceDtoSpec extends Specification {
         'an AppScan client with a ;'  | [appScan: [applicationId: APP_ID, clientPath: 'bin/appscan.bat;id']] || 'appScan.clientPath'                    | POWERSHELL_PATH_MESSAGE
         'a folder with a quote'       | [appScan: [applicationId: APP_ID, includedDirs: ["it's"]]]    || 'appScan.includedDirs[0].<list element>'        | 'one folder per entry, without commas or quotes'
         'a SAST scan name with a /'   | [appScan: [applicationId: APP_ID, scanName: 'cert/gui']]      || 'appScan.scanName'                               | "may contain letters, digits, '.', '_' and '-'"
-        'a long AppScan key ID'       | [appScan: [applicationId: APP_ID, keyId: 'k' * 201]]          || 'appScan.keyId'                                  | 'size must be between 0 and 200'
         'two Nexus IQ applications'   | [nexusIqApplications: [[application: 'a', scanPatterns: ['*.jar']], [application: 'b', scanPatterns: ['*.war']]]] || 'nexusIqApplications' | 'a service scans one Nexus IQ application'
         'a Node.js folder above'      | [nodeBuild: [directory: 'web/../..']]                         || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE
         'an absolute Node.js folder'  | [nodeBuild: [directory: '/opt/web']]                          || 'nodeBuild.directory'                            | RELATIVE_FOLDER_MESSAGE

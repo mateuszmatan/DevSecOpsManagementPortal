@@ -198,15 +198,6 @@ export class SelfService implements HasUnsavedChanges {
           .map((service) => service.name)
       : [],
   );
-  /** The services whose stored or changed settings lack the AppScan API key ID every pipeline signs in with. */
-  protected readonly keyless = computed(() =>
-    this.kept()
-      .filter((service) => {
-        const settings = this.settingsOf(service);
-        return settings && !settings.appScan.keyId?.trim();
-      })
-      .map((service) => service.name),
-  );
   protected readonly existing = signal<Product | null>(null);
   protected readonly productError = signal<string | null>(null);
   protected readonly code = signal('');
@@ -510,7 +501,6 @@ export class SelfService implements HasUnsavedChanges {
             this.unscanned(),
             this.databaseOnly(),
             this.undeployable(),
-            this.keyless(),
             this.duplicated(),
             this.untemplated(),
           ].every((names) => names.length === 0)

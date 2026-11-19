@@ -22,7 +22,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public record AppScanSettings(String applicationId, List<String> includedDirs, List<String> excludedDirs,
                               Boolean compile, Boolean sourceCodeOnly, Boolean useConfigFile, Boolean insecureTls,
                               String clientPath, ToolCommand compileCommand, Boolean dastEnabled, String dastTargetUrl,
-                              String dastPresenceId, String secretCredentialsId, String keyId, String scanName) {
+                              String dastPresenceId, String scanName) {
 
     public AppScanSettings {
         applicationId = lowerCase(trim(applicationId), ROOT);
@@ -37,13 +37,11 @@ public record AppScanSettings(String applicationId, List<String> includedDirs, L
         dastEnabled = isTrue(dastEnabled);
         dastTargetUrl = trimToNull(dastTargetUrl);
         dastPresenceId = trimToNull(dastPresenceId);
-        secretCredentialsId = trimToNull(secretCredentialsId);
-        keyId = trimToNull(keyId);
         scanName = trimToNull(scanName);
     }
 
-    public static AppScanSettings of(String applicationId, String keyId) {
-        return builder().applicationId(applicationId).keyId(keyId).build();
+    public static AppScanSettings of(String applicationId) {
+        return builder().applicationId(applicationId).build();
     }
 
     public void writeTo(ConfigTree config, BuildTool tool) {
@@ -51,8 +49,6 @@ public record AppScanSettings(String applicationId, List<String> includedDirs, L
                 .set("includedDirs", String.join(",", includedDirs))
                 .set("excludedDirs", String.join(",", excludedDirs))
                 .set("appscanPath", clientPath)
-                .set("asoc.keyId", keyId)
-                .set("asoc.token", secretCredentialsId)
                 .set("asoc.doCompile", compile ? null : false)
                 .flag("asoc.sourceCodeOnly", sourceCodeOnly)
                 .flag("asoc.useAppScanConfig", useConfigFile)
@@ -65,7 +61,7 @@ public record AppScanSettings(String applicationId, List<String> includedDirs, L
     }
 
     public void validate(ValidationProblems problems, BuildTool tool) {
-        problems.require("keyId", keyId, "is required");
+        problems.require("applicationId", trimToNull(applicationId), "is required");
         if (dastEnabled && dastTargetUrl == null) {
             problems.add("dastTargetUrl", "is required when DAST is enabled");
         }

@@ -71,7 +71,6 @@ import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 final class Fixtures {
 
     static final String APP_ID = '109f44ac-cc06-4ca0-884e-d944904f7019'
-    static final String KEY_ID = 'bbh_key-id'
     static final String JDK = '/usr/lib/jvm/java-17-openjdk'
     static final String KEY = '0f8fad5b-d9cb-469f-a165-70867728950e'
     static final Instant CREATED = Instant.parse('2026-10-01T08:00:00Z')
@@ -102,15 +101,15 @@ final class Fixtures {
     }
 
     static AppScanSettings appScan(Map args = [:]) {
-        AppScanSettings.builder().applicationId(args.applicationId as String ?: APP_ID)
-                .keyId(args.containsKey('keyId') ? args.keyId as String : KEY_ID).scanName(args.scanName as String)
+        AppScanSettings.builder().applicationId(args.containsKey('applicationId') ? args.applicationId as String : APP_ID)
+                .scanName(args.scanName as String)
                 .includedDirs(args.includedDirs as List<String>)
                 .excludedDirs(args.excludedDirs as List<String>).compile(args.compile as Boolean)
                 .sourceCodeOnly(args.sourceCodeOnly as Boolean).useConfigFile(args.useConfigFile as Boolean)
                 .insecureTls(args.insecureTls as Boolean).clientPath(args.clientPath as String)
                 .compileCommand(args.compileCommand as ToolCommand).dastEnabled(args.dastEnabled as Boolean)
                 .dastTargetUrl(args.dastTargetUrl as String)
-                .dastPresenceId(args.dastPresenceId as String).secretCredentialsId(args.secretCredentialsId as String)
+                .dastPresenceId(args.dastPresenceId as String)
                 .build()
     }
 
@@ -225,7 +224,7 @@ final class Fixtures {
                         .compile(false).sourceCodeOnly(true).useConfigFile(true).insecureTls(true)
                         .clientPath('/opt/appscan').compileCommand(fullCommand('compile')).dastEnabled(true)
                         .dastTargetUrl('https://cert.testbbh.com').dastPresenceId('presence-1')
-                        .secretCredentialsId('cert-appscan-secret').keyId(KEY_ID).scanName("cert-${name}-sast")
+                        .scanName("cert-${name}-sast")
                         .build())
                 .sonar(new SonarSettings('CertScanner', "cert-${name}", 'SonarQube BBH', 'sonar-creds', 'sonar-token',
                         null, true, true, fullCommand('sonar'), 'https://sonar.cert.bbh.com', 'sonar-badge'))

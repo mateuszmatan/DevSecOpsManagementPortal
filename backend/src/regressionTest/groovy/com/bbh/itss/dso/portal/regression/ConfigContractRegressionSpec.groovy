@@ -28,9 +28,7 @@ class ConfigContractRegressionSpec extends PortalSpecification {
                             openShiftTargets: [RD: openShiftTarget('payhub-rd') + [buildTag: '2.3.1',
                                                        internalDockerUrl: 'image-registry.openshift-image-registry.svc:5000/payhub-rd'],
                                                QC: openShiftTarget('payhub-qc') + [buildTag: '2.3.0']],
-                            appScan: appScan(applicationId: '3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d',
-                                    keyId: 'bbh_1c2d3e4f-0000-4abc-9def-123456789abc',
-                                    secretCredentialsId: 'hcl-app-scan-account', scanName: 'payhub-gateway-sast',
+                            appScan: appScan(applicationId: '3a1b2c3d-1111-4a5b-8c9d-0e1f2a3b4c5d', scanName: 'payhub-gateway-sast',
                                     dastEnabled: true, dastTargetUrl: 'https://payhub-uat.testbbh.com',
                                     dastPresenceId: 'presence-7'),
                             sonar: [projectName: 'PayHub Gateway', projectKey: 'payhub-gateway', command: [tasks: ['sonar:sonar']],
@@ -149,11 +147,13 @@ class ConfigContractRegressionSpec extends PortalSpecification {
                                                          credentialsId: 'bitbucket-http-credentials', type: 'SERVER',
                                                          apiUrl       : 'https://bitbucket.bbh.com/rest/api/1.0',
                                                          projectKey   : 'PAY', repoSlug: 'payhub']),
-                           service(name: 'cloud', scm: [repositoryUrl: 'https://bitbucket.org/bbh/payhub-mobile',
+                           service(name: 'cloud', appScan: appScan(applicationId: '3c8e5d21-7a4f-4b9e-8d16-52f0a9c4e7b3'),
+                                   scm: [repositoryUrl: 'https://bitbucket.org/bbh/payhub-mobile',
                                                         credentialsId: 'bitbucket-cloud-token', authType: 'BEARER',
                                                         type         : 'CLOUD', workspace: 'bbh',
                                                         repoSlug     : 'payhub-mobile']),
-                           service(name: 'plain', scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/plain',
+                           service(name: 'plain', appScan: appScan(applicationId: '8d2b7f40-1e6c-4a35-b9f8-6c3e0d5a2f91'),
+                                   scm: [repositoryUrl: 'https://bitbucket.bbh.com/projects/PAY/repos/plain',
                                                         credentialsId: 'bitbucket-http-credentials'])]))
         def server = pipelineFor(created.services[0].id as long, pipeline(type: 'FULL'))
 

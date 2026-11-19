@@ -10,7 +10,6 @@ projects:
     artifactName: payhub-gateway.jar
     asoc:
       url: https://bbh.cloud.appscan.com
-      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
     influx:
       url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
       credentialsId: influxdb-token
@@ -115,7 +114,6 @@ projects:
     excludedDirs: node_modules
     asoc:
       url: https://bbh.cloud.appscan.com
-      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
     influx:
       url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
       credentialsId: influxdb-token
@@ -228,7 +226,6 @@ projects:
     excludedDirs: node_modules
     asoc:
       url: https://bbh.cloud.appscan.com
-      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
     influx:
       url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
       credentialsId: influxdb-token
@@ -340,7 +337,6 @@ projects:
     javaPath: /usr/lib/jvm/java-17-openjdk
     asoc:
       url: https://bbh.cloud.appscan.com
-      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
     influx:
       url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
       credentialsId: influxdb-token

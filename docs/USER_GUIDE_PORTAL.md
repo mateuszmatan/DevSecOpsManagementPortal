@@ -57,7 +57,7 @@ A Product represents an overarching business application (e.g., *Payments Hub*, 
 - **Jenkins Agents:** Comma-separated labels of Jenkins nodes assigned to run the pipelines (the first agent is the default).
 
 > [!NOTE]
-> **Credentials Architecture:** The *AppScan API Key ID* field has been removed from the Product level. All security credentials are now configured directly within individual Services to maintain consistency and isolation.
+> **Credentials Architecture:** Neither a product nor a service holds an AppScan API key. Every pipeline signs in to AppScan on Cloud with the one API key of the functional user, which the DevSecOps team keeps in `asoc.keyId` and `asoc.token` of `resources/com/bbh/devsecops/defaults.yaml` of the library; a service sets only its AppScan application ID.
 
 ---
 
@@ -153,9 +153,8 @@ Static security analysis inspects application source code for security vulnerabi
   - The HCL ASOC cloud scan is queued in the background and runs **in parallel** with Nexus IQ and SonarQube.
   - Results are fetched at the end of the static analysis stage, significantly reducing overall pipeline duration.
 - **Streamlined Configuration:**
-  - `asoc.token` is positioned in the **main SAST section**.
   - `sast.scanName` is available in **Advanced Settings** for custom scan naming.
-  - Credentials (`asoc.keyId`, `asoc.token`) are configured per service.
+  - The API key (`asoc.keyId`, `asoc.token`) is the functional user's one in the library defaults; a service sets only its application ID.
 
 ---
 
@@ -268,8 +267,7 @@ Every pipeline execution streams performance and quality data to InfluxDB:
 | **Cypress Command** | Cypress invocation command | `npx cypress run --component` | Project scripts | <span class="badge badge-optional">OPTIONAL</span> |
 | **Cypress Reports Dir** | JUnit test reports folder | `cypress/results` | Cypress reporter | <span class="badge badge-optional">OPTIONAL</span> |
 | **Coverage Minimum** | Enforced coverage percentage | `80` | BBH standard default (80) | <span class="badge badge-default">DEFAULT</span> |
-| **AppScan ASOC Key ID** | ASOC API key credential ID | `asoc-key-payments-api` | Jenkins Credentials store | <span class="badge badge-required">YES</span> |
-| **AppScan ASOC Token** | ASOC API secret credential ID | `asoc-secret-payments-api` | Jenkins Credentials store | <span class="badge badge-required">YES</span> |
+| **AppScan application ID** | Application of the service in AppScan on Cloud; the API key is the functional user's one in the library defaults | `109f44ac-cc06-4ca0-884e-d944904f7019` | DevSecOps team | <span class="badge badge-required">YES</span> |
 | **SAST Scan Name** | Custom ASOC scan display name | `PAYHUB-API-Nightly` | Team preference (optional) | <span class="badge badge-optional">OPTIONAL</span> |
 | **Sonar Installation** | SonarQube server in Jenkins | `BBH-SonarQube` | Standard Jenkins tool name | <span class="badge badge-default">DEFAULT</span> |
 | **Sonar Auth Token** | SonarQube token credential ID | `sonar-auth-token-id` | Jenkins Credentials store | <span class="badge badge-required">YES</span> |
@@ -416,7 +414,7 @@ Direct feedback in developer pull requests accelerates remediation and prevents 
   ```
 * **Dynamic Resolution:** Any fields left blank in the Portal are auto-resolved at pipeline runtime by `RepoStackAutoResolver`; of a Liquibase service with database changes it fills in only an empty SonarQube project key. Such a service has no Deployment section: its database changes replace the deployment.
 
-### Mode 2: Standalone Without Portal (`DSOEnhancedWithoutPortal` & `DSOEnhancedAppScanApiOnly`)
+### Mode 2: Standalone Without Portal (`DSOEnhancedWithoutPortal`, or a Jenkinsfile without a pipeline key)
 * **Configuration Source:** `devsecops_config.yaml` in the application Git repository.
 * **Auto-Resolve Default:** Enabled by default (`autoresolve parameters: true`).
 * **Minimal Configuration Example:**
@@ -424,9 +422,6 @@ Direct feedback in developer pull requests accelerates remediation and prevents 
   projects:
     payment-service:
       appId: "APP-54321"
-      asoc:
-        keyId: "11111111-2222-3333-4444-555555555555"
-        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
   ```
 * **Disabling Auto-Resolve:** To enforce strict manual configuration, set `autoresolve parameters: false`:
   ```yaml
@@ -436,10 +431,8 @@ Direct feedback in developer pull requests accelerates remediation and prevents 
       buildTool: maven
       deployTarget: vm
       appId: "APP-54321"
-      asoc:
-        keyId: "11111111-2222-3333-4444-555555555555"
-        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"
-* **Credential Isolation:** SAST credentials (`sast.keyId`, `sast.token`) are strictly isolated from DAST credentials (`dast.keyId`, `dast.token`).
+  ```
+* **One AppScan API key:** SAST and DAST sign in through the AppScan on Cloud REST API v4 with the API key of the functional user from the library defaults (`asoc.keyId`, `asoc.token`); DAST reuses the token of SAST, and a key of a service is ignored with a warning.
 * **Static Scan Deduplication (SAST, SonarQube, Nexus IQ):** When multiple services sharing the same Git/Bitbucket repository (e.g. multi-module monorepos or shared sources) configure the same scan identifier (`appId` for AppScan SAST, `projectKey` for SonarQube, or `application` for Nexus IQ), the respective scan or policy evaluation is executed only once. Secondary services automatically reuse the existing scan IDs, findings, HTML/PDF reports, quality gate verdicts, and vulnerability counts.
 * **Multi-Repository Products & ID Isolation:** Products can configure services across independent Bitbucket repositories (including separate Bitbucket projects and repository URLs). When services point to different Bitbucket repository URLs, they are strictly required to use distinct AppScan application IDs, SonarQube project keys, and Nexus IQ applications. Attempting to share scan identifiers across different repositories is prevented both in Portal validation and at pipeline initialization.
 

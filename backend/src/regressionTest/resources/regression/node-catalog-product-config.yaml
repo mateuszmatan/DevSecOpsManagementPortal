@@ -7,7 +7,6 @@ projects:
     javaPath: /usr/lib/jvm/java-17-openjdk
     asoc:
       url: https://bbh.cloud.appscan.com
-      keyId: bbh_key-id
     influx:
       url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
       credentialsId: influxdb-token
@@ -83,7 +82,6 @@ projects:
     javaPath: /usr/lib/jvm/java-17-openjdk
     asoc:
       url: https://bbh.cloud.appscan.com
-      keyId: bbh_key-id
     influx:
       url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
       credentialsId: influxdb-token

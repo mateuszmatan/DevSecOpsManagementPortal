@@ -95,11 +95,11 @@ class ProductPersistenceAdapterSpec extends Specification {
         then:
         jdbc.queryForMap('SELECT CODE, NAME, DEPARTMENT_ID FROM DSO_PRODUCT') ==
                 [CODE: 'CERT', NAME: 'CertScanner', DEPARTMENT_ID: DEPARTMENT_ID]
-        jdbc.queryForMap('''SELECT APPSCAN_KEY_ID, APPSCAN_SECRET_CREDENTIALS_ID, APPSCAN_SCAN_NAME,
-                SONAR_BADGE_CREDENTIALS_ID, NEXUS_DELIVERY_DISABLED FROM DSO_SERVICE WHERE ID = ?''', serviceId) ==
-                [APPSCAN_KEY_ID            : 'bbh_key-id', APPSCAN_SECRET_CREDENTIALS_ID: 'cert-appscan-secret',
-                 APPSCAN_SCAN_NAME         : 'cert-gui-sast', SONAR_BADGE_CREDENTIALS_ID: 'sonar-badge',
-                 NEXUS_DELIVERY_DISABLED   : 1]
+        jdbc.queryForMap('''SELECT APPSCAN_SCAN_NAME, SONAR_BADGE_CREDENTIALS_ID, NEXUS_DELIVERY_DISABLED
+                FROM DSO_SERVICE WHERE ID = ?''', serviceId) ==
+                [APPSCAN_SCAN_NAME: 'cert-gui-sast', SONAR_BADGE_CREDENTIALS_ID: 'sonar-badge', NEXUS_DELIVERY_DISABLED: 1]
+        jdbc.queryForList('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ?', String, 'DSO_SERVICE')
+                .intersect(['APPSCAN_KEY_ID', 'APPSCAN_SECRET_CREDENTIALS_ID']) == []
         jdbc.queryForMap('''SELECT BUILD_TOOL, BUILD_TASKS, DELIVERY_TASKS, BITBUCKET_REVIEWERS, GOLDEN_FIX_ENABLED,
                 INFLUX_PROJECT, REGRESSION_REQUIRED, BUILD_RETURN_STDOUT, NEXUS_IQ_SERVER_URL FROM DSO_SERVICE WHERE ID = ?''',
                 serviceId) ==

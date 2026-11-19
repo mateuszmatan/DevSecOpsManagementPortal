@@ -271,11 +271,7 @@ export class ServiceDialog {
     followToolDefaults(form, this.data.defaults.template, this.destroyRef);
 
     if ((this.data.service?.id ?? null) === null) {
-      prefillNewService(
-        form,
-        this.data.defaults.settings,
-        this.sources.map((source) => source.request.appScan ?? {}),
-      );
+      prefillNewService(form, this.data.defaults.settings);
     }
     if (!this.data.service) {
       const { template, productCode } = this.data.defaults;

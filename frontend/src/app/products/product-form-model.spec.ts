@@ -385,11 +385,15 @@ describe('sections that apply to the build tool and deployment target', () => {
     expect(firstInvalidSection(form, 'SECURITY')).toBe('sonar');
   });
 
-  it('needs the AppScan API key ID of every service, as every pipeline signs in with it', () => {
+  it('needs the AppScan application ID of every service, but no API key, which the library holds', () => {
     const form = createServiceForm(service());
-    form.controls.appScan.controls.keyId.setValue(' ');
 
-    expect(form.controls.appScan.controls.keyId.hasError('required')).toBe(true);
+    expect(Object.keys(form.controls.appScan.controls)).not.toContain('keyId');
+    expect(Object.keys(form.controls.appScan.controls)).not.toContain('secretCredentialsId');
+
+    form.controls.appScan.controls.applicationId.setValue(' ');
+
+    expect(form.controls.appScan.controls.applicationId.hasError('required')).toBe(true);
     expect(firstInvalidSection(form, 'NEXUS_IQ')).toBe('appScan');
   });
 });
@@ -1454,7 +1458,7 @@ describe('product form', () => {
       expect.objectContaining({ application: '', scanPatterns: '**/build/libs/*.jar' }),
     ]);
     expect(value.metrics.influxEnv).toBe('test');
-    expect(value.appScan.keyId).toBe('bbh_key');
+    expect(value.appScan.applicationId).toBe('109f44ac-cc06-4ca0-884e-d944904f7019');
     expect(value.build.javaPath).toBe('/usr/lib/jvm/java-17-openjdk');
     expect(value.testJobs.map((job) => job.job)).toEqual(['CERT/gui-smoke']);
     expect(value.nodeBuild).toMatchObject({ enabled: true, directory: 'frontend' });
@@ -1486,23 +1490,13 @@ describe('product form', () => {
     expect(toServiceRequest(copy).sonar.serverUrl).toBeNull();
   });
 
-  it('gives a new service the AppScan key of the first service that has one', () => {
+  it('gives a new service the Library defaults and no AppScan key', () => {
     const form = createServiceForm();
-    prefillNewService(form, null, [
-      { keyId: ' ', secretCredentialsId: 'unused' },
-      { keyId: 'bbh_key ', secretCredentialsId: 'hcl-app-scan-account' },
-    ]);
+    prefillNewService(form, globalSettings());
 
-    expect(form.controls.appScan.getRawValue()).toMatchObject({
-      keyId: 'bbh_key',
-      secretCredentialsId: 'hcl-app-scan-account',
-    });
-
-    const typed = createServiceForm({ appScan: { keyId: 'bbh_own' } as never });
-    prefillNewService(typed, null, [{ keyId: 'bbh_key', secretCredentialsId: 'secret' }]);
-
-    expect(typed.controls.appScan.controls.keyId.value).toBe('bbh_own');
-    expect(typed.controls.appScan.controls.secretCredentialsId.value).toBe('');
+    expect(form.controls.sonar.controls.serverUrl.value).toBe('https://tools.bbh.com/sonar');
+    expect(form.controls.appScan.getRawValue()).not.toHaveProperty('keyId');
+    expect(form.controls.appScan.getRawValue()).not.toHaveProperty('secretCredentialsId');
   });
 });
 
@@ -1517,8 +1511,8 @@ describe('field problems reported by the API', () => {
     const form = formWithServices();
     const second = form.controls.services.at(1).controls;
     expect(controlAt(form, 'services[1].build.javaPath')).toBe(second.build.controls.javaPath);
-    expect(controlAt(form, 'services[0].appScan.keyId')).toBe(
-      form.controls.services.at(0).controls.appScan.controls.keyId,
+    expect(controlAt(form, 'services[0].appScan.applicationId')).toBe(
+      form.controls.services.at(0).controls.appScan.controls.applicationId,
     );
     expect(controlAt(form, 'services[1].testJobs[0].job')).toBe(second.testJobs.at(0).controls.job);
   });

@@ -20,40 +20,40 @@ const COMMANDS: Field[] = [
     'Maven',
     'Maven',
     'in the folder of each changed pom.xml; for a parent or BOM pom that other poms use, in the folder of the multi-module pom that builds them together, otherwise in the folder of the root pom.xml or of that pom. When a shared pom with a name other than pom.xml is built in its own folder, the library adds -f and its file name at the end of the command. It does so for a command set here too, so write it as one mvn call, for example mvn -B -q -DskipTests verify',
-    'mvn -B -q -DskipTests compile',
+    'mvn -B -q test, which compiles the code and runs its unit tests',
   ),
   command(
     'Gradle',
     'Gradle',
     'in the folder of each changed build or properties file; for a version catalog, settings file or platform, in the folder of each build that uses it',
-    './gradlew --no-daemon --console=plain classes, or gradle without a wrapper',
+    './gradlew --no-daemon --console=plain test, or gradle without a wrapper, which compiles the code and runs its unit tests',
   ),
   command(
     'Npm',
     'npm',
     'in the folder of each changed package.json, using the Node.js, registry and .npmrc of the Node.js build while it is on. A command set here runs as it is, without the refresh of package-lock.json that comes before the default command',
-    'npm ci --ignore-scripts, or npm install --ignore-scripts without a lock file, after refreshing a package-lock.json next to the package.json and adding it to the pull request',
+    'npm ci --ignore-scripts, or npm install --ignore-scripts without a lock file, after refreshing a package-lock.json next to the package.json and adding it to the pull request, then npm test when package.json has a test script',
     4,
   ),
   command(
     'Pip',
     'pip',
     'in the folder of each changed requirements, constraints or pyproject.toml file',
-    'python3 -m pip install --dry-run of that file or of the project',
+    'pip install of that file or of the project in a temporary virtual environment, then pytest; a folder without tests passes',
     4,
   ),
   command(
     'Pub',
     'pub',
     'in the folder of each changed pubspec.yaml',
-    'flutter pub get, or dart pub get',
+    'flutter pub get and flutter test, or dart pub get and dart test, the tests when the folder has a test folder',
     4,
   ),
   command(
     'Nuget',
     'NuGet',
     'or PowerShell on Windows in the folder of each changed .csproj, .fsproj, .vbproj, Directory.Packages.props, Directory.Build.props or packages.config',
-    'nuget restore and MSBuild /t:Build on Windows, or dotnet build --no-incremental',
+    'dotnet test of the project, or nuget restore for packages.config; on Windows nuget restore and MSBuild /t:Build for classic .NET Framework projects, which builds them without their tests',
     4,
   ),
 ];
@@ -105,7 +105,7 @@ export class GoldenFixFields {
         {
           multiple: true,
           hint: this.explain('The kinds of dependencies GoldenFix upgrades', 'ecosystems'),
-          help: 'Findings in other ecosystems are left for manual fixes. pypi stands for Python packages, pub for Dart and Flutter packages and nuget for .NET packages. GoldenFix changes only direct dependencies and only the last number of their version, so 1.2.3 may become 1.2.4 but never 1.3.0, and it opens a pull request only after the pre-check build has passed.',
+          help: 'Findings in other ecosystems are left for manual fixes. pypi stands for Python packages, pub for Dart and Flutter packages and nuget for .NET packages. GoldenFix changes only direct dependencies and only the last number of their version, so 1.2.3 may become 1.2.4 but never 1.3.0, and it opens a pull request only after the pre-check build and the unit tests have passed.',
         },
       ),
       count('minThreatLevel', 'Minimum threat level', 'minThreatLevel', 3, {
@@ -139,14 +139,14 @@ export class GoldenFixFields {
       count('verifyMaxAttempts', 'Attempts', 'verify.maxAttempts', 4, {
         min: 1,
         hint: this.explain(
-          'How many times GoldenFix may run the pre-check build',
+          'How many times GoldenFix may run the pre-check build and unit tests',
           'verifyMaxAttempts',
         ),
-        help: 'After each failed build, every proposed version is lowered to the next lower one Nexus IQ offers; a dependency without one is dropped.',
+        help: 'After each failed build or failed unit test, every proposed version is lowered to the next lower one Nexus IQ offers; a dependency without one is dropped.',
       }),
       count('verifyTimeoutMinutes', 'Timeout (minutes)', 'verify.timeoutMinutes', 4, {
         min: 1,
-        hint: this.explain('How long one verification build may take', 'verifyTimeoutMinutes'),
+        hint: this.explain('How long one verification build with its unit tests may take', 'verifyTimeoutMinutes'),
         help: 'The limit applies to each check separately: one for each folder a changed manifest or catalog is built in.',
       }),
     ];

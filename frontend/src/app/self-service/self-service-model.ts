@@ -140,7 +140,7 @@ export function aPipeline(pipeline: WizardPipeline): string {
 
 export function preparation(pipeline: WizardPipeline): string[] {
   const needs = [
-    'The name of each service, its AppScan application ID and the AppScan API key ID, from the DevSecOps team',
+    'The name of each service and its AppScan application ID, from the DevSecOps team',
     'Whether each service is built with Gradle or Maven, and the folder of its package.json when Node.js builds its frontend first; a developer of the service knows',
   ];
   if (pipeline === 'NEXUS_IQ') {
@@ -632,7 +632,6 @@ export function productRequest(
 const FIELD_NAMES: Record<string, string> = {
   name: 'name',
   'appScan.applicationId': 'AppScan application ID',
-  'appScan.keyId': 'AppScan API key ID',
   'nexusIqApplications.application': 'Nexus IQ application',
   'nexusIqApplications.scanPatterns': 'Nexus IQ scan patterns',
   'scm.repositoryUrl': 'Bitbucket repository',

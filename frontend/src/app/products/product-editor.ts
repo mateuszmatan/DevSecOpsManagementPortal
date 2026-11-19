@@ -488,16 +488,12 @@ export class ProductEditor implements OnInit, HasUnsavedChanges {
   }
 
   /**
-   * Prefills a new service with the Library defaults and the AppScan key, its build with the tool's defaults and what
+   * Prefills a new service with the Library defaults, its build with the tool's defaults and what
    * the service template takes from its name; an imported one keeps what its file gives until it is renamed, and an
    * empty repository URL and its Bitbucket credentials ID even then.
    */
   private prepared(service: ServiceForm, imported = false): ServiceForm {
-    prefillNewService(
-      service,
-      this.settings(),
-      this.form.controls.services.controls.map((other) => other.controls.appScan.getRawValue()),
-    );
+    prefillNewService(service, this.settings());
     followToolDefaults(service, this.template(), this.destroyRef);
     const name = imported ? service.controls.name.value.trim() : '';
     this.followServiceName(service, name, imported, !imported);

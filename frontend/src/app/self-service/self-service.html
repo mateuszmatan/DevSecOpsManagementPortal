@@ -252,8 +252,6 @@
                   <span class="muted">{{ serviceSummary(service) }}</span>
                   @if (isRemoved(service)) {
                     <span class="removal">{{ removalText(service) }}</span>
-                  } @else if (keyless().includes(service.name)) {
-                    <span class="service-problem">Needs the AppScan API key ID</span>
                   }
                 </div>
                 @if (isRemoved(service)) {
@@ -328,12 +326,6 @@
             The library runs no Nexus IQ GoldenFix pipeline for a Liquibase service with database
             changes. Remove these services from this pipeline:
             {{ databaseOnly().join(', ') }}
-          </p>
-        }
-        @if (checked() && keyless().length) {
-          <p class="choice-error">
-            Use Change to add the AppScan API key ID of these services, which every pipeline signs
-            in with: {{ keyless().join(', ') }}
           </p>
         }
         @if (checked() && undeployable().length) {

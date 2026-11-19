@@ -6,7 +6,6 @@ import static com.bbh.itss.dso.portal.support.Fixtures.JDK
 final class ApiJson {
 
     static final String APP_ID = Fixtures.APP_ID
-    static final String KEY_ID = Fixtures.KEY_ID
     static final String ORDERS_APP_ID = '6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10'
 
     private ApiJson() {
@@ -28,7 +27,7 @@ final class ApiJson {
     }
 
     static Map appScan(Map overrides = [:]) {
-        [applicationId: APP_ID, keyId: KEY_ID] + overrides
+        [applicationId: APP_ID] + overrides
     }
 
     static Map deployedBy(String application) {
@@ -97,13 +96,13 @@ final class ApiJson {
                                  QC: [host        : 'qcltaapps1.testbbh.com', user: 'taadmin', deployDir: '/opt/ledger',
                                       deployScript: 'scripts/deploy.sh', versionFile: 'version.properties']],
          openShiftTargets     : [:],
-         appScan              : [applicationId : APP_ID, keyId: KEY_ID, includedDirs: ['ledger/src/main'],
+         appScan              : [applicationId : APP_ID, includedDirs: ['ledger/src/main'],
                                  excludedDirs  : ['ledger/src/test'], compile: true, sourceCodeOnly: false,
                                  useConfigFile : false, insecureTls: false, clientPath: '/opt/saclient',
                                  compileCommand: command(['compile'], ['-q']),
                                  dastEnabled   : true, dastTargetUrl: 'https://ledger-uat.testbbh.com',
                                  dastPresenceId: 'presence-1',
-                                 secretCredentialsId: 'ledger-appscan-secret', scanName: 'ledger-sast'],
+                                 scanName      : 'ledger-sast'],
          sonar                : [projectName           : 'Ledger', projectKey: 'ledger', installationName: 'SonarQube',
                                  credentialsId         : 'sonar-user', authTokenCredentialsId: 'sonar-token',
                                  badgeToken            : 'sqb_1a2b3c', badgeCredentialsId: null, addBadges: true,
@@ -184,8 +183,7 @@ final class ApiJson {
         [name           : 'orders-db',
          build          : [tool: 'LIQUIBASE', sourceDir: '.', javaPath: JDK, autoSetup: false],
          deployment     : [target: 'VM'],
-         appScan        : [applicationId      : ORDERS_APP_ID, keyId: 'bbh_' + ORDERS_APP_ID,
-                           secretCredentialsId: 'appscan-orders-key-secret'],
+         appScan        : [applicationId: ORDERS_APP_ID],
          sonar          : [projectKey: 'bbh-orders-db'],
          scm            : [repositoryUrl: 'https://bitbucket.bbh.com/projects/ORD/repos/orders',
                            credentialsId: 'bitbucket-http-credentials'],

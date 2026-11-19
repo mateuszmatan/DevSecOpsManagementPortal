@@ -49,7 +49,7 @@ class SammCalculatorSpec extends Specification {
         def settings = Fixtures.settings(
                 build: Fixtures.build(tool: BuildTool.MAVEN, autoSetup: true),
                 unitTests: UnitTestSettings.builder().command(ToolCommand.of(['test'], [])).coverageReportPath('target/site/jacoco.xml').cypressEnabled(true).build(),
-                appScan: AppScanSettings.builder().applicationId('app-1').keyId('key-1').insecureTls(true).dastEnabled(true).dastTargetUrl('https://app.bbh.com').build(),
+                appScan: AppScanSettings.builder().applicationId('app-1').insecureTls(true).dastEnabled(true).dastTargetUrl('https://app.bbh.com').build(),
                 sonar: SonarSettings.builder().projectKey('bbh:app-1').build(),
                 nexusIq: new NexusIqSettings('https://nexus.bbh.com', 'cred-1'),
                 nexusIqApplications: [new NexusIqApplication('app-1', ['**/*.jar'], 'build', false)],

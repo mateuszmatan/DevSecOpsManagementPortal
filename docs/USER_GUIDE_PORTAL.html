@@ -409,7 +409,7 @@ pre code {
 <li><a href='#pull-request-separation-strategy' style='padding-left: 20px; font-size: 0.8rem;'>Pull Request Separation Strategy:</a></li>
 <li><a href='#18-deployment-modes-and-configuration-guide' ><span style='color:#94a3b8;font-weight:600;'>18.</span> Deployment Modes and Configuration Guide</a></li>
 <li><a href='#mode-1-with-portal-main-branch' style='padding-left: 20px; font-size: 0.8rem;'>Mode 1: With Portal (`main` branch)</a></li>
-<li><a href='#mode-2-standalone-without-portal-dsoenhancedwithoutportal--dsoenhancedappscanapionly' style='padding-left: 20px; font-size: 0.8rem;'>Mode 2: Standalone Without Portal (`DSOEnhancedWithoutPortal` &amp; `DSOEnhancedAppScanApiOnly`)</a></li>
+<li><a href='#mode-2-standalone-without-portal-dsoenhancedwithoutportal-or-a-jenkinsfile-without-a-pipeline-key' style='padding-left: 20px; font-size: 0.8rem;'>Mode 2: Standalone Without Portal (`DSOEnhancedWithoutPortal`, or a Jenkinsfile without a pipeline key)</a></li>
       </ul>
     </aside>
 
@@ -479,7 +479,7 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 <li><strong>Contact E-mail:</strong> Group mailbox for communications and notifications.</li>
 <li><strong>Jenkins Agents:</strong> Comma-separated labels of Jenkins nodes assigned to run the pipelines (the first agent is the default).</li>
 </ul>
-<div class="callout callout-note"><div class="callout-header">NOTE</div><div class="callout-body"><p><strong>Credentials Architecture:</strong> The <em>AppScan API Key ID</em> field has been removed from the Product level. All security credentials are now configured directly within individual Services to maintain consistency and isolation.</p></div></div>
+<div class="callout callout-note"><div class="callout-header">NOTE</div><div class="callout-body"><p><strong>Credentials Architecture:</strong> Neither a product nor a service holds an AppScan API key. Every pipeline signs in to AppScan on Cloud with the one API key of the functional user, which the DevSecOps team keeps in <code>asoc.keyId</code> and <code>asoc.token</code> of <code>resources/com/bbh/devsecops/defaults.yaml</code> of the library; a service sets only its AppScan application ID.</p></div></div>
 
 <hr />
 <h2 id="3-adding-and-configuring-services">3. Adding and Configuring Services</h2>
@@ -619,9 +619,8 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 <li>The HCL ASOC cloud scan is queued in the background and runs <strong>in parallel</strong> with Nexus IQ and SonarQube.</li>
 <li>Results are fetched at the end of the static analysis stage, significantly reducing overall pipeline duration.</li>
 <li><strong>Streamlined Configuration:</strong></li>
-<li><code>asoc.token</code> is positioned in the <strong>main SAST section</strong>.</li>
 <li><code>sast.scanName</code> is available in <strong>Advanced Settings</strong> for custom scan naming.</li>
-<li>Credentials (<code>asoc.keyId</code>, <code>asoc.token</code>) are configured per service.</li>
+<li>The API key (<code>asoc.keyId</code>, <code>asoc.token</code>) is the functional user's one in the library defaults; a service sets only its application ID.</li>
 </ul>
 <hr />
 <h2 id="8-dynamic-application-security-testing-dast-hcl-appscan">8. Dynamic Application Security Testing (DAST) – HCL AppScan</h2>
@@ -799,17 +798,10 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <td style="text-align: center;"><span class="badge badge-default">DEFAULT</span></td>
 </tr>
 <tr>
-<td><strong>AppScan ASOC Key ID</strong></td>
-<td>ASOC API key credential ID</td>
-<td><code>asoc-key-payments-api</code></td>
-<td>Jenkins Credentials store</td>
-<td style="text-align: center;"><span class="badge badge-required">YES</span></td>
-</tr>
-<tr>
-<td><strong>AppScan ASOC Token</strong></td>
-<td>ASOC API secret credential ID</td>
-<td><code>asoc-secret-payments-api</code></td>
-<td>Jenkins Credentials store</td>
+<td><strong>AppScan application ID</strong></td>
+<td>Application of the service in AppScan on Cloud; the API key is the functional user's one in the library defaults</td>
+<td><code>109f44ac-cc06-4ca0-884e-d944904f7019</code></td>
+<td>DevSecOps team</td>
 <td style="text-align: center;"><span class="badge badge-required">YES</span></td>
 </tr>
 <tr>
@@ -1151,7 +1143,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
   devSecOpsPipeline(pipelineKey: '5e0f0001-8c2b-4f6a-9d3e-1a7b2c4d0001')</code></li>
 <li><strong>Dynamic Resolution:</strong> Any fields left blank in the Portal are auto-resolved at pipeline runtime by <code>RepoStackAutoResolver</code>; of a Liquibase service with database changes it fills in only an empty SonarQube project key. Such a service has no Deployment section: its database changes replace the deployment.</li>
 </ul>
-<h3 id="mode-2-standalone-without-portal-dsoenhancedwithoutportal-dsoenhancedappscanapionly">Mode 2: Standalone Without Portal (<code>DSOEnhancedWithoutPortal</code> &amp; <code>DSOEnhancedAppScanApiOnly</code>)</h3>
+<h3 id="mode-2-standalone-without-portal-dsoenhancedwithoutportal-or-a-jenkinsfile-without-a-pipeline-key">Mode 2: Standalone Without Portal (<code>DSOEnhancedWithoutPortal</code>, or a Jenkinsfile without a pipeline key)</h3>
 <ul>
 <li><strong>Configuration Source:</strong> <code>devsecops_config.yaml</code> in the application Git repository.</li>
 <li><strong>Auto-Resolve Default:</strong> Enabled by default (<code>autoresolve parameters: true</code>).</li>
@@ -1159,22 +1151,16 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
   <code>yaml
   projects:
     payment-service:
-      appId: "APP-54321"
-      asoc:
-        keyId: "11111111-2222-3333-4444-555555555555"
-        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"</code></li>
+      appId: "APP-54321"</code></li>
 <li><strong>Disabling Auto-Resolve:</strong> To enforce strict manual configuration, set <code>autoresolve parameters: false</code>:
-  ```yaml
+  <code>yaml
   projects:
     payment-service:
       autoresolve parameters: false
       buildTool: maven
       deployTarget: vm
-      appId: "APP-54321"
-      asoc:
-        keyId: "11111111-2222-3333-4444-555555555555"
-        token: "APPSCAN_KEY_SECRET_CREDENTIAL_ID"</li>
-<li><strong>Credential Isolation:</strong> SAST credentials (<code>sast.keyId</code>, <code>sast.token</code>) are strictly isolated from DAST credentials (<code>dast.keyId</code>, <code>dast.token</code>).</li>
+      appId: "APP-54321"</code></li>
+<li><strong>One AppScan API key:</strong> SAST and DAST sign in through the AppScan on Cloud REST API v4 with the API key of the functional user from the library defaults (<code>asoc.keyId</code>, <code>asoc.token</code>); DAST reuses the token of SAST, and a key of a service is ignored with a warning.</li>
 <li><strong>Static Scan Deduplication (SAST, SonarQube, Nexus IQ):</strong> When multiple services sharing the same Git/Bitbucket repository (e.g. multi-module monorepos or shared sources) configure the same scan identifier (<code>appId</code> for AppScan SAST, <code>projectKey</code> for SonarQube, or <code>application</code> for Nexus IQ), the respective scan or policy evaluation is executed only once. Secondary services automatically reuse the existing scan IDs, findings, HTML/PDF reports, quality gate verdicts, and vulnerability counts.</li>
 <li><strong>Multi-Repository Products &amp; ID Isolation:</strong> Products can configure services across independent Bitbucket repositories (including separate Bitbucket projects and repository URLs). When services point to different Bitbucket repository URLs, they are strictly required to use distinct AppScan application IDs, SonarQube project keys, and Nexus IQ applications. Attempting to share scan identifiers across different repositories is prevented both in Portal validation and at pipeline initialization.</li>
 </ul>

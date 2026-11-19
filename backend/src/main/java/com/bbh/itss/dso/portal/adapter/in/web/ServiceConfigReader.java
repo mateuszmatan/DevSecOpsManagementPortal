@@ -63,6 +63,7 @@ final class ServiceConfigReader {
 
     static final String GLOBAL = "not imported: a global setting, the same for every service";
     static final String PIPELINE = "not imported: a pipeline setting, chosen when the pipeline is created";
+    static final String APPSCAN_KEY = "not imported: the AppScan on Cloud API key of the functional user is set once in the defaults of the library";
     static final String RUN_TIME = "check: a run that builds the image replaces it";
     static final String NODE_WITH_FLUTTER = "check: the Node.js build is not used with Flutter";
     static final String NODE_WITH_DATABASE = "check: the Node.js build is not used with database changes";
@@ -473,8 +474,8 @@ final class ServiceConfigReader {
                 rule("appscanPath", "appScan.clientPath", TEXT),
                 note("asoc.url", GLOBAL),
                 note("staticAnalysis.parallel", GLOBAL),
-                rule("asoc.keyId", "appScan.keyId", TEXT),
-                rule("asoc.token", "appScan.secretCredentialsId", TEXT),
+                note("asoc.keyId", APPSCAN_KEY),
+                note("asoc.token", APPSCAN_KEY),
                 rule("asoc.doCompile", "appScan.compile", FLAG),
                 rule("asoc.useAppScanConfig", "appScan.useConfigFile", FLAG),
                 rule("sast.scanName", "appScan.scanName", TEXT),

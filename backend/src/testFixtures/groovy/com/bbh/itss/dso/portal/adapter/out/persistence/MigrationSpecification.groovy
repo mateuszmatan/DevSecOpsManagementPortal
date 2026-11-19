@@ -1,6 +1,8 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
 import com.zaxxer.hikari.HikariDataSource
+import liquibase.Contexts
+import liquibase.LabelExpression
 import liquibase.Liquibase
 import liquibase.Scope
 import liquibase.changelog.FastCheckService
@@ -54,6 +56,13 @@ abstract class MigrationSpecification extends Specification {
 
     protected void rollBackSince(String id) {
         liquibase.rollback(executedSince(id), '')
+        Scope.currentScope.getSingleton(FastCheckService).clearCache()
+    }
+
+    /** Runs the changesets that are not run yet up to the first one whose ID starts with the given one, without it. */
+    protected void updateBefore(String id) {
+        int pending = liquibase.listUnrunChangeSets(new Contexts(), new LabelExpression()).takeWhile { !it.id.startsWith(id) }.size()
+        liquibase.update(pending, '')
         Scope.currentScope.getSingleton(FastCheckService).clearCache()
     }
 

@@ -100,7 +100,7 @@ const NOTES: Record<ServiceSectionId, string> = {
   openShift:
     'The OpenShift projects the service is built and deployed in, per test region. The QC region is optional; once one of its fields is set, the fields its deployment needs are required.',
   appScan:
-    "The security scans of HCL AppScan: a static scan (SAST) of the source code and, when switched on, a dynamic scan (DAST) of the running application. Both sign in with the service's AppScan API key.",
+    "The security scans of HCL AppScan: a static scan (SAST) of the source code and, when switched on, a dynamic scan (DAST) of the running application. Both sign in with the API key of the AppScan functional user, which the DevSecOps team keeps in the defaults of the library, so a service sets only its application ID.",
   sonar:
     'The code quality checks of SonarQube. Without a project key the analysis still runs, but the report has no dashboard link, issue counts or badges.',
   nexusIq:
@@ -161,14 +161,6 @@ const APP_SCAN: Field[] = [
     help:
       'The static and dynamic scans of the service are uploaded to this application, where AppScan on Cloud keeps their results. When multiple services share the same application ID, the SAST scan is executed only once and its results are reused across them.',
     error: 'Must be the application UUID from AppScan on Cloud',
-  }),
-  mono('keyId', 'AppScan API key ID', 'asoc.keyId', 4, {
-    placeholder: 'bbh_1a2b3c4d',
-    help: 'The ID part of the AppScan on Cloud API key the scans sign in with. Every pipeline needs it, the Nexus IQ GoldenFix pipeline included.',
-  }),
-  mono('secretCredentialsId', 'API key secret credentials ID', 'asoc.token', 4, {
-    hint: 'left empty: the key ID',
-    help: `${SECRET_TEXT} that holds the secret of the API key.`,
   }),
 ];
 

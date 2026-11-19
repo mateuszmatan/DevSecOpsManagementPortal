@@ -15,7 +15,6 @@ class AddProductSpec extends EditorSpecification {
     static final String GUI_APPLICATION = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31'
     static final String API_APPLICATION = '7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b32'
     static final String TAKEN_APPLICATION = '209f44ac-dd06-4ca0-884e-d944904f8020'
-    static final String APP_SCAN_KEY = 'bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15'
     static final String ORDERS_APPLICATION = '6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10'
 
     def "a new product starts from its department and name, and its code follows the name until the code is typed"() {
@@ -89,22 +88,22 @@ class AddProductSpec extends EditorSpecification {
         then:
         assertThat(button('Add service', true)).isDisabled()
         assertThat(page.locator('.blocked')).hasText('Complete these services before adding another: ' +
-                'gui (UrbanCode Deploy, AppScan application ID, AppScan API key ID).')
+                'gui (UrbanCode Deploy, AppScan application ID).')
 
         when:
-        buttonIn(page.locator('.blocked'), 'AppScan API key ID').click()
+        buttonIn(page.locator('.blocked'), 'AppScan application ID').click()
 
         then:
         assertThat(openService().locator('.pane-header h3')).hasText('AppScan SAST and DAST')
-        assertThat(input(openService(), 'AppScan API key ID')).isFocused()
-        assertThat(errorOf(openService(), 'AppScan API key ID')).hasText('Required')
+        assertThat(input(openService(), 'AppScan application ID')).isFocused()
+        assertThat(errorOf(openService(), 'AppScan application ID')).hasText('Required')
+        assertThat(openService().locator("dso-label:text-is('AppScan API key ID')")).hasCount(0)
 
         when:
         showSection('Build')
         fillIn(openService(), ['Artifact path': 'build/libs/*.jar', 'Gradle tasks': 'clean build'])
         showSection('AppScan SAST and DAST')
-        fillIn(openService(), ['AppScan application ID'       : GUI_APPLICATION, 'AppScan API key ID': APP_SCAN_KEY,
-                               'API key secret credentials ID': 'hcl-app-scan-account'])
+        fillIn(openService(), ['AppScan application ID': GUI_APPLICATION])
         showSection('UrbanCode Deploy')
 
         then:
@@ -256,8 +255,7 @@ class AddProductSpec extends EditorSpecification {
         input(openService().locator("dso-advanced-settings h4:has(> code:text-is('database.qc')) + dso-fields"),
                 'Changelog parameters').fill('app_role=orders_qc_role')
         showSection('AppScan SAST and DAST')
-        fillIn(openService(), ['AppScan application ID'       : ORDERS_APPLICATION, 'AppScan API key ID': "bbh_$ORDERS_APPLICATION".toString(),
-                               'API key secret credentials ID': 'appscan-orders-key-secret'])
+        fillIn(openService(), ['AppScan application ID': ORDERS_APPLICATION])
         showSection('SonarQube')
         input(openService(), 'Project key').fill('bbh-orders-db')
         showSection('Bitbucket')

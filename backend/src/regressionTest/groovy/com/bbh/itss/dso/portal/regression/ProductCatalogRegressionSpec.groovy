@@ -344,7 +344,7 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         'OpenShift needs RD'         | fullOpenShiftService(openShiftTargets: [RD: openShiftTarget('x') + [nexusAuthFile: null, buildContext: ' ']]) || ['services[0].openShiftTargets[RD].buildContext', 'services[0].openShiftTargets[RD].nexusAuthFile']
         'a set QC needs its deploy'  | fullOpenShiftService(openShiftTargets: [RD: openShiftTarget('x'), QC: [buildTag: '1.0.41', skipConfigDeploy: true]]) || ['services[0].openShiftTargets[QC].projectDeployment', 'services[0].openShiftTargets[QC].deployConfigPath', 'services[0].openShiftTargets[QC].dockerRepoPull']
         'one SonarQube badge source' | service(sonar: [badgeToken: 'sqb_1a2b', badgeCredentialsId: 'sonar-badge'])             || ['services[0].sonar.badgeCredentialsId']
-        'an AppScan key ID'          | service(appScan: appScan(keyId: null))                                                   || ['services[0].appScan.keyId']
+        'an AppScan application ID'  | service(appScan: appScan(applicationId: null))                                           || ['services[0].appScan.applicationId']
         'one Nexus IQ application'   | service(nexusIqApplications: scannedByNexusIq('a').nexusIqApplications * 2)               || ['services[0].nexusIqApplications']
         'UrbanCode needs components' | service(urbanCodeApplications: [[applicationName: 'LEDGER', components: []], [applicationName: 'BATCH', components: [[componentName: 'batch']]]]) || ['services[0].urbanCodeApplications[0].components', 'services[0].urbanCodeApplications[1].components[0].baseDir', 'services[0].urbanCodeApplications[1].components[0].fileIncludePatterns']
         'test job parameters'        | service(testJobs: [[stage: 'SMOKE', job: 'smoke', parameters: 'ENV=rd\nSUITE critical']])  || ['services[0].testJobs[0].parameters']
@@ -387,36 +387,31 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
                  [code: 'X']]
     }
 
-    def "every service signs in to AppScan with its own key, and a product without services needs none"() {
+    def "no service holds an AppScan key, because the library signs in with the key of the functional user, and a product without services needs none"() {
         given:
         def code = uniqueCode()
 
         when:
         def created = api.post('/api/products', product(code: code, name: "Product $code", services: []))
         def id = created.json.id
-        def withoutKey = api.put("/api/products/$id", product(code: code, name: "Product $code", version: 0,
-                services: [service(name: 'gui'), service(name: 'api', appScan: appScan(keyId: ' '))]))
 
         then:
         created.status == 201
         !created.json.containsKey('appScan')
         created.json.services == []
         api.get("/api/products/$id/pipelines").json == []
-        withoutKey.status == 400
-        withoutKey.json.errors == [[field: 'services[1].appScan.keyId', message: 'is required']]
 
         when:
-        def withKeys = api.put("/api/products/$id", product(code: code, name: "Product $code", version: 0,
-                services: [service(name: 'gui'), service(name: 'api', appScan: appScan(keyId: 'bbh_api',
-                        secretCredentialsId: 'api-appscan-secret', scanName: 'api-sast'))]))
+        def saved = api.put("/api/products/$id", product(code: code, name: "Product $code", version: 0,
+                services: [service(name: 'gui'), service(name: 'api', appScan: appScan(scanName: 'api-sast'))]))
         def keys = pipelinesOf(id as long)*.activeKey*.value
         def configs = keys.collect { api.get("/api/dso/config/$it?format=json").json.projects }
 
         then:
-        withKeys.status == 200
-        withKeys.json.services*.appScan*.keyId == ['bbh_key-id', 'bbh_api']
-        configs[0].gui.asoc.subMap(['keyId', 'token']) == [keyId: 'bbh_key-id']
-        configs[1].api.asoc.subMap(['keyId', 'token']) == [keyId: 'bbh_api', token: 'api-appscan-secret']
+        saved.status == 200
+        saved.json.services.collectMany { (it.appScan as Map).keySet() as List }.intersect(['keyId', 'secretCredentialsId']) == []
+        configs[0].gui.asoc.subMap(['keyId', 'token']) == [:]
+        configs[1].api.asoc.subMap(['keyId', 'token']) == [:]
         configs[1].api.sast == [scanName: 'api-sast']
     }
 
@@ -730,8 +725,8 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         unknownTool.status == 400
         with(unknownTool.json) {
             title == 'Malformed request'
-            detail == 'services[0].build.tool must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE'
-            errors == [[field: 'services[0].build.tool', message: 'must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE']]
+            detail == 'services[0].build.tool must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE, DOTNET'
+            errors == [[field: 'services[0].build.tool', message: 'must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE, DOTNET']]
         }
         wrongType.status == 400
         wrongType.json.errors == [[field  : 'services[0].build.command.tasks',

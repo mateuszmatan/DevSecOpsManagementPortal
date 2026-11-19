@@ -174,7 +174,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <tr><td>UrbanCode Deploy</td><td>Virtual machines only: the UrbanCode Deploy applications and components.</td></tr>
 <tr><td>SSH targets</td><td>Virtual machines only: the hosts of the RD and QC test regions.</td></tr>
 <tr><td>OpenShift targets</td><td>OpenShift only: the build and deployment projects of each region.</td></tr>
-<tr><td>AppScan SAST and DAST</td><td>The AppScan application, the API key and the static and dynamic scans.</td></tr>
+<tr><td>AppScan SAST and DAST</td><td>The AppScan application and the static and dynamic scans.</td></tr>
 <tr><td>SonarQube</td><td>The SonarQube project and the analysis command.</td></tr>
 <tr><td>Nexus IQ</td><td>The Nexus IQ application and its scan patterns.</td></tr>
 <tr><td>Bitbucket</td><td>The repository where GoldenFix opens its pull requests.</td></tr>
@@ -200,7 +200,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <h3 id="required-fields">Required fields</h3>
 <p>Fields marked * are required. Some fields are required only in a situation:</p>
 <ul>
-<li>The service name, the AppScan application ID and the AppScan API key ID are always required. Every pipeline, the Nexus IQ GoldenFix pipeline included, signs in to AppScan with the key of the service.</li>
+<li>The service name and the AppScan application ID are always required. A service has no AppScan API key: every pipeline signs in to AppScan on Cloud with the API key of the functional user, which the DevSecOps team keeps in the defaults of the library (<code>asoc.keyId</code> and <code>asoc.token</code> of <code>resources/com/bbh/devsecops/defaults.yaml</code>).</li>
 <li>The Gradle tasks or Maven goals of the build are required, except for Flutter and Liquibase.</li>
 <li>The JDK path is required for Flutter and while &quot;Set up the build tool automatically&quot; is off, except for a Liquibase service without database changes.</li>
 <li>The artifact path is required for a Maven service on virtual machines that delivers to Nexus.</li>
@@ -223,7 +223,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <h3 id="before-you-start">Before you start</h3>
 <p>Have these at hand:</p>
 <ul>
-<li>The name of each service, its AppScan application ID and the AppScan API key ID. The DevSecOps team gives you the AppScan values.</li>
+<li>The name of each service and its AppScan application ID. The DevSecOps team gives you the application ID and adds the application to the AppScan functional user.</li>
 <li>Whether each service is built with Gradle or Maven. A developer of the service knows.</li>
 <li>The folder of its <code>package.json</code> when Node.js builds its frontend first.</li>
 <li>For the OSA pipeline: the Nexus IQ application and the Bitbucket repository of each service.</li>
@@ -254,7 +254,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>In General, type the service name, for example <code>backend-api</code>. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.</li>
 <li>In Build, choose or verify the build tool. The hint tells you how to recognise it: &quot;The code has a build.gradle file&quot; means Gradle, &quot;The code has a pom.xml file&quot; means Maven, &quot;The code has a pubspec.yaml file&quot; means Flutter and &quot;The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties&quot; means Liquibase (SQL / PL/SQL); for its commands and its database changes see <a href="#add-a-liquibase-service-in-the-wizard">chapter 7</a>. The tasks and the artifact path come from the service template. Leave &quot;Set up the build tool automatically&quot; on.</li>
 <li>If the repository holds a frontend that npm builds, for example an Angular application, tick &quot;Build the frontend with Node.js first&quot;. Type the &quot;Folder with package.json&quot;, for example <code>frontend</code>. Leave the other Node.js fields as they are. See <a href="#6-build-the-frontend-with-nodejs-first-stage-0">chapter 6</a>.</li>
-<li>In AppScan SAST and DAST, type the AppScan application ID. The AppScan API key ID is filled in when another service of the product already has one; otherwise type it.</li>
+<li>In AppScan SAST and DAST, type the AppScan application ID. There is no API key to type: the library signs in with the key of the functional user.</li>
 <li>For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.</li>
 <li>For the Full pipeline on virtual machines, add an UrbanCode Deploy application for DV.</li>
 <li>For the Security and Full pipelines, choose Virtual machine or OpenShift in Deployment. On OpenShift, fill in the RD build fields of OpenShift targets.</li>
@@ -503,7 +503,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 <li>Under &quot;Test database, for the utPLSQL tests&quot;, &quot;RD, the lower test region&quot; and &quot;QC, the higher test region&quot;, type the JDBC URL and the Credentials ID of each database the pipelines deploy to. Leave a database empty when the pipelines do not deploy to it.</li>
 <li>To run the utPLSQL tests, tick &quot;Run the utPLSQL tests&quot; under the test database. Type the &quot;Folder of the packages&quot; and the &quot;Folder of the test packages&quot;, such as <code>db/code</code> and <code>db/test</code>.</li>
 <li>Under &quot;Package and Nexus delivery&quot;, type the Group ID, such as <code>com.bbh.orders</code>. The Full and Security pipelines need it while &quot;Deliver the package to Nexus&quot; is ticked. While the Library defaults name no Nexus repositories for database packages, the repository fields appear here as well and need values; otherwise they are under Advanced settings.</li>
-<li>In AppScan SAST and DAST, type the AppScan application ID and the AppScan API key ID, as for every service.</li>
+<li>In AppScan SAST and DAST, type the AppScan application ID, as for every service.</li>
 <li>For the Security and Full pipelines of a service without database changes, choose the deployment as for every service (<a href="#step-3-services">step 3 of chapter 4</a>).</li>
 <li>For the Security and Full pipelines, type the SonarQube project key; left empty, the library uses <code>com.bbh:&lt;service name&gt;</code>. A service with database changes is analysed only on a SonarQube server that analyses PL/SQL; otherwise its SonarQube stage is not required.</li>
 <li>When nothing is missing, click &quot;Add service&quot;.</li>
@@ -830,15 +830,13 @@ devSecOpsPipeline(<span class="k">pipelineKeys</span>: [
     <span class="k">appId</span>:     <span class="s">&quot;&lt;AppScan application id&gt;&quot;</span>
     <span class="k">buildTool</span>: liquibase
     <span class="k">javaPath</span>:  /usr/lib/jvm/java-17-openjdk        <span class="c"># or buildToolAutoSetup: true</span>
-    <span class="k">asoc</span>:
-      <span class="k">keyId</span>: <span class="s">&quot;&lt;AppScan key id&gt;&quot;</span>
     <span class="k">database</span>:
       <span class="k">changelogFile</span>: db/changelog-master.xml
       <span class="k">package</span>:
         <span class="k">groupId</span>: com.bbh.orders
         <span class="k">snapshotRepository</span>: {<span class="k">id</span>: bbh-db-snapshots, <span class="k">url</span>: <span class="s">&quot;https://tools.bbh.com/nexus/repository/db-snapshots&quot;</span>}
         <span class="k">releaseRepository</span>:  {<span class="k">id</span>: bbh-db-releases,  <span class="k">url</span>: <span class="s">&quot;https://tools.bbh.com/nexus/repository/db-releases&quot;</span>}</code></pre>
-<p>The SAST pipeline needs only <code>appId</code>, <code>buildTool</code>, <code>javaPath</code> or <code>buildToolAutoSetup</code>, <code>asoc.keyId</code> and <code>database.changelogFile</code>. Without Nexus, <code>database.package.nexusDelivery: false</code> replaces the group ID and the repositories.</p>
+<p>The SAST pipeline needs only <code>appId</code>, <code>buildTool</code>, <code>javaPath</code> or <code>buildToolAutoSetup</code> and <code>database.changelogFile</code>. Without Nexus, <code>database.package.nexusDelivery: false</code> replaces the group ID and the repositories.</p>
 <h3 id="production-deployments-from-the-package">Production deployments from the package</h3>
 <p>The pipelines never deploy to production. A DBA deploys the released zip by hand, following the runbook in chapter 14 of the library guide, &quot;Production (by hand, outside the library)&quot;:</p>
 <ol>
@@ -1081,7 +1079,6 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <li>The repository URL follows the name too while it is the URL the service template gives for the name of the source. When both services build from one repository, set the repository URL of the copy back to that of its source.</li>
 </ul>
 <p>A copy keeps the Bitbucket credentials ID of its source, even an empty one. In the admin editor, a copy also keeps an empty repository URL, so a copy of a service without a repository needs no credentials ID. In the Self-service dialog, the service template fills in an empty repository URL from the name, and a copy without a Bitbucket credentials ID then needs one.</p>
-<p>A new service in the Self-service wizard also takes the AppScan API key ID of another service of the product.</p>
 </div>
 
 <div class="section" id="11-goldenfix">
@@ -1108,7 +1105,7 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <li>&quot;Override for this service&quot; shows the policy fields below. A field left empty keeps the Library default; its hint shows that value.</li>
 </ul>
 <h3 id="the-policy-fields">The policy fields</h3>
-<p>Three rules are fixed by the library and have no field: GoldenFix changes only direct dependencies, it changes only the last number of a version (the patch, so <code>1.2.3</code> may become <code>1.2.4</code> but never <code>1.3.0</code>, and a dependency without such a version is left untouched), and it opens a pull request only after the pre-check build of the changed manifests has passed. A shared version catalog repository is built the same way before its pull request.</p>
+<p>Three rules are fixed by the library and have no field: GoldenFix changes only direct dependencies, it changes only the last number of a version (the patch, so <code>1.2.3</code> may become <code>1.2.4</code> but never <code>1.3.0</code>, and a dependency without such a version is left untouched), and it opens a pull request only after the pre-check build of the changed manifests and their unit tests have passed. A shared version catalog repository is built the same way before its pull request.</p>
 <table>
 <thead>
 <tr><th>Field</th><th>Meaning</th></tr>
@@ -1118,9 +1115,9 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <tr><td>Minimum threat level</td><td>Only violations that Nexus IQ rates at least this high, from 0 to 10. 2 and above is moderate, 4 and above severe, 8 and above critical.</td></tr>
 <tr><td>Golden version types</td><td>The Nexus IQ remediation types labelled Nexus IQ Golden Version in the pull request.</td></tr>
 <tr><td>Excluded folders</td><td>Folder names, at any depth, whose manifests GoldenFix leaves alone. A list replaces the library list of <code>.git</code>, <code>node_modules</code>, <code>target</code>, <code>build</code> and similar folders.</td></tr>
-<tr><td>Attempts</td><td>How many pre-check builds GoldenFix may run. When a build fails, it lowers the versions and builds again.</td></tr>
+<tr><td>Attempts</td><td>How many pre-check builds GoldenFix may run. When a build or a unit test fails, it lowers the versions and builds again.</td></tr>
 <tr><td>Timeout (minutes)</td><td>The limit of each check: one check for each folder in which a changed manifest or catalog is built.</td></tr>
-<tr><td>Maven, Gradle, npm, pip, pub and NuGet command</td><td>The command that builds the fix. Left empty, the library runs <code>mvn -B -q -DskipTests compile</code>, <code>./gradlew --no-daemon --console=plain classes</code>, <code>npm ci --ignore-scripts</code>, <code>python3 -m pip install --dry-run</code>, <code>flutter pub get</code> or <code>dotnet build --no-incremental</code> (<code>nuget restore</code> and <code>MSBuild</code> on Windows).</td></tr>
+<tr><td>Maven, Gradle, npm, pip, pub and NuGet command</td><td>The command that builds the fix and runs its unit tests. Left empty, the library runs <code>mvn -B -q test</code>, <code>./gradlew --no-daemon --console=plain test</code>, <code>npm ci --ignore-scripts</code> followed by <code>npm test</code> when <code>package.json</code> has a test script, <code>pip install</code> in a temporary virtual environment followed by <code>pytest</code> (a folder without tests passes), <code>flutter pub get</code> and <code>flutter test</code> (<code>dart pub get</code> and <code>dart test</code> for a Dart package) or <code>dotnet test</code>. On Windows a classic .NET Framework project is restored with <code>nuget restore</code> and built with <code>MSBuild</code>, without its tests.</td></tr>
 <tr><td>Author name, Author e-mail</td><td>The author of the GoldenFix commit.</td></tr>
 <tr><td>Time zone</td><td>The time zone of the branch and pull request name <code>GoldenFix-YYYYMMDDHHMM</code>.</td></tr>
 </tbody>
@@ -1454,20 +1451,17 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 </ul>
 <pre><code><span class="kw">@Library</span>(<span class="s">'DSOEnhanced@main'</span>) _
 devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key from DevSecOps portal&gt;'</span>)</code></pre>
-<h4 id="2-standalone-version-without-portal-dsoenhancedwithoutportal-and-dsoenhancedappscanapionly">2. Standalone Version without Portal (DSOEnhancedWithoutPortal and DSOEnhancedAppScanApiOnly)</h4>
+<h4 id="2-standalone-version-without-portal-dsoenhancedwithoutportal">2. Standalone Version without Portal (DSOEnhancedWithoutPortal)</h4>
 <ul>
 <li><strong>Default Mode</strong>: <code>autoresolve parameters: true</code> is enabled by default in <code>devsecops_config.yaml</code>.</li>
 <li><strong>Minimal Configuration</strong>:</li>
 </ul>
 <pre><code><span class="k">projects</span>:
   <span class="k">payment-service</span>:
-    <span class="k">appId</span>: <span class="s">&quot;APP-12345&quot;</span>
-    <span class="k">asoc</span>:
-      <span class="k">keyId</span>: <span class="s">&quot;11111111-2222-3333-4444-555555555555&quot;</span>
-      <span class="k">token</span>: <span class="s">&quot;APPSCAN_CREDENTIALS_ID&quot;</span></code></pre>
+    <span class="k">appId</span>: <span class="s">&quot;APP-12345&quot;</span></code></pre>
 <ul>
 <li><strong>Disabling Auto-Resolve</strong>: Set <code>autoresolve parameters: false</code> under the service to enforce strict manual configuration.</li>
-<li><strong>REST API SAST (<code>DSOEnhancedAppScanApiOnly</code>)</strong>: Authenticates via AppScan REST API v4, isolates SAST credentials (<code>sast.keyId</code>, <code>sast.token</code>), and ignores findings marked as <code>Noise</code>.</li>
+<li><strong>REST API SAST</strong>: SAST and DAST go through the AppScan on Cloud REST API v4 and sign in with the one API key of the functional user from the library defaults (<code>asoc.keyId</code>, <code>asoc.token</code>); a key in <code>devsecops_config.yaml</code> is ignored with a warning, and findings marked as <code>Noise</code> are left out.</li>
 </ul>
 <h3 id="rest-api-of-the-auto-discovery">REST API of the auto-discovery</h3>
 <ul>
@@ -1846,8 +1840,6 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 </thead>
 <tbody>
 <tr><td>AppScan application ID</td><td><code>appId</code></td><td>required; when multiple services in the same repository share the same appId, the SAST scan runs only once and findings are reused. Services across different repositories must have distinct appIds.</td></tr>
-<tr><td>AppScan API key ID</td><td><code>asoc.keyId</code></td><td>required</td></tr>
-<tr><td>API key secret credentials ID</td><td><code>asoc.token</code></td><td>left empty: the key ID names the credential</td></tr>
 <tr><td>Run DAST against the deployed application</td><td><code>dast.enabled</code></td><td>Full pipeline</td></tr>
 <tr><td>DAST target URL</td><td><code>dast.targetUrl</code></td><td></td></tr>
 <tr><td>Presence ID</td><td><code>dast.presenceId</code></td><td></td></tr>
@@ -2130,12 +2122,15 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 </ul>
 <p>Before 037 these checks refused the build tool Liquibase, which the form and the API already offered, so the save of any Liquibase service failed in the database. The recreated checks let every Liquibase service be saved, with or without database changes. The Library defaults still refuse Liquibase as the build tool of a new service. Every service keeps its build tool, and its settings sent to Jenkins stay as they were. The section Liquibase database changes of the Library defaults starts empty, so set the allowed databases and the Nexus repositories of the database packages before the first service with database changes is saved. The Full, Security and Extended pipelines of such a service that delivers its package need a group ID and the repositories of <a href="#what-the-pipelines-do-with-a-liquibase-service">chapter 7</a>.</p>
 <div class="callout"><strong>Warning.</strong> A rollback of 037 stops at the build tool checks while a service has the build tool Liquibase (SQL / PL/SQL). Change the build tool of those services, or delete them, and run the same rollback again. It then drops the columns and the table with whatever they hold.</div>
+<h3 id="upgrade-note-changeset-040">Upgrade note: changeset 040</h3>
+<p>Changeset 040 (<code>040-drop-service-appscan-key</code>) drops <code>APPSCAN_KEY_ID</code> and <code>APPSCAN_SECRET_CREDENTIALS_ID</code> from <code>DSO_SERVICE</code>. The library signs in to AppScan on Cloud with the one API key of the functional user, which the DevSecOps team sets in <code>asoc.keyId</code> and <code>asoc.token</code> of <code>resources/com/bbh/devsecops/defaults.yaml</code> of the library, so a service keeps only its AppScan application ID. The configuration sent to Jenkins no longer holds <code>asoc.keyId</code> or <code>asoc.token</code>, and an imported <code>devsecops_config.yaml</code> that sets them gets a note that they are not imported.</p>
+<div class="callout"><strong>Warning.</strong> The key IDs and credential IDs of the services are dropped with the columns, and a rollback brings the columns back empty. Before the upgrade, make sure the key of the functional user is in the defaults of the library.</div>
 </div>
 
 <div class="section" id="22-troubleshooting">
 <h2><span class="num">22</span> Troubleshooting</h2>
 <h3 id="add-service-stays-disabled">&quot;Add service&quot; stays disabled</h3>
-<p>The text next to the button names the missing fields, for example &quot;Complete these fields first: AppScan API key ID&quot;. Click a field name. The form opens its section, under Advanced settings if needed, and puts the cursor in the field.</p>
+<p>The text next to the button names the missing fields, for example &quot;Complete these fields first: AppScan application ID&quot;. Click a field name. The form opens its section, under Advanced settings if needed, and puts the cursor in the field.</p>
 <h3 id="a-service-shows-needs-attention">A service shows &quot;Needs attention&quot;</h3>
 <p>A field of the service has a problem. Open the service and look for the red marks in the list of sections. Saving opens the first section with a problem.</p>
 <h3 id="give-the-nodejs-installation-or-its-home-on-the-agent-not-both">&quot;give the Node.js installation or its home on the agent, not both&quot;</h3>

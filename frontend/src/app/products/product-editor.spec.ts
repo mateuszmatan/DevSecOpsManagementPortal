@@ -136,7 +136,7 @@ describe('ProductEditor', () => {
         build: { javaPath: '/usr/lib/jvm/java-17-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'gui', artifactName: 'gui.jar' },
         openShiftTargets: imageBuild,
-        appScan: { applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019', keyId: 'bbh_key' },
+        appScan: { applicationId: '109f44ac-cc06-4ca0-884e-d944904f7019' },
       });
     editor()['form'].controls.services.at(0).markAsDirty();
   }
@@ -398,7 +398,7 @@ describe('ProductEditor', () => {
         build: { javaPath: '/usr/lib/jvm/java-21-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'api', artifactName: 'api.jar' },
         openShiftTargets: imageBuild,
-        appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019', keyId: 'bbh_key' },
+        appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019' },
       });
     await submit();
 
@@ -561,7 +561,7 @@ describe('ProductEditor', () => {
         build: { javaPath: '/usr/lib/jvm/java-21-openjdk', command: { tasks: 'clean package' } },
         deployment: { appName: 'api', artifactName: 'api.jar' },
         openShiftTargets: imageBuild,
-        appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019', keyId: 'bbh_key' },
+        appScan: { applicationId: '209f44ac-cc06-4ca0-884e-d944904f7019' },
       });
     await submit();
 
@@ -718,22 +718,22 @@ describe('ProductEditor', () => {
     ]);
     expect(text(page().querySelector('.blocked'))).toBe(
       'Complete these services before adding another: gui (Artifact name, Build project, BuildConfig file, ' +
-        'Dockerfile, Build context, Image pushed to, Nexus auth file, AppScan application ID, AppScan API key ID).',
+        'Dockerfile, Build context, Image pushed to, Nexus auth file, AppScan application ID).',
     );
 
-    buttonOf(page().querySelector('.blocked')!, 'AppScan API key ID').click();
+    buttonOf(page().querySelector('.blocked')!, 'AppScan application ID').click();
     await fixture.whenStable();
 
     expect(text(expandedPanels()[0].querySelector('.rail-item.active span'))).toBe(
       'AppScan SAST and DAST',
     );
-    expect(document.activeElement).toBe(inputOf(expandedPanels()[0], 'AppScan API key ID'));
+    expect(document.activeElement).toBe(inputOf(expandedPanels()[0], 'AppScan application ID'));
     expect(
-      text(fieldOf(expandedPanels()[0], 'AppScan API key ID')!.querySelector('dso-error')),
+      text(fieldOf(expandedPanels()[0], 'AppScan application ID')!.querySelector('dso-error')),
     ).toBe('Required');
+    expect(fieldOf(expandedPanels()[0], 'AppScan API key ID')).toBeNull();
 
     fillValidProduct();
-    first.controls.appScan.patchValue({ secretCredentialsId: 'asoc-secret' });
     await fixture.whenStable();
 
     expect(actions()).toEqual([
@@ -748,7 +748,8 @@ describe('ProductEditor', () => {
     const added = editor()['form'].controls.services.at(1).controls.appScan.getRawValue();
 
     expect(panels().length).toBe(2);
-    expect([added.keyId, added.secretCredentialsId]).toEqual(['bbh_key', 'asoc-secret']);
+    expect(added).not.toHaveProperty('keyId');
+    expect(added).not.toHaveProperty('secretCredentialsId');
     expect(actions()).toEqual([
       'Copy values from existing service',
       'Import devsecops_config.yaml',

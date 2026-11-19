@@ -73,6 +73,7 @@ defaults:
     - maven
     - npm
     - pypi
+    - nuget
     goldenVersionTypes:
     - recommended-non-breaking-with-dependencies
     - recommended-non-breaking
@@ -95,8 +96,6 @@ projects:
         extendedPipeline: PAYHUB/gateway-extended
     asoc:
       url: https://bbh.cloud.appscan.com
-      keyId: bbh_1c2d3e4f-0000-4abc-9def-123456789abc
-      token: hcl-app-scan-account
     influx:
       url: http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s
       credentialsId: influxdb-token

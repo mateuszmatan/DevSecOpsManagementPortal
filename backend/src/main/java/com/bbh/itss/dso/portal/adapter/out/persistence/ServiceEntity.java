@@ -277,8 +277,6 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "APPSCAN_CLIENT_PATH") String clientPath,
             @EmbeddedColumnNaming("APPSCAN_COMPILE_%s") ToolCommandEmbeddable compileCommand,
             Boolean dastEnabled, String dastTargetUrl, String dastPresenceId,
-            @Column(name = "APPSCAN_SECRET_CREDENTIALS_ID") String secretCredentialsId,
-            @Column(name = "APPSCAN_KEY_ID") String keyId,
             @Column(name = "APPSCAN_SCAN_NAME") String scanName) {
     }
 

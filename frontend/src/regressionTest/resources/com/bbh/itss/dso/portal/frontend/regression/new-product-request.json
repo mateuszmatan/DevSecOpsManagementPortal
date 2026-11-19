@@ -143,7 +143,6 @@
       "openShiftTargets": {},
       "appScan": {
         "applicationId": "7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b31",
-        "keyId": "bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15",
         "includedDirs": [],
         "excludedDirs": [],
         "compile": true,
@@ -163,7 +162,6 @@
         "dastEnabled": false,
         "dastTargetUrl": null,
         "dastPresenceId": null,
-        "secretCredentialsId": "hcl-app-scan-account",
         "scanName": null
       },
       "sonar": {
@@ -377,7 +375,6 @@
       "openShiftTargets": {},
       "appScan": {
         "applicationId": "7d1f3a52-9c4b-4e8a-b2d6-0f5e1c9a8b32",
-        "keyId": "bbh_5f0c2a9e-1b7d-4c3e-8a6f-2d9b0e4c7a15",
         "includedDirs": [],
         "excludedDirs": [],
         "compile": true,
@@ -397,7 +394,6 @@
         "dastEnabled": false,
         "dastTargetUrl": null,
         "dastPresenceId": null,
-        "secretCredentialsId": "hcl-app-scan-account",
         "scanName": null
       },
       "sonar": {

@@ -105,7 +105,6 @@
       "openShiftTargets": {},
       "appScan": {
         "applicationId": "6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10",
-        "keyId": "bbh_6f0c2a9e-4b1d-4e57-9a43-0d8e2f6b7c10",
         "scanName": null,
         "includedDirs": [],
         "excludedDirs": [],
@@ -125,8 +124,7 @@
         },
         "dastEnabled": false,
         "dastTargetUrl": null,
-        "dastPresenceId": null,
-        "secretCredentialsId": "appscan-orders-key-secret"
+        "dastPresenceId": null
       },
       "sonar": {
         "projectName": null,

@@ -261,7 +261,6 @@ export interface OpenShiftTarget {
 
 export interface AppScanSettings {
   applicationId: string;
-  keyId: string;
   scanName: string | null;
   includedDirs: string[];
   excludedDirs: string[];
@@ -274,7 +273,6 @@ export interface AppScanSettings {
   dastEnabled: boolean;
   dastTargetUrl: string | null;
   dastPresenceId: string | null;
-  secretCredentialsId: string | null;
 }
 
 export interface SonarSettings {

@@ -175,7 +175,7 @@ public final class SammCalculator {
         List<String> recommendations = new ArrayList<>();
         double score = 0.0;
 
-        boolean hasSast = settings.appScan() != null && settings.appScan().keyId() != null;
+        boolean hasSast = settings.appScan() != null && settings.appScan().applicationId() != null;
         boolean hasSca = settings.nexusIq() != null && !settings.nexusIqApplications().isEmpty();
         boolean hasSonar = settings.sonar() != null && settings.sonar().projectKey() != null;
 
@@ -352,7 +352,7 @@ public final class SammCalculator {
             recommendations.add("Publish pipeline execution reports to DevSecOps portal for defect tracking");
         }
 
-        boolean noiseFilter = settings.appScan() != null && settings.appScan().keyId() != null;
+        boolean noiseFilter = settings.appScan() != null && settings.appScan().applicationId() != null;
         if (noiseFilter) {
             score += 1.0;
             criteria.add("Automated vulnerability triage active with noise-filtered SAST findings");
@@ -379,7 +379,7 @@ public final class SammCalculator {
         double score = 0.0;
 
         AppScanSettings appScan = settings.appScan();
-        boolean hasSast = appScan != null && appScan.keyId() != null;
+        boolean hasSast = appScan != null && appScan.applicationId() != null;
         boolean hasSca = settings.nexusIq() != null && !settings.nexusIqApplications().isEmpty();
 
         if (hasSast || hasSca) {

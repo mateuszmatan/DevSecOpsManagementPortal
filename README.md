@@ -107,8 +107,9 @@ machines only with an UrbanCode Deploy application for DV (environments left emp
 library deploys the lower test region through UrbanCode Deploy environment DV.
 `GET /api/pipelines/{id}/config` shows the same configuration in the GUI without recording a use.
 
-Every service signs in to AppScan with its own API key ID (`asoc.keyId`) and, optionally, the Jenkins credential that
-holds its secret (`asoc.token`); without that credential the library takes the key ID as the credential's ID. A
+No service holds an AppScan API key: the library signs in to AppScan on Cloud with the one API key of the functional
+user, `asoc.keyId` and `asoc.token` of its own `resources/com/bbh/devsecops/defaults.yaml`, so a service sets only its
+AppScan application ID, and an imported `asoc.keyId` or `asoc.token` gets a note that it is not imported. A
 service scans one Nexus IQ application. A service whose build is not delivered to Nexus renders
 `deploy.<vm|openshift>.rd.nexusDeliveryEnabled: false`, and the forms then ask for none of the delivery settings. A
 service may run a Node.js build as stage 0, before its Gradle or Maven build: `build.node` is rendered only while it is
@@ -189,6 +190,10 @@ with who, what, when and the result, and shown under Action history.
   packages before the first service with database changes is saved; the Full, Security and Extended pipelines of a
   service that delivers its package need a group ID and those repositories. A rollback stops at the build tool checks
   while a service has the build tool `LIQUIBASE`: change or delete those services, then run the same rollback again.
+- Changeset 040 drops `APPSCAN_KEY_ID` and `APPSCAN_SECRET_CREDENTIALS_ID` from `DSO_SERVICE`: the library signs in to
+  AppScan on Cloud with the one API key of the functional user from its own defaults. Set `asoc.keyId` and `asoc.token`
+  in `resources/com/bbh/devsecops/defaults.yaml` of the library before the upgrade; a rollback brings the columns back
+  empty.
 
 ## Known gaps
 

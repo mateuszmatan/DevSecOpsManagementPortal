@@ -342,8 +342,6 @@ public record ServiceDto(
             Boolean dastEnabled,
             @Size(max = 1000) @Pattern(regexp = URL, message = URL_MESSAGE) String dastTargetUrl,
             @Size(max = 100) String dastPresenceId,
-            @Size(max = 200) String secretCredentialsId,
-            @Size(max = 200) String keyId,
             @Size(max = 200)
             @Pattern(regexp = "^[A-Za-z0-9._-]*$", message = "may contain letters, digits, '.', '_' and '-'")
             String scanName) implements Mirrors<AppScanSettings> {

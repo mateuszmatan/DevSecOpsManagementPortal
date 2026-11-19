@@ -64,7 +64,7 @@ class DsoConfigBuilderSpec extends Specification {
         Map entry = builder.productConfig(certScanner).projects.gui
 
         then:
-        entry.asoc == [url: 'https://bbh.cloud.appscan.com', keyId: 'bbh_key-id']
+        entry.asoc == [url: 'https://bbh.cloud.appscan.com']
         entry.influx == [url: 'http://qcwsecopsmon1.testbbh.com:8086/api/v2/write?org=DevSecOps&bucket=DORA-metrics&precision=s',
                          credentialsId: 'influxdb-token', enabled: true, project: 'CERT-gui', env: 'test']
         entry.tools.sonar == [serverUrl: 'https://tools.bbh.com/sonar', installationName: 'SonarQube',
@@ -73,14 +73,13 @@ class DsoConfigBuilderSpec extends Specification {
                                 scanPatterns: ['**/build/libs/*.jar'], stage: 'build', failOnNetworkError: false]
     }
 
-    def "a service's own servers, credentials and AppScan key replace the global values"() {
+    def "a service's own servers and credentials replace the global values, and no AppScan key is written"() {
         when:
         Map entry = builder.productConfig(product(services: [[id: 10L, name: 'gui', settings: fullSettings('gui')]]))
                 .projects.gui
 
         then:
-        entry.asoc.subMap(['url', 'keyId', 'token']) ==
-                [url: 'https://bbh.cloud.appscan.com', keyId: 'bbh_key-id', token: 'cert-appscan-secret']
+        entry.asoc.subMap(['url', 'keyId', 'token']) == [url: 'https://bbh.cloud.appscan.com']
         entry.sast == [scanName: 'cert-gui-sast']
         entry.influx.subMap(['url', 'credentialsId']) ==
                 [url: 'https://influx.cert.bbh.com/api/v2/write', credentialsId: 'cert-influx']

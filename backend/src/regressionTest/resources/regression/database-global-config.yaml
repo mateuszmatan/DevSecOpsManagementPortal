@@ -72,6 +72,7 @@ defaults:
     - maven
     - npm
     - pypi
+    - nuget
     goldenVersionTypes:
     - recommended-non-breaking-with-dependencies
     - recommended-non-breaking

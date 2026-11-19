@@ -9,7 +9,6 @@ import {
   Validators,
 } from '@angular/forms';
 import {
-  AppScanSettings,
   BitbucketAuthType,
   BitbucketType,
   BuildTool,
@@ -1042,7 +1041,6 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
           'services in different Bitbucket repositories cannot share the same AppScan application ID',
         ),
       ),
-      keyId: text(s?.appScan?.keyId, filled, max(200)),
       scanName: text(s?.appScan?.scanName, Validators.pattern(SCAN_NAME), max(200)),
       includedDirs: folders(s?.appScan?.includedDirs),
       excludedDirs: folders(s?.appScan?.excludedDirs),
@@ -1055,7 +1053,6 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
       dastEnabled: flag(s?.appScan?.dastEnabled),
       dastTargetUrl: url(s?.appScan?.dastTargetUrl),
       dastPresenceId: text(s?.appScan?.dastPresenceId, max(100)),
-      secretCredentialsId: text(s?.appScan?.secretCredentialsId, max(200)),
     }),
     sonar: new FormGroup({
       projectName: text(s?.sonar?.projectName, max(200)),
@@ -1729,21 +1726,7 @@ export function duplicateService(
   return copy;
 }
 
-export type AppScanKey = Partial<Pick<AppScanSettings, 'keyId' | 'secretCredentialsId'>>;
-
-export function prefillNewService(
-  form: ServiceForm,
-  settings: GlobalSettings | null,
-  keys: readonly AppScanKey[],
-): void {
-  const { keyId, secretCredentialsId } = form.controls.appScan.controls;
-  const key = keys.find((candidate) => optional(candidate.keyId));
-  if (key && !optional(keyId.value)) {
-    keyId.setValue(key.keyId!.trim());
-    if (!optional(secretCredentialsId.value)) {
-      secretCredentialsId.setValue(key.secretCredentialsId ?? '');
-    }
-  }
+export function prefillNewService(form: ServiceForm, settings: GlobalSettings | null): void {
   applyLibraryDefaults(form, settings);
 }
 
