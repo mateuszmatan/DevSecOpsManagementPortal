@@ -139,7 +139,8 @@ public record GlobalSettingsDto(
             @NotNull @Min(1) @Max(3600) Integer dastReportIntervalSeconds,
             @NotNull Boolean sonarWaitForQualityGate,
             @NotNull @Min(1) @Max(1440) Integer sonarQualityGateTimeoutMinutes,
-            @NotNull Boolean parallelStaticAnalysis) implements Mirrors<ScanSettings> {
+            @NotNull Boolean parallelStaticAnalysis,
+            Boolean parallelDynamicAnalysis) implements Mirrors<ScanSettings> {
     }
 
     public record ReleaseGateSettingsDto(

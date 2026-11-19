@@ -532,9 +532,9 @@ devSecOpsPipeline(
 <h2 id="7-static-application-security-testing-sast-hcl-appscan">7. Static Application Security Testing (SAST) – HCL AppScan</h2>
 <p>Static security analysis executed in the cloud:</p>
 <ul>
-<li><strong>Parallel Background Scanning:</strong></li>
-<li>Generates the IRX archive and submits the scan to HCL ASOC in the background.</li>
-<li>Unit tests and Nexus IQ execute concurrently while ASOC processes the code. Results are retrieved at the end of the static stage.</li>
+<li><strong>Stages at the same time:</strong></li>
+<li>By default SAST runs at the same time as the unit tests, Nexus IQ and SonarQube, as a parallel branch of <em>Static analysis</em>: it generates the IRX archive in a copy of the workspace, submits the scan to HCL ASOC and reads the results when the scan ends.</li>
+<li><code>staticAnalysis.parallel: false</code> in any service runs the four stages one after another; the report shows how long they took one after another and in parallel.</li>
 <li><strong>Credentials Configuration:</strong></li>
 <li>A service sets only its application ID. SAST and DAST sign in with the one API key of the AppScan on Cloud functional user, which the DevSecOps team keeps in <code>asoc.keyId</code> and <code>asoc.token</code> of <code>resources/com/bbh/devsecops/defaults.yaml</code> of the library; a key in <code>devsecops_config.yaml</code> is ignored with a <code>[WARN]</code> line:
     <code>yaml
@@ -601,13 +601,13 @@ devSecOpsPipeline(
 <h3 id="decoupled-pipeline-execution-order">Decoupled Pipeline Execution Order:</h3>
 <ol>
 <li><strong>Stage 1: Build Artifact (without tests):</strong> The pipeline first builds application artifacts without executing unit tests (e.g., <code>-DskipTests</code> / <code>-x test</code>). If a Node.js build is configured (<code>build.node.enabled: true</code>), npm commands run as step 0 at the start of this stage before compiling the backend application.</li>
-<li><strong>Stage 2: Concurrent Verification (Unit Tests + SAST + Nexus IQ):</strong></li>
+<li><strong>Stage 2: Static analysis at the same time (Unit Tests + Nexus IQ + SAST + SonarQube):</strong> by default the four run as parallel branches of the Jenkins stage <em>Static analysis</em> (<code>staticAnalysis.parallel: false</code> in any service runs them one after another).</li>
 <li><strong>Unit Tests:</strong> Runs automated unit tests (including Node.js &amp; Cypress tests) and aggregates JaCoCo &amp; LCOV code coverage.</li>
-<li><strong>SAST (HCL AppScan):</strong> Queues static application security analysis in the background and retrieves findings.</li>
 <li><strong>Nexus IQ:</strong> Evaluates open-source dependencies against security policies and prepares GoldenFix remediation.</li>
-<li><strong>Stage 3: SonarQube (Static Code Analysis &amp; Quality Gate):</strong></li>
-<li>Runs last after Unit tests, SAST, and Nexus IQ have concluded.</li>
-<li>Ingests test execution results and JaCoCo/LCOV/Cypress coverage reports to enforce the SonarQube Quality Gate.</li>
+<li><strong>SAST (HCL AppScan):</strong> Compiles and queues the scan of every service in a copy of the workspace (<code>&lt;WORKSPACE_TMP&gt;/dso-sast-workspace</code>), so its compile never touches the files the other branches read, then waits for the results and the reports.</li>
+<li><strong>SonarQube:</strong> Starts a service once the unit tests of every service in the same source folder have written their coverage, ingests the test execution results and the JaCoCo/LCOV/Cypress coverage reports and enforces the SonarQube Quality Gate.</li>
+<li><strong>Stage 3: Results:</strong> A failing branch turns its stage red while the other branches finish. The console and the report show how long the four stages would take one after another and how long they took at the same time.</li>
+<li>The full and extended pipelines run the regression, smoke and performance tests and DAST at the same time in the same way (<em>Dynamic analysis</em>, <code>dynamicAnalysis.parallel</code>).</li>
 </ol>
 <hr />
 <h2 id="11-deployments-and-disable-nexus-delivery-openshift-vm">11. Deployments and "Disable Nexus Delivery" (OpenShift &amp; VM)</h2>

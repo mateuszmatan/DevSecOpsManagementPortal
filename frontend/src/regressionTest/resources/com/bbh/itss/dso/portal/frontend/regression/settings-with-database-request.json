@@ -72,7 +72,8 @@
     "dastReportIntervalSeconds": 30,
     "sonarWaitForQualityGate": true,
     "sonarQualityGateTimeoutMinutes": 5,
-    "parallelStaticAnalysis": true
+    "parallelStaticAnalysis": true,
+    "parallelDynamicAnalysis": true
   },
   "releaseGate": {
     "scanners": [

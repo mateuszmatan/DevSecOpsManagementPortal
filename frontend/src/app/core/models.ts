@@ -627,6 +627,7 @@ export interface ScanSettings {
   sonarWaitForQualityGate: boolean;
   sonarQualityGateTimeoutMinutes: number;
   parallelStaticAnalysis: boolean;
+  parallelDynamicAnalysis: boolean;
 }
 
 export interface ReleaseGateSettings {

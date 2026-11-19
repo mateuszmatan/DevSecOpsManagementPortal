@@ -303,7 +303,7 @@ export const SETTINGS_PAGE: SettingsSection[] = [
     label: 'Scans and coverage',
     note:
       'How much of the code the unit tests must cover, how long the pipelines wait for each scan ' +
-      'before they give up, and the order of the static scans. The waiting times rarely need to change.',
+      'before they give up, and which stages run at the same time. The waiting times rarely need to change.',
     blocks: [
       {
         heading: 'Coverage',
@@ -400,25 +400,41 @@ export const SETTINGS_PAGE: SettingsSection[] = [
       },
       {
         heading: 'Speed',
-        note: 'How the full and security pipelines order their static scans.',
+        note: 'Which stages the pipelines run at the same time.',
         fields: [
           {
             key: 'parallelStaticAnalysis',
-            label: 'Run Nexus IQ and SonarQube while AppScan scans',
+            label: 'Run unit tests, Nexus IQ, SAST and SonarQube at the same time',
             code: 'staticAnalysis.parallel',
             span: 12,
             kind: 'check',
             help:
-              'Ticked, the full and security pipelines first send the code of every service to AppScan. Nexus IQ and ' +
-              'SonarQube then run while AppScan scans it, and the SAST results are read last. The pipeline finishes ' +
-              'sooner; the findings and the release gate stay the same, and the SAST duration in the report and the ' +
-              'metrics covers the whole Static analysis stage. Jenkins shows the three scans as one stage, Static ' +
-              'analysis, and the build log lists them in this order. If SAST stops before the code is sent, Nexus IQ ' +
-              'and SonarQube do not run in that build. Unticked, Nexus IQ, SAST and SonarQube run one after another, ' +
-              'as before. The Jenkins environment variable DSO_STATIC_ANALYSIS_PARALLEL, when set to true or false, ' +
-              'overrides this box. A Jenkinsfile without a key does not follow this box: it runs the three scans ' +
-              'one after another unless DSO_STATIC_ANALYSIS_PARALLEL is true or every service of the run sets ' +
-              'staticAnalysis.parallel: true in devsecops_config.yaml.',
+              'Ticked, the full and security pipelines run the unit tests, Nexus IQ, SAST and SonarQube at ' +
+              'the same time, as parallel branches of the Jenkins stage Static analysis. SAST compiles and ' +
+              'queues its scans in a copy of the workspace, and SonarQube starts a service once its unit ' +
+              'tests have written the coverage. The findings, the release gate and the metrics stay the ' +
+              'same; the report shows how long the stages took one after another and in parallel. Unticked, ' +
+              'the four stages run one after another, as before. A Windows agent always runs them one after ' +
+              'another. The Jenkins environment variable DSO_STATIC_ANALYSIS_PARALLEL, when set to true or ' +
+              'false, overrides this box. A Jenkinsfile without a key does not follow this box: it runs the ' +
+              'stages at the same time unless DSO_STATIC_ANALYSIS_PARALLEL is false or a service of the run ' +
+              'sets staticAnalysis.parallel: false in devsecops_config.yaml.',
+          },
+          {
+            key: 'parallelDynamicAnalysis',
+            label: 'Run the regression, smoke and performance tests and DAST at the same time',
+            code: 'dynamicAnalysis.parallel',
+            span: 12,
+            kind: 'check',
+            help:
+              'Ticked, the full and extended pipelines run the regression, smoke and performance tests and ' +
+              'DAST at the same time, as parallel branches of the Jenkins stage Dynamic analysis. Each test ' +
+              'stage keeps its own limit of jobs at the same time, and the results and the release gate ' +
+              'stay the same. Unticked, they run one after another, as before. The Jenkins environment ' +
+              'variable DSO_DYNAMIC_ANALYSIS_PARALLEL, when set to true or false, overrides this box. A ' +
+              'Jenkinsfile without a key does not follow this box: it runs them at the same time unless ' +
+              'DSO_DYNAMIC_ANALYSIS_PARALLEL is false or a service of the run sets ' +
+              'dynamicAnalysis.parallel: false in devsecops_config.yaml.',
           },
         ],
       },

@@ -170,6 +170,7 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       sonarWaitForQualityGate: flag(s?.sonarWaitForQualityGate, true),
       sonarQualityGateTimeoutMinutes: minutes(s?.sonarQualityGateTimeoutMinutes),
       parallelStaticAnalysis: flag(s?.parallelStaticAnalysis, true),
+      parallelDynamicAnalysis: flag(s?.parallelDynamicAnalysis, true),
     }),
     releaseGate: new FormGroup({
       scanners: new FormControl<Scanner[]>(settings?.releaseGate.scanners ?? [...SCANNERS], {

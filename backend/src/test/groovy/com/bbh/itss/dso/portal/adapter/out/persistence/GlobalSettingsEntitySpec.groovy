@@ -52,12 +52,13 @@ class GlobalSettingsEntitySpec extends Specification {
         !entity.isNew()
     }
 
-    def "an unticked order of the static scans is read back unticked"() {
+    def "unticked stages at the same time are read back unticked"() {
         when:
-        entity.apply(copy(bbh, scans: copy(bbh.scans(), parallelStaticAnalysis: false)))
+        entity.apply(copy(bbh, scans: copy(bbh.scans(), parallelStaticAnalysis: false, parallelDynamicAnalysis: false)))
 
         then:
         entity.toDomain().values().scans().parallelStaticAnalysis() == false
+        entity.toDomain().values().scans().parallelDynamicAnalysis() == false
     }
 
     def "unchanged limits are left alone so saving writes no limit rows"() {

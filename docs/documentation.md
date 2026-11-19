@@ -1140,7 +1140,7 @@ Admin, Library defaults holds the values every pipeline shares. A service that l
 | Liquibase database changes | Liquibase, the Oracle JDBC driver and utPLSQL-cli, the allowed databases and the Nexus repositories of the database packages |
 | GoldenFix defaults | Whether GoldenFix runs by default and the GoldenFix policy |
 
-A Jenkinsfile without a key does not read this page. The values written under `defaults` reach it through the copy the DevSecOps library keeps of them, which the DevSecOps team updates from "Shared settings sent to Jenkins (devsecops_config.yaml format)" before each library release. That copy leaves out `staticAnalysis.parallel`, the order of the static scans, so such a Jenkinsfile does not follow the box "Run Nexus IQ and SonarQube while AppScan scans". The per-service servers and the Deployment defaults reach it in devsecops_config.yaml, once the file is downloaded and committed again. The values written to `platform`, such as the AppScan on Cloud URL of the scans, the scan client downloads, the proxy, the OIS host, the Nexus snapshot repository and the iOS build agent, never reach it: the library takes them from the environment of the Jenkins agent or uses its own.
+A Jenkinsfile without a key does not read this page. The values written under `defaults` reach it through the copy the DevSecOps library keeps of them, which the DevSecOps team updates from "Shared settings sent to Jenkins (devsecops_config.yaml format)" before each library release. That copy leaves out `staticAnalysis.parallel` and `dynamicAnalysis.parallel`, so such a Jenkinsfile does not follow the boxes "Run unit tests, Nexus IQ, SAST and SonarQube at the same time" and "Run the regression, smoke and performance tests and DAST at the same time": it runs those stages at the same time, the default of the library, unless a service of its `devsecops_config.yaml` or the Jenkins environment says otherwise. The per-service servers and the Deployment defaults reach it in devsecops_config.yaml, once the file is downloaded and committed again. The values written to `platform`, such as the AppScan on Cloud URL of the scans, the scan client downloads, the proxy, the OIS host, the Nexus snapshot repository and the iOS build agent, never reach it: the library takes them from the environment of the Jenkins agent or uses its own.
 
 ### Node.js build defaults
 
@@ -1150,18 +1150,18 @@ The block "Node.js build" in Service defaults has three fields: Node.js installa
 
 The section "Liquibase database changes" gives every Liquibase service with database changes the locations of Liquibase, the Oracle JDBC driver and utPLSQL-cli, the databases its pipelines may deploy to and the Nexus repositories of its package. The portal writes these values under `defaults.tools.liquibase`, `defaults.tools.oracleJdbc`, `defaults.tools.utplsql` and `defaults.database`, and only while they are set, so the settings of every other service stay as they were. The allowed databases apply to every service; a service cannot set its own. A service may name its own Nexus repositories. The BBH seed leaves the section empty, so set the allowed databases and the repositories before the first service with database changes is saved. [Chapter 7](#library-defaults-for-database-changes) describes each field, the licences, the checksums and the allowed databases.
 
-### Decoupled build, concurrent scans, and SonarQube running last
+### Stages at the same time
 
-The pipeline executes stages in an optimized sequence:
-1. **Build without tests**: The primary build artifact is compiled first (with optional Node.js build executing as step 0).
-2. **Concurrent Scans and Tests**: SAST scan submission queues while Unit tests (including Cypress tests) and Nexus IQ dependency scans run concurrently. Once testing and dependency evaluation finish, the pipeline retrieves the SAST analysis results.
-3. **SonarQube**: SonarQube runs last, ensuring that all Unit test reports and JaCoCo / LCOV / Cypress code coverage files are available for ingestion into the SonarQube quality gate.
+The pipelines run their stages in this order:
+1. **Build without tests**: the build artifact is compiled first, with the optional Node.js build as step 0.
+2. **Static analysis**: the full and security pipelines run the unit tests, Nexus IQ, SAST and SonarQube at the same time, as parallel branches. SAST compiles and queues its scans in a copy of the workspace, and SonarQube starts a service once the unit tests of the services of its source folder have written their coverage.
+3. **Dynamic analysis**: after the deployment to the lower test region, the full and extended pipelines run the regression, smoke and performance tests and DAST at the same time.
 
-The block "Speed" in Scans and coverage provides the checkbox "Run Nexus IQ and SonarQube while AppScan scans" (`staticAnalysis.parallel`, ticked by default). When enabled, SAST submission, unit tests, and Nexus IQ run concurrently before SonarQube runs last. Unticked, scans run sequentially. The Jenkins environment variable `DSO_STATIC_ANALYSIS_PARALLEL`, when set to `true` or `false`, overrides this setting. A Jenkinsfile without a key follows `staticAnalysis.parallel: true` in `devsecops_config.yaml`.
+The block "Speed" in Scans and coverage provides two checkboxes, both ticked by default: "Run unit tests, Nexus IQ, SAST and SonarQube at the same time" (`staticAnalysis.parallel`) and "Run the regression, smoke and performance tests and DAST at the same time" (`dynamicAnalysis.parallel`). Unticked, those stages run one after another, as before; a Windows agent always runs the static stages one after another. The Jenkins environment variables `DSO_STATIC_ANALYSIS_PARALLEL` and `DSO_DYNAMIC_ANALYSIS_PARALLEL`, when set to `true` or `false`, override the boxes. The report of every run shows how long the stages took one after another and in parallel, and ends with the table "Manual actions vs DevSecOps Automated Actions" and the time the run recovered. A Jenkinsfile without a key runs the stages at the same time unless a service sets `staticAnalysis.parallel: false` or `dynamicAnalysis.parallel: false` in `devsecops_config.yaml`.
 
 ### Which values follow later changes
 
-- Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the order of the static scans, the release gate, the test jobs at the same time, the Node.js build defaults, the Liquibase database change defaults and the GoldenFix policy of services that inherit it.
+- Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the stages at the same time, the release gate, the test jobs at the same time, the Node.js build defaults, the Liquibase database change defaults and the GoldenFix policy of services that inherit it.
 - The build tool, the deployment target and the source folder only prefill a new service.
 
 ### Portal monitoring
@@ -1892,7 +1892,8 @@ The values of Tools and servers are written to `platform`, and the per-service v
 | DAST: check for the report every | `dast.reportIntervalSec` | `defaults.dast.reportIntervalSec` |
 | Wait for the quality gate | `tools.sonar.qualityGate.waitForQualityGate` | `defaults.tools.sonar.qualityGate.waitForQualityGate` |
 | Longest wait (minutes) for the quality gate | `tools.sonar.qualityGate.timeoutMinutes` | `defaults.tools.sonar.qualityGate.timeoutMinutes` |
-| Run Nexus IQ and SonarQube while AppScan scans | `staticAnalysis.parallel` | `defaults.staticAnalysis.parallel`; ticked by default |
+| Run unit tests, Nexus IQ, SAST and SonarQube at the same time | `staticAnalysis.parallel` | `defaults.staticAnalysis.parallel`; ticked by default |
+| Run the regression, smoke and performance tests and DAST at the same time | `dynamicAnalysis.parallel` | `defaults.dynamicAnalysis.parallel`; ticked by default |
 | Release gate scans | `releaseGate.scanners` | written as `sast`, `sca`, `niq` and `dast` |
 | Also require the minimum line coverage | `releaseGate.requireCoverage` | `defaults.releaseGate.requireCoverage` |
 | Result file | `releaseGate.stateFile` | `defaults.releaseGate.stateFile`, fixed |
@@ -1985,7 +1986,7 @@ Every service starts with the Node.js build off and no catalogs, so every config
 
 ### Upgrade note: changeset 033
 
-Changeset `033-parallel-static-analysis` adds `PARALLEL_STATIC_ANALYSIS` (0 or 1, 1 by default) to `DSO_GLOBAL_SETTINGS`, with the check `CK_DSO_GLOBAL_PARALLEL_SCANS`. The saved settings get 1, so "Run Nexus IQ and SonarQube while AppScan scans" is ticked after the upgrade and the settings sent to Jenkins hold `defaults.staticAnalysis.parallel: true`. A library version without this order ignores the key. Untick the box before the next runs to keep the order Nexus IQ, SAST, SonarQube. A rollback drops the column.
+Changeset `033-parallel-static-analysis` adds `PARALLEL_STATIC_ANALYSIS` (0 or 1, 1 by default) to `DSO_GLOBAL_SETTINGS`, with the check `CK_DSO_GLOBAL_PARALLEL_SCANS`. The saved settings get 1, so the box now named "Run unit tests, Nexus IQ, SAST and SonarQube at the same time" is ticked after the upgrade and the settings sent to Jenkins hold `defaults.staticAnalysis.parallel: true`. A library version without this order ignores the key. Untick the box before the next runs to keep the stages one after another. A rollback drops the column.
 
 ### Upgrade note: changeset 034
 
@@ -2019,6 +2020,10 @@ Changeset 040 (`040-drop-service-appscan-key`) drops `APPSCAN_KEY_ID` and `APPSC
 
 > [!WARNING]
 > The key IDs and credential IDs of the services are dropped with the columns, and a rollback brings the columns back empty. Before the upgrade, make sure the key of the functional user is in the defaults of the library.
+
+### Upgrade note: changeset 042
+
+Changeset `042-parallel-dynamic-analysis` adds `PARALLEL_DYNAMIC_ANALYSIS` (0 or 1, 1 by default) to `DSO_GLOBAL_SETTINGS`, with the check `CK_DSO_GLOBAL_PARALLEL_TESTS`. The saved settings get 1, so "Run the regression, smoke and performance tests and DAST at the same time" is ticked after the upgrade and the settings sent to Jenkins hold `defaults.dynamicAnalysis.parallel: true`, the default of the library. A request to `PUT /api/settings` without `scans.parallelDynamicAnalysis`, such as one of an older client, ticks the box. A library version without the Dynamic analysis stage ignores the key. Untick the box to keep the tests and DAST one after another. A rollback drops the column.
 
 ## 22. Troubleshooting
 

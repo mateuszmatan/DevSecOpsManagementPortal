@@ -511,6 +511,8 @@ class ServiceConfigReaderSpec extends Specification {
                 appId: 109f44ac-cc06-4ca0-884e-d944904f7019
                 staticAnalysis:
                   parallel: true
+                dynamicAnalysis:
+                  parallel: true
                 build:
                   liquibase:
                     commands: updateSQL
@@ -541,7 +543,7 @@ class ServiceConfigReaderSpec extends Specification {
 
         then:
         importedService.name() == 'billing-db'
-        importedService.notes() == [problem('staticAnalysis.parallel', GLOBAL)]
+        importedService.notes() == [problem('staticAnalysis.parallel', GLOBAL), problem('dynamicAnalysis.parallel', GLOBAL)]
         db.build().tool() == LIQUIBASE
         db.build().sourceDir() == 'db'
         db.build().command().tasks() == ['updateSQL']

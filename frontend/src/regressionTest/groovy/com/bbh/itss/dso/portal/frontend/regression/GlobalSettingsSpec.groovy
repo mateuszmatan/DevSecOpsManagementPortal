@@ -149,14 +149,18 @@ class GlobalSettingsSpec extends DsoSpecification {
         ownErrors().findAll { !it.contains('503') }.isEmpty()
     }
 
-    def "unticking Nexus IQ and SonarQube while AppScan scans is saved and reaches the settings sent to Jenkins"() {
+    def "unticking the stages at the same time is saved and reaches the settings sent to Jenkins"() {
         given:
         api.get('/api/settings/config') {
-            yaml(fixtureText('settings-config.yaml').replace('parallel: true', "parallel: ${stored.scans.parallelStaticAnalysis}"))
+            yaml(fixtureText('settings-config.yaml')
+                    .replace('staticAnalysis:\n    parallel: true', "staticAnalysis:\n    parallel: ${stored.scans.parallelStaticAnalysis}")
+                    .replace('dynamicAnalysis:\n    parallel: true', "dynamicAnalysis:\n    parallel: ${stored.scans.parallelDynamicAnalysis}"))
         }
         open('/admin/settings')
-        def box = page.getByRole(CHECKBOX, new Page.GetByRoleOptions().setName('Run Nexus IQ and SonarQube while AppScan scans'))
+        def box = page.getByRole(CHECKBOX, new Page.GetByRoleOptions().setName('Run unit tests, Nexus IQ, SAST and SonarQube at the same time'))
+        def testsBox = page.getByRole(CHECKBOX, new Page.GetByRoleOptions().setName('Run the regression, smoke and performance tests and DAST at the same time'))
         assertThat(box).isChecked()
+        assertThat(testsBox).isChecked()
 
         when:
         button(SHOW_CONFIG, true).click()
@@ -167,11 +171,12 @@ class GlobalSettingsSpec extends DsoSpecification {
         when:
         dialogButton('Close').click()
         box.uncheck()
+        testsBox.uncheck()
         button('Save settings', true).click()
 
         then:
         def body = awaitRequest('PUT', '/api/settings').json() as Map
-        body.scans == (fixture('settings.json') as Map).scans + [parallelStaticAnalysis: false]
+        body.scans == (fixture('settings.json') as Map).scans + [parallelStaticAnalysis: false, parallelDynamicAnalysis: false]
         body.findAll { it.key != 'scans' } == (fixture('settings.json') as Map).findAll { !(it.key in ['scans', 'updatedAt']) }
         assertThat(saved()).containsText('(version 2)')
 

@@ -44,6 +44,7 @@ describe('createSettingsForm', () => {
       npmrcCredentialsId: '',
     });
     expect(value.scans.parallelStaticAnalysis).toBe(true);
+    expect(value.scans.parallelDynamicAnalysis).toBe(true);
   });
 
   it('requires the tool servers, the AppScan proxy, the deployment defaults and every limit', () => {
@@ -123,15 +124,26 @@ describe('toSettingsRequest', () => {
     });
   });
 
-  it('keeps Nexus IQ and SonarQube while AppScan scans unticked once it was stored unticked', () => {
+  it('keeps the stages at the same time unticked once they were stored unticked', () => {
     const settings = globalSettings();
     const form = createSettingsForm({
       ...settings,
-      scans: { ...settings.scans, parallelStaticAnalysis: false },
+      scans: { ...settings.scans, parallelStaticAnalysis: false, parallelDynamicAnalysis: false },
     });
 
     expect(form.controls.scans.controls.parallelStaticAnalysis.value).toBe(false);
+    expect(form.controls.scans.controls.parallelDynamicAnalysis.value).toBe(false);
     expect(toSettingsRequest(form, 4).scans.parallelStaticAnalysis).toBe(false);
+    expect(toSettingsRequest(form, 4).scans.parallelDynamicAnalysis).toBe(false);
+  });
+
+  it('ticks the tests and DAST at the same time for settings stored before the box existed', () => {
+    const settings = globalSettings();
+    const older: Partial<typeof settings.scans> = { ...settings.scans };
+    delete older.parallelDynamicAnalysis;
+    const form = createSettingsForm({ ...settings, scans: older as typeof settings.scans });
+
+    expect(form.controls.scans.controls.parallelDynamicAnalysis.value).toBe(true);
   });
 
   it('always sends release-gate.json as the release gate file, the only name the library reads', () => {

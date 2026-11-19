@@ -102,7 +102,8 @@ public class GlobalSettingsEntity extends SingletonEntity {
             @Column(name = "DAST_REPORT_INTERVAL_SEC") Integer dastReportIntervalSeconds,
             Boolean sonarWaitForQualityGate,
             @Column(name = "SONAR_QUALITY_GATE_TIMEOUT_MIN") Integer sonarQualityGateTimeoutMinutes,
-            Boolean parallelStaticAnalysis) {
+            Boolean parallelStaticAnalysis,
+            Boolean parallelDynamicAnalysis) {
     }
 
     @Embeddable

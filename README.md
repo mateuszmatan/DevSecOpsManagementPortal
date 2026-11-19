@@ -173,11 +173,11 @@ with who, what, when and the result, and shown under Action history.
 - Changeset 032 adds the Node.js build and the shared version catalogs to `DSO_SERVICE` and the Node.js Library
   defaults to `DSO_GLOBAL_SETTINGS`. Every service starts with the Node.js build off and no catalogs, so the
   configurations stay as they were; a rollback drops the columns with whatever they hold.
-- Changeset 033 adds `PARALLEL_STATIC_ANALYSIS` to `DSO_GLOBAL_SETTINGS` with 1 for the saved settings, so "Run Nexus
-  IQ and SonarQube while AppScan scans" is ticked after the upgrade and the full and security pipelines with a key run
-  the Static analysis stage with a library version that knows the key. Untick it before the next runs to keep the
-  order Nexus IQ, SAST, SonarQube; a rollback drops the column. A Jenkinsfile without a key does not follow the box,
-  because the library's copy of the defaults leaves the key out.
+- Changeset 033 adds `PARALLEL_STATIC_ANALYSIS` to `DSO_GLOBAL_SETTINGS` with 1 for the saved settings, so the box now
+  named "Run unit tests, Nexus IQ, SAST and SonarQube at the same time" is ticked after the upgrade and the full and
+  security pipelines with a key run the Static analysis stage with a library version that knows the key. Untick it to
+  keep the stages one after another; a rollback drops the column. A Jenkinsfile without a key does not follow the box:
+  the library's copy of the defaults leaves the key out, and the library runs the stages at the same time by default.
 - Changesets 034, 035 and 036 add the external version catalog repository (`VC_` columns) and the Cypress unit tests
   (`UNIT_TEST_CYPRESS_` columns) to `DSO_SERVICE`, and the table `DSO_PIPELINE_REPORT` of the execution reports.
   Every service starts without a catalog repository and with the Cypress tests off; a rollback drops the columns and
@@ -194,6 +194,10 @@ with who, what, when and the result, and shown under Action history.
   AppScan on Cloud with the one API key of the functional user from its own defaults. Set `asoc.keyId` and `asoc.token`
   in `resources/com/bbh/devsecops/defaults.yaml` of the library before the upgrade; a rollback brings the columns back
   empty.
+- Changeset 042 adds `PARALLEL_DYNAMIC_ANALYSIS` to `DSO_GLOBAL_SETTINGS` with 1 for the saved settings, so "Run the
+  regression, smoke and performance tests and DAST at the same time" is ticked after the upgrade and the full and
+  extended pipelines run the Dynamic analysis stage, the default of the library. A settings request without the new
+  field ticks it as well. Untick it to keep the tests and DAST one after another; a rollback drops the column.
 
 ## Known gaps
 

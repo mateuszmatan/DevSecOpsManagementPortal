@@ -216,7 +216,7 @@ class DsoConfigBuilderSpec extends Specification {
         then:
         config.keySet() as List == ['platform', 'defaults']
         config.defaults.keySet() as List == ['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tools', 'sast', 'sca',
-                                             'dast', 'staticAnalysis', 'tests', 'releaseGate', 'goldenFix']
+                                             'dast', 'staticAnalysis', 'dynamicAnalysis', 'tests', 'releaseGate', 'goldenFix']
         config.defaults.tools.nexusIq == [maxCritical: 0, maxHigh: 0, maxMedium: 0]
 
         when:

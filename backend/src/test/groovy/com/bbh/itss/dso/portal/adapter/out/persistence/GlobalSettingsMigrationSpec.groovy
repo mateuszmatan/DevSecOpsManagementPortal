@@ -24,8 +24,9 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
 
     static final List<String> SCA = ['SCA_ENABLED', 'SCA_POLL_TIMEOUT_MIN', 'SCA_POLL_INTERVAL_SEC']
     static final String PARALLEL_SCANS = 'CK_DSO_GLOBAL_PARALLEL_SCANS'
+    static final String PARALLEL_TESTS = 'CK_DSO_GLOBAL_PARALLEL_TESTS'
     static final List<String> CHECKS = ['CK_DSO_GLOBAL_BUILD_TOOL', 'CK_DSO_GLOBAL_DEPLOY_TARGET', 'CK_DSO_GLOBAL_FLAGS',
-                                        PARALLEL_SCANS, 'CK_DSO_GLOBAL_SETTINGS_ROW']
+                                        PARALLEL_SCANS, PARALLEL_TESTS, 'CK_DSO_GLOBAL_SETTINGS_ROW']
 
     @Autowired
     GlobalSettingsPersistenceAdapter settings
@@ -83,7 +84,7 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
         then:
         jdbc.queryForMap('SELECT SCA_ENABLED, SCA_POLL_TIMEOUT_MIN, SCA_POLL_INTERVAL_SEC FROM DSO_GLOBAL_SETTINGS') ==
                 [SCA_ENABLED: 1, SCA_POLL_TIMEOUT_MIN: 40, SCA_POLL_INTERVAL_SEC: 30]
-        checks() == CHECKS - PARALLEL_SCANS
+        checks() == CHECKS - PARALLEL_SCANS - PARALLEL_TESTS
 
         when:
         jdbc.update('UPDATE DSO_GLOBAL_SETTINGS SET SCA_ENABLED = 2')
@@ -110,7 +111,7 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
 
         then:
         !('PARALLEL_STATIC_ANALYSIS' in columns('DSO_GLOBAL_SETTINGS'))
-        checks() == CHECKS - PARALLEL_SCANS
+        checks() == CHECKS - PARALLEL_SCANS - PARALLEL_TESTS
 
         when:
         liquibase.update('')
@@ -127,6 +128,34 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
         thrown(DataIntegrityViolationException)
     }
 
+    def "042 switches the tests and DAST at the same time on for saved settings, refuses other values, and its rollback removes the column"() {
+        given:
+        jdbc.execute('DROP ALL OBJECTS')
+        liquibase.update('')
+        settings.save(GlobalSettings.bbhDefaults())
+
+        when:
+        rollBackSince('042-')
+
+        then:
+        !('PARALLEL_DYNAMIC_ANALYSIS' in columns('DSO_GLOBAL_SETTINGS'))
+        checks() == CHECKS - PARALLEL_TESTS
+
+        when:
+        liquibase.update('')
+
+        then:
+        settings.load().get().values().scans().parallelDynamicAnalysis()
+        !nullable('DSO_GLOBAL_SETTINGS', 'PARALLEL_DYNAMIC_ANALYSIS')
+        checks() == CHECKS
+
+        when:
+        jdbc.update('UPDATE DSO_GLOBAL_SETTINGS SET PARALLEL_DYNAMIC_ANALYSIS = 2')
+
+        then:
+        thrown(DataIntegrityViolationException)
+    }
+
     def "037 adds the Library defaults (Liquibase database changes), empty for saved settings, and its rollback removes the columns"() {
         given:
         jdbc.execute('DROP ALL OBJECTS')
@@ -138,7 +167,7 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
 
         then:
         columns('DSO_GLOBAL_SETTINGS').findAll { it.startsWith('DB_') } == []
-        checks() == CHECKS
+        checks() == CHECKS - PARALLEL_TESTS
 
         when:
         liquibase.update('')

@@ -76,6 +76,9 @@
     "staticAnalysis": {
       "parallel": true
     },
+    "dynamicAnalysis": {
+      "parallel": true
+    },
     "tests": {
       "maxParallel": 20
     },

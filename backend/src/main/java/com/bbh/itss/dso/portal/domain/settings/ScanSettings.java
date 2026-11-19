@@ -9,7 +9,14 @@ public record ScanSettings(Integer coverageMinLine, Integer sastPrepareTimeoutMi
                            Integer sastPollIntervalSeconds, Integer dastPollTimeoutMinutes,
                            Integer dastPollIntervalSeconds, Integer dastReportTimeoutMinutes,
                            Integer dastReportIntervalSeconds, Boolean sonarWaitForQualityGate,
-                           Integer sonarQualityGateTimeoutMinutes, Boolean parallelStaticAnalysis) {
+                           Integer sonarQualityGateTimeoutMinutes, Boolean parallelStaticAnalysis,
+                           Boolean parallelDynamicAnalysis) {
+
+    public ScanSettings {
+        if (parallelDynamicAnalysis == null) {
+            parallelDynamicAnalysis = true;
+        }
+    }
 
     public void validate(ValidationProblems problems) {
         if (coverageMinLine != null && coverageMinLine < 1) {
@@ -28,6 +35,7 @@ public record ScanSettings(Integer coverageMinLine, Integer sastPrepareTimeoutMi
                 .set("dast.pollIntervalSec", dastPollIntervalSeconds)
                 .set("dast.reportTimeoutMin", dastReportTimeoutMinutes)
                 .set("dast.reportIntervalSec", dastReportIntervalSeconds)
-                .set("staticAnalysis.parallel", parallelStaticAnalysis);
+                .set("staticAnalysis.parallel", parallelStaticAnalysis)
+                .set("dynamicAnalysis.parallel", parallelDynamicAnalysis);
     }
 }

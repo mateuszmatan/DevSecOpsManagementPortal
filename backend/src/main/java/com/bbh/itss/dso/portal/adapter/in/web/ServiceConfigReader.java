@@ -587,6 +587,7 @@ final class ServiceConfigReader {
                 rule("appscanPath", "appScan.clientPath", TEXT),
                 note("asoc.url", GLOBAL),
                 note("staticAnalysis.parallel", GLOBAL),
+                note("dynamicAnalysis.parallel", GLOBAL),
                 note("asoc.keyId", APPSCAN_KEY),
                 note("asoc.token", APPSCAN_KEY),
                 rule("asoc.doCompile", "appScan.compile", FLAG),

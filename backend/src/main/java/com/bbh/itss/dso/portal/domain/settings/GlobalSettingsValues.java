@@ -64,7 +64,8 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
         ScanSettings scans = ScanSettings.builder().coverageMinLine(60).sastPrepareTimeoutMinutes(120)
                 .sastPollTimeoutMinutes(50).sastPollIntervalSeconds(30).dastPollTimeoutMinutes(60)
                 .dastPollIntervalSeconds(60).dastReportTimeoutMinutes(30).dastReportIntervalSeconds(30)
-                .sonarWaitForQualityGate(true).sonarQualityGateTimeoutMinutes(5).parallelStaticAnalysis(true).build();
+                .sonarWaitForQualityGate(true).sonarQualityGateTimeoutMinutes(5).parallelStaticAnalysis(true)
+                .parallelDynamicAnalysis(true).build();
         ReleaseGateSettings releaseGate = new ReleaseGateSettings(List.of(Scanner.values()), true, STATE_FILE);
         ServiceDefaults serviceDefaults = new ServiceDefaults(GRADLE, VM, DEFAULT_SOURCE_DIR, 20, null, null, null);
         GoldenFixPolicy goldenFix = GoldenFixPolicy.builder().enabled(true)
@@ -101,6 +102,6 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
         goldenFix.writeTo(defaults);
         database.writeTo(defaults);
         return defaults.toMap(List.of("buildTool", "deployTarget", "sourceDir", "build", "coverage", "tools",
-                "sast", "sca", "dast", "staticAnalysis", "tests", "releaseGate", "goldenFix", "database"));
+                "sast", "sca", "dast", "staticAnalysis", "dynamicAnalysis", "tests", "releaseGate", "goldenFix", "database"));
     }
 }
