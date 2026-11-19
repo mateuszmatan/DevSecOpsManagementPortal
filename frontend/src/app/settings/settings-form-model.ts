@@ -192,6 +192,17 @@ export function createSettingsForm(settings?: GlobalSettingsValues | null) {
       nodeInstallationName: text(settings?.serviceDefaults.nodeInstallationName, max(200)),
       npmRegistry: url(settings?.serviceDefaults.npmRegistry, 500),
       npmrcCredentialsId: text(settings?.serviceDefaults.npmrcCredentialsId, max(200)),
+      pluginRepositoriesEnabled: flag(settings?.serviceDefaults.pluginRepositoriesEnabled, true),
+      gradlePluginRepository: text(
+        settings?.serviceDefaults.gradlePluginRepository,
+        Validators.pattern(SHELL_SAFE_URL),
+        max(500),
+      ),
+      mavenPluginRepository: text(
+        settings?.serviceDefaults.mavenPluginRepository,
+        Validators.pattern(SHELL_SAFE_URL),
+        max(500),
+      ),
     }),
     database: createDatabaseDefaultsForm(settings?.database),
     goldenFix: createGlobalGoldenFixForm(settings?.goldenFix),

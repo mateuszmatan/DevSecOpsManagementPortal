@@ -1136,7 +1136,7 @@ Admin, Library defaults holds the values every pipeline shares. A service that l
 | Security limits | The most critical, high and medium findings each scan (SAST, SCA, Nexus IQ, DAST) may report |
 | Scans and coverage | The minimum line coverage, how long the pipelines wait for each scan, and the order of the static scans |
 | Release gate | Which scans the release gate checks, whether it requires the coverage, and its result file |
-| Service defaults | The build tool (Gradle, Maven or Flutter), deployment target and source folder a new service starts with; the test jobs at the same time; the Node.js build defaults |
+| Service defaults | The build tool (Gradle, Maven or Flutter), deployment target and source folder a new service starts with; the test jobs at the same time; the Node.js build defaults; the Gradle and Maven plugin repositories of the BBH Nexus |
 | Liquibase database changes | Liquibase, the Oracle JDBC driver and utPLSQL-cli, the allowed databases and the Nexus repositories of the database packages |
 | GoldenFix defaults | Whether GoldenFix runs by default and the GoldenFix policy |
 
@@ -1145,6 +1145,15 @@ A Jenkinsfile without a key does not read this page. The values written under `d
 ### Node.js build defaults
 
 The block "Node.js build" in Service defaults has three fields: Node.js installation, npm registry and .npmrc credentials ID. A new service shows them as its "Library default". A service that leaves them empty takes them later as well, through `defaults.build.node` in `devsecops_config.yaml`. A service that names its own installation or a Node.js home on the agent uses that instead. The BBH seed leaves all three empty.
+
+### Gradle and Maven plugin repositories
+
+The agents reach only the BBH network, so a Gradle plugin from the Gradle Plugin Portal, or a Maven plugin that is not in the repositories of a build, is not found. The block "Gradle and Maven plugins" in Service defaults names the repositories of the BBH Nexus that the library then takes the plugin from, for every service:
+
+- "Retry a Gradle or Maven step with these repositories when a plugin is missing" (`pluginRepositories.enabled`, ticked by default). Ticked, a Gradle or Maven step of a service (the build, the unit tests, SonarQube and the SAST compile) that fails because a plugin is missing runs once more with the repository below: Gradle with an init script that puts it first for the plugins of the settings and every buildscript, Maven with a copy of the user settings of the agent that adds it in an active profile. The console names the plugins and where to add the repository, so that the first attempt does not fail next time. A step that finds its plugins runs once, as before. Unticked, a failed step fails at once.
+- "Gradle plugin repository" (`pluginRepositories.gradle`) and "Maven plugin repository" (`pluginRepositories.maven`): an http or https address of letters, digits and `. _ / + @ : = , ~ % -` only, because the library writes it into a Gradle init script and a Maven settings file. Empty, the library uses the repository of its own defaults.
+
+The BBH seed sets `https://tools.bbh.com/nexus/repository/gradle-plugins/` and `https://tools.bbh.com/nexus/repository/maven-public/`, the repositories of the library defaults. The portal writes the values under `defaults.pluginRepositories`. A Jenkinsfile without a key takes them from the copy kept in the library.
 
 ### Liquibase database change defaults
 
@@ -1161,7 +1170,7 @@ The block "Speed" in Scans and coverage provides two checkboxes, both ticked by 
 
 ### Which values follow later changes
 
-- Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the stages at the same time, the release gate, the test jobs at the same time, the Node.js build defaults, the Liquibase database change defaults and the GoldenFix policy of services that inherit it.
+- Saved services follow later changes of: the tools and servers, the deployment defaults, the security limits, the scan waiting times, the stages at the same time, the release gate, the test jobs at the same time, the Node.js build defaults, the Gradle and Maven plugin repositories, the Liquibase database change defaults and the GoldenFix policy of services that inherit it.
 - The build tool, the deployment target and the source folder only prefill a new service.
 
 ### Portal monitoring
@@ -1904,6 +1913,9 @@ The values of Tools and servers are written to `platform`, and the per-service v
 | Node.js installation | `build.node.installationName` | `defaults.build.node.installationName` |
 | npm registry | `build.node.registry` | `defaults.build.node.registry` |
 | .npmrc credentials ID | `build.node.npmrcCredentialsId` | `defaults.build.node.npmrcCredentialsId` |
+| Retry a Gradle or Maven step with these repositories when a plugin is missing | `pluginRepositories.enabled` | `defaults.pluginRepositories.enabled`; ticked by default |
+| Gradle plugin repository | `pluginRepositories.gradle` | `defaults.pluginRepositories.gradle`, only while it is set |
+| Maven plugin repository | `pluginRepositories.maven` | `defaults.pluginRepositories.maven`, only while it is set |
 | Liquibase folder on the agent | `tools.liquibase.home` | `defaults.tools.liquibase.home` |
 | Java version (Liquibase) | `tools.liquibase.javaVersion` | `defaults.tools.liquibase.javaVersion` |
 | Liquibase download | `tools.liquibase.url` | `defaults.tools.liquibase.url` |
@@ -2024,6 +2036,10 @@ Changeset 040 (`040-drop-service-appscan-key`) drops `APPSCAN_KEY_ID` and `APPSC
 ### Upgrade note: changeset 042
 
 Changeset `042-parallel-dynamic-analysis` adds `PARALLEL_DYNAMIC_ANALYSIS` (0 or 1, 1 by default) to `DSO_GLOBAL_SETTINGS`, with the check `CK_DSO_GLOBAL_PARALLEL_TESTS`. The saved settings get 1, so "Run the regression, smoke and performance tests and DAST at the same time" is ticked after the upgrade and the settings sent to Jenkins hold `defaults.dynamicAnalysis.parallel: true`, the default of the library. A request to `PUT /api/settings` without `scans.parallelDynamicAnalysis`, such as one of an older client, ticks the box. A library version without the Dynamic analysis stage ignores the key. Untick the box to keep the tests and DAST one after another. A rollback drops the column.
+
+### Upgrade note: changeset 043
+
+Changeset `043-plugin-repositories` adds `PLUGIN_REPOSITORIES_ENABLED` (0 or 1, 1 by default, with the check `CK_DSO_GLOBAL_PLUGIN_REPOS`), `GRADLE_PLUGIN_REPOSITORY` and `MAVEN_PLUGIN_REPOSITORY` to `DSO_GLOBAL_SETTINGS`. The saved settings get 1 and the two repositories of the BBH Nexus, so the settings sent to Jenkins hold the `defaults.pluginRepositories` of the library defaults after the upgrade. A request to `PUT /api/settings` without the three fields, such as one of an older client, ticks the box and leaves the repositories empty, which means the repositories of the library defaults. A library version without the retry ignores the keys. A rollback drops the columns.
 
 ## 22. Troubleshooting
 

@@ -32,7 +32,11 @@ class GlobalSettingsValuesSpec extends Specification {
                 'scripts/deployment/version.properties')
         BBH.scans() == new ScanSettings(60, 120, 50, 30, 60, 60, 30, 30, true, 5, true, true)
         BBH.releaseGate() == new ReleaseGateSettings([SAST, SCA, NEXUS_IQ, DAST], true, 'release-gate.json')
-        BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20, null, null, null)
+        BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20, null, null, null, true,
+                'https://tools.bbh.com/nexus/repository/gradle-plugins/', 'https://tools.bbh.com/nexus/repository/maven-public/')
+        BBH.defaultsConfig().pluginRepositories == [enabled: true,
+                                                    gradle : 'https://tools.bbh.com/nexus/repository/gradle-plugins/',
+                                                    maven  : 'https://tools.bbh.com/nexus/repository/maven-public/']
         BBH.goldenFix() == GoldenFixPolicy.builder().enabled(true).minThreatLevel(2)
                 .ecosystems(['maven', 'npm', 'pypi', 'nuget'])
                 .goldenVersionTypes(['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'])
@@ -128,7 +132,8 @@ class GlobalSettingsValuesSpec extends Specification {
 
         then:
         defaults.keySet() as List == ['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tools', 'sast', 'sca',
-                                      'dast', 'staticAnalysis', 'dynamicAnalysis', 'tests', 'releaseGate', 'goldenFix']
+                                      'dast', 'staticAnalysis', 'dynamicAnalysis', 'tests', 'pluginRepositories',
+                                      'releaseGate', 'goldenFix']
         defaults.subMap(['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tests']) ==
                 [buildTool: 'gradle', deployTarget: 'vm', sourceDir: '.', coverage: [minLine: 60], tests: [maxParallel: 20]]
         defaults.tools == [sonar: [qualityGate: [waitForQualityGate: true, timeoutMinutes: 5]], nexusIq: zero]
@@ -138,6 +143,8 @@ class GlobalSettingsValuesSpec extends Specification {
         defaults.dast == [pollTimeoutMin: 60, pollIntervalSec: 60, reportTimeoutMin: 30, reportIntervalSec: 30] + zero
         defaults.staticAnalysis == [parallel: true]
         defaults.dynamicAnalysis == [parallel: true]
+        defaults.pluginRepositories == [enabled: true, gradle: 'https://tools.bbh.com/nexus/repository/gradle-plugins/',
+                                        maven  : 'https://tools.bbh.com/nexus/repository/maven-public/']
         defaults.releaseGate == [scanners: ['sast', 'sca', 'niq', 'dast'], requireCoverage: true,
                                  stateFile: 'release-gate.json']
         defaults.goldenFix == [enabled: true, minThreatLevel: 2,
@@ -181,7 +188,8 @@ class GlobalSettingsValuesSpec extends Specification {
         copy(BBH, database: null).database() == DatabaseDefaults.NONE
         !BBH.defaultsConfig().containsKey('database')
         defaults.keySet() as List == ['buildTool', 'deployTarget', 'sourceDir', 'coverage', 'tools', 'sast', 'sca', 'dast',
-                                      'staticAnalysis', 'dynamicAnalysis', 'tests', 'releaseGate', 'goldenFix', 'database']
+                                      'staticAnalysis', 'dynamicAnalysis', 'tests', 'pluginRepositories', 'releaseGate',
+                                      'goldenFix', 'database']
         (defaults.tools as Map).keySet() as List == ['sonar', 'nexusIq', 'liquibase', 'oracleJdbc', 'utplsql']
         (defaults.database as Map).keySet() as List == ['allowedTargets', 'package']
         defaults.findAll { !(it.key in ['tools', 'database']) } == BBH.defaultsConfig().findAll { it.key != 'tools' }

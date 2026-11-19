@@ -92,7 +92,10 @@
     "testsMaxParallel": 20,
     "nodeInstallationName": null,
     "npmRegistry": null,
-    "npmrcCredentialsId": null
+    "npmrcCredentialsId": null,
+    "pluginRepositoriesEnabled": true,
+    "gradlePluginRepository": "https://tools.bbh.com/nexus/repository/gradle-plugins/",
+    "mavenPluginRepository": "https://tools.bbh.com/nexus/repository/maven-public/"
   },
   "goldenFix": {
     "enabled": true,

@@ -240,6 +240,42 @@ describe('GlobalSettingsPage', () => {
     await fixture.whenStable();
   });
 
+  it('offers the plugin repositories of the BBH Nexus with the service defaults, refuses an address with a quote and sends an empty one as null', async () => {
+    await load();
+    const section = page().querySelector('#settings-serviceDefaults')!;
+    const hint = (label: string) => text(fieldOf(section, label)?.querySelector('dso-hint'));
+    const headings = [...section.querySelectorAll('.form-block h3')].map((h) => text(h));
+    const c = form().controls.serviceDefaults.controls;
+
+    expect(headings).toEqual(['Node.js build', 'Gradle and Maven plugins']);
+    expect(text(section)).toContain('Retry a Gradle or Maven step with these repositories when a plugin is missing');
+    expect(text(section)).toContain('pluginRepositories.enabled');
+    expect(hint('Gradle plugin repository')).toBe('pluginRepositories.gradle');
+    expect(hint('Maven plugin repository')).toBe('pluginRepositories.maven');
+    expect(c.pluginRepositoriesEnabled.value).toBe(true);
+    expect(c.gradlePluginRepository.value).toBe('https://tools.bbh.com/nexus/repository/gradle-plugins/');
+    expect(helpOf(fieldOf(section, 'Gradle plugin repository')!)).toContain('Empty: the repository of the library defaults');
+
+    c.gradlePluginRepository.setValue("https://tools.bbh.com/nexus/'; rm -rf /");
+    expect(c.gradlePluginRepository.hasError('pattern')).toBe(true);
+
+    form().controls.serviceDefaults.patchValue({
+      pluginRepositoriesEnabled: false,
+      gradlePluginRepository: '',
+      mavenPluginRepository: 'https://tools.bbh.com/nexus/repository/maven-plugins/',
+    });
+    await submit();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/settings' });
+    expect(request.request.body.serviceDefaults).toMatchObject({
+      pluginRepositoriesEnabled: false,
+      gradlePluginRepository: null,
+      mavenPluginRepository: 'https://tools.bbh.com/nexus/repository/maven-plugins/',
+    });
+    request.flush(globalSettings());
+    await fixture.whenStable();
+  });
+
   it('sets the tools, the allowed databases and the package repositories of Liquibase database changes', async () => {
     await load();
     const section = page().querySelector('#settings-database')!;

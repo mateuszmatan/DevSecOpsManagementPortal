@@ -453,8 +453,8 @@ export const SETTINGS_PAGE: SettingsSection[] = [
     label: 'Service defaults',
     note:
       'What a new service starts with in the product editor and in self-service. A saved ' +
-      'service keeps its own values; only the number of test jobs at the same time and the ' +
-      'Node.js build values also apply later, to every service that leaves them empty.',
+      'service keeps its own values; only the number of test jobs at the same time, the ' +
+      'Node.js build values and the plugin repositories also apply later, to every service.',
     fields: [
       choice('buildTool', 'Build tool', DEFAULT_BUILD_TOOLS, 'buildTool', 3, {
         help: 'The build tool a new service starts with. It decides which commands, test reports and artifacts the pipeline expects.',
@@ -486,6 +486,31 @@ export const SETTINGS_PAGE: SettingsSection[] = [
           }),
           mono('npmrcCredentialsId', '.npmrc credentials ID', 'build.node.npmrcCredentialsId', 3, {
             help: 'The ID of a Jenkins Secret file credential with an .npmrc, which npm reads as its user configuration, with its registry and login. A registry line of an .npmrc in the repository still wins over it.',
+          }),
+        ],
+      },
+      {
+        heading: 'Gradle and Maven plugins',
+        note: 'The agents reach only the BBH network. A Gradle or Maven step of a service (build, unit tests, SonarQube, SAST compile) that fails because a plugin is not in the repositories of the build runs once more with these repositories of the BBH Nexus.',
+        fields: [
+          check(
+            'pluginRepositoriesEnabled',
+            'Retry a Gradle or Maven step with these repositories when a plugin is missing',
+            'pluginRepositories.enabled',
+            12,
+            {
+              help: 'Ticked, the pipeline asks Gradle or Maven which plugins it misses and runs the failed step again with the repository below: Gradle with an init script that puts it first for the plugins and every buildscript, Maven with a copy of the user settings of the agent that adds it in an active profile. The console names the plugins and where to add the repository. Unticked, a failed step fails at once, as before.',
+            },
+          ),
+          mono('gradlePluginRepository', 'Gradle plugin repository', 'pluginRepositories.gradle', 6, {
+            placeholder: 'https://tools.bbh.com/nexus/repository/gradle-plugins/',
+            help: 'The Nexus repository that proxies the Gradle Plugin Portal. Empty: the repository of the library defaults.',
+            error: SHELL_SAFE_URL_ERROR,
+          }),
+          mono('mavenPluginRepository', 'Maven plugin repository', 'pluginRepositories.maven', 6, {
+            placeholder: 'https://tools.bbh.com/nexus/repository/maven-public/',
+            help: 'The Nexus repository with the Maven plugins, such as a group of Maven Central and the BBH releases. Empty: the repository of the library defaults.',
+            error: SHELL_SAFE_URL_ERROR,
           }),
         ],
       },

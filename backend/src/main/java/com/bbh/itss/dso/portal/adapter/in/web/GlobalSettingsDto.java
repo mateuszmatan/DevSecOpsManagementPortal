@@ -30,6 +30,8 @@ import java.util.Map;
 
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.HOST;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.HOST_MESSAGE;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.PLUGIN_REPOSITORY;
+import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.PLUGIN_REPOSITORY_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_MESSAGE;
 import static com.bbh.itss.dso.portal.adapter.in.web.InputFormats.SHELL_SAFE_URL;
@@ -156,7 +158,12 @@ public record GlobalSettingsDto(
             @NotNull @Min(1) Integer testsMaxParallel,
             @Size(max = 200) String nodeInstallationName,
             @Size(max = 500) @Pattern(regexp = URL, message = URL_MESSAGE) String npmRegistry,
-            @Size(max = 200) String npmrcCredentialsId) implements Mirrors<ServiceDefaults> {
+            @Size(max = 200) String npmrcCredentialsId,
+            Boolean pluginRepositoriesEnabled,
+            @Size(max = 500) @Pattern(regexp = PLUGIN_REPOSITORY, message = PLUGIN_REPOSITORY_MESSAGE)
+            String gradlePluginRepository,
+            @Size(max = 500) @Pattern(regexp = PLUGIN_REPOSITORY, message = PLUGIN_REPOSITORY_MESSAGE)
+            String mavenPluginRepository) implements Mirrors<ServiceDefaults> {
     }
 
     public record DatabaseDefaultsDto(

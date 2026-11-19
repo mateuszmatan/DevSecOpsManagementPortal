@@ -604,6 +604,9 @@ export function globalSettings(overrides: Partial<GlobalSettings> = {}): GlobalS
       nodeInstallationName: 'NodeJS-20',
       npmRegistry: null,
       npmrcCredentialsId: null,
+      pluginRepositoriesEnabled: true,
+      gradlePluginRepository: 'https://tools.bbh.com/nexus/repository/gradle-plugins/',
+      mavenPluginRepository: 'https://tools.bbh.com/nexus/repository/maven-public/',
     },
     goldenFix: {
       enabled: true,

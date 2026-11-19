@@ -114,9 +114,10 @@ service scans one Nexus IQ application. A service whose build is not delivered t
 `deploy.<vm|openshift>.rd.nexusDeliveryEnabled: false`, and the forms then ask for none of the delivery settings. A
 service may run a Node.js build as stage 0, before its Gradle or Maven build: `build.node` is rendered only while it is
 enabled, which Flutter refuses, and the Global Settings may give every service a Node.js installation, npm registry and
-`.npmrc` credentials ID under `defaults.build.node`. `goldenFix.versionCatalogs` lists the shared version catalogs
-GoldenFix raises once for every service of a repository; it is the service's own list, outside the inherited GoldenFix
-policy. A product saved with `agentLabels` runs the pipelines that save creates on those Jenkins agents instead of the
+`.npmrc` credentials ID under `defaults.build.node`. The Global Settings also name the Gradle and Maven plugin
+repositories of the BBH Nexus under `defaults.pluginRepositories`, which the library uses when a step misses a plugin.
+`goldenFix.versionCatalogs` lists the shared version catalogs GoldenFix raises once for every service of a repository;
+it is the service's own list, outside the inherited GoldenFix policy. A product saved with `agentLabels` runs the pipelines that save creates on those Jenkins agents instead of the
 service template's. A Liquibase service (`buildTool: liquibase`) renders its commands under `build.liquibase`,
 `tests.unitTests.liquibase`, `tools.sonar.liquibase` and `asoc.liquibase`. With a `database.changelogFile` it also
 changes a database: its `database` block is rendered after `build`, it renders no deployment (`deployTarget`,
@@ -198,6 +199,11 @@ with who, what, when and the result, and shown under Action history.
   regression, smoke and performance tests and DAST at the same time" is ticked after the upgrade and the full and
   extended pipelines run the Dynamic analysis stage, the default of the library. A settings request without the new
   field ticks it as well. Untick it to keep the tests and DAST one after another; a rollback drops the column.
+- Changeset 043 adds `PLUGIN_REPOSITORIES_ENABLED`, `GRADLE_PLUGIN_REPOSITORY` and `MAVEN_PLUGIN_REPOSITORY` to
+  `DSO_GLOBAL_SETTINGS`, with 1 and the Gradle and Maven plugin repositories of the BBH Nexus for the saved settings, so
+  "Retry a Gradle or Maven step with these repositories when a plugin is missing" is ticked after the upgrade and the
+  settings sent to Jenkins carry `defaults.pluginRepositories`, the values of the library defaults. A settings request
+  without the new fields ticks the box and leaves the repositories to the library defaults; a rollback drops the columns.
 
 ## Known gaps
 

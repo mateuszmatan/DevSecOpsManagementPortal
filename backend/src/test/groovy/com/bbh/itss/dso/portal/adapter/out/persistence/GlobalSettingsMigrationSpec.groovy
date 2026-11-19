@@ -25,8 +25,11 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
     static final List<String> SCA = ['SCA_ENABLED', 'SCA_POLL_TIMEOUT_MIN', 'SCA_POLL_INTERVAL_SEC']
     static final String PARALLEL_SCANS = 'CK_DSO_GLOBAL_PARALLEL_SCANS'
     static final String PARALLEL_TESTS = 'CK_DSO_GLOBAL_PARALLEL_TESTS'
+    static final String PLUGIN_REPOS = 'CK_DSO_GLOBAL_PLUGIN_REPOS'
+    static final List<String> PLUGIN_COLUMNS = ['PLUGIN_REPOSITORIES_ENABLED', 'GRADLE_PLUGIN_REPOSITORY',
+                                                'MAVEN_PLUGIN_REPOSITORY']
     static final List<String> CHECKS = ['CK_DSO_GLOBAL_BUILD_TOOL', 'CK_DSO_GLOBAL_DEPLOY_TARGET', 'CK_DSO_GLOBAL_FLAGS',
-                                        PARALLEL_SCANS, PARALLEL_TESTS, 'CK_DSO_GLOBAL_SETTINGS_ROW']
+                                        PARALLEL_SCANS, PARALLEL_TESTS, PLUGIN_REPOS, 'CK_DSO_GLOBAL_SETTINGS_ROW']
 
     @Autowired
     GlobalSettingsPersistenceAdapter settings
@@ -84,7 +87,7 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
         then:
         jdbc.queryForMap('SELECT SCA_ENABLED, SCA_POLL_TIMEOUT_MIN, SCA_POLL_INTERVAL_SEC FROM DSO_GLOBAL_SETTINGS') ==
                 [SCA_ENABLED: 1, SCA_POLL_TIMEOUT_MIN: 40, SCA_POLL_INTERVAL_SEC: 30]
-        checks() == CHECKS - PARALLEL_SCANS - PARALLEL_TESTS
+        checks() == CHECKS - PARALLEL_SCANS - PARALLEL_TESTS - PLUGIN_REPOS
 
         when:
         jdbc.update('UPDATE DSO_GLOBAL_SETTINGS SET SCA_ENABLED = 2')
@@ -111,7 +114,7 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
 
         then:
         !('PARALLEL_STATIC_ANALYSIS' in columns('DSO_GLOBAL_SETTINGS'))
-        checks() == CHECKS - PARALLEL_SCANS - PARALLEL_TESTS
+        checks() == CHECKS - PARALLEL_SCANS - PARALLEL_TESTS - PLUGIN_REPOS
 
         when:
         liquibase.update('')
@@ -139,7 +142,7 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
 
         then:
         !('PARALLEL_DYNAMIC_ANALYSIS' in columns('DSO_GLOBAL_SETTINGS'))
-        checks() == CHECKS - PARALLEL_TESTS
+        checks() == CHECKS - PARALLEL_TESTS - PLUGIN_REPOS
 
         when:
         liquibase.update('')
@@ -156,6 +159,39 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
         thrown(DataIntegrityViolationException)
     }
 
+    def "043 retries a step that misses a plugin with the BBH Nexus for saved settings, refuses other values, and its rollback removes the columns"() {
+        given:
+        jdbc.execute('DROP ALL OBJECTS')
+        liquibase.update('')
+        settings.save(GlobalSettings.bbhDefaults())
+
+        when:
+        rollBackSince('043-')
+
+        then:
+        PLUGIN_COLUMNS.every { !(it in columns('DSO_GLOBAL_SETTINGS')) }
+        checks() == CHECKS - PLUGIN_REPOS
+
+        when:
+        liquibase.update('')
+        def defaults = settings.load().get().values().serviceDefaults()
+
+        then:
+        defaults.pluginRepositoriesEnabled()
+        defaults.gradlePluginRepository() == 'https://tools.bbh.com/nexus/repository/gradle-plugins/'
+        defaults.mavenPluginRepository() == 'https://tools.bbh.com/nexus/repository/maven-public/'
+        !nullable('DSO_GLOBAL_SETTINGS', 'PLUGIN_REPOSITORIES_ENABLED')
+        nullable('DSO_GLOBAL_SETTINGS', 'GRADLE_PLUGIN_REPOSITORY')
+        nullable('DSO_GLOBAL_SETTINGS', 'MAVEN_PLUGIN_REPOSITORY')
+        checks() == CHECKS
+
+        when:
+        jdbc.update('UPDATE DSO_GLOBAL_SETTINGS SET PLUGIN_REPOSITORIES_ENABLED = 2')
+
+        then:
+        thrown(DataIntegrityViolationException)
+    }
+
     def "037 adds the Library defaults (Liquibase database changes), empty for saved settings, and its rollback removes the columns"() {
         given:
         jdbc.execute('DROP ALL OBJECTS')
@@ -167,7 +203,7 @@ class GlobalSettingsMigrationSpec extends MigrationSpecification {
 
         then:
         columns('DSO_GLOBAL_SETTINGS').findAll { it.startsWith('DB_') } == []
-        checks() == CHECKS - PARALLEL_TESTS
+        checks() == CHECKS - PARALLEL_TESTS - PLUGIN_REPOS
 
         when:
         liquibase.update('')

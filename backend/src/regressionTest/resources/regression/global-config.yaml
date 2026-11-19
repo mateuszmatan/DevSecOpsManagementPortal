@@ -52,6 +52,10 @@ defaults:
     parallel: true
   tests:
     maxParallel: 20
+  pluginRepositories:
+    enabled: true
+    gradle: https://tools.bbh.com/nexus/repository/gradle-plugins/
+    maven: https://tools.bbh.com/nexus/repository/maven-public/
   releaseGate:
     scanners:
     - sast

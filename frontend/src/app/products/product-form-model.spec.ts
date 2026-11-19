@@ -81,6 +81,9 @@ const DEFAULTS: ServiceDefaults = {
   nodeInstallationName: null,
   npmRegistry: null,
   npmrcCredentialsId: null,
+  pluginRepositoriesEnabled: true,
+  gradlePluginRepository: null,
+  mavenPluginRepository: null,
 };
 
 describe('createServiceForm', () => {

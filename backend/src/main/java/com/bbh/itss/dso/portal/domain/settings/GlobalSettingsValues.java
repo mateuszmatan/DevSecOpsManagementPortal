@@ -67,7 +67,8 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
                 .sonarWaitForQualityGate(true).sonarQualityGateTimeoutMinutes(5).parallelStaticAnalysis(true)
                 .parallelDynamicAnalysis(true).build();
         ReleaseGateSettings releaseGate = new ReleaseGateSettings(List.of(Scanner.values()), true, STATE_FILE);
-        ServiceDefaults serviceDefaults = new ServiceDefaults(GRADLE, VM, DEFAULT_SOURCE_DIR, 20, null, null, null);
+        ServiceDefaults serviceDefaults = new ServiceDefaults(GRADLE, VM, DEFAULT_SOURCE_DIR, 20, null, null, null, true,
+                ServiceDefaults.BBH_GRADLE_PLUGINS, ServiceDefaults.BBH_MAVEN_PLUGINS);
         GoldenFixPolicy goldenFix = GoldenFixPolicy.builder().enabled(true)
                 .minThreatLevel(2).ecosystems(List.of("maven", "npm", "pypi", "nuget"))
                 .goldenVersionTypes(List.of("recommended-non-breaking-with-dependencies", "recommended-non-breaking"))
@@ -102,6 +103,7 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
         goldenFix.writeTo(defaults);
         database.writeTo(defaults);
         return defaults.toMap(List.of("buildTool", "deployTarget", "sourceDir", "build", "coverage", "tools",
-                "sast", "sca", "dast", "staticAnalysis", "dynamicAnalysis", "tests", "releaseGate", "goldenFix", "database"));
+                "sast", "sca", "dast", "staticAnalysis", "dynamicAnalysis", "tests", "pluginRepositories", "releaseGate", "goldenFix",
+                "database"));
     }
 }

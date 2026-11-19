@@ -44,7 +44,10 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
             scans.parallelDynamicAnalysis == true
             releaseGate.scanners == ['SAST', 'SCA', 'NEXUS_IQ', 'DAST']
             serviceDefaults == [buildTool           : 'GRADLE', deployTarget: 'VM', sourceDir: '.', testsMaxParallel: 20,
-                                nodeInstallationName: null, npmRegistry: null, npmrcCredentialsId: null]
+                                nodeInstallationName: null, npmRegistry: null, npmrcCredentialsId: null,
+                                pluginRepositoriesEnabled: true,
+                                gradlePluginRepository: 'https://tools.bbh.com/nexus/repository/gradle-plugins/',
+                                mavenPluginRepository: 'https://tools.bbh.com/nexus/repository/maven-public/']
             deployment.urbanCodeSiteName == 'deploy.bbh.com'
             goldenFix.commitAuthorName == 'DevSecOps GoldenFix'
         }
@@ -64,7 +67,9 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
                 scans   : original.scans + [coverageMinLine: 80, parallelStaticAnalysis: false,
                                             parallelDynamicAnalysis: false],
                 serviceDefaults: original.serviceDefaults + [nodeInstallationName: 'NodeJS-20',
-                                                             npmrcCredentialsId: 'npmrc-file']])
+                                                             npmrcCredentialsId: 'npmrc-file',
+                                                             pluginRepositoriesEnabled: false,
+                                                             gradlePluginRepository: null]])
 
         then:
         changed.status == 200
@@ -81,6 +86,8 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         config.defaults.staticAnalysis == [parallel: false]
         config.defaults.dynamicAnalysis == [parallel: false]
         config.defaults.build == [node: [installationName: 'NodeJS-20', npmrcCredentialsId: 'npmrc-file']]
+        config.defaults.pluginRepositories == [enabled: false,
+                                               maven  : 'https://tools.bbh.com/nexus/repository/maven-public/']
         config.projects.gui.tools.sonar.serverUrl == 'https://sonar.bbh.com'
 
         and: 'the job path of the pipeline now links to that Jenkins'
@@ -216,6 +223,18 @@ class GlobalSettingsRegressionSpec extends PortalSpecification {
         then:
         response.status == 400
         response.json.errors*.field == ['serviceDefaults.buildTool']
+        api.get('/api/settings').json.version == original.version
+    }
+
+    def "a plugin repository that is not a plain http or https address is refused, since the library writes it into a Gradle init script and a Maven settings file"() {
+        when:
+        def response = api.put('/api/settings', original + [serviceDefaults: original.serviceDefaults + [
+                gradlePluginRepository: "https://tools.bbh.com/nexus/'; rm -rf /",
+                mavenPluginRepository : 'tools.bbh.com/nexus/repository/maven-public/']])
+
+        then:
+        response.status == 400
+        response.json.errors*.field.sort() == ['serviceDefaults.gradlePluginRepository', 'serviceDefaults.mavenPluginRepository']
         api.get('/api/settings').json.version == original.version
     }
 

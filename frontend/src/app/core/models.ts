@@ -644,6 +644,9 @@ export interface ServiceDefaults {
   nodeInstallationName: string | null;
   npmRegistry: string | null;
   npmrcCredentialsId: string | null;
+  pluginRepositoriesEnabled: boolean;
+  gradlePluginRepository: string | null;
+  mavenPluginRepository: string | null;
 }
 
 export interface ServiceTemplateValues {

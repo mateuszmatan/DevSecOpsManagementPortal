@@ -61,6 +61,19 @@ class GlobalSettingsEntitySpec extends Specification {
         entity.toDomain().values().scans().parallelDynamicAnalysis() == false
     }
 
+    def "switched-off plugin repositories and an emptied one are read back as saved"() {
+        when:
+        entity.apply(copy(bbh, serviceDefaults: copy(bbh.serviceDefaults(), pluginRepositoriesEnabled: false,
+                gradlePluginRepository: null, mavenPluginRepository: 'https://nexus.example.com/maven-plugins/')))
+
+        then:
+        with(entity.toDomain().values().serviceDefaults()) {
+            pluginRepositoriesEnabled() == false
+            gradlePluginRepository() == null
+            mavenPluginRepository() == 'https://nexus.example.com/maven-plugins/'
+        }
+    }
+
     def "unchanged limits are left alone so saving writes no limit rows"() {
         given:
         entity.apply(bbh)

@@ -42,6 +42,9 @@ describe('createSettingsForm', () => {
       nodeInstallationName: '',
       npmRegistry: '',
       npmrcCredentialsId: '',
+      pluginRepositoriesEnabled: true,
+      gradlePluginRepository: '',
+      mavenPluginRepository: '',
     });
     expect(value.scans.parallelStaticAnalysis).toBe(true);
     expect(value.scans.parallelDynamicAnalysis).toBe(true);

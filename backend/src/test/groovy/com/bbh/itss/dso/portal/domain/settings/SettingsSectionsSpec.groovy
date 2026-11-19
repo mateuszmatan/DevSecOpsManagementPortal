@@ -39,10 +39,15 @@ class SettingsSectionsSpec extends Specification {
         written { new SeverityLimits(1, 2, 3).writeTo(it, 'tools.nexusIq') } ==
                 [tools: [nexusIq: [maxCritical: 1, maxHigh: 2, maxMedium: 3]]]
         ZERO == new SeverityLimits(0, 0, 0)
-        written { new ServiceDefaults(MAVEN, OPENSHIFT, 'src', 4, null, null, null).writeTo(it) } ==
-                [buildTool: 'maven', deployTarget: 'openshift', sourceDir: 'src', tests: [maxParallel: 4]]
+        written { new ServiceDefaults(MAVEN, OPENSHIFT, 'src', 4, null, null, null, false, null, ' ').writeTo(it) } ==
+                [buildTool: 'maven', deployTarget: 'openshift', sourceDir: 'src', tests: [maxParallel: 4],
+                 pluginRepositories: [enabled: false]]
+        written { new ServiceDefaults(MAVEN, OPENSHIFT, 'src', 4, null, null, null, null,
+                ' https://nexus.bbh.com/gradle-plugins/ ', 'https://nexus.bbh.com/maven-public/').writeTo(it) }
+                .pluginRepositories == [enabled: true, gradle: 'https://nexus.bbh.com/gradle-plugins/',
+                                        maven  : 'https://nexus.bbh.com/maven-public/']
         written { new ServiceDefaults(MAVEN, OPENSHIFT, 'src', 4, ' NodeJS-20 ', 'https://nexus.bbh.com/npm-group/',
-                'npmrc-file').writeTo(it) }.build ==
+                'npmrc-file', true, null, null).writeTo(it) }.build ==
                 [node: [installationName: 'NodeJS-20', registry: 'https://nexus.bbh.com/npm-group/',
                         npmrcCredentialsId: 'npmrc-file']]
         written { new ScanSettings(80, 10, 20, 15, 45, 55, 65, 75, false, 9, false, false).writeTo(it) } ==
@@ -59,7 +64,7 @@ class SettingsSectionsSpec extends Specification {
 
     def "service defaults use the source root #expected for #sourceDir"() {
         expect:
-        new ServiceDefaults(MAVEN, OPENSHIFT, sourceDir, 4, null, null, null).sourceDir() == expected
+        new ServiceDefaults(MAVEN, OPENSHIFT, sourceDir, 4, null, null, null, true, null, null).sourceDir() == expected
 
         where:
         sourceDir || expected

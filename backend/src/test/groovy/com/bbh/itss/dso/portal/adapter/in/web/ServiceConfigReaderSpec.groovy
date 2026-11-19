@@ -513,6 +513,9 @@ class ServiceConfigReaderSpec extends Specification {
                   parallel: true
                 dynamicAnalysis:
                   parallel: true
+                pluginRepositories:
+                  enabled: false
+                  gradle: https://nexus.example.com/gradle-plugins/
                 build:
                   liquibase:
                     commands: updateSQL
@@ -543,7 +546,8 @@ class ServiceConfigReaderSpec extends Specification {
 
         then:
         importedService.name() == 'billing-db'
-        importedService.notes() == [problem('staticAnalysis.parallel', GLOBAL), problem('dynamicAnalysis.parallel', GLOBAL)]
+        importedService.notes() == [problem('staticAnalysis.parallel', GLOBAL), problem('dynamicAnalysis.parallel', GLOBAL),
+                                    problem('pluginRepositories.enabled', GLOBAL), problem('pluginRepositories.gradle', GLOBAL)]
         db.build().tool() == LIQUIBASE
         db.build().sourceDir() == 'db'
         db.build().command().tasks() == ['updateSQL']

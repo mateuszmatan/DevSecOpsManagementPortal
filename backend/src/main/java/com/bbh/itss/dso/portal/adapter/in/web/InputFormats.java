@@ -18,6 +18,9 @@ final class InputFormats {
     static final String SHELL_SAFE_URL = "^(https?://[A-Za-z0-9._/+@:=,~%-]+)?$";
     static final String SHELL_SAFE_URL_MESSAGE = "must be an http or https URL with letters, digits and"
             + " . _ / + @ : = , ~ % - only: the library puts it unquoted into a shell command";
+    static final String PLUGIN_REPOSITORY = SHELL_SAFE_URL;
+    static final String PLUGIN_REPOSITORY_MESSAGE = "must be an http or https URL with letters, digits and"
+            + " . _ / + @ : = , ~ % - only: the library writes it into a Gradle init script and a Maven settings file";
     static final String POWERSHELL_PATH = "^[A-Za-z0-9._/\\\\-]*$";
     static final String POWERSHELL_PATH_MESSAGE = "may contain letters, digits and . _ / \\ - only:"
             + " the library runs it unquoted in PowerShell";
