@@ -318,12 +318,10 @@ public class ServiceEntity extends AuditedEntity {
     @Embeddable
     public record GoldenFixPolicyEmbeddable(
             Boolean enabled,
-            @Column(name = "DIRECT_ONLY") Boolean onlyDirectDependencies,
             Integer minThreatLevel,
             @Convert(converter = DelimitedListConverter.Commas.class) List<String> ecosystems,
             @Column(name = "VERSION_TYPES") List<String> goldenVersionTypes,
             List<String> excludeDirs,
-            @Column(name = "VERIFY") Boolean verifyEnabled,
             @Column(name = "VERIFY_ATTEMPTS") Integer verifyMaxAttempts,
             @Column(name = "VERIFY_TIMEOUT") Integer verifyTimeoutMinutes,
             @Column(name = "VERIFY_MAVEN") String verifyMavenCommand,
@@ -331,6 +329,7 @@ public class ServiceEntity extends AuditedEntity {
             @Column(name = "VERIFY_NPM") String verifyNpmCommand,
             @Column(name = "VERIFY_PIP") String verifyPipCommand,
             @Column(name = "VERIFY_PUB") String verifyPubCommand,
+            @Column(name = "VERIFY_NUGET") String verifyNugetCommand,
             @Column(name = "AUTHOR_NAME") String commitAuthorName,
             @Column(name = "AUTHOR_EMAIL") String commitAuthorEmail,
             String timeZone) {

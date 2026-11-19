@@ -206,7 +206,7 @@ class DsoConfigBuilderSpec extends Specification {
         config.projects.gui.scm.bitbucket.subMap(['url', 'credentialsId']) ==
                 [url: REPOSITORY, credentialsId: 'bitbucket-http-credentials']
         config.projects.gui.goldenFix == [enabled: true]
-        config.defaults.goldenFix.verify.enabled != null
+        config.defaults.goldenFix.verify.maxAttempts != null
     }
 
     def "the global configuration holds the platform and the library defaults"() {

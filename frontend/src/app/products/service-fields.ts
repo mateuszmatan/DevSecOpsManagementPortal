@@ -1378,15 +1378,9 @@ export class ServiceFields {
     if (!g) {
       return `${intro}.`;
     }
-    const dependencies = g.onlyDirectDependencies
-      ? 'direct dependencies only'
-      : 'direct and transitive dependencies';
-    const verification = g.verifyEnabled
-      ? 'each fix verified by a build'
-      : 'without a verification build';
     return (
       `${intro}: ${g.ecosystems.join(', ')}, threat level ${g.minThreatLevel} and above, ` +
-      `${dependencies}, ${verification}.`
+      'direct dependencies only, patch versions only, each fix verified by a build.'
     );
   }
 

@@ -91,7 +91,6 @@
     },
     "goldenFix": {
       "enabled": true,
-      "onlyDirectDependencies": true,
       "minThreatLevel": 2,
       "ecosystems": [
         "maven",
@@ -102,9 +101,7 @@
         "recommended-non-breaking-with-dependencies",
         "recommended-non-breaking"
       ],
-      "verify": {
-        "enabled": true,
-        "maxAttempts": 3,
+      "verify": {"maxAttempts": 3,
         "timeoutMinutes": 20
       },
       "commitAuthorName": "DevSecOps GoldenFix",

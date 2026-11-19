@@ -319,12 +319,10 @@ export interface ScmSettings {
 
 export interface GoldenFixPolicy {
   enabled: boolean | null;
-  onlyDirectDependencies: boolean | null;
   minThreatLevel: number | null;
   ecosystems: string[];
   goldenVersionTypes: string[];
   excludeDirs: string[];
-  verifyEnabled: boolean | null;
   verifyMaxAttempts: number | null;
   verifyTimeoutMinutes: number | null;
   verifyMavenCommand: string | null;
@@ -332,6 +330,7 @@ export interface GoldenFixPolicy {
   verifyNpmCommand: string | null;
   verifyPipCommand: string | null;
   verifyPubCommand: string | null;
+  verifyNugetCommand: string | null;
   commitAuthorName: string | null;
   commitAuthorEmail: string | null;
   timeZone: string | null;

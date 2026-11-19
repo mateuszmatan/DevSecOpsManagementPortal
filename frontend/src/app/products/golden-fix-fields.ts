@@ -1,18 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { FormGroup } from '@angular/forms';
 import { GoldenFixPolicy } from '../core/models';
-import {
-  Field,
-  Fields,
-  area,
-  check,
-  choice,
-  count,
-  defaulted,
-  line,
-  mono,
-  tristate,
-} from '@common/shared/fields';
+import { Field, Fields, area, choice, count, defaulted, line, mono } from '@common/shared/fields';
 import {
   GOLDEN_FIX_ECOSYSTEMS,
   GlobalGoldenFixForm,
@@ -60,13 +49,14 @@ const COMMANDS: Field[] = [
     'flutter pub get, or dart pub get',
     4,
   ),
+  command(
+    'Nuget',
+    'NuGet',
+    'or PowerShell on Windows in the folder of each changed .csproj, .fsproj, .vbproj, Directory.Packages.props, Directory.Build.props or packages.config',
+    'nuget restore and MSBuild /t:Build on Windows, or dotnet build --no-incremental',
+    4,
+  ),
 ];
-
-const DIRECT_ONLY =
-  'With direct dependencies only, GoldenFix leaves out the components Nexus IQ reports as transitive.';
-
-const VERIFY =
-  'When the build fails, GoldenFix lowers the proposed versions and builds again; when no set of versions builds, it opens no pull request.';
 
 /** A value as a hint shows it: lists, also one per line, joined by commas and flags as yes or no. */
 function shown(value: unknown): string {
@@ -115,7 +105,7 @@ export class GoldenFixFields {
         {
           multiple: true,
           hint: this.explain('The kinds of dependencies GoldenFix upgrades', 'ecosystems'),
-          help: 'Findings in other ecosystems are left for manual fixes. pypi stands for Python packages and pub for Dart and Flutter packages.',
+          help: 'Findings in other ecosystems are left for manual fixes. pypi stands for Python packages, pub for Dart and Flutter packages and nuget for .NET packages. GoldenFix changes only direct dependencies and only the last number of their version, so 1.2.3 may become 1.2.4 but never 1.3.0, and it opens a pull request only after the pre-check build has passed.',
         },
       ),
       count('minThreatLevel', 'Minimum threat level', 'minThreatLevel', 3, {
@@ -127,24 +117,6 @@ export class GoldenFixFields {
         ),
         help: 'Waived violations do not count. 2 and above is moderate, 4 and above severe, 8 and above critical.',
       }),
-      this.complete()
-        ? check('onlyDirectDependencies', 'Direct dependencies only', 'onlyDirectDependencies', 4, {
-            help: DIRECT_ONLY,
-          })
-        : choice(
-            'onlyDirectDependencies',
-            'Dependencies',
-            tristate('Library default', 'Direct dependencies only', 'Direct and transitive'),
-            'onlyDirectDependencies',
-            4,
-            {
-              hint: this.explain(
-                'Direct ones are named by the service itself; transitive ones come with them',
-                'onlyDirectDependencies',
-              ),
-              help: DIRECT_ONLY,
-            },
-          ),
       area('goldenVersionTypes', 'Golden version types', 'goldenVersionTypes', 6, {
         mono: true,
         placeholder: 'recommended-non-breaking',
@@ -164,32 +136,10 @@ export class GoldenFixFields {
 
   protected verifyFields(): Field[] {
     return [
-      this.complete()
-        ? check(
-            'verifyEnabled',
-            'Build the fix before opening the pull request',
-            'verify.enabled',
-            4,
-            { help: VERIFY },
-          )
-        : choice(
-            'verifyEnabled',
-            'Verification',
-            tristate('Library default', 'Build the fix first', 'Do not build it'),
-            'verify.enabled',
-            4,
-            {
-              hint: this.explain(
-                'A build of the fixed service catches upgrades that break it',
-                'verifyEnabled',
-              ),
-              help: VERIFY,
-            },
-          ),
       count('verifyMaxAttempts', 'Attempts', 'verify.maxAttempts', 4, {
         min: 1,
         hint: this.explain(
-          'How many times GoldenFix may run the verification build',
+          'How many times GoldenFix may run the pre-check build',
           'verifyMaxAttempts',
         ),
         help: 'After each failed build, every proposed version is lowered to the next lower one Nexus IQ offers; a dependency without one is dropped.',

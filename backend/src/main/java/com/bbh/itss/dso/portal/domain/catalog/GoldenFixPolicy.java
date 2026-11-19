@@ -14,11 +14,11 @@ import static lombok.AccessLevel.PRIVATE;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @Builder
-public record GoldenFixPolicy(@With(PRIVATE) Boolean enabled, Boolean onlyDirectDependencies, Integer minThreatLevel,
+public record GoldenFixPolicy(@With(PRIVATE) Boolean enabled, Integer minThreatLevel,
                               List<String> ecosystems, List<String> goldenVersionTypes, List<String> excludeDirs,
-                              Boolean verifyEnabled, Integer verifyMaxAttempts, Integer verifyTimeoutMinutes,
+                              Integer verifyMaxAttempts, Integer verifyTimeoutMinutes,
                               String verifyMavenCommand, String verifyGradleCommand, String verifyNpmCommand,
-                              String verifyPipCommand, String verifyPubCommand, String commitAuthorName,
+                              String verifyPipCommand, String verifyPubCommand, String verifyNugetCommand, String commitAuthorName,
                               String commitAuthorEmail, String timeZone) {
 
     public static final GoldenFixPolicy INHERITED = inherit(null);
@@ -32,6 +32,7 @@ public record GoldenFixPolicy(@With(PRIVATE) Boolean enabled, Boolean onlyDirect
         verifyNpmCommand = trimToNull(verifyNpmCommand);
         verifyPipCommand = trimToNull(verifyPipCommand);
         verifyPubCommand = trimToNull(verifyPubCommand);
+        verifyNugetCommand = trimToNull(verifyNugetCommand);
         commitAuthorName = trimToNull(commitAuthorName);
         commitAuthorEmail = trimToNull(commitAuthorEmail);
         timeZone = trimToNull(timeZone);
@@ -43,12 +44,10 @@ public record GoldenFixPolicy(@With(PRIVATE) Boolean enabled, Boolean onlyDirect
 
     public void writeTo(ConfigTree config) {
         config.set("goldenFix.enabled", enabled)
-                .set("goldenFix.onlyDirectDependencies", onlyDirectDependencies)
                 .set("goldenFix.minThreatLevel", minThreatLevel)
                 .set("goldenFix.ecosystems", ecosystems)
                 .set("goldenFix.goldenVersionTypes", goldenVersionTypes)
                 .set("goldenFix.excludeDirs", excludeDirs)
-                .set("goldenFix.verify.enabled", verifyEnabled)
                 .set("goldenFix.verify.maxAttempts", verifyMaxAttempts)
                 .set("goldenFix.verify.timeoutMinutes", verifyTimeoutMinutes)
                 .set("goldenFix.verify.commands.maven", verifyMavenCommand)
@@ -56,6 +55,7 @@ public record GoldenFixPolicy(@With(PRIVATE) Boolean enabled, Boolean onlyDirect
                 .set("goldenFix.verify.commands.npm", verifyNpmCommand)
                 .set("goldenFix.verify.commands.pip", verifyPipCommand)
                 .set("goldenFix.verify.commands.pub", verifyPubCommand)
+                .set("goldenFix.verify.commands.nuget", verifyNugetCommand)
                 .set("goldenFix.commitAuthorName", commitAuthorName)
                 .set("goldenFix.commitAuthorEmail", commitAuthorEmail)
                 .set("goldenFix.timeZone", timeZone);
@@ -72,9 +72,7 @@ public record GoldenFixPolicy(@With(PRIVATE) Boolean enabled, Boolean onlyDirect
 
     public void validateComplete(ValidationProblems problems) {
         String message = "is required in the global settings";
-        problems.require("onlyDirectDependencies", onlyDirectDependencies, message)
-                .require("minThreatLevel", minThreatLevel, message)
-                .require("verifyEnabled", verifyEnabled, message)
+        problems.require("minThreatLevel", minThreatLevel, message)
                 .require("verifyMaxAttempts", verifyMaxAttempts, message)
                 .require("verifyTimeoutMinutes", verifyTimeoutMinutes, message)
                 .require("commitAuthorName", commitAuthorName, message)

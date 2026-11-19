@@ -496,7 +496,7 @@ final class ServiceConfigReader {
                 rule("scm.bitbucket.type", "scm.type", choice(BitbucketType.values(), Enum::name)),
                 rule("scm.bitbucket.reviewers", "scm.reviewers", COMMAS),
                 rule("goldenFix.minThreatLevel", "goldenFix.minThreatLevel", NUMBER),
-                rule("goldenFix.verify.enabled", "goldenFix.verifyEnabled", FLAG),
+                rule("goldenFix.verify.enabled", null, IGNORED),
                 rule("goldenFix.verify.maxAttempts", "goldenFix.verifyMaxAttempts", NUMBER),
                 rule("goldenFix.verify.timeoutMinutes", "goldenFix.verifyTimeoutMinutes", NUMBER),
                 rule("deploy.vm.dod.updateSnapshotComp", "urbanCode.updateSnapshotComponents", FLAG),
@@ -538,9 +538,10 @@ final class ServiceConfigReader {
         rules.addAll(prefixed("tools.nexusIq.", "nexusIq.", same(TEXT, "serverUrl", "credentialsId")));
         rules.addAll(prefixed("scm.bitbucket.", "scm.", same(TEXT, "credentialsId", "targetBranch", "cloneUrl",
                 "apiUrl", "workspace", "projectKey", "repoSlug")));
-        rules.addAll(prefixed("goldenFix.", "goldenFix.", concat(same(FLAG, "enabled", "onlyDirectDependencies"),
+        rules.addAll(prefixed("goldenFix.", "goldenFix.", concat(same(FLAG, "enabled"),
                 same(LIST, "ecosystems", "goldenVersionTypes", "excludeDirs"),
                 same(TEXT, "commitAuthorName", "commitAuthorEmail", "timeZone"))));
+        rules.add(rule("goldenFix.onlyDirectDependencies", null, IGNORED));
         rules.add(rule("goldenFix.versionCatalogs", "versionCatalogs", FILES));
         rules.add(rule("versionCatalogs", "versionCatalogs", FILES));
         rules.addAll(prefixed("goldenFix.versionCatalogRepo.", "versionCatalogRepo.", same(TEXT, "repositoryUrl", "credentialsId", "branch", "path")));
@@ -555,7 +556,7 @@ final class ServiceConfigReader {
         rules.add(rule("goldenFix.versionCatalogRepository.targetBranch", "versionCatalogRepo.branch", TEXT));
         rules.add(rule("versionCatalogRepo.targetBranch", "versionCatalogRepo.branch", TEXT));
         rules.add(rule("versionCatalogRepository.targetBranch", "versionCatalogRepo.branch", TEXT));
-        for (String tool : List.of("maven", "gradle", "npm", "pip", "pub")) {
+        for (String tool : List.of("maven", "gradle", "npm", "pip", "pub", "nuget")) {
             rules.add(rule("goldenFix.verify.commands." + tool, "goldenFix.verify" + capitalize(tool) + "Command",
                     TEXT));
         }

@@ -1086,7 +1086,6 @@ describe('GoldenFix', () => {
     const c = group.controls;
 
     expect(c.enabled.value).toBe(true);
-    expect(c.onlyDirectDependencies.hasError('required')).toBe(true);
     expect(c.minThreatLevel.hasError('required')).toBe(true);
     expect(c.ecosystems.hasError('required')).toBe(true);
     expect(c.goldenVersionTypes.hasError('required')).toBe(true);

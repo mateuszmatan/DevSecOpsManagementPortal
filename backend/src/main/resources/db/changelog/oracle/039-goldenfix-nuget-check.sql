@@ -1,0 +1,10 @@
+--liquibase formatted sql
+
+--changeset dso-portal:039-service-verify-nuget dbms:oracle,h2
+ALTER TABLE DSO_SERVICE ADD GOLDEN_FIX_VERIFY_NUGET VARCHAR2(500);
+--rollback ALTER TABLE DSO_SERVICE DROP COLUMN GOLDEN_FIX_VERIFY_NUGET;
+
+--changeset dso-portal:039-global-verify-nuget dbms:oracle,h2
+ALTER TABLE DSO_GLOBAL_SETTINGS ADD GOLDEN_FIX_VERIFY_NUGET VARCHAR2(500);
+--rollback ALTER TABLE DSO_GLOBAL_SETTINGS DROP COLUMN GOLDEN_FIX_VERIFY_NUGET;
+

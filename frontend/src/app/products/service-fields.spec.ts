@@ -1236,7 +1236,7 @@ describe('ServiceFields', () => {
       await open('GoldenFix');
 
       expect(pane().querySelector('.note')?.textContent).toContain(
-        'maven, npm, pypi, threat level 2 and above, direct dependencies only, each fix verified by a build.',
+        'maven, npm, pypi, nuget, threat level 2 and above, direct dependencies only, patch versions only, each fix verified by a build.',
       );
       expect(buttonOf(pane(), 'Inherit the Library defaults').getAttribute('aria-checked')).toBe(
         'true',
@@ -1248,7 +1248,7 @@ describe('ServiceFields', () => {
       expect(pane().querySelector('dso-golden-fix-fields')).not.toBeNull();
     });
 
-    it('names the Library default in the override choices and in the hints of prefilled fields', async () => {
+    it('names the Library default in the hints of prefilled fields', async () => {
       await render();
       applyLibraryDefaults(form, globalSettings());
       await open('GoldenFix');
@@ -1256,21 +1256,16 @@ describe('ServiceFields', () => {
       await fixture.whenStable();
       const hintOf = (label: string) => text(fieldOf(pane(), label)?.querySelector('dso-hint'));
 
-      expect(optionsOf(selectOf(pane(), 'Dependencies'))[0]).toBe('Library default');
-      expect(optionsOf(selectOf(pane(), 'Verification'))[0]).toBe('Library default');
+      expect(selectOf(pane(), 'Dependencies')).toBeFalsy();
+      expect(selectOf(pane(), 'Verification')).toBeFalsy();
       expect(hintOf('Minimum threat level')).toContain('from 0 to 10 · Library default · ');
       expect(hintOf('Golden version types')).toContain('one per line · Library default · ');
       expect(hintOf('Excluded folders')).toContain('left empty: the Library default');
-      expect(hintOf('Dependencies')).toContain(
-        'transitive ones come with them · Library default · ',
-      );
 
       form.controls.goldenFix.controls.minThreatLevel.setValue(7);
-      choose(selectOf(pane(), 'Dependencies'), 'Library default');
       await fixture.whenStable();
 
       expect(hintOf('Minimum threat level')).toContain('· Library default: 2 · ');
-      expect(hintOf('Dependencies')).toContain('· Library default: yes · ');
     });
 
     it('tells in which folders the verification commands run', async () => {

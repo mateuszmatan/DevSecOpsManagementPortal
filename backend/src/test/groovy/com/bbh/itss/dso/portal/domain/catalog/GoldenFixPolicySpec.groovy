@@ -8,17 +8,17 @@ import static com.bbh.itss.dso.portal.domain.shared.Sections.written
 
 class GoldenFixPolicySpec extends Specification {
 
-    static final GoldenFixPolicy COMPLETE = new GoldenFixPolicy(true, false, 7, ['maven', 'npm'],
-            ['recommended-non-breaking', 'next-no-violations'], ['docs', 'examples'], true, 3, 30, 'mvn -B verify',
-            './gradlew build', 'npm test', 'pytest', 'flutter test', 'GoldenFix', 'goldenfix@bbh.com', 'Europe/Warsaw')
+    static final GoldenFixPolicy COMPLETE = new GoldenFixPolicy(true, 7, ['maven', 'npm'],
+            ['recommended-non-breaking', 'next-no-violations'], ['docs', 'examples'], 3, 30, 'mvn -B verify',
+            './gradlew build', 'npm test', 'pytest', 'flutter test', 'dotnet build', 'GoldenFix', 'goldenfix@bbh.com', 'Europe/Warsaw')
 
     def "an inherited policy leaves every value, also whether GoldenFix runs, to the global settings"() {
         expect:
         INHERITED == GoldenFixPolicy.inherit(null)
-        INHERITED == new GoldenFixPolicy(*([null] * 3), [], [], [], *([null] * 11))
-        new GoldenFixPolicy(null, null, null, [' maven ', 'maven', ' '], null, [' docs ', ''], null, null, null,
-                *([' '] * 8)) == new GoldenFixPolicy(*([null] * 3), ['maven'], [], ['docs'], *([null] * 11))
-        new GoldenFixPolicy(false, *([null] * 16)) == GoldenFixPolicy.inherit(false)
+        INHERITED == new GoldenFixPolicy(*([null] * 2), [], [], [], *([null] * 11))
+        new GoldenFixPolicy(null, null, [' maven ', 'maven', ' '], null, [' docs ', ''], null, null,
+                *([' '] * 9)) == new GoldenFixPolicy(*([null] * 2), ['maven'], [], ['docs'], *([null] * 11))
+        new GoldenFixPolicy(false, *([null] * 15)) == GoldenFixPolicy.inherit(false)
         GoldenFixPolicy.inherit(true).enabled()
     }
 
@@ -34,14 +34,14 @@ class GoldenFixPolicySpec extends Specification {
         def goldenFix = written(COMPLETE).goldenFix
 
         then:
-        goldenFix == [enabled           : true, onlyDirectDependencies: false, minThreatLevel: 7,
+        goldenFix == [enabled           : true, minThreatLevel: 7,
                       ecosystems        : ['maven', 'npm'], goldenVersionTypes: ['recommended-non-breaking', 'next-no-violations'],
                       excludeDirs       : ['docs', 'examples'],
-                      verify            : [enabled : true, maxAttempts: 3, timeoutMinutes: 30,
+                      verify            : [maxAttempts: 3, timeoutMinutes: 30,
                                            commands: [maven: 'mvn -B verify', gradle: './gradlew build', npm: 'npm test',
-                                                      pip  : 'pytest', pub: 'flutter test']],
+                                                      pip  : 'pytest', pub: 'flutter test', nuget: 'dotnet build']],
                       commitAuthorName  : 'GoldenFix', commitAuthorEmail: 'goldenfix@bbh.com', timeZone: 'Europe/Warsaw']
-        goldenFix.keySet() as List == ['enabled', 'onlyDirectDependencies', 'minThreatLevel', 'ecosystems',
+        goldenFix.keySet() as List == ['enabled', 'minThreatLevel', 'ecosystems',
                                        'goldenVersionTypes', 'excludeDirs', 'verify', 'commitAuthorName', 'commitAuthorEmail',
                                        'timeZone']
         written(INHERITED) == [:]
@@ -55,13 +55,13 @@ class GoldenFixPolicySpec extends Specification {
         def problems = complete(INHERITED)
 
         then:
-        problems*.field == ['onlyDirectDependencies', 'minThreatLevel', 'verifyEnabled', 'verifyMaxAttempts',
+        problems*.field == ['minThreatLevel', 'verifyMaxAttempts',
                             'verifyTimeoutMinutes', 'commitAuthorName', 'commitAuthorEmail', 'ecosystems', 'goldenVersionTypes']
-        problems*.message == ['is required in the global settings'] * 7 +
+        problems*.message == ['is required in the global settings'] * 5 +
                 ['select at least one ecosystem', 'add at least one remediation type']
         complete(COMPLETE) == []
-        complete(GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true).minThreatLevel(1)
-                .ecosystems(['pub']).goldenVersionTypes(['recommended-non-breaking']).verifyEnabled(false)
+        complete(GoldenFixPolicy.builder().enabled(true).minThreatLevel(1)
+                .ecosystems(['pub']).goldenVersionTypes(['recommended-non-breaking'])
                 .verifyMaxAttempts(1).verifyTimeoutMinutes(1).commitAuthorName('GoldenFix')
                 .commitAuthorEmail('goldenfix@bbh.com').build()) == []
     }

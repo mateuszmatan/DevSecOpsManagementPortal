@@ -403,15 +403,13 @@ public record ServiceDto(
 
     public record GoldenFixPolicyDto(
             Boolean enabled,
-            Boolean onlyDirectDependencies,
             @Min(0) @Max(10) Integer minThreatLevel,
-            @Size(max = 4)
-            List<@Pattern(regexp = "^(maven|npm|pypi|pub)$", message = "must be maven, npm, pypi or pub") String> ecosystems,
+            @Size(max = 5)
+            List<@Pattern(regexp = "^(maven|npm|pypi|pub|nuget)$", message = "must be maven, npm, pypi, pub or nuget") String> ecosystems,
             @Size(max = 10)
             List<@Pattern(regexp = "^[a-z-]{1,100}$", message = "must be a Nexus IQ remediation type such as recommended-non-breaking")
                     String> goldenVersionTypes,
             @Size(max = 30) List<@Size(min = 1, max = 200) String> excludeDirs,
-            Boolean verifyEnabled,
             @Min(1) Integer verifyMaxAttempts,
             @Min(1) Integer verifyTimeoutMinutes,
             @Size(max = 500) String verifyMavenCommand,
@@ -419,6 +417,7 @@ public record ServiceDto(
             @Size(max = 500) String verifyNpmCommand,
             @Size(max = 500) String verifyPipCommand,
             @Size(max = 500) String verifyPubCommand,
+            @Size(max = 500) String verifyNugetCommand,
             @Size(max = 200) String commitAuthorName,
             @Email @Size(max = 320) String commitAuthorEmail,
             @Size(max = 100)

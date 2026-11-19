@@ -201,7 +201,6 @@ projects:
         - asmith
     goldenFix:
       enabled: true
-      onlyDirectDependencies: false
       minThreatLevel: 4
       ecosystems:
       - maven
@@ -210,7 +209,6 @@ projects:
       excludeDirs:
       - legacy
       verify:
-        enabled: true
         maxAttempts: 2
         timeoutMinutes: 30
         commands:

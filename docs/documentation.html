@@ -1108,20 +1108,19 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <li>&quot;Override for this service&quot; shows the policy fields below. A field left empty keeps the Library default; its hint shows that value.</li>
 </ul>
 <h3 id="the-policy-fields">The policy fields</h3>
+<p>Three rules are fixed by the library and have no field: GoldenFix changes only direct dependencies, it changes only the last number of a version (the patch, so <code>1.2.3</code> may become <code>1.2.4</code> but never <code>1.3.0</code>, and a dependency without such a version is left untouched), and it opens a pull request only after the pre-check build of the changed manifests has passed. A shared version catalog repository is built the same way before its pull request.</p>
 <table>
 <thead>
 <tr><th>Field</th><th>Meaning</th></tr>
 </thead>
 <tbody>
-<tr><td>Ecosystems</td><td>The kinds of dependencies GoldenFix upgrades: maven, npm, pypi and pub. Hold Ctrl (Cmd on a Mac) to choose several.</td></tr>
+<tr><td>Ecosystems</td><td>The kinds of dependencies GoldenFix upgrades: maven, npm, pypi, pub and nuget. Hold Ctrl (Cmd on a Mac) to choose several.</td></tr>
 <tr><td>Minimum threat level</td><td>Only violations that Nexus IQ rates at least this high, from 0 to 10. 2 and above is moderate, 4 and above severe, 8 and above critical.</td></tr>
-<tr><td>Dependencies</td><td>Direct dependencies only, or direct and transitive ones.</td></tr>
 <tr><td>Golden version types</td><td>The Nexus IQ remediation types labelled Nexus IQ Golden Version in the pull request.</td></tr>
 <tr><td>Excluded folders</td><td>Folder names, at any depth, whose manifests GoldenFix leaves alone. A list replaces the library list of <code>.git</code>, <code>node_modules</code>, <code>target</code>, <code>build</code> and similar folders.</td></tr>
-<tr><td>Verification</td><td>Whether GoldenFix builds the fix before it opens the pull request. When the build fails, it lowers the versions and builds again.</td></tr>
-<tr><td>Attempts</td><td>How many verification builds GoldenFix may run.</td></tr>
+<tr><td>Attempts</td><td>How many pre-check builds GoldenFix may run. When a build fails, it lowers the versions and builds again.</td></tr>
 <tr><td>Timeout (minutes)</td><td>The limit of each check: one check for each folder in which a changed manifest or catalog is built.</td></tr>
-<tr><td>Maven, Gradle, npm, pip and pub command</td><td>The command that builds the fix. Left empty, the library runs <code>mvn -B -q -DskipTests compile</code>, <code>./gradlew --no-daemon --console=plain classes</code>, <code>npm ci --ignore-scripts</code>, <code>python3 -m pip install --dry-run</code> or <code>flutter pub get</code>.</td></tr>
+<tr><td>Maven, Gradle, npm, pip, pub and NuGet command</td><td>The command that builds the fix. Left empty, the library runs <code>mvn -B -q -DskipTests compile</code>, <code>./gradlew --no-daemon --console=plain classes</code>, <code>npm ci --ignore-scripts</code>, <code>python3 -m pip install --dry-run</code>, <code>flutter pub get</code> or <code>dotnet build --no-incremental</code> (<code>nuget restore</code> and <code>MSBuild</code> on Windows).</td></tr>
 <tr><td>Author name, Author e-mail</td><td>The author of the GoldenFix commit.</td></tr>
 <tr><td>Time zone</td><td>The time zone of the branch and pull request name <code>GoldenFix-YYYYMMDDHHMM</code>.</td></tr>
 </tbody>
@@ -1132,6 +1131,7 @@ devSecOpsPipeline(<span class="k">projectNames</span>: <span class="s">'gateway'
 <li>Gradle: in the folder of each changed build or properties file. A catalog, a settings file or a platform is verified in the folder of each build that uses it.</li>
 <li>npm: in the folder of each changed <code>package.json</code>, in the Node.js environment of the service while its Node.js build is on.</li>
 <li>pip and pub: in the folder of each changed file.</li>
+<li>NuGet: in the folder of each changed <code>.csproj</code>, <code>.fsproj</code>, <code>.vbproj</code>, <code>Directory.Packages.props</code>, <code>Directory.Build.props</code> or <code>packages.config</code>.</li>
 </ul>
 </div>
 
@@ -1930,10 +1930,8 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 <tr><td>External catalog path</td><td><code>goldenFix.versionCatalogRepo.path</code></td><td>relative path to catalog file or directory</td></tr>
 <tr><td>Ecosystems</td><td><code>goldenFix.ecosystems</code></td><td>Override only</td></tr>
 <tr><td>Minimum threat level</td><td><code>minThreatLevel</code></td><td><code>goldenFix.minThreatLevel</code></td></tr>
-<tr><td>Dependencies</td><td><code>onlyDirectDependencies</code></td><td><code>goldenFix.onlyDirectDependencies</code></td></tr>
 <tr><td>Golden version types</td><td><code>goldenVersionTypes</code></td><td><code>goldenFix.goldenVersionTypes</code></td></tr>
 <tr><td>Excluded folders</td><td><code>excludeDirs</code></td><td><code>goldenFix.excludeDirs</code></td></tr>
-<tr><td>Verification</td><td><code>verify.enabled</code></td><td><code>goldenFix.verify.enabled</code></td></tr>
 <tr><td>Attempts</td><td><code>verify.maxAttempts</code></td><td><code>goldenFix.verify.maxAttempts</code></td></tr>
 <tr><td>Timeout (minutes)</td><td><code>verify.timeoutMinutes</code></td><td><code>goldenFix.verify.timeoutMinutes</code></td></tr>
 <tr><td>Maven command</td><td><code>verify.commands.maven</code></td><td><code>goldenFix.verify.commands.maven</code></td></tr>
@@ -1941,6 +1939,7 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 <tr><td>npm command</td><td><code>verify.commands.npm</code></td><td><code>goldenFix.verify.commands.npm</code></td></tr>
 <tr><td>pip command</td><td><code>verify.commands.pip</code></td><td><code>goldenFix.verify.commands.pip</code></td></tr>
 <tr><td>pub command</td><td><code>verify.commands.pub</code></td><td><code>goldenFix.verify.commands.pub</code></td></tr>
+<tr><td>NuGet command</td><td><code>verify.commands.nuget</code></td><td><code>goldenFix.verify.commands.nuget</code></td></tr>
 <tr><td>Author name</td><td><code>commitAuthorName</code></td><td><code>goldenFix.commitAuthorName</code></td></tr>
 <tr><td>Author e-mail</td><td><code>commitAuthorEmail</code></td><td><code>goldenFix.commitAuthorEmail</code></td></tr>
 <tr><td>Time zone</td><td><code>timeZone</code></td><td><code>goldenFix.timeZone</code></td></tr>

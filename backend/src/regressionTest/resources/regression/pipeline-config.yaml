@@ -68,7 +68,6 @@ defaults:
     stateFile: release-gate.json
   goldenFix:
     enabled: true
-    onlyDirectDependencies: true
     minThreatLevel: 2
     ecosystems:
     - maven
@@ -78,7 +77,6 @@ defaults:
     - recommended-non-breaking-with-dependencies
     - recommended-non-breaking
     verify:
-      enabled: true
       maxAttempts: 3
       timeoutMinutes: 20
     commitAuthorName: DevSecOps GoldenFix

@@ -95,7 +95,6 @@
   },
   "goldenFix": {
     "enabled": true,
-    "onlyDirectDependencies": true,
     "minThreatLevel": 2,
     "ecosystems": [
       "maven",
@@ -107,7 +106,6 @@
       "recommended-non-breaking"
     ],
     "excludeDirs": [],
-    "verifyEnabled": true,
     "verifyMaxAttempts": 3,
     "verifyTimeoutMinutes": 20,
     "verifyMavenCommand": null,
@@ -115,6 +113,7 @@
     "verifyNpmCommand": null,
     "verifyPipCommand": null,
     "verifyPubCommand": null,
+    "verifyNugetCommand": null,
     "commitAuthorName": "DevSecOps GoldenFix",
     "commitAuthorEmail": "devsecops-goldenfix@noreply.local",
     "timeZone": null

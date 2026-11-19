@@ -178,12 +178,10 @@
       },
       "goldenFix": {
         "enabled": null,
-        "onlyDirectDependencies": null,
         "minThreatLevel": null,
         "ecosystems": [],
         "goldenVersionTypes": [],
         "excludeDirs": [],
-        "verifyEnabled": null,
         "verifyMaxAttempts": null,
         "verifyTimeoutMinutes": null,
         "verifyMavenCommand": null,
@@ -191,6 +189,7 @@
         "verifyNpmCommand": null,
         "verifyPipCommand": null,
         "verifyPubCommand": null,
+        "verifyNugetCommand": null,
         "commitAuthorName": null,
         "commitAuthorEmail": null,
         "timeZone": null

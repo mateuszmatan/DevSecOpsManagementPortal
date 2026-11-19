@@ -94,6 +94,10 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
   - Automatically pre-populated new service forms with values from Library defaults (Global Settings) and displayed "Library default: ..." hints and `devsecops_config.yaml` key chips on every field.
   - Added help icons (`dso-help`) with descriptive tooltips across all form fields in the portal.
 
+### Changed
+- **GoldenFix rules are fixed**: the library raises only direct dependencies, only to a patch-level version (`1.2.3` may become `1.2.5`, never `1.3.0` or `2.0.0`), and opens a pull request only after the pre-check build of the upgraded manifests passes. The settings *Only direct dependencies* and *Verify with a build* are removed from the service form, the global settings and the API; `goldenFix.onlyDirectDependencies` and `goldenFix.verify.enabled` are no longer written, and an imported configuration that still carries them is accepted and the keys are ignored. The old `DSO_SERVICE` and `DSO_GLOBAL_SETTINGS` columns stay in the database, unmapped.
+- **NuGet in GoldenFix**: `nuget` joins the GoldenFix ecosystems (also in the global defaults), and the pre-check command for NuGet is written as `goldenFix.verify.commands.nuget`. Liquibase changeset 039 adds `GOLDEN_FIX_VERIFY_NUGET` to `DSO_SERVICE` and `DSO_GLOBAL_SETTINGS`.
+
 ### Fixed
 - **Scan ID uniqueness**: a service without its own Bitbucket repository (it uses the pipeline repository) may share an AppScan application ID or a SonarQube project key with another service, so a copied service with an empty repository is valid.
 - **Liquibase Services**:

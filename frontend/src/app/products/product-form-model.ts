@@ -140,7 +140,7 @@ export const SCAN_NAME = /^[A-Za-z0-9._-]*$/;
 export const SCANNER_VERSION = /^[0-9A-Za-z._-]*$/;
 export const TIME_ZONE = /^[A-Za-z0-9_+/-]*$/;
 export const REMEDIATION_TYPE = /^[a-z-]{1,100}$/;
-export const GOLDEN_FIX_ECOSYSTEMS = ['maven', 'npm', 'pypi', 'pub'];
+export const GOLDEN_FIX_ECOSYSTEMS = ['maven', 'npm', 'pypi', 'pub', 'nuget'];
 export const RELATIVE_FOLDER = /^(?![/\\])(?![A-Za-z]:)(?!.*\.\.)[^'"\p{Cc}]*$/u;
 export const ABSOLUTE_FOLDER = /^((\/|[A-Za-z]:[/\\]|\\\\)[^'"\p{Cc}]*)?$/u;
 export const REPOSITORY_PATH = /^(?!\/)(?!(.*\/)?\.\.(\/|$))[A-Za-z0-9._/*+@:=,~-]*$/;
@@ -811,10 +811,6 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
   const required = complete ? [filled] : [];
   const command = (value: string | null | undefined) => text(value, max(500));
   return {
-    onlyDirectDependencies: new FormControl<boolean | null>(
-      policy?.onlyDirectDependencies ?? null,
-      required,
-    ),
     minThreatLevel: integer(policy?.minThreatLevel, 0, 10, ...required),
     ecosystems: new FormControl<string[]>(policy?.ecosystems ?? [], {
       nonNullable: true,
@@ -833,7 +829,6 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
       eachItem(lines, upTo(200), 'At most 200 characters per folder'),
       fitsColumn(lines, '\n', 2000),
     ),
-    verifyEnabled: new FormControl<boolean | null>(policy?.verifyEnabled ?? null, required),
     verifyMaxAttempts: integer(policy?.verifyMaxAttempts, 1, INT_MAX, ...required),
     verifyTimeoutMinutes: integer(policy?.verifyTimeoutMinutes, 1, INT_MAX, ...required),
     verifyMavenCommand: command(policy?.verifyMavenCommand),
@@ -841,6 +836,7 @@ export function goldenFixControls(policy?: Partial<GoldenFixPolicy> | null, comp
     verifyNpmCommand: command(policy?.verifyNpmCommand),
     verifyPipCommand: command(policy?.verifyPipCommand),
     verifyPubCommand: command(policy?.verifyPubCommand),
+    verifyNugetCommand: command(policy?.verifyNugetCommand),
     commitAuthorName: text(policy?.commitAuthorName, ...required, max(200)),
     commitAuthorEmail: text(policy?.commitAuthorEmail, ...required, Validators.email, max(320)),
     timeZone: text(policy?.timeZone, Validators.pattern(TIME_ZONE), max(100)),

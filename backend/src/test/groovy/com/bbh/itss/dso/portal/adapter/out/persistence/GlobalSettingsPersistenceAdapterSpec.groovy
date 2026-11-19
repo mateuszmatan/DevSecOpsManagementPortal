@@ -52,7 +52,7 @@ class GlobalSettingsPersistenceAdapterSpec extends Specification {
         adapter.load().get() == saved
         adapter.load().get().values().limits().keySet() as List == [SAST, SCA, NEXUS_IQ, DAST]
         jdbc.queryForMap('SELECT ID, RELEASE_GATE_SCANNERS, GOLDEN_FIX_ECOSYSTEMS, GOLDEN_FIX_ENABLED FROM DSO_GLOBAL_SETTINGS') ==
-                [ID: 1, RELEASE_GATE_SCANNERS: 'SAST,SCA,NEXUS_IQ,DAST', GOLDEN_FIX_ECOSYSTEMS: 'maven,npm,pypi',
+                [ID: 1, RELEASE_GATE_SCANNERS: 'SAST,SCA,NEXUS_IQ,DAST', GOLDEN_FIX_ECOSYSTEMS: 'maven,npm,pypi,nuget',
                  GOLDEN_FIX_ENABLED: 1]
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_GLOBAL_SEVERITY_LIMIT WHERE SETTINGS_ID = 1', Integer) == 4
     }

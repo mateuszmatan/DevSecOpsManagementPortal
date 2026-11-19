@@ -1083,17 +1083,17 @@ GoldenFix runs in the Nexus IQ stage of the Full, Security and Nexus IQ GoldenFi
 
 ### The policy fields
 
+Three rules are fixed by the library and have no field: GoldenFix changes only direct dependencies, it changes only the last number of a version (the patch, so `1.2.3` may become `1.2.4` but never `1.3.0`, and a dependency without such a version is left untouched), and it opens a pull request only after the pre-check build of the changed manifests has passed. A shared version catalog repository is built the same way before its pull request.
+
 | Field | Meaning |
 |-------|---------|
-| Ecosystems | The kinds of dependencies GoldenFix upgrades: maven, npm, pypi and pub. Hold Ctrl (Cmd on a Mac) to choose several. |
+| Ecosystems | The kinds of dependencies GoldenFix upgrades: maven, npm, pypi, pub and nuget. Hold Ctrl (Cmd on a Mac) to choose several. |
 | Minimum threat level | Only violations that Nexus IQ rates at least this high, from 0 to 10. 2 and above is moderate, 4 and above severe, 8 and above critical. |
-| Dependencies | Direct dependencies only, or direct and transitive ones. |
 | Golden version types | The Nexus IQ remediation types labelled Nexus IQ Golden Version in the pull request. |
 | Excluded folders | Folder names, at any depth, whose manifests GoldenFix leaves alone. A list replaces the library list of `.git`, `node_modules`, `target`, `build` and similar folders. |
-| Verification | Whether GoldenFix builds the fix before it opens the pull request. When the build fails, it lowers the versions and builds again. |
-| Attempts | How many verification builds GoldenFix may run. |
+| Attempts | How many pre-check builds GoldenFix may run. When a build fails, it lowers the versions and builds again. |
 | Timeout (minutes) | The limit of each check: one check for each folder in which a changed manifest or catalog is built. |
-| Maven, Gradle, npm, pip and pub command | The command that builds the fix. Left empty, the library runs `mvn -B -q -DskipTests compile`, `./gradlew --no-daemon --console=plain classes`, `npm ci --ignore-scripts`, `python3 -m pip install --dry-run` or `flutter pub get`. |
+| Maven, Gradle, npm, pip, pub and NuGet command | The command that builds the fix. Left empty, the library runs `mvn -B -q -DskipTests compile`, `./gradlew --no-daemon --console=plain classes`, `npm ci --ignore-scripts`, `python3 -m pip install --dry-run`, `flutter pub get` or `dotnet build --no-incremental` (`nuget restore` and `MSBuild` on Windows). |
 | Author name, Author e-mail | The author of the GoldenFix commit. |
 | Time zone | The time zone of the branch and pull request name `GoldenFix-YYYYMMDDHHMM`. |
 
@@ -1103,6 +1103,7 @@ GoldenFix runs in the Nexus IQ stage of the Full, Security and Nexus IQ GoldenFi
 - Gradle: in the folder of each changed build or properties file. A catalog, a settings file or a platform is verified in the folder of each build that uses it.
 - npm: in the folder of each changed `package.json`, in the Node.js environment of the service while its Node.js build is on.
 - pip and pub: in the folder of each changed file.
+- NuGet: in the folder of each changed `.csproj`, `.fsproj`, `.vbproj`, `Directory.Packages.props`, `Directory.Build.props` or `packages.config`.
 
 ## 12. The service template
 
@@ -1799,10 +1800,8 @@ A service scans one Nexus IQ application, written under `tools.nexusIq.applicati
 | External catalog path | `goldenFix.versionCatalogRepo.path` | relative path to catalog file or directory |
 | Ecosystems | `goldenFix.ecosystems` | Override only |
 | Minimum threat level | `minThreatLevel` | `goldenFix.minThreatLevel` |
-| Dependencies | `onlyDirectDependencies` | `goldenFix.onlyDirectDependencies` |
 | Golden version types | `goldenVersionTypes` | `goldenFix.goldenVersionTypes` |
 | Excluded folders | `excludeDirs` | `goldenFix.excludeDirs` |
-| Verification | `verify.enabled` | `goldenFix.verify.enabled` |
 | Attempts | `verify.maxAttempts` | `goldenFix.verify.maxAttempts` |
 | Timeout (minutes) | `verify.timeoutMinutes` | `goldenFix.verify.timeoutMinutes` |
 | Maven command | `verify.commands.maven` | `goldenFix.verify.commands.maven` |
@@ -1810,6 +1809,7 @@ A service scans one Nexus IQ application, written under `tools.nexusIq.applicati
 | npm command | `verify.commands.npm` | `goldenFix.verify.commands.npm` |
 | pip command | `verify.commands.pip` | `goldenFix.verify.commands.pip` |
 | pub command | `verify.commands.pub` | `goldenFix.verify.commands.pub` |
+| NuGet command | `verify.commands.nuget` | `goldenFix.verify.commands.nuget` |
 | Author name | `commitAuthorName` | `goldenFix.commitAuthorName` |
 | Author e-mail | `commitAuthorEmail` | `goldenFix.commitAuthorEmail` |
 | Time zone | `timeZone` | `goldenFix.timeZone` |

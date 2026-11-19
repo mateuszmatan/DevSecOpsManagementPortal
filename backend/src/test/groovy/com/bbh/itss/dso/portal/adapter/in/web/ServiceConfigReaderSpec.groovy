@@ -278,7 +278,7 @@ class ServiceConfigReaderSpec extends Specification {
         service.notes() == []
         service.service().tests().maxParallel() == null
         with(service.service().goldenFix()) {
-            [enabled(), onlyDirectDependencies(), verifyMaxAttempts()] == [null, null, null]
+            [enabled(), verifyMaxAttempts()] == [null, null]
             [minThreatLevel(), verifyTimeoutMinutes()] == [7, 45]
         }
     }

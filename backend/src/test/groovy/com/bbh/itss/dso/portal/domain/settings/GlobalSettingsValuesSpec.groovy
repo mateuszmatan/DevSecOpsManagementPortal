@@ -33,10 +33,10 @@ class GlobalSettingsValuesSpec extends Specification {
         BBH.scans() == new ScanSettings(60, 120, 50, 30, 60, 60, 30, 30, true, 5, true)
         BBH.releaseGate() == new ReleaseGateSettings([SAST, SCA, NEXUS_IQ, DAST], true, 'release-gate.json')
         BBH.serviceDefaults() == new ServiceDefaults(GRADLE, VM, '.', 20, null, null, null)
-        BBH.goldenFix() == GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true).minThreatLevel(2)
-                .ecosystems(['maven', 'npm', 'pypi'])
+        BBH.goldenFix() == GoldenFixPolicy.builder().enabled(true).minThreatLevel(2)
+                .ecosystems(['maven', 'npm', 'pypi', 'nuget'])
                 .goldenVersionTypes(['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'])
-                .excludeDirs([]).verifyEnabled(true).verifyMaxAttempts(3).verifyTimeoutMinutes(20)
+                .excludeDirs([]).verifyMaxAttempts(3).verifyTimeoutMinutes(20)
                 .commitAuthorName('DevSecOps GoldenFix').commitAuthorEmail('devsecops-goldenfix@noreply.local').build()
         problems(BBH) == []
     }
@@ -75,7 +75,7 @@ class GlobalSettingsValuesSpec extends Specification {
     def "validation reports every scanner without limits and an incomplete GoldenFix policy"() {
         given:
         def values = copy(BBH, limits: [(SAST): ZERO, (SCA): ZERO], goldenFix: GoldenFixPolicy.inherit(true))
-        def required = ['onlyDirectDependencies', 'minThreatLevel', 'verifyEnabled', 'verifyMaxAttempts',
+        def required = ['minThreatLevel', 'verifyMaxAttempts',
                         'verifyTimeoutMinutes', 'commitAuthorName', 'commitAuthorEmail']
 
         expect:
@@ -139,10 +139,10 @@ class GlobalSettingsValuesSpec extends Specification {
         defaults.staticAnalysis == [parallel: true]
         defaults.releaseGate == [scanners: ['sast', 'sca', 'niq', 'dast'], requireCoverage: true,
                                  stateFile: 'release-gate.json']
-        defaults.goldenFix == [enabled: true, onlyDirectDependencies: true, minThreatLevel: 2,
-                               ecosystems: ['maven', 'npm', 'pypi'],
+        defaults.goldenFix == [enabled: true, minThreatLevel: 2,
+                               ecosystems: ['maven', 'npm', 'pypi', 'nuget'],
                                goldenVersionTypes: ['recommended-non-breaking-with-dependencies', 'recommended-non-breaking'],
-                               verify: [enabled: true, maxAttempts: 3, timeoutMinutes: 20],
+                               verify: [maxAttempts: 3, timeoutMinutes: 20],
                                commitAuthorName: 'DevSecOps GoldenFix', commitAuthorEmail: 'devsecops-goldenfix@noreply.local']
     }
 

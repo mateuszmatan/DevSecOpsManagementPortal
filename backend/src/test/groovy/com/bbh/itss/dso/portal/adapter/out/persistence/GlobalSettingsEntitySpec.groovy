@@ -98,7 +98,7 @@ class GlobalSettingsEntitySpec extends Specification {
 
         where:
         policy << [INHERITED,
-                   new GoldenFixPolicy(false, true, 8, ['maven'], ['recommended-non-breaking'], ['legacy'], true, 2, 30,
-                           'mvn verify', 'gradle check', 'npm test', 'pytest', 'flutter test', 'Bot', 'bot@bbh.com', 'UTC')]
+                   new GoldenFixPolicy(false, 8, ['maven'], ['recommended-non-breaking'], ['legacy'], 2, 30,
+                           'mvn verify', 'gradle check', 'npm test', 'pytest', 'flutter test', 'dotnet build', 'Bot', 'bot@bbh.com', 'UTC')]
     }
 }

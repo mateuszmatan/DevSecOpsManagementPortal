@@ -234,9 +234,9 @@ final class Fixtures {
                 .scm(new ScmSettings('https://bitbucket.bbh.com/scm/ta/cert.git', 'bb-creds', BEARER, SERVER, 'develop',
                         'ssh://git@bitbucket.bbh.com/ta/cert.git', ['alice', 'bob'],
                         'https://bitbucket.bbh.com/rest/api/1.0', 'ta-workspace', 'TA', 'cert-' + name))
-                .goldenFix(new GoldenFixPolicy(false, true, 7, ['maven', 'npm'], ['recommended-non-breaking'],
-                        ['docs', 'tests'], true, 3, 30, 'mvn verify', 'gradle check', 'npm test', 'pytest',
-                        'flutter test', 'GoldenFix Bot', 'goldenfix@bbh.com', 'Europe/Warsaw'))
+                .goldenFix(new GoldenFixPolicy(false, 7, ['maven', 'npm'], ['recommended-non-breaking'],
+                        ['docs', 'tests'], 3, 30, 'mvn verify', 'gradle check', 'npm test', 'pytest',
+                        'flutter test', 'dotnet build', 'GoldenFix Bot', 'goldenfix@bbh.com', 'Europe/Warsaw'))
                 .versionCatalogs(['gradle/libs.versions.toml', 'platform/**/pom.xml'])
                 .metrics(new MetricsSettings(false, "cert-${name}", 'qc', 'https://influx.cert.bbh.com/api/v2/write',
                         'cert-influx'))

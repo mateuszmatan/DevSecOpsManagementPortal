@@ -67,10 +67,10 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
                 .sonarWaitForQualityGate(true).sonarQualityGateTimeoutMinutes(5).parallelStaticAnalysis(true).build();
         ReleaseGateSettings releaseGate = new ReleaseGateSettings(List.of(Scanner.values()), true, STATE_FILE);
         ServiceDefaults serviceDefaults = new ServiceDefaults(GRADLE, VM, DEFAULT_SOURCE_DIR, 20, null, null, null);
-        GoldenFixPolicy goldenFix = GoldenFixPolicy.builder().enabled(true).onlyDirectDependencies(true)
-                .minThreatLevel(2).ecosystems(List.of("maven", "npm", "pypi"))
+        GoldenFixPolicy goldenFix = GoldenFixPolicy.builder().enabled(true)
+                .minThreatLevel(2).ecosystems(List.of("maven", "npm", "pypi", "nuget"))
                 .goldenVersionTypes(List.of("recommended-non-breaking-with-dependencies", "recommended-non-breaking"))
-                .excludeDirs(List.of()).verifyEnabled(true).verifyMaxAttempts(3).verifyTimeoutMinutes(20)
+                .excludeDirs(List.of()).verifyMaxAttempts(3).verifyTimeoutMinutes(20)
                 .commitAuthorName("DevSecOps GoldenFix").commitAuthorEmail("devsecops-goldenfix@noreply.local").build();
         return new GlobalSettingsValues(platform, deployment, limits, scans, releaseGate, serviceDefaults, goldenFix,
                 DatabaseDefaults.NONE);
