@@ -1559,6 +1559,15 @@ devSecOpsPipeline(<span class="k">pipelineKey</span>: <span class="s">'&lt;key f
 <ul>
 <li><code>POST /api/dso/bitbucket/pull-requests/decorate</code>: Receives <code>PrDecorationRequest</code> containing repository URL, pull request ID, credentials, target/source branches, overall markdown summary, and list of <code>PrFinding</code> entries (file path, line number, tool name, severity, message).</li>
 </ul>
+<h3 id="where-a-comment-goes">Where a comment goes</h3>
+<p>The portal reads the files the pull request changes (Bitbucket Server <code>changes</code>, Bitbucket Cloud <code>diffstat</code>) before it comments, the same rule as the library:</p>
+<ul>
+<li>A finding with a line in a file the pull request changes is a comment under that line. When Bitbucket refuses the line, the finding becomes a pull request comment that starts with the file and the line.</li>
+<li>The findings of a file the pull request does not change are one pull request comment that names the file and the line of each finding.</li>
+<li>Findings without a file are one pull request comment.</li>
+<li>When the changed files cannot be read, every finding with a line is tried under its line.</li>
+</ul>
+<p>The <code>remediation</code> of a <code>PrFinding</code> is shown as <strong>Recommended fix</strong>. The library fills it with the fix recommendation it reads from the AppScan API for a SAST finding and with the version Nexus IQ recommends for a dependency.</p>
 </div>
 
 <div class="section" id="18-business-services">

@@ -7,7 +7,9 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -91,6 +93,64 @@ public class BitbucketHttpPullRequestAdapter implements BitbucketPullRequestPort
             Map<String, Object> payload = Map.of("content", Map.of("raw", text), "inline", inline);
             postJson(url, payload);
         }
+    }
+
+    @Override
+    public List<String> changedFiles(String repositoryUrl, String pullRequestId, String credentialsId) {
+        if (repositoryUrl == null || pullRequestId == null) {
+            return null;
+        }
+        Matcher serverMatcher = SERVER_RE.matcher(repositoryUrl.trim());
+        Matcher cloudMatcher = CLOUD_RE.matcher(repositoryUrl.trim());
+        boolean cloud = !serverMatcher.matches() && cloudMatcher.matches();
+        String first;
+        if (serverMatcher.matches()) {
+            first = serverMatcher.group(1) + "/rest/api/1.0/projects/" + serverMatcher.group(2) + "/repos/" + serverMatcher.group(3)
+                    + "/pull-requests/" + pullRequestId + "/changes?limit=1000";
+        } else if (cloud) {
+            first = "https://api.bitbucket.org/2.0/repositories/" + cloudMatcher.group(1) + "/" + cloudMatcher.group(2)
+                    + "/pullrequests/" + pullRequestId + "/diffstat?pagelen=500";
+        } else {
+            return null;
+        }
+        List<String> paths = new ArrayList<>();
+        String url = first;
+        try {
+            for (int page = 0; page < 20 && url != null; page++) {
+                Map<?, ?> body = client.get().uri(url).accept(MediaType.APPLICATION_JSON).retrieve().body(Map.class);
+                if (body == null || !(body.get("values") instanceof List<?> values)) {
+                    return page == 0 ? null : paths;
+                }
+                for (Object value : values) {
+                    String path = changedPath(value, cloud);
+                    if (path != null && !paths.contains(path)) {
+                        paths.add(path);
+                    }
+                }
+                if (cloud) {
+                    url = body.get("next") instanceof String next ? next : null;
+                } else {
+                    url = Boolean.FALSE.equals(body.get("isLastPage")) && body.get("nextPageStart") != null
+                            ? first + "&start=" + body.get("nextPageStart") : null;
+                }
+            }
+            return paths;
+        } catch (Exception e) {
+            log.warn("Bitbucket files changed in pull request GET {} failed: {}", url, e.getMessage());
+            return null;
+        }
+    }
+
+    static String changedPath(Object value, boolean cloud) {
+        if (!(value instanceof Map<?, ?> change)) {
+            return null;
+        }
+        Object place = cloud ? (change.get("new") != null ? change.get("new") : change.get("old")) : change.get("path");
+        if (!(place instanceof Map<?, ?> map)) {
+            return null;
+        }
+        Object path = cloud ? map.get("path") : map.get("toString");
+        return path == null ? null : path.toString();
     }
 
     private void postJson(String url, Map<String, Object> payload) {

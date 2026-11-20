@@ -1467,6 +1467,17 @@ To keep code review clean, uncluttered, and actionable, the pipeline divides sec
 
 - `POST /api/dso/bitbucket/pull-requests/decorate`: Receives `PrDecorationRequest` containing repository URL, pull request ID, credentials, target/source branches, overall markdown summary, and list of `PrFinding` entries (file path, line number, tool name, severity, message).
 
+### Where a comment goes
+
+The portal reads the files the pull request changes (Bitbucket Server `changes`, Bitbucket Cloud `diffstat`) before it comments, the same rule as the library:
+
+- A finding with a line in a file the pull request changes is a comment under that line. When Bitbucket refuses the line, the finding becomes a pull request comment that starts with the file and the line.
+- The findings of a file the pull request does not change are one pull request comment that names the file and the line of each finding.
+- Findings without a file are one pull request comment.
+- When the changed files cannot be read, every finding with a line is tried under its line.
+
+The `remediation` of a `PrFinding` is shown as **Recommended fix**. The library fills it with the fix recommendation it reads from the AppScan API for a SAST finding and with the version Nexus IQ recommends for a dependency.
+
 ## 18. Business Services
 
 Admin, Business Services lists the groups of products with their product, service and pipeline counts.
