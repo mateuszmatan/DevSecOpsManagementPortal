@@ -16,6 +16,12 @@ public final class RepoStackDetector {
     private RepoStackDetector() {
     }
 
+    /**
+     * Detects the stack of a repository. The build tool is found in the order of the library
+     * (RepoStackAutoResolver): pubspec.yaml, the iOS files, pom.xml, the Gradle files (Android with an
+     * AndroidManifest.xml), the .NET files, a Liquibase changelog, the Python files, package.json or angular.json at
+     * the root, and at last a repository of only SQL and PL/SQL files; the first that matches wins.
+     */
     public static DiscoveredStack detect(RepoFileTree tree) {
         List<String> markers = new ArrayList<>();
         String buildTool = null;
@@ -74,8 +80,8 @@ public final class RepoStackDetector {
             }
         }
 
-        if (tree.fileExists("changelog.xml") || tree.fileExists("liquibase.properties")
-                || tree.directoryExists("db/changelog") || tree.directoryExists("src/main/resources/db/changelog")) {
+        if (hasChangelog(tree) || tree.directoryExists("db/changelog")
+                || tree.directoryExists("src/main/resources/db/changelog")) {
             liquibaseDetected = true;
             if (tree.fileExists("changelog.xml")) {
                 markers.add("changelog.xml");
@@ -91,6 +97,11 @@ public final class RepoStackDetector {
             language = "DART";
             framework = "FLUTTER";
             markers.add("pubspec.yaml");
+        } else if (iosMarker(tree) != null) {
+            buildTool = "IOS";
+            language = "SWIFT";
+            framework = "IOS";
+            markers.add(iosMarker(tree));
         } else if (tree.fileExists("pom.xml")) {
             buildTool = "MAVEN";
             language = "JAVA";
@@ -109,9 +120,14 @@ public final class RepoStackDetector {
             boolean hasJacoco = pom.contains("jacoco");
             unitTestTasks = hasJacoco ? "test jacoco:report" : "test";
             buildTasks = "clean verify";
-        } else if (tree.fileExists("build.gradle") || tree.fileExists("build.gradle.kts") || tree.fileExists("gradlew")) {
-            buildTool = "GRADLE";
+        } else if (GRADLE_MARKERS.stream().anyMatch(tree::fileExists)) {
+            boolean android = ANDROID_MARKERS.stream().anyMatch(tree::fileExists);
+            buildTool = android ? "ANDROID" : "GRADLE";
             language = "JAVA";
+            if (android) {
+                framework = "ANDROID";
+                markers.add("AndroidManifest.xml");
+            }
             if (tree.fileExists("build.gradle.kts")) {
                 markers.add("build.gradle.kts");
                 language = "KOTLIN";
@@ -122,7 +138,7 @@ public final class RepoStackDetector {
             if (gradle.contains("org.jetbrains.kotlin") || gradle.contains("kotlin(\"jvm\")") || hasKotlinFiles(tree)) {
                 language = "KOTLIN";
             }
-            if (gradle.contains("org.springframework.boot")) {
+            if (!android && gradle.contains("org.springframework.boot")) {
                 framework = "SPRING_BOOT";
             }
             Matcher jvmMatcher = GRADLE_JVM_TOOLCHAIN.matcher(gradle);
@@ -149,7 +165,7 @@ public final class RepoStackDetector {
             language = marker.endsWith(".fsproj") ? "FSHARP" : marker.endsWith(".vbproj") ? "VBNET" : "CSHARP";
             framework = "DOTNET";
             markers.add(marker);
-        } else if (liquibaseDetected) {
+        } else if (hasChangelog(tree)) {
             buildTool = "LIQUIBASE";
             language = "SQL";
             framework = "LIQUIBASE";
@@ -160,15 +176,28 @@ public final class RepoStackDetector {
             language = "PYTHON";
             framework = "PIP";
             testRunner = "PYTEST";
-            unitTestTasks = "pytest";
+            unitTestTasks = "pytest --junitxml=junit.xml";
             if (tree.fileExists("requirements.txt")) {
                 markers.add("requirements.txt");
                 buildTasks = "pip install -r requirements.txt";
             } else if (tree.fileExists("pyproject.toml")) {
                 markers.add("pyproject.toml");
                 buildTasks = "pip install .";
+            } else {
+                markers.add(tree.fileExists("setup.py") ? "setup.py" : "Pipfile");
             }
-        } else if (!packageJson.isPresent() && !tree.fileExists("angular.json") && !hasChangelog(tree) && !sqlFiles(tree).isEmpty()) {
+        } else if (tree.fileExists("package.json") || tree.fileExists("angular.json")) {
+            buildTool = "NPM";
+            if (tree.fileExists("angular.json")) {
+                markers.add("angular.json");
+                framework = "ANGULAR";
+                language = "TYPESCRIPT";
+            }
+            if (language == null) {
+                language = "JAVASCRIPT";
+            }
+            unitTestTasks = "npm test";
+        } else if (!packageJson.isPresent() && !hasChangelog(tree) && !sqlFiles(tree).isEmpty()) {
             buildTool = "SQL";
             language = "SQL";
             framework = "SQL";
@@ -205,6 +234,12 @@ public final class RepoStackDetector {
             } else if ("PYTHON".equals(language)) {
                 sonarSources = "src";
                 sonarTests = "tests";
+            } else if ("NPM".equals(buildTool)) {
+                sonarSources = "src";
+                sonarTests = "";
+            } else if ("IOS".equals(buildTool)) {
+                sonarSources = ".";
+                sonarTests = "";
             } else if ("DOTNET".equals(framework)) {
                 sonarSources = ".";
                 sonarTests = "";
@@ -275,11 +310,37 @@ public final class RepoStackDetector {
             case "FLUTTER" -> "pubspec.yaml found";
             case "MAVEN" -> "pom.xml found";
             case "GRADLE" -> tree.fileExists("build.gradle.kts") ? "build.gradle.kts found (Kotlin DSL)" : "Gradle build script found";
+            case "ANDROID" -> "Gradle build script and AndroidManifest.xml found (Android)";
+            case "IOS" -> iosMarker(tree) + " found (iOS)";
+            case "NPM" -> tree.fileExists("angular.json") ? "package.json and angular.json found (Angular)" : "package.json found (Node.js)";
             case "DOTNET" -> dotnetMarker(tree) + " found (C# / .NET)";
             case "LIQUIBASE" -> "Liquibase changelog found";
             case "SQL" -> "only SQL and PL/SQL files found, no build file and no Liquibase changelog";
             default -> "Python project files found";
         };
+    }
+
+    private static final List<String> GRADLE_MARKERS = List.of("build.gradle", "build.gradle.kts", "settings.gradle",
+            "settings.gradle.kts", "gradle/wrapper/gradle-wrapper.properties");
+    private static final List<String> ANDROID_MARKERS = List.of("AndroidManifest.xml",
+            "app/src/main/AndroidManifest.xml");
+
+    /** The file or folder that shows an iOS project at the repository root, as the library looks for it. */
+    private static String iosMarker(RepoFileTree tree) {
+        for (String file : List.of("Podfile", "Package.swift")) {
+            if (tree.fileExists(file)) {
+                return file;
+            }
+        }
+        for (String extension : List.of(".xcodeproj", ".xcworkspace")) {
+            for (String file : tree.listFiles("")) {
+                String top = file.contains("/") ? file.substring(0, file.indexOf('/')) : file;
+                if (top.endsWith(extension)) {
+                    return top;
+                }
+            }
+        }
+        return null;
     }
 
     private static final List<String> CHANGELOGS = List.of("liquibase.properties", "changelog.xml", "changelog.yaml",

@@ -111,7 +111,7 @@ A service has sections. The left-hand list of the service form shows them. A red
 | Section | What it holds |
 |---------|---------------|
 | General | The service name and a description. |
-| Build | The build tool, its tasks, the artifact, the JDK and the optional Node.js build (stage 0). |
+| Build | The build tool, its tasks or its command line, the artifact, the JDK and the Node.js build: the optional stage 0, or the build itself of an npm service. |
 | Database changes | Liquibase services only: the changelog file and, once it is set, the test, RD and QC databases and the package in Nexus; see [chapter 7](#7-sql-and-plsql-changes-with-liquibase). |
 | Unit tests and coverage | The unit test command, the test reports and the coverage reports. |
 | Test jobs | The smoke, regression and performance test jobs after a deployment. |
@@ -199,9 +199,9 @@ In a repository with Java and database code, add the Liquibase service first.
 
 1. Click "Add a service". The dialog "Add a service" opens. Its tag shows the pipeline.
 2. To start from another service of the product, choose it in "Copy values from". To start from a file, click "Import devsecops_config.yaml". Both are optional. See [chapter 10](#10-import-a-devsecops_configyaml-and-copy-a-service).
-3. Alternatively, use **Repo Auto-Discovery / Smart Wizard (Scan & Auto-fill)**: Type the Bitbucket repository URL and branch, then click "Scan & Auto-fill". The portal reads the root folder of the branch through the Bitbucket REST API and fills in the build tool (Maven, Gradle, Liquibase or Flutter) and, for Maven, Gradle and Liquibase, its build and unit test commands; Flutter gets only the build tool. It ticks the Node.js build when it finds a `package.json` at the root, sets the deployment target, Virtual machine or OpenShift, and fills in the SonarQube project key when it is empty. It sets no Java or Node.js version and no test runner. A service with database changes keeps all of these except the SonarQube project key. See [chapter 16](#16-repo-auto-discovery-and-smart-wizard).
+3. Alternatively, use **Repo Auto-Discovery / Smart Wizard (Scan & Auto-fill)**: Type the Bitbucket repository URL and branch, then click "Scan & Auto-fill". The portal reads the root folder of the branch through the Bitbucket REST API and fills in the build tool (Maven, Gradle, Android, Flutter, iOS, C# / .NET, Liquibase, SQL / PL/SQL files, pip or npm) and, for Maven, Gradle, Android and Liquibase, its build and unit test commands, and for pip its build command; the other build tools get only the build tool. For a service with another build tool than npm it ticks the Node.js build when it finds a `package.json` at the root, sets the deployment target, Virtual machine or OpenShift, and fills in the SonarQube project key when it is empty. It sets no Java or Node.js version and no test runner. A service with database changes keeps all of these except the SonarQube project key. See [chapter 16](#16-repo-auto-discovery-and-smart-wizard).
 4. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.
-5. In Build, choose or verify the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven, "The code has a pubspec.yaml file" means Flutter and "The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties" means Liquibase (SQL / PL/SQL) and "The code has only SQL and PL/SQL files (.sql, .pks, .pkb, ...) and no Liquibase changelog; the library writes the changelog" means SQL / PL/SQL files (no changelog); for their commands and database changes see [chapter 7](#add-a-liquibase-service-in-the-wizard). The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
+5. In Build, choose or verify the build tool. The hint tells you how to recognise it: "The code has a build.gradle or settings.gradle file and no AndroidManifest.xml" means Gradle, "The code has a pom.xml file" means Maven, "The code has a pubspec.yaml file" means Flutter and "The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties" means Liquibase (SQL / PL/SQL) and "The code has only SQL and PL/SQL files (.sql, .pks, .pkb, ...) and no Liquibase changelog; the library writes the changelog" means SQL / PL/SQL files (no changelog); for their commands and database changes see [chapter 7](#add-a-liquibase-service-in-the-wizard). For npm (Angular, Node.js), pip (Python), Android and iOS see [npm, pip, Android and iOS services](#npm-pip-android-and-ios-services). The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
 6. If the repository holds a frontend that npm builds, for example an Angular application, tick "Build the frontend with Node.js first". Type the "Folder with package.json", for example `frontend`. Leave the other Node.js fields as they are. See [chapter 6](#6-build-the-frontend-with-nodejs-first-stage-0).
 7. In AppScan SAST and DAST, type the AppScan application ID. There is no API key to type: the library signs in with the key of the functional user.
 8. For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.
@@ -344,6 +344,23 @@ Maven (`pom.xml`): list the normal resources folder too, because the `resources`
 ```
 
 Spring Boot serves the files under `static` at the root of the application. Both snippets accept a missing folder. This matters for GoldenFix: its verification build runs in a fresh copy of the repository without the Node.js output.
+
+### npm, pip, Android and iOS services
+
+A service that is only Angular or Node.js, only Python, an Android app or an iOS app has a build tool of its own, so it needs no Gradle or Maven build around it:
+
+| Build tool | Written as | Build | Unit tests | SonarQube |
+|------------|-----------|-------|------------|-----------|
+| npm (Angular, Node.js) | `buildTool: npm` | The Node.js build of the service (`build.node`): "Folder with package.json" and "Commands", `npm ci` and `npm run build` when no command is given. The switch "Build the frontend with Node.js first" is not shown, because the Node.js build is the build. | "Test command" (`tests.unitTests.commands`); left empty: `npm test` | SonarScanner with "SonarScanner flags" (`tools.sonar.npm.flags`) |
+| pip (Python) | `buildTool: pip` | "Build command" (`build.pip.commands`), for example `pip install -r requirements.txt`; left empty, the stage builds nothing | "Test command"; left empty: `pytest --junitxml=junit.xml` | SonarScanner with `tools.sonar.pip.flags` |
+| iOS (Xcode) | `buildTool: ios` | "Build command" (`build.ios.commands`), for example an `xcodebuild` line | "Test command" | SonarScanner with `tools.sonar.ios.flags` |
+| Android (Gradle) | `buildTool: android` | "Gradle tasks", flags and JDK, as for Gradle (`build.gradle`) | "Gradle tasks" (`tests.unitTests.gradle`) | "Gradle tasks" of the analysis (`tools.sonar.gradle`), or the SonarScanner when none are given |
+
+- For npm, pip and iOS a command is one whole command line with its options. Chain several commands with `&&`. The unit test command may run in a "Directory" of its own (`tests.unitTests.dir`).
+- These three build tools need no JDK path and no "Set up the build tool automatically", and the SAST scan needs no compile command; the form shows only the fields the library reads for them, and a save with another part of a command is refused with the name of the field.
+- When the build tool of a service changes between Gradle, Maven or Android and npm, pip or iOS, the form empties the unit test command, because tasks are no command line. The library then runs its default for the new build tool.
+- "Import config" reads `buildTool` under the names the library reads: `python`, `poetry` and `pipenv` as pip; `node`, `nodejs`, `yarn`, `pnpm`, `angular`, `react` and `vue` as npm; `xcode`, `swift` and `cocoapods` as iOS; `mvn` as Maven; `gradlew` as Gradle; `dart` as Flutter. Several build commands of a pip or iOS project become one line joined with `&&`. Of two keys that hold the same setting, the one the library reads first is imported and the other is noted as not imported.
+- An existing database needs the changeset `045-npm-pip-android-ios-build-tools`, which runs at the start of the portal and widens the allowed build tools of services and of the Library defaults.
 
 ### Nexus IQ and GoldenFix for npm
 
@@ -1150,7 +1167,7 @@ Admin, Library defaults holds the values every pipeline shares. A service that l
 | Security limits | The most critical, high and medium findings each scan (SAST, SCA, Nexus IQ, DAST) may report |
 | Scans and coverage | The minimum line coverage, how long the pipelines wait for each scan, and the order of the static scans |
 | Release gate | Which scans the release gate checks, whether it requires the coverage, and its result file |
-| Service defaults | The build tool (Gradle, Maven or Flutter), deployment target and source folder a new service starts with; the test jobs at the same time; the Node.js build defaults; the Gradle and Maven plugin repositories of the BBH Nexus |
+| Service defaults | The build tool (Gradle, Maven, Flutter, C# / .NET, npm, pip, Android or iOS), deployment target and source folder a new service starts with; the test jobs at the same time; the Node.js build defaults; the Gradle and Maven plugin repositories of the BBH Nexus |
 | Liquibase database changes | Liquibase, the Oracle JDBC driver and utPLSQL-cli, the allowed databases and the Nexus repositories of the database packages |
 | GoldenFix defaults | Whether GoldenFix runs by default and the GoldenFix policy |
 
@@ -1312,22 +1329,28 @@ Onboarding new repositories into DevSecOps typically requires developers to know
 
 ### Supported Stacks and Heuristics
 
-The detector (`RepoStackDetector`) inspects manifests in priority order:
+The detector (`RepoStackDetector`) decides the build tool in the order of the library: `pubspec.yaml` (Flutter), the iOS files, `pom.xml` (Maven), the Gradle files (Android with an `AndroidManifest.xml`), the .NET files, a Liquibase changelog, the Python files, `package.json` or `angular.json` at the root (npm), and at last a repository of only SQL and PL/SQL files:
 
 - **Maven**: Detected via `pom.xml`.
   - Parses `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, `<maven.compiler.release>` or `<jdk.version>` to determine the Java version, which the scan message names; it sets no JDK path.
   - Fills in the build goals `clean verify` and the unit test goals `test`, or `test jacoco:report` when the `pom.xml` mentions JaCoCo. It sets no artifact path and no coverage reports.
   - Detects Kotlin plugins (`kotlin-maven-plugin`) and names Kotlin in the scan message.
-- **Gradle**: Detected via `build.gradle`, `build.gradle.kts`, or `gradlew`.
+- **Gradle**: Detected via `build.gradle`, `build.gradle.kts`, `settings.gradle`, `settings.gradle.kts` or `gradle/wrapper/gradle-wrapper.properties`, as in the library; `gradlew` alone is no marker.
   - Reads `distributionUrl` in `gradle/wrapper/gradle-wrapper.properties` to identify the exact Gradle release (e.g. Gradle 8.5) and a Java version, which the scan message names; it sets no JDK path. That file is in a subfolder, so the scan never reads it through Bitbucket.
   - Fills in the build tasks `clean build` and the unit test tasks `test`, or `test jacocoTestReport` when the build file mentions JaCoCo. It sets no artifact path and no coverage reports.
   - Detects Kotlin DSL (`build.gradle.kts`) and Kotlin compiler plugins.
+- **Android**: Detected via the Gradle files together with an `AndroidManifest.xml` at the root or in `app/src/main`. Through Bitbucket only the file at the root is found.
+  - Selects `ANDROID` as the build tool and fills in the Gradle tasks of the Gradle entry.
+- **iOS**: Detected via `Podfile`, `Package.swift`, a `.xcodeproj` or a `.xcworkspace`, right after Flutter.
+  - Selects `IOS` as the build tool. It fills in no commands.
+- **npm (Angular, Node.js)**: Detected via `package.json` or `angular.json` at the root when the repository has none of the builds above, no .NET file, no Liquibase changelog and no Python file.
+  - Selects `NPM` as the build tool. The Node.js build of the service is then its build, so the stage 0 switch stays off, and the test command stays empty: the library runs `npm test`.
 - **Node.js (Stage 0)**: Detected via `package.json` at root or in common frontend directories (`frontend/`, `web/`, `client/`, `ui/`). Through Bitbucket only the `package.json` at the root is found.
-  - Automatically enables Stage 0 Node.js pre-build (`build.node.enabled: true`). The Folder with package.json and the other Node.js fields keep their values.
+  - Automatically enables Stage 0 Node.js pre-build (`build.node.enabled: true`) of a service with another build tool than npm. The Folder with package.json and the other Node.js fields keep their values.
   - Parses `engines.node`, but selects no Node.js installation.
   - Inspects `package.json` to detect the frontend frameworks Angular and React and the test runners Cypress and Jest, and names them in the scan message; it names the framework only when no build that the scan also finds replaces it: Flutter, Liquibase and Python (pip) always do, Maven and Gradle when the build file mentions Spring Boot. A Python (pip) repository also names pytest instead of Cypress or Jest. It sets no coverage paths, and it writes build and unit test commands only when it finds Maven, Gradle or Liquibase, never npm commands; Flutter gets only the build tool. For a repository with only npm, the scan ticks the Node.js build, sets the deployment target and fills in an empty SonarQube project key; the build tool and the commands of the service stay as they are.
 - **Liquibase (SQL / PL/SQL)**: Detected via `changelog.xml`, `liquibase.properties`, or `db/changelog/` directories. Through Bitbucket only the two root files are found, never a `db/changelog/` folder.
-  - Automatically selects `LIQUIBASE` as the primary build tool when the repository has no `pubspec.yaml`, `pom.xml` or Gradle build, setting the build command `validate` and the unit test commands `updateSQL validate`.
+  - Automatically selects `LIQUIBASE` as the primary build tool when the repository has no `pubspec.yaml`, iOS file, `pom.xml`, Gradle build or .NET file, setting the build command `validate` and the unit test commands `updateSQL validate`.
   - It fills only the Liquibase commands. To check, package and deploy the database changes, fill in "Database changes" with the changelog file yourself; see [chapter 7](#7-sql-and-plsql-changes-with-liquibase).
   - A service with database changes keeps its build tool, its commands and its deployment settings when it is scanned, also when the scan finds Gradle or Maven at the root of the repository, as in a multi-module build. The scan then fills in only an empty SonarQube project key, and its message says that the service keeps Liquibase and names the build tool found at the root.
 - **SQL / PL/SQL files (no changelog)**: Detected when the repository has a `.sql`, `.pks`, `.pkb`, `.pls`, `.plb`, `.pck`, `.prc`, `.fnc`, `.trg`, `.tps`, `.tpb`, `.typ`, `.bdy` or `.vw` file outside folders whose name starts with a dot, and no `pubspec.yaml`, `pom.xml`, Gradle build, .NET file, Liquibase changelog, Python file or `package.json`.
@@ -1335,7 +1358,7 @@ The detector (`RepoStackDetector`) inspects manifests in priority order:
 - **Flutter / Dart**: Detected via `pubspec.yaml`.
   - Selects `FLUTTER` as the build tool. It fills in no commands and no Flutter field, such as the platform.
 - **Python / pip**: Detected via `requirements.txt`, `pyproject.toml`, `setup.py`, or `Pipfile`.
-  - The detector recognises a Python project, but the portal has no Python build tool, so the scan sets no build tool and no commands for it.
+  - Selects `PIP` as the build tool and fills in the build command `pip install -r requirements.txt`, or `pip install .` for a `pyproject.toml`. The test command stays empty: the library runs `pytest --junitxml=junit.xml`.
 - **OpenShift Deployment Target**: Detected via `Dockerfile`, `Containerfile`, or manifests in `openshift/`, `k8s/`, or `helm/`. Through Bitbucket the scan finds these folders at the root by their names, without reading what they hold.
   - Sets the deployment target to `OPENSHIFT`, and to `VM` when it finds none of them. It fills in no OpenShift target.
 - **SonarQube Static Analysis**:
@@ -1357,7 +1380,7 @@ The detector (`RepoStackDetector`) inspects manifests in priority order:
 
 ### Auto-Resolved Parameters Reference
 
-When auto-resolution is active (`autoresolve parameters: true`, the default, which the portal never changes), the library's `RepoStackAutoResolver` resolves at run time, from the files of the pipeline workspace, the settings that the configuration of a service leaves out. This is not Scan & Auto-fill, which fills in only the fields that [How it works](#how-it-works) names. Every service of the portal has a build tool, and the portal has no Python (pip) build tool, so the Build Tool rows apply only to a `devsecops_config.yaml` without `buildTool`.
+When auto-resolution is active (`autoresolve parameters: true`, the default, which the portal never changes), the library's `RepoStackAutoResolver` resolves at run time, from the files of the pipeline workspace, the settings that the configuration of a service leaves out. This is not Scan & Auto-fill, which fills in only the fields that [How it works](#how-it-works) names. Every service of the portal has a build tool, so the Build Tool rows apply only to a `devsecops_config.yaml` without `buildTool`.
 
 A Liquibase service without database changes gets the Liquibase rows: empty build commands become `updateSQL`, empty unit test commands `validate`, and empty Flags of either the `--changelog-file=` option that [A Liquibase service without database changes](#a-liquibase-service-without-database-changes) describes. Its SonarQube stage writes the `sonar.*` rows to a `sonar-project.properties` at the root of the workspace when the workspace has none there.
 
@@ -1366,10 +1389,13 @@ The library leaves a Liquibase service with database changes alone: it resolves 
 | Setting / Field | Target Key / Form Field | Workspace Indicator / Manifest | Resolved Default Value |
 |---|---|---|---|
 | Build Tool | `buildTool` | `pom.xml` present | `maven` |
-| Build Tool | `buildTool` | `build.gradle` or `build.gradle.kts` present | `gradle` |
+| Build Tool | `buildTool` | `Podfile`, `Package.swift`, `*.xcodeproj` or `*.xcworkspace` present | `ios` |
+| Build Tool | `buildTool` | `build.gradle(.kts)`, `settings.gradle(.kts)` or `gradle/wrapper/gradle-wrapper.properties` present | `gradle` |
+| Build Tool | `buildTool` | Gradle files and `AndroidManifest.xml` at the root or in `app/src/main` | `android` |
 | Build Tool | `buildTool` | `changelog.xml`, `changelog.yaml`, `liquibase.properties` | `liquibase` |
 | Build Tool | `buildTool` | `pubspec.yaml` present | `flutter` |
 | Build Tool | `buildTool` | `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` | `pip` |
+| Build Tool | `buildTool` | `package.json` or `angular.json` at the root and none of the files above | `npm` |
 | Build Tool Auto Setup | `buildToolAutoSetup` | Set to `true` whenever Maven or Gradle is detected | `true` |
 | Java / JDK Version | `build.maven.javaVersion` / `build.gradle.javaVersion` | `<java.version>`, `<maven.compiler.source>`, `<maven.compiler.target>`, `<release>` in `pom.xml`, or `jvmToolchain`, `sourceCompatibility` in `build.gradle` | Matched JDK version (`17`, `21`, `11`, `8`) |
 | Gradle Version | `build.gradle.version` | `distributionUrl` in `gradle/wrapper/gradle-wrapper.properties` | Exact Gradle wrapper version (e.g. `8.7`, `7.6`) |

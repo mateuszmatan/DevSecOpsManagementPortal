@@ -166,6 +166,7 @@ class GlobalSettingsSpec extends DsoSpecification {
         button(SHOW_CONFIG, true).click()
 
         then:
+        assertThat(dialog().locator('pre.code-block')).containsText('platform:')
         dialog().locator('pre.code-block').textContent() == fixtureText('settings-config.yaml')
 
         when:
@@ -184,6 +185,7 @@ class GlobalSettingsSpec extends DsoSpecification {
         button(SHOW_CONFIG, true).click()
 
         then:
+        assertThat(dialog().locator('pre.code-block')).containsText('parallel: false')
         dialog().locator('pre.code-block').textContent() ==
                 fixtureText('settings-config.yaml').replace('parallel: true', 'parallel: false')
         ownErrors().isEmpty()

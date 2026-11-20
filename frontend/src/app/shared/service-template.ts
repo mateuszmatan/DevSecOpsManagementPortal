@@ -95,6 +95,10 @@ export function buildDefaults(
       return { tasks: '', artifact: '', scanPattern: '' };
     case 'DOTNET':
       return { tasks: '', artifact: '', scanPattern: '**/bin/Release/**/*.dll' };
+    case 'NPM':
+    case 'PIP':
+    case 'IOS':
+      return { tasks: '', artifact: '', scanPattern: '' };
     default:
       return {
         tasks: template?.gradleTasks ?? '',

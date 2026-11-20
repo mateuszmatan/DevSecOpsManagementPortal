@@ -48,6 +48,7 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
         if (tool == SQL && !command.isEmpty()) {
             problems.add("command.tasks", SQL_COMMAND);
         }
+        command.validateScripted(problems.at("command"), "build", tool);
         command.validate(problems.at("command"));
     }
 

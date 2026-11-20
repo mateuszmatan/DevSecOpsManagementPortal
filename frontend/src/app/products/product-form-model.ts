@@ -42,9 +42,12 @@ import {
   UrbanCodeComponent,
   VersionCatalogRepo,
   autoCommands,
+  CommandPath,
+  commandParts,
   changesDatabase,
   databaseTool,
   needsJdk,
+  scripted,
   pipelineTypeLabel,
 } from '../core/models';
 import { FieldProblem, PRODUCT_CODE } from '@common/core/models';
@@ -1367,6 +1370,17 @@ export function createServiceForm(s?: Partial<ServiceRequest>, defaults?: Servic
 
 export type ServiceForm = ReturnType<typeof createServiceForm>;
 
+/**
+ * Empties the unit test command when the build tool changes between a tool of tasks or goals and one of whole command
+ * lines (npm, pip, iOS): Gradle tasks are no command line, and a command line is no list of tasks. The library then
+ * runs its default for the new tool.
+ */
+export function dropForeignCommands(service: ServiceForm, previous: BuildTool, next: BuildTool): void {
+  if (scripted(previous) !== scripted(next)) {
+    service.controls.unitTests.controls.command.controls.tasks.setValue('');
+  }
+}
+
 export function followToolDefaults(
   service: ServiceForm,
   template: ServiceTemplateValues | null,
@@ -1378,6 +1392,7 @@ export function followToolDefaults(
     .subscribe(([previous, next]) => {
       const before = buildDefaults(template, previous);
       const after = buildDefaults(template, next);
+      dropForeignCommands(service, previous, next);
       if (!buildPath.value || buildPath.value === before.artifact) {
         buildPath.setValue(after.artifact);
       }
@@ -1559,7 +1574,8 @@ function syncApplicability(form: ServiceForm): void {
   const flutter = tool === 'FLUTTER';
   const database = formChangesDatabase(form);
   const sql = tool === 'SQL';
-  setEnabled(form.controls.build.controls.command, !flutter && !sql);
+  const npm = tool === 'NPM';
+  setEnabled(form.controls.build.controls.command, !flutter && !sql && !npm);
   if (flutter) {
     form.controls.build.controls.autoSetup.setValue(false);
   }
@@ -1570,12 +1586,20 @@ function syncApplicability(form: ServiceForm): void {
   }
   setEnabled(node, !flutter && !database);
   Object.entries(node.controls).forEach(
-    ([key, control]) => key === 'enabled' || setEnabled(control, node.controls.enabled.value),
+    ([key, control]) => key === 'enabled' || setEnabled(control, npm || node.controls.enabled.value),
   );
   setEnabled(form.controls.unitTests.controls.command, !flutter && !sql);
   setEnabled(form.controls.sonar.controls.command, !flutter);
   const appScan = form.controls.appScan.controls;
-  setEnabled(appScan.compileCommand, !flutter && appScan.compile.value);
+  setEnabled(appScan.compileCommand, !flutter && !scripted(tool) && appScan.compile.value);
+  commandsByPath(form).forEach(([path, command]) => {
+    const parts = commandParts(tool, path);
+    if (command.enabled) {
+      Object.entries(command.controls).forEach(([key, control]) =>
+        setEnabled(control, !parts || parts.includes(key)),
+      );
+    }
+  });
   [appScan.dastTargetUrl, appScan.dastPresenceId].forEach((control) =>
     setEnabled(control, appScan.dastEnabled.value),
   );
@@ -1655,6 +1679,29 @@ export function formChangesDatabase(form: ServiceForm): boolean {
     form.controls.build.controls.tool.value,
     form.controls.database.controls.changelogFile.value,
   );
+}
+
+/** The commands of the build tool with the start of their keys, which tells the parts the library reads. */
+function commandsByPath(form: ServiceForm): [CommandPath, ToolCommandForm][] {
+  const c = form.controls;
+  return [
+    ['build', c.build.controls.command],
+    ['tests.unitTests', c.unitTests.controls.command],
+    ['tools.sonar', c.sonar.controls.command],
+    ['asoc', c.appScan.controls.compileCommand],
+  ];
+}
+
+/** The command as the request sends it: for npm, pip and iOS only the parts the library reads. */
+function toToolCommandOf(form: ToolCommandForm, tool: BuildTool, path: CommandPath): ToolCommand {
+  const command = toToolCommand(form);
+  const parts = commandParts(tool, path);
+  return parts
+    ? {
+        ...NO_COMMAND,
+        ...Object.fromEntries(Object.entries(command).filter(([key]) => parts.includes(key))),
+      }
+    : command;
 }
 
 function toolCommands(form: ServiceForm): ToolCommandForm[] {
@@ -1868,8 +1915,8 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
   const tool = v.build.tool;
   const flutter = tool === 'FLUTTER';
   const vm = v.deployment.target === 'VM';
-  const command = (group: ToolCommandForm, applies: boolean) =>
-    applies ? toToolCommand(group) : { ...NO_COMMAND };
+  const command = (group: ToolCommandForm, applies: boolean, path?: CommandPath) =>
+    applies ? (path ? toToolCommandOf(group, tool, path) : toToolCommand(group)) : { ...NO_COMMAND };
   return {
     id: v.id,
     name: v.name.trim(),
@@ -1877,12 +1924,12 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
     build: {
       ...sent(v.build),
       sourceDir: optional(v.build.sourceDir) ?? '.',
-      command: command(c.build.controls.command, !flutter),
+      command: command(c.build.controls.command, !flutter, 'build'),
     },
     nodeBuild: toNodeBuild(c.nodeBuild, v.nodeBuild),
     unitTests: {
       ...sent(v.unitTests),
-      command: command(c.unitTests.controls.command, !flutter),
+      command: command(c.unitTests.controls.command, !flutter, 'tests.unitTests'),
     },
     tests: { ...v.tests },
     testJobs: c.testJobs.controls.map(toTestJob),
@@ -1904,13 +1951,14 @@ export function toServiceRequest(form: ServiceForm): ServiceRequest {
       compileCommand: command(
         c.appScan.controls.compileCommand,
         !flutter && passesValidators(c.appScan.controls.compileCommand),
+        'asoc',
       ),
       dastTargetUrl: kept(c.appScan.controls.dastTargetUrl),
       dastPresenceId: kept(c.appScan.controls.dastPresenceId),
     },
     sonar: {
       ...sent(v.sonar),
-      command: command(c.sonar.controls.command, !flutter),
+      command: command(c.sonar.controls.command, !flutter, 'tools.sonar'),
     },
     nexusIq: sent(v.nexusIq),
     nexusIqApplications: v.nexusIqApplications.map((application) => ({

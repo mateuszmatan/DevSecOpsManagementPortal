@@ -479,6 +479,60 @@ class ServiceSettingsSpec extends Specification {
                 + ' files, changes a database']]
     }
 
+    def "an npm, pip, Android and iOS service is valid and writes the keys the library reads for its build tool"() {
+        given:
+        def pip = settings(build: build(tool: BuildTool.PIP, javaPath: null, command: command(['pip', 'install', '-r', 'requirements.txt'])),
+                unitTests: UnitTestSettings.builder().command(ToolCommand.builder().tasks(['pytest', '--junitxml=junit.xml'])
+                        .directory('tests').build()).build(),
+                sonar: SonarSettings.of(null, 'com.bbh:rates', ToolCommand.of([], ['-Dsonar.python.version=3.12'])))
+        def node = NodeBuildSettings.builder().directory('web').commands(['npm ci', 'npm run build']).build()
+        def npm = { Map changes = [:] ->
+            settings([build: build(tool: BuildTool.NPM, javaPath: null, command: NONE), nodeBuild: node,
+                      unitTests: UnitTestSettings.builder().command(command(['npm', 'test'])).build()] + changes)
+        }
+        def android = settings(build: build(tool: BuildTool.ANDROID, command: command(['clean', 'assembleRelease'])),
+                sonar: SonarSettings.of(null, 'com.bbh:app', command(['sonarqube'])))
+        def ios = settings(build: build(tool: BuildTool.IOS, javaPath: null, command: command(['xcodebuild', '-scheme', 'App', 'build'])))
+
+        expect:
+        reported(pip) == []
+        reported(npm()) == []
+        reported(android) == []
+        reported(ios) == []
+        with(written(pip).toMap()) {
+            buildTool == 'pip'
+            build.pip.commands == ['pip install -r requirements.txt']
+            tests.unitTests.commands == ['pytest --junitxml=junit.xml']
+            tests.unitTests.dir == 'tests'
+            tools.sonar.pip.flags == ['-Dsonar.python.version=3.12']
+            !containsKey('javaPath')
+        }
+        with(written(npm()).toMap()) {
+            buildTool == 'npm'
+            build.node == [dir: 'web', commands: ['npm ci', 'npm run build']]
+            tests.unitTests.commands == ['npm test']
+        }
+        written(npm(nodeBuild: NodeBuildSettings.builder().enabled(true).directory('web').build())).toMap().build.node == [enabled: true, dir: 'web']
+        written(npm(nodeBuild: NodeBuildSettings.NONE)).toMap().buildTool == 'npm'
+        with(written(android).toMap()) {
+            buildTool == 'android'
+            build.gradle.tasks == ['clean', 'assembleRelease']
+            tools.sonar.gradle.tasks == ['sonarqube']
+        }
+        written(ios).toMap().build.ios.commands == ['xcodebuild -scheme App build']
+    }
+
+    def "an npm, pip or iOS service refuses what the library would not read, and an Android service needs its Gradle tasks and a JDK"() {
+        expect:
+        reported(settings(build: build(tool: BuildTool.NPM, javaPath: null)))*.field == ['build.command.tasks']
+        reported(settings(build: build(tool: BuildTool.PIP, javaPath: null, command: command(['pip', 'install', '.'], ['--quiet']))))*.field ==
+                ['build.command.flags']
+        reported(settings(build: build(tool: BuildTool.IOS, javaPath: null, command: NONE),
+                sonar: SonarSettings.of(null, 'com.bbh:app', command(['sonarqube']))))*.field == ['sonar.command.tasks']
+        reported(settings(build: build(tool: BuildTool.ANDROID, command: NONE)))*.field == ['build.command.tasks']
+        reported(settings(build: build(tool: BuildTool.ANDROID, javaPath: null)))*.field == ['build.javaPath']
+    }
+
     def "a service of SQL and PL/SQL files changes a database without a changelog file and without commands of its own"() {
         given:
         def files = database().toBuilder().changelogFile(null).searchPath('db').build()

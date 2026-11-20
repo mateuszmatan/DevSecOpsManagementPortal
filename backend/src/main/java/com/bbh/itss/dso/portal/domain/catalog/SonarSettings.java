@@ -57,6 +57,7 @@ public record SonarSettings(String projectName, String projectKey, String instal
         if (badgeToken != null && badgeCredentialsId != null) {
             problems.add("badgeCredentialsId", "give the badge token or its credentials ID, not both");
         }
+        command.validateScripted(problems.at("command"), "tools.sonar", tool);
         command.validate(problems.at("command"));
     }
 }

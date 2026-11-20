@@ -166,7 +166,7 @@ kotlin {
         stack.buildTool == 'PIP'
         stack.primaryLanguage == 'PYTHON'
         stack.testRunner == 'PYTEST'
-        stack.unitTestTasks == 'pytest'
+        stack.unitTestTasks == 'pytest --junitxml=junit.xml'
     }
 
     def "detects sonar defaults when sonar-project.properties is missing"() {
@@ -256,9 +256,76 @@ kotlin {
         marker                 || tool
         'pom.xml'              || 'MAVEN'
         'build.gradle'         || 'GRADLE'
-        'db/changelog.sql'     || null
+        'db/changelog.sql'     || 'LIQUIBASE'
         'changelog.xml'        || 'LIQUIBASE'
-        'package.json'         || null
+        'package.json'         || 'NPM'
         'requirements.txt'     || 'PIP'
+    }
+
+    def "the build tool is detected in the order of the library: #files give #tool"() {
+        given:
+        def tree = [
+                fileExists     : { String p -> p in files },
+                directoryExists: { String p -> false },
+                listFiles      : { String p -> files },
+                readFile       : { String p -> p in files ? Optional.of(p == 'package.json' ? '{"name": "web"}' : '') : Optional.empty() }
+        ] as RepoFileTree
+
+        when:
+        def stack = RepoStackDetector.detect(tree)
+
+        then:
+        stack.buildTool == tool
+        stack.resolvedParameters.find { it.field() == 'buildTool' }?.reason() == reason
+
+        where:
+        files                                                          || tool        | reason
+        ['pubspec.yaml', 'pom.xml', 'package.json']                    || 'FLUTTER'   | 'pubspec.yaml found'
+        ['Podfile', 'pom.xml']                                         || 'IOS'       | 'Podfile found (iOS)'
+        ['Package.swift', 'package.json']                              || 'IOS'       | 'Package.swift found (iOS)'
+        ['App.xcodeproj/project.pbxproj', 'build.gradle']              || 'IOS'       | 'App.xcodeproj found (iOS)'
+        ['App.xcworkspace/contents.xcworkspacedata']                   || 'IOS'       | 'App.xcworkspace found (iOS)'
+        ['pom.xml', 'build.gradle', 'package.json']                    || 'MAVEN'     | 'pom.xml found'
+        ['settings.gradle', 'requirements.txt']                        || 'GRADLE'    | 'Gradle build script found'
+        ['settings.gradle.kts']                                        || 'GRADLE'    | 'Gradle build script found'
+        ['gradle/wrapper/gradle-wrapper.properties']                   || 'GRADLE'    | 'Gradle build script found'
+        ['gradlew', 'package.json']                                    || 'NPM'       | 'package.json found (Node.js)'
+        ['build.gradle', 'app/src/main/AndroidManifest.xml']           || 'ANDROID'   | 'Gradle build script and AndroidManifest.xml found (Android)'
+        ['build.gradle.kts', 'AndroidManifest.xml']                    || 'ANDROID'   | 'Gradle build script and AndroidManifest.xml found (Android)'
+        ['app/src/main/AndroidManifest.xml']                           || null        | null
+        ['orders.sln', 'requirements.txt']                             || 'DOTNET'    | 'orders.sln found (C# / .NET)'
+        ['db/changelog.xml', 'requirements.txt', 'package.json']       || 'LIQUIBASE' | 'Liquibase changelog found'
+        ['requirements.txt', 'package.json']                           || 'PIP'       | 'Python project files found'
+        ['setup.py', 'angular.json']                                   || 'PIP'       | 'Python project files found'
+        ['Pipfile']                                                    || 'PIP'       | 'Python project files found'
+        ['package.json', 'db/tables/orders.sql']                       || 'NPM'       | 'package.json found (Node.js)'
+        ['angular.json', 'package.json']                               || 'NPM'       | 'package.json and angular.json found (Angular)'
+        ['frontend/package.json', 'README.md']                         || null        | null
+        ['README.md']                                                  || null        | null
+    }
+
+    def "a Python and an npm repository give the commands the library runs by default, and an npm one no build command"() {
+        given:
+        def treeOf = { List<String> files ->
+            [fileExists     : { String p -> p in files },
+             directoryExists: { String p -> false },
+             listFiles      : { String p -> files },
+             readFile       : { String p -> p in files ? Optional.of('{"name": "web", "devDependencies": {"@angular/core": "19"}}') : Optional.empty() }
+            ] as RepoFileTree
+        }
+
+        when:
+        def python = RepoStackDetector.detect(treeOf(['requirements.txt']))
+        def npm = RepoStackDetector.detect(treeOf(['package.json']))
+
+        then:
+        python.buildTasks == 'pip install -r requirements.txt'
+        python.unitTestTasks == 'pytest --junitxml=junit.xml'
+        python.sonarSources == 'src'
+        npm.buildTasks == null
+        npm.unitTestTasks == 'npm test'
+        npm.nodeBuildEnabled
+        npm.framework == 'ANGULAR'
+        npm.sonarSources == 'src'
     }
 }

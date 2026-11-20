@@ -14,7 +14,7 @@ This README is for developers. The people who use the portal read the
 | `frontend/` | the Angular GUI with the BBH Design System v6 (`@v6/v6-themes`, `@v6/v6-table`, `@v6/v6-icons`) |
 | `deploy/openshift/` | Kustomize manifests with `rd`, `qc` and `prod` overlays, and [how to run the image](deploy/openshift/README.md) |
 | `examples/` | Jenkinsfiles, REST calls and a rendered configuration, see [examples/README.md](examples/README.md) |
-| `docs/` | the user and administrator guide in Markdown and the HTML page the build renders from it |
+| `docs/` | the user and administrator guide in Markdown and the HTML page the build renders from it; the two user guides `USER_GUIDE_PORTAL` and `USER_GUIDE_WITHOUT_PORTAL`, which are the same files in the portal and in both branches of the library (`tools/render-user-guides.sh` renders their pages) |
 
 ## Build and tests
 
@@ -147,7 +147,7 @@ not record it.
 
 ## Repo Auto-Discovery and Bitbucket PR Decoration
 
-- `POST /api/catalog/inspect-repo`: inspects the manifests at the root of a Bitbucket branch (Maven `pom.xml`, Gradle build scripts, Node.js `package.json`, Liquibase `changelog.xml`, Flutter `pubspec.yaml`, Python `requirements.txt`, Dockerfiles and the names of the `openshift`, `k8s` and `helm` folders) to fill in the build tool, the build and unit test commands, the Node.js build, the deployment target and an empty SonarQube project key in the Smart Wizard. A service with database changes keeps all of them except the project key.
+- `POST /api/catalog/inspect-repo`: inspects the manifests at the root of a Bitbucket branch (Flutter `pubspec.yaml`, the iOS files, Maven `pom.xml`, Gradle build scripts with `AndroidManifest.xml` for Android, the .NET files, Liquibase `changelog.xml`, Python `requirements.txt`, Node.js `package.json`, in the order of the library, Dockerfiles and the names of the `openshift`, `k8s` and `helm` folders) to fill in the build tool, the build and unit test commands, the Node.js build, the deployment target and an empty SonarQube project key in the Smart Wizard. A service with database changes keeps all of them except the project key.
 - `POST /api/dso/bitbucket/pull-requests/decorate`: receives security scan findings (AppScan SAST line findings with `Noise` filtered out, SonarQube quality and security issues) and decorates Bitbucket Server / Cloud pull requests with inline line comments. Combines Nexus IQ GoldenFix and SAST/Sonar into a single consolidated Static Security PR, while isolating DAST findings into a dedicated Dynamic Security PR.
 - `/api/samm/*`: evaluates OWASP SAMM v2.0 software assurance maturity across 5 business functions and 11 practices, generating department overviews, distribution tiers, and per-pipeline scorecards.
 
@@ -216,13 +216,7 @@ with who, what, when and the result, and shown under Action history.
 The prioritised list of open work for the portal and the library is [TODO.md](TODO.md); the overview for senior
 management is [docs/MANAGEMENT_OVERVIEW.md](docs/MANAGEMENT_OVERVIEW.md).
 
-- The service form has no build tool npm, pip, Android or iOS. A service that is only Angular or Node.js, or only
-  Python, is configured in `devsecops_config.yaml` or `config.yaml` of its repository and runs without a pipeline
-  key; an import of such a file notes `buildTool` as not imported. An import of `msbuild` becomes `dotnet`.
-- The repository scan differs from the detection of the library: it has no iOS, Android and npm result, returns a
-  Python result that the form does not apply, and takes `gradlew`, not `settings.gradle` or the wrapper properties,
-  as a Gradle marker.
-- `docs/USER_GUIDE_PORTAL` and `docs/USER_GUIDE_WITHOUT_PORTAL` have drifted from the copies of the library.
+- An import of `msbuild` becomes `dotnet`: the portal has no build tool MSBuild of its own.
 - The portal has no sign-in yet, so every action is recorded as the default administrator. BBH single sign-on and
   roles come later; until then the portal must stay inside the test network.
 - A new Liquibase service gets the build command `updateSQL` without flags, which fails unless flags or a

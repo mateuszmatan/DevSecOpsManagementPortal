@@ -101,7 +101,7 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         BuildTool tool = build.tool();
         boolean deploys = !changesDatabase();
         build.writeTo(config);
-        nodeBuild.writeTo(config);
+        nodeBuild.writeTo(config, tool);
         if (deploys) {
             deployment.writeTo(config);
         }

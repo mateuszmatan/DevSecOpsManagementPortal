@@ -73,5 +73,6 @@ public record AppScanSettings(String applicationId, List<String> includedDirs, L
         LINES_2000.check(problems, "includedDirs", includedDirs);
         LINES_2000.check(problems, "excludedDirs", excludedDirs);
         compileCommand.validate(problems.at("compileCommand"));
+        compileCommand.validateScripted(problems.at("compileCommand"), "asoc", tool);
     }
 }

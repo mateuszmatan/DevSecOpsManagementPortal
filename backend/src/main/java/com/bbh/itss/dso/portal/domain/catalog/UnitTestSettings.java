@@ -58,6 +58,7 @@ public record UnitTestSettings(ToolCommand command, String resultPattern, String
         if (tool == BuildTool.SQL && !command.isEmpty()) {
             problems.add("command.tasks", BuildSettings.SQL_COMMAND);
         }
+        command.validateScripted(problems.at("command"), "tests.unitTests", tool);
         command.validate(problems.at("command"));
     }
 }

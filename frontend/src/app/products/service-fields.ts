@@ -24,6 +24,7 @@ import {
   Region,
   ResolvedParameter,
   databaseTool,
+  scripted,
 } from '../core/models';
 import { ProductsApi } from '../core/api';
 import {
@@ -67,13 +68,25 @@ import {
   formChangesDatabase,
   sectionTouched,
   visibleSectionsForPipeline,
+  dropForeignCommands,
 } from './product-form-model';
 import { TestJobsFields } from './test-jobs-fields';
 import { ToolCommandFields, commandFields } from './tool-command-fields';
 import { URBAN_CODE_APPLICATION, URBAN_CODE_COMPONENT, UrbanCodeFields } from './urban-code-fields';
 
 /** The build tools of the portal: a repository scan may also find one it has none for, such as PIP, or none. */
-const KNOWN_TOOLS: readonly BuildTool[] = ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DOTNET', 'SQL'];
+const KNOWN_TOOLS: readonly BuildTool[] = [
+  'GRADLE',
+  'MAVEN',
+  'FLUTTER',
+  'LIQUIBASE',
+  'DOTNET',
+  'SQL',
+  'NPM',
+  'PIP',
+  'ANDROID',
+  'IOS',
+];
 
 const REGION_NAMES: Record<Region, string> = {
   RD: 'RD, the lower test region',
@@ -856,12 +869,28 @@ export class ServiceFields {
     return !this.form().controls.deployment.controls.nexusDeliveryDisabled.value;
   }
 
+  /** Whether the library runs whole command lines for the build tool: npm, pip and iOS. */
+  protected scripted(): boolean {
+    return scripted(this.tool());
+  }
+
+  /** Whether the build of the service is its Node.js build: the build tool npm. */
+  protected npm(): boolean {
+    return this.tool() === 'NPM';
+  }
+
   protected buildsNode(): boolean {
-    return this.form().controls.nodeBuild.controls.enabled.value;
+    return this.npm() || this.form().controls.nodeBuild.controls.enabled.value;
   }
 
   protected buildOptionsSummary(): string {
     if (this.flutter()) {
+      return 'Source folder';
+    }
+    if (this.npm()) {
+      return 'Source folder and Node.js options';
+    }
+    if (this.scripted()) {
       return 'Source folder';
     }
     return this.buildsNode()
@@ -883,9 +912,26 @@ export class ServiceFields {
     const liquibase = databaseTool(this.tool());
     const database = this.changesDatabase();
     const c = this.form().controls.build.controls;
+    const scriptedPath = { NPM: 'dist/**', PIP: 'dist/*.whl', IOS: 'build/*.ipa' }[this.tool() as string];
+    if (scriptedPath) {
+      return [
+        mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
+          placeholder: scriptedPath,
+          hint: 'optional: what the build produces',
+          help: 'A path or wildcard pattern relative to the workspace; the first matching file is used. On OpenShift only its folder counts: the image build takes the artifact from there.',
+          error: SHELL_SAFE_ERROR,
+        }),
+      ];
+    }
     return [
       mono('buildPath', 'Artifact path', 'build.buildPath', 6, {
-        placeholder: liquibase ? 'db/changelog/*.xml' : maven ? 'target/*.jar' : 'build/libs/*.jar',
+        placeholder: liquibase
+          ? 'db/changelog/*.xml'
+          : maven
+            ? 'target/*.jar'
+            : this.tool() === 'ANDROID'
+              ? 'app/build/outputs/apk/release/*.apk'
+              : 'build/libs/*.jar',
         hint:
           this.isVm() && maven && this.delivers() && this.uploadPath() === 'delivery'
             ? 'the artifact the Nexus snapshot delivery uploads'
@@ -1034,6 +1080,9 @@ export class ServiceFields {
   protected nodeSwitch(): Field[] {
     const pipeline = this.pipeline();
     const notes = pipeline ? [NODE_BUILD_IN[pipeline] ?? ''] : Object.values(NODE_BUILD_IN);
+    if (this.npm()) {
+      return [];
+    }
     return [
       check('enabled', 'Build the frontend with Node.js first', 'build.node.enabled', 12, {
         help: [NODE_BUILD, ...notes].join(' ').trim(),
@@ -1525,12 +1574,14 @@ export class ServiceFields {
     const tool = KNOWN_TOOLS.find((known) => known === stack.buildTool);
     if (!database) {
       if (tool) {
+        const previous = c.build.controls.tool.value;
         c.build.controls.tool.setValue(tool);
+        dropForeignCommands(this.form(), previous, tool);
       }
       if (stack.deployTarget && ['VM', 'OPENSHIFT'].includes(stack.deployTarget)) {
         c.deployment.controls.target.setValue(stack.deployTarget as DeployTarget);
       }
-      if (stack.nodeBuildEnabled) {
+      if (stack.nodeBuildEnabled && tool !== 'NPM') {
         c.nodeBuild.controls.enabled.setValue(true);
       }
       if (tool === 'SQL') {
@@ -1546,7 +1597,7 @@ export class ServiceFields {
       if (tool && stack.buildTasks) {
         c.build.controls.command.controls.tasks.setValue(stack.buildTasks);
       }
-      if (tool && stack.unitTestTasks) {
+      if (tool && stack.unitTestTasks && !scripted(tool)) {
         c.unitTests.controls.command.controls.tasks.setValue(stack.unitTestTasks);
       }
     }

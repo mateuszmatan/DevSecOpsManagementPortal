@@ -1,8 +1,56 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { BuildTool } from '../core/models';
+import { BuildTool, CommandPath, commandParts, scripted } from '../core/models';
 import { Field, Fields, area, check, line, mono } from '@common/shared/fields';
 import { SHELL_SAFE_ERROR } from '@common/shared/form-controls';
 import { ToolCommandForm } from './product-form-model';
+
+const SCRIPTED_NAMES: Partial<Record<BuildTool, string>> = {
+  NPM: 'npm',
+  PIP: 'pip',
+  IOS: 'ios',
+};
+
+const SCRIPTED_BUILD: Partial<Record<BuildTool, string>> = {
+  PIP: 'pip install -r requirements.txt',
+  IOS: 'xcodebuild -scheme MyApp -configuration Release build',
+};
+
+const SCRIPTED_TEST: Partial<Record<BuildTool, string>> = {
+  NPM: 'npm test',
+  PIP: 'pytest --junitxml=junit.xml',
+  IOS: 'xcodebuild test -scheme MyApp -destination "platform=iOS Simulator,name=iPhone 15"',
+};
+
+/**
+ * The fields of a command of npm, pip or iOS: one command line for the build and the unit tests, and the flags of the
+ * SonarScanner. The parts the library does not read for these tools are left out.
+ */
+function scriptedFields(tool: BuildTool, path: string): Field[] {
+  const name = SCRIPTED_NAMES[tool];
+  const parts = path ? (commandParts(tool, path as CommandPath) ?? []) : ['tasks', 'directory', 'flags'];
+  const tests = path === 'tests.unitTests';
+  const fields: Field[] = [
+    mono('tasks', tests ? 'Test command' : 'Build command', tests ? `${path}.commands` : `build.${name}.commands`, 6, {
+      placeholder: (tests ? SCRIPTED_TEST : SCRIPTED_BUILD)[tool] ?? '',
+      hint: `one command line; chain several with &&${tests ? `; left empty: ${SCRIPTED_TEST[tool] ?? 'no tests'}` : ''}`,
+      help: tests
+        ? 'The whole command line the Unit tests stage runs, with sh on Linux agents and bat on Windows agents. Write its options in the line itself.'
+        : 'The whole command line the Build artifact stage runs in the source folder of the service, with sh on Linux agents and bat on Windows agents. Left empty, the stage builds nothing.',
+    }),
+    mono('directory', 'Directory', `${path}.dir`, 6, {
+      placeholder: '.',
+      hint: 'for a service in a subfolder: that folder',
+      help: 'The folder of the workspace in which the command runs. Left empty: the workspace root.',
+    }),
+    area('flags', 'SonarScanner flags', `${path}.${name}.flags`, 6, {
+      mono: true,
+      placeholder: '-Dsonar.sources=src\n-Dsonar.exclusions=**/node_modules/**',
+      hint: 'one per line',
+      help: 'The library runs the SonarScanner for this build tool; these properties are added to its command line, such as -Dsonar.sources=src or -Dsonar.exclusions=... A property given here wins over the one the library adds.',
+    }),
+  ];
+  return fields.filter((field) => parts.includes(field.key));
+}
 
 /** The fields of a Gradle or Maven command whose devsecops_config.yaml keys start with path. */
 export function commandFields(
@@ -12,6 +60,9 @@ export function commandFields(
   mavenExample = '',
   liquibaseExample = 'updateSQL',
 ): Field[] {
+  if (scripted(tool)) {
+    return scriptedFields(tool, path);
+  }
   const maven = tool === 'MAVEN';
   const liquibase = tool === 'LIQUIBASE' || tool === 'SQL';
   const dotnet = tool === 'DOTNET';

@@ -41,7 +41,21 @@
               automatic setup cannot pick a JDK for Flutter; its modules and credentials are in the
               Flutter section.
             </p>
+          } @else if (npm()) {
+            <p class="note span-12">
+              The build of an npm service is its Node.js build below: the Build artifact stage runs
+              its commands, npm ci and npm run build when none are given. The unit tests run
+              npm test unless the Unit tests section gives another command, and the SonarScanner
+              analyses the code.
+            </p>
           } @else {
+            @if (scripted()) {
+              <p class="note span-12">
+                The Build artifact stage runs this command line in the source folder of the
+                service; left empty, the stage builds nothing. No JDK is set up for this build
+                tool.
+              </p>
+            }
             <dso-tool-command-fields
               [group]="f.controls.build.controls.command"
               [tool]="tool()"
@@ -53,7 +67,9 @@
           }
           <dso-fields [group]="f.controls.build" [fields]="buildFields()" />
           @if (!flutter() && !changesDatabase()) {
-            <h4 class="sub-heading span-12">Node.js build (stage 0)</h4>
+            <h4 class="sub-heading span-12">
+              {{ npm() ? 'Node.js build' : 'Node.js build (stage 0)' }}
+            </h4>
             <dso-fields [group]="node" [fields]="nodeSwitch()" />
             @if (buildsNode()) {
               <dso-fields [group]="node" [fields]="nodeFields()" />
@@ -279,7 +295,7 @@
             [submitted]="submitted()"
           >
             <dso-fields [group]="scan" [fields]="appScanOptions" />
-            @if (!flutter() && scan.controls.compile.value) {
+            @if (!flutter() && !scripted() && scan.controls.compile.value) {
               <h4 class="sub-heading span-12">Compile command</h4>
               <p class="note span-12">
                 Left empty, the SAST compile runs the build command of the service. Another command
@@ -302,6 +318,12 @@
       @case ('sonar') {
         <div class="form-fields">
           <dso-fields [group]="f.controls.sonar" [fields]="sonarFields()" />
+          @if (scripted()) {
+            <p class="note span-12">
+              The library runs the SonarScanner for this build tool; further SonarScanner flags
+              are under the advanced settings.
+            </p>
+          }
           @if (!flutter()) {
             <dso-tool-command-fields
               [group]="f.controls.sonar.controls.command"

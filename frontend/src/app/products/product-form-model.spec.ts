@@ -1665,6 +1665,104 @@ describe('followToolDefaults', () => {
     stored.controls.build.controls.tool.setValue('GRADLE');
     expect(stored.controls.build.controls.autoSetup.value).toBe(false);
   });
+
+  it.each(['NPM', 'PIP', 'IOS'] as BuildTool[])(
+    'needs no command and no JDK path for %s, and sends only the parts of a command the library reads',
+    (tool) => {
+      const full = command({
+        tasks: ['run', 'it'],
+        flags: ['-Dsonar.sources=src'],
+        directory: 'app',
+        environment: ['A=b'],
+        label: 'Step',
+        returnStdout: true,
+      });
+      const form = createServiceForm(
+        service({
+          build: { ...service().build, autoSetup: false, javaPath: null, command: full },
+          unitTests: { ...service().unitTests, command: full },
+          sonar: { ...service().sonar, command: full },
+          appScan: { ...service().appScan, compile: true, compileCommand: full },
+        }),
+      );
+      form.controls.build.controls.tool.setValue(tool);
+      const c = form.controls;
+
+      expect(c.build.controls.javaPath.valid).toBe(true);
+      expect(c.build.controls.command.enabled).toBe(tool !== 'NPM');
+      expect(c.build.controls.command.controls.flags.enabled).toBe(false);
+      expect(c.unitTests.controls.command.controls.tasks.enabled).toBe(true);
+      expect(c.unitTests.controls.command.controls.directory.enabled).toBe(true);
+      expect(c.unitTests.controls.command.controls.environment.enabled).toBe(false);
+      expect(c.sonar.controls.command.controls.tasks.enabled).toBe(false);
+      expect(c.sonar.controls.command.controls.flags.enabled).toBe(true);
+      expect(c.appScan.controls.compileCommand.enabled).toBe(false);
+
+      const request = toServiceRequest(form);
+      expect(request.build.command).toEqual(
+        command(tool === 'NPM' ? {} : { tasks: ['run', 'it'] }),
+      );
+      expect(request.unitTests.command).toEqual(command({ tasks: ['run', 'it'], directory: 'app' }));
+      expect(request.sonar.command).toEqual(command({ flags: ['-Dsonar.sources=src'] }));
+      expect(request.appScan.compileCommand).toEqual(command());
+
+      form.controls.build.controls.tool.setValue('GRADLE');
+      expect(c.build.controls.command.controls.flags.enabled).toBe(true);
+      expect(c.sonar.controls.command.controls.tasks.enabled).toBe(true);
+      expect(c.unitTests.controls.command.controls.environment.enabled).toBe(true);
+      expect(toServiceRequest(form).build.command).toEqual(full);
+    },
+  );
+
+  it('takes the Node.js build of an npm service as its build, without the stage 0 switch', () => {
+    const form = createServiceForm(
+      service({ nodeBuild: nodeBuild({ directory: 'web', commands: ['npm ci', 'npm run build:prod'] }) }),
+    );
+    const node = form.controls.nodeBuild.controls;
+    expect(node.commands.enabled).toBe(false);
+
+    form.controls.build.controls.tool.setValue('NPM');
+
+    expect(node.enabled.value).toBe(false);
+    expect(node.commands.enabled).toBe(true);
+    expect(node.directory.enabled).toBe(true);
+    expect(toServiceRequest(form).nodeBuild).toEqual(
+      nodeBuild({ directory: 'web', commands: ['npm ci', 'npm run build:prod'] }),
+    );
+  });
+
+  it('builds an Android service with Gradle tasks and a JDK', () => {
+    const form = createServiceForm(
+      service({ build: { ...service().build, autoSetup: false, javaPath: null, command: command() } }),
+    );
+    const { tool, javaPath } = form.controls.build.controls;
+
+    tool.setValue('ANDROID');
+
+    expect(form.controls.build.controls.command.controls.tasks.hasError('required')).toBe(true);
+    expect(javaPath.hasError('required')).toBe(true);
+    expect(form.controls.build.controls.command.controls.flags.enabled).toBe(true);
+  });
+
+  it('empties the unit test command when the build tool changes between tasks and a command line', () => {
+    const form = createServiceForm(service());
+    TestBed.runInInjectionContext(() => followToolDefaults(form, serviceTemplate()));
+    const tests = form.controls.unitTests.controls.command.controls.tasks;
+    tests.setValue('test jacocoTestReport');
+
+    form.controls.build.controls.tool.setValue('MAVEN');
+    expect(tests.value).toBe('test jacocoTestReport');
+
+    form.controls.build.controls.tool.setValue('PIP');
+    expect(tests.value).toBe('');
+
+    tests.setValue('pytest -q');
+    form.controls.build.controls.tool.setValue('NPM');
+    expect(tests.value).toBe('pytest -q');
+
+    form.controls.build.controls.tool.setValue('GRADLE');
+    expect(tests.value).toBe('');
+  });
 });
 
 describe('Liquibase services with and without database changes', () => {

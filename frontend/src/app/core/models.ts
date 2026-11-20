@@ -1,15 +1,59 @@
 import { FieldProblem, Department as PortalDepartment } from '@common/core/models';
 import { labelOf } from '@common/shared/formatting';
 
-export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER' | 'LIQUIBASE' | 'DOTNET' | 'SQL';
+export type BuildTool =
+  | 'GRADLE'
+  | 'MAVEN'
+  | 'FLUTTER'
+  | 'LIQUIBASE'
+  | 'DOTNET'
+  | 'SQL'
+  | 'NPM'
+  | 'PIP'
+  | 'ANDROID'
+  | 'IOS';
+
+/**
+ * Build tools for which the library runs whole command lines for the build and the unit tests, and the SonarScanner
+ * for the analysis: npm (Angular, Node.js), pip (Python) and iOS.
+ */
+export const scripted = (tool: BuildTool | null | undefined): boolean =>
+  tool === 'NPM' || tool === 'PIP' || tool === 'IOS';
 
 /** Build tools whose commands the library picks itself when the service gives none. */
 export const autoCommands = (tool: BuildTool | null | undefined): boolean =>
-  tool === 'LIQUIBASE' || tool === 'FLUTTER' || tool === 'DOTNET' || tool === 'SQL';
+  tool === 'LIQUIBASE' || tool === 'FLUTTER' || tool === 'DOTNET' || tool === 'SQL' || scripted(tool);
 
 /** Build tools that need a JDK on the agent. */
 export const needsJdk = (tool: BuildTool | null | undefined): boolean =>
-  tool !== 'LIQUIBASE' && tool !== 'DOTNET' && tool !== 'SQL';
+  tool !== 'LIQUIBASE' && tool !== 'DOTNET' && tool !== 'SQL' && !scripted(tool);
+
+/** The four places of a service that hold a command of its build tool, by the start of their keys. */
+export type CommandPath = 'build' | 'tests.unitTests' | 'tools.sonar' | 'asoc';
+
+/**
+ * The parts of a command the library reads for the build tool, or null when it reads them all. For npm, pip and iOS
+ * the build and the unit tests are one command line, the SonarScanner takes flags only and the AppScan scan needs no
+ * compile command; the build of an npm service is its Node.js build.
+ */
+export function commandParts(
+  tool: BuildTool | null | undefined,
+  path: CommandPath,
+): readonly string[] | null {
+  if (!scripted(tool)) {
+    return null;
+  }
+  switch (path) {
+    case 'build':
+      return tool === 'NPM' ? [] : ['tasks'];
+    case 'tests.unitTests':
+      return ['tasks', 'directory'];
+    case 'tools.sonar':
+      return ['flags'];
+    default:
+      return [];
+  }
+}
 
 /** Build tools that can change a database: Liquibase with a changelog, or SQL and PL/SQL files without one. */
 export const databaseTool = (tool: BuildTool | null | undefined): boolean =>

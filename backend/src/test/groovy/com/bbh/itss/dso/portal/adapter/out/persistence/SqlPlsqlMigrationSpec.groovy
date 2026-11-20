@@ -121,6 +121,32 @@ class SqlPlsqlMigrationSpec extends MigrationSpecification {
         liquibase.update('')
     }
 
+    def "045 lets a service build with #tool, and its rollback gives the build tools of 044 back"() {
+        given:
+        liquibase.update('')
+        long product = insert('DSO_PRODUCT', [CODE: "T$tool".toString(), NAME: "Tool $tool".toString()])
+
+        when:
+        long id = service(product, 'web', tool)
+
+        then:
+        jdbc.queryForObject('SELECT BUILD_TOOL FROM DSO_SERVICE WHERE ID = ?', String, id) == tool
+
+        when:
+        jdbc.update('DELETE FROM DSO_SERVICE WHERE ID = ?', id)
+        rollBackSince('045-')
+        service(product, 'web', tool)
+
+        then:
+        thrown(DataIntegrityViolationException)
+
+        cleanup:
+        liquibase.update('')
+
+        where:
+        tool << ['NPM', 'PIP', 'ANDROID', 'IOS']
+    }
+
     private long service(long productId, String name, String buildTool) {
         insert('DSO_SERVICE', [PRODUCT_ID: productId, NAME: name, DISPLAY_ORDER: 0, BUILD_TOOL: buildTool, SOURCE_DIR: '.',
                                DEPLOY_TARGET: 'VM', APPSCAN_APP_ID: '109f44ac-cc06-4ca0-884e-d944904f7019',

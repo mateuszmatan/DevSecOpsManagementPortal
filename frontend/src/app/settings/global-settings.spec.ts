@@ -248,13 +248,19 @@ describe('GlobalSettingsPage', () => {
     const c = form().controls.serviceDefaults.controls;
 
     expect(headings).toEqual(['Node.js build', 'Gradle and Maven plugins']);
-    expect(text(section)).toContain('Retry a Gradle or Maven step with these repositories when a plugin is missing');
+    expect(text(section)).toContain(
+      'Retry a Gradle or Maven step with these repositories when a plugin is missing',
+    );
     expect(text(section)).toContain('pluginRepositories.enabled');
     expect(hint('Gradle plugin repository')).toBe('pluginRepositories.gradle');
     expect(hint('Maven plugin repository')).toBe('pluginRepositories.maven');
     expect(c.pluginRepositoriesEnabled.value).toBe(true);
-    expect(c.gradlePluginRepository.value).toBe('https://tools.bbh.com/nexus/repository/gradle-plugins/');
-    expect(helpOf(fieldOf(section, 'Gradle plugin repository')!)).toContain('Empty: the repository of the library defaults');
+    expect(c.gradlePluginRepository.value).toBe(
+      'https://tools.bbh.com/nexus/repository/gradle-plugins/',
+    );
+    expect(helpOf(fieldOf(section, 'Gradle plugin repository')!)).toContain(
+      'Empty: the repository of the library defaults',
+    );
 
     c.gradlePluginRepository.setValue("https://tools.bbh.com/nexus/'; rm -rf /");
     expect(c.gradlePluginRepository.hasError('pattern')).toBe(true);
@@ -298,7 +304,16 @@ describe('GlobalSettingsPage', () => {
     );
     expect(
       optionsOf(selectOf(page().querySelector('#settings-serviceDefaults')!, 'Build tool')),
-    ).toEqual(['Gradle', 'Maven', 'Flutter', 'C# / .NET (dotnet or MSBuild)']);
+    ).toEqual([
+      'Gradle',
+      'Maven',
+      'Flutter',
+      'C# / .NET (dotnet or MSBuild)',
+      'npm (Angular, Node.js)',
+      'pip (Python)',
+      'Android (Gradle)',
+      'iOS (Xcode)',
+    ]);
 
     type('Liquibase folder on the agent', ' /opt/liquibase/4.33.0 ');
     type('Allowed databases', 'rd-db*.bbh.com\nqc-db.bbh.com/ORDERS_QC');

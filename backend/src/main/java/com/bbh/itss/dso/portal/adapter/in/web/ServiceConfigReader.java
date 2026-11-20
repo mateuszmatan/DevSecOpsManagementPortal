@@ -164,9 +164,14 @@ final class ServiceConfigReader {
     };
 
     private static final Set<String> SQL_NAMES = Set.of("plsql", "pl/sql", "pl-sql");
+    /** The other names the library accepts for a build tool (BuildUtils.normalizeToolName). */
+    private static final Map<String, String> TOOL_NAMES = toolNames();
     private static final Conversion BUILD_TOOL = value -> choice(BuildTool.values(), Enum::name)
             .apply("msbuild".equalsIgnoreCase(text(value).trim()) ? "dotnet"
-                    : SQL_NAMES.contains(text(value).trim().toLowerCase(ROOT)) ? "sql" : value);
+                    : SQL_NAMES.contains(text(value).trim().toLowerCase(ROOT)) ? "sql"
+                    : TOOL_NAMES.getOrDefault(text(value).trim().toLowerCase(ROOT), text(value)));
+    private static final Conversion COMMAND_LINES = value -> List.of(items(value, null).stream().map(String::trim)
+            .filter(line -> !line.isEmpty()).collect(java.util.stream.Collectors.joining(" && ")).split("\\s+"));
     private static final String SQL_WITH_CHANGELOG = "imported as Liquibase: buildTool sql is for SQL and PL/SQL files"
             + " without a changelog, and the library runs this service as buildTool liquibase because %s is set";
 
@@ -373,7 +378,7 @@ final class ServiceConfigReader {
         for (Block block : blocks) {
             for (BuildTool blockTool : List.of(GRADLE, MAVEN, LIQUIBASE, DOTNET)) {
                 String key = block.key() + "." + blockTool.name().toLowerCase(ROOT);
-                if (blockTool == (tool == SQL ? LIQUIBASE : tool)) {
+                if (blockTool == BuildTool.commandsOf(tool)) {
                     read(project, prefixed(key + ".", block.field() + ".", COMMANDS.get(blockTool)), request);
                 } else if (project.unread(key) && project.take(key) != null) {
                     project.note(key, "not imported: the service builds with " + tool.name().toLowerCase(ROOT));
@@ -383,6 +388,67 @@ final class ServiceConfigReader {
         if (tool == LIQUIBASE || tool == SQL) {
             readLiquibaseSonar(project, request);
         }
+        if (BuildTool.scripted(tool)) {
+            readScripted(project, tool, request);
+        }
+    }
+
+    /**
+     * Reads what the library runs for npm, pip and iOS: the command lines of the build (build.pip.commands or
+     * build.ios.commands, else build.commands; an npm service builds with build.node) and of the unit tests
+     * (tests.unitTests.commands, else tests.unitTests.tasks) with their folder, and the SonarScanner arguments of
+     * tools.sonar.<tool> (tools.sonar.node for npm as well). Several command lines become one, joined with &&.
+     */
+    private static void readScripted(ConfigInput project, BuildTool tool, ConfigTree request) {
+        String name = tool.name().toLowerCase(ROOT);
+        if (tool != BuildTool.NPM) {
+            readFirst(project, List.of("build." + name + ".commands", "build.commands"), "build.command.tasks",
+                    COMMAND_LINES, request);
+        }
+        readFirst(project, List.of("tests.unitTests.commands", "tests.unitTests.tasks"), "unitTests.command.tasks",
+                COMMAND_LINES, request);
+        read(project, List.of(rule("tests.unitTests.dir", "unitTests.command.directory", TEXT)), request);
+        List<String> blocks = tool == BuildTool.NPM ? List.of("tools.sonar.npm", "tools.sonar.node")
+                : List.of("tools.sonar." + name);
+        List<String> flagKeys = new ArrayList<>(blocks.stream().map(block -> block + ".flags").toList());
+        flagKeys.add("tools.sonar.flags");
+        readFirst(project, flagKeys, "sonar.command.flags", WORDS, request);
+        List<String> flags = new ArrayList<>(request.get("sonar.command.flags") instanceof List<?> list
+                ? list.stream().map(String::valueOf).toList() : List.of());
+        for (String block : blocks) {
+            Object sources = project.take(block + ".sources");
+            if (sources != null && flags.stream().noneMatch(flag -> flag.startsWith("-Dsonar.sources="))) {
+                flags.add("-Dsonar.sources=" + String.join(",", items(sources, ",")));
+            }
+        }
+        if (!flags.isEmpty()) {
+            request.set("sonar.command.flags", List.copyOf(flags));
+        }
+    }
+
+    /** Reads the first of the keys that is set; a later one that is set too is left out with a note. */
+    private static void readFirst(ConfigInput project, List<String> keys, String field, Conversion conversion,
+                                  ConfigTree request) {
+        String winner = null;
+        for (String key : keys) {
+            if (winner == null && project.unread(key)) {
+                read(project, List.of(rule(key, field, conversion)), request);
+                winner = key;
+            } else if (winner != null && project.unread(key) && project.take(key) != null) {
+                project.note(key, "not imported: " + winner + " wins over it");
+            }
+        }
+    }
+
+    private static Map<String, String> toolNames() {
+        Map<String, String> names = new LinkedHashMap<>();
+        List.of("python", "poetry", "pipenv").forEach(name -> names.put(name, "pip"));
+        List.of("node", "nodejs", "yarn", "pnpm", "angular", "react", "vue").forEach(name -> names.put(name, "npm"));
+        List.of("xcode", "swift", "cocoapods").forEach(name -> names.put(name, "ios"));
+        names.put("mvn", "maven");
+        names.put("gradlew", "gradle");
+        names.put("dart", "flutter");
+        return Map.copyOf(names);
     }
 
     /** Reads Liquibase SonarQube sources, inclusions and exclusions as -Dsonar.* flags on the SonarQube command. */

@@ -234,6 +234,87 @@ class ServiceConfigReaderSpec extends Specification {
         name << ['sql', 'plsql', 'PL/SQL', 'pl-sql']
     }
 
+    def "buildTool #name is imported as #tool, under every name the library accepts for it"() {
+        expect:
+        imported("buildTool: ${name}\nappId: 109f44ac-cc06-4ca0-884e-d944904f7019\n".toString()).services()[0]
+                .service().build().tool() == tool
+
+        where:
+        name        || tool
+        'npm'       || BuildTool.NPM
+        'node'      || BuildTool.NPM
+        'Angular'   || BuildTool.NPM
+        'yarn'      || BuildTool.NPM
+        'pip'       || BuildTool.PIP
+        'python'    || BuildTool.PIP
+        'poetry'    || BuildTool.PIP
+        'android'   || BuildTool.ANDROID
+        'ios'       || BuildTool.IOS
+        'xcode'     || BuildTool.IOS
+        'cocoapods' || BuildTool.IOS
+        'mvn'       || BuildTool.MAVEN
+        'gradlew'   || BuildTool.GRADLE
+    }
+
+    def "a Python service is read with its command lines, the folder of its tests and its SonarScanner arguments"() {
+        when:
+        def service = imported(new Yaml().dump([buildTool: 'pip', sourceDir: 'api',
+                                               build: [pip: [commands: ['pip install -r requirements.txt', 'python -m build']],
+                                                       commands: ['make']],
+                                               tests: [unitTests: [commands: ['pytest --junitxml=junit.xml'], dir: 'tests']],
+                                               tools: [sonar: [pip: [flags: ['-Dsonar.python.version=3.12'], sources: 'src']]]]))
+                .services()[0]
+        def settings = service.service()
+
+        then:
+        settings.build().tool() == BuildTool.PIP
+        settings.build().command().tasks().join(' ') == 'pip install -r requirements.txt && python -m build'
+        settings.unitTests().command().tasks().join(' ') == 'pytest --junitxml=junit.xml'
+        settings.unitTests().command().directory() == 'tests'
+        settings.sonar().command().flags() == ['-Dsonar.python.version=3.12', '-Dsonar.sources=src']
+        service.notes().find { it.field() == 'build.commands' }.message() == 'not imported: build.pip.commands wins over it'
+        !service.notes().any { it.field().startsWith('tests.') || it.field().startsWith('tools.sonar') || it.field() == 'buildTool' }
+    }
+
+    def "an npm service is read with its Node.js build, its test command and the SonarScanner arguments of tools.sonar.node"() {
+        when:
+        def service = imported(new Yaml().dump([buildTool: 'angular',
+                                               build: [node: [dir: 'web', commands: ['npm ci', 'npm run build -- --configuration production']]],
+                                               tests: [unitTests: [tasks: 'npm test -- --watch=false']],
+                                               tools: [sonar: [node: [flags: ['-Dsonar.exclusions=**/*.spec.ts']],
+                                                               gradle: [tasks: ['sonarqube']]]]])).services()[0]
+        def settings = service.service()
+
+        then:
+        settings.build().tool() == BuildTool.NPM
+        settings.build().command().tasks() == []
+        settings.nodeBuild().directory() == 'web'
+        settings.nodeBuild().commands() == ['npm ci', 'npm run build -- --configuration production']
+        settings.unitTests().command().tasks().join(' ') == 'npm test -- --watch=false'
+        settings.sonar().command().flags() == ['-Dsonar.exclusions=**/*.spec.ts']
+        service.notes().find { it.field() == 'tools.sonar.gradle.tasks' || it.field() == 'tools.sonar.gradle' }.message() ==
+                'not imported: the service builds with npm'
+    }
+
+    def "an Android service is read with the Gradle blocks, and an iOS service with build.ios.commands or build.commands"() {
+        when:
+        def android = imported(new Yaml().dump([buildTool: 'android', javaPath: '/opt/jdk-17',
+                                               build: [gradle: [tasks: ['clean', 'assembleRelease']]],
+                                               tests: [unitTests: [gradle: [tasks: ['testReleaseUnitTest']]]],
+                                               tools: [sonar: [gradle: [tasks: ['sonarqube']]]]])).services()[0].service()
+        def ios = imported(new Yaml().dump([buildTool: 'swift', build: [commands: ['xcodebuild -scheme App build']],
+                                           tests: [unitTests: [commands: ['xcodebuild -scheme App test']]]])).services()[0].service()
+
+        then:
+        android.build().tool() == BuildTool.ANDROID
+        android.build().command().tasks() == ['clean', 'assembleRelease']
+        android.unitTests().command().tasks() == ['testReleaseUnitTest']
+        android.sonar().command().tasks() == ['sonarqube']
+        ios.build().tool() == BuildTool.IOS
+        ios.build().command().tasks().join(' ') == 'xcodebuild -scheme App build'
+        ios.unitTests().command().tasks().join(' ') == 'xcodebuild -scheme App test'
+    }
+
     def "buildTool sql with #key is imported as Liquibase, as the library runs it, with a note"() {
         when:
         def service = imported(new Yaml().dump([buildTool: 'sql'] + project)).services()[0]
@@ -806,7 +887,7 @@ class ServiceConfigReaderSpec extends Specification {
         then:
         result.notes() == [problem('other', UNKNOWN)]
         result.services()[0].notes() as Set == [
-                problem('buildTool', 'not imported: expected one of gradle, maven, flutter, liquibase, dotnet, sql'),
+                problem('buildTool', 'not imported: expected one of gradle, maven, flutter, liquibase, dotnet, sql, npm, pip, android, ios'),
                 problem('tests.maxParallel', 'not imported: expected a whole number'),
                 problem('tests.smoke.required', 'not imported: expected true or false'),
                 problem('tools.sonar.projectKey', 'not imported: expected a single value'),

@@ -57,6 +57,15 @@ class NodeBuildSettingsSpec extends Specification {
         written(NONE) == [:]
     }
 
+    def "the Node.js build of an npm service is its build: it is written without the stage 0 switch unless that is on"() {
+        expect:
+        written { new NodeBuildSettings(false, 'frontend', ['npm ci'], 'NodeJS-20', null, ['CI=true'], null, null, 30, false)
+                .writeTo(it, BuildTool.NPM) } == [build: [node: [dir: 'frontend', commands: ['npm ci'], installationName: 'NodeJS-20',
+                                                                  env: [CI: 'true'], timeoutMin: 30, nexusIqScan: false]]]
+        written { FULL.writeTo(it, BuildTool.NPM) }.build.node.enabled == true
+        written { NONE.writeTo(it, BuildTool.NPM) } == [:]
+    }
+
     def "an enabled Node.js build is refused for Flutter and may not name both its installation and its home"() {
         expect:
         reported { FULL.validate(it, GRADLE) } == []

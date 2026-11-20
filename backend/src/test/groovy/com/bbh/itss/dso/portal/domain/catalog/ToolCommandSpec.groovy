@@ -2,7 +2,11 @@ package com.bbh.itss.dso.portal.domain.catalog
 
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.ANDROID
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.IOS
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.NPM
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.PIP
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.SQL
@@ -42,6 +46,48 @@ class ToolCommandSpec extends Specification {
         'an environment'         | ToolCommand.builder().environment(['CI=true']).build()       || false
         'a step label'           | ToolCommand.builder().label('Build').build()                 || false
         'the captured output'    | ToolCommand.builder().returnStdout(true).build()             || false
+    }
+
+    def "a #tool command of #path is written with the keys the library reads: #config"() {
+        expect:
+        written { command.writeTo(it, path, tool) } == config
+
+        where:
+        command                                                                              | path              | tool    || config
+        ToolCommand.of(['clean', 'assembleRelease'], ['--stacktrace'])                       | 'build'           | ANDROID || [build: [gradle: [tasks: ['clean', 'assembleRelease'], flags: ['--stacktrace']]]]
+        ToolCommand.of(['sonarqube'], [])                                                    | 'tools.sonar'     | ANDROID || [tools: [sonar: [gradle: [tasks: ['sonarqube']]]]]
+        ToolCommand.of(['pip', 'install', '-r', 'requirements.txt'], [])                     | 'build'           | PIP     || [build: [pip: [commands: ['pip install -r requirements.txt']]]]
+        ToolCommand.of(['xcodebuild', '-scheme', 'App', 'build'], [])                        | 'build'           | IOS     || [build: [ios: [commands: ['xcodebuild -scheme App build']]]]
+        ToolCommand.of(['npm', 'run', 'build'], [])                                          | 'build'           | NPM     || [:]
+        ToolCommand.builder().tasks(['pytest', '--junitxml=junit.xml']).directory('tests').build() | 'tests.unitTests' | PIP || [tests: [unitTests: [commands: ['pytest --junitxml=junit.xml'], dir: 'tests']]]
+        ToolCommand.of(['npm', 'test'], [])                                                  | 'tests.unitTests' | NPM     || [tests: [unitTests: [commands: ['npm test']]]]
+        ToolCommand.of([], ['-Dsonar.exclusions=**/*.spec.ts'])                              | 'tools.sonar'     | NPM     || [tools: [sonar: [npm: [flags: ['-Dsonar.exclusions=**/*.spec.ts']]]]]
+        ToolCommand.of([], ['-Dsonar.python.version=3.12'])                                  | 'tools.sonar'     | PIP     || [tools: [sonar: [pip: [flags: ['-Dsonar.python.version=3.12']]]]]
+        ToolCommand.of(['compile'], [])                                                      | 'asoc'            | PIP     || [:]
+        NONE                                                                                 | 'build'           | IOS     || [:]
+    }
+
+    def "a #tool command of #path names every part the library does not read: #fields"() {
+        given:
+        def problems = new com.bbh.itss.dso.portal.domain.shared.ValidationProblems()
+
+        when:
+        command.validateScripted(problems, path, tool)
+
+        then:
+        problems.list()*.field() == fields
+
+        where:
+        command                                                        | path              | tool    || fields
+        FULL                                                           | 'build'           | PIP     || ['flags', 'directory', 'environment']
+        FULL                                                           | 'build'           | NPM     || ['tasks', 'flags', 'directory', 'environment']
+        FULL                                                           | 'tests.unitTests' | IOS     || ['flags', 'environment']
+        FULL                                                           | 'tools.sonar'     | NPM     || ['tasks', 'directory', 'environment']
+        FULL                                                           | 'asoc'            | PIP     || ['tasks', 'flags', 'directory', 'environment']
+        ToolCommand.of(['pip', 'install', '.'], [])                    | 'build'           | PIP     || []
+        ToolCommand.of([], ['-Dsonar.sources=src'])                    | 'tools.sonar'     | IOS     || []
+        FULL                                                           | 'build'           | ANDROID || []
+        FULL                                                           | 'build'           | GRADLE  || []
     }
 
     def "a #tool command is written as #config"() {

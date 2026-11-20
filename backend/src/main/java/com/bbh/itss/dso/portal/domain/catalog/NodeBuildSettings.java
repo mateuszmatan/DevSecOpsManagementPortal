@@ -7,6 +7,7 @@ import lombok.Builder;
 import java.util.List;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.NPM;
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.environmentMap;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_4000;
@@ -18,7 +19,9 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * The optional Node.js build the library runs as stage 0, before the Gradle or Maven build. Nothing is written unless
- * it is enabled; the Nexus IQ scan of its lock file is on by default, so only its switching off is kept.
+ * it is enabled; the Nexus IQ scan of its lock file is on by default, so only its switching off is kept. For a service
+ * with the build tool npm these settings are its build: the library runs them in the Build artifact stage, so they
+ * are written also when the stage 0 switch is off.
  */
 @Builder
 public record NodeBuildSettings(Boolean enabled, String directory, List<String> commands, String installationName,
@@ -39,11 +42,16 @@ public record NodeBuildSettings(Boolean enabled, String directory, List<String> 
         nexusIqScan = FALSE.equals(nexusIqScan) ? FALSE : null;
     }
 
+    /** The optional Node.js build of stage 0, as a service of any build tool other than npm writes it. */
     public void writeTo(ConfigTree config) {
-        if (!enabled) {
+        writeTo(config, null);
+    }
+
+    public void writeTo(ConfigTree config, BuildTool tool) {
+        if (!enabled && tool != NPM) {
             return;
         }
-        config.set("build.node.enabled", true)
+        config.flag("build.node.enabled", enabled)
                 .set("build.node.dir", directory)
                 .set("build.node.commands", commands)
                 .set("build.node.installationName", installationName)
@@ -58,10 +66,10 @@ public record NodeBuildSettings(Boolean enabled, String directory, List<String> 
     public void validate(ValidationProblems problems, BuildTool tool) {
         LINES_4000.check(problems, "commands", commands);
         LINES_2000.check(problems, "environment", environment);
-        if (!enabled) {
+        if (!enabled && tool != NPM) {
             return;
         }
-        if (tool == FLUTTER) {
+        if (tool == FLUTTER && enabled) {
             problems.add("enabled",
                     "must be off for Flutter: a Flutter build has no Gradle or Maven stage for the Node.js build to run before");
         }

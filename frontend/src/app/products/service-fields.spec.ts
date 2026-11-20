@@ -264,13 +264,39 @@ describe('ServiceFields', () => {
         'Node.js build (stage 0)',
         'Build the frontend with Node.js first',
       ]);
-      expect(hints()[0]).toBe('The code has a build.gradle file · buildTool');
+      expect(hints()[0]).toBe(
+        'The code has a build.gradle or settings.gradle file and no AndroidManifest.xml · buildTool',
+      );
 
       form.controls.build.controls.tool.setValue('MAVEN');
       await fixture.whenStable();
 
       expect(hints()[0]).toBe('The code has a pom.xml file · buildTool');
     });
+
+    it.each([
+      ['NPM', ['Build tool', 'Artifact path', 'Node.js build', 'Folder with package.json', 'Commands']],
+      ['PIP', ['Build tool', 'Build command', 'Artifact path', 'Node.js build (stage 0)']],
+      ['IOS', ['Build tool', 'Build command', 'Artifact path', 'Node.js build (stage 0)']],
+      ['ANDROID', ['Build tool', 'Gradle tasks', 'Artifact path', 'Set up the build tool automatically']],
+    ] as const)(
+      'shows for the build tool %s the fields the library reads for it',
+      async (tool, labels) => {
+        await render(service({ build: { ...service().build, tool, autoSetup: true, javaPath: null } }));
+        await open('Build');
+        const shown = [...pane().querySelectorAll('dso-form-field dso-label, dso-checkbox label, h4')]
+          .filter((label) => !label.closest('dso-advanced-settings'))
+          .map((label) => text(label).replace(/ \(\S+\)$/, ''));
+
+        expect(shown.slice(0, labels.length)).toEqual([...labels]);
+        expect(shown).not.toContain('JDK path');
+
+        await open('SonarQube');
+        const sonar = [...pane().querySelectorAll('dso-form-field dso-label')].map(text);
+        expect(sonar.includes('SonarScanner flags')).toBe(tool !== 'ANDROID');
+        expect(sonar.includes('Gradle tasks')).toBe(tool === 'ANDROID');
+      },
+    );
 
     it('tells a service in a subfolder of its repository where to give that folder', async () => {
       await render();
@@ -447,16 +473,51 @@ describe('ServiceFields', () => {
     it.each([
       [
         'a Python project',
+        'PIP',
         {
           buildTool: 'PIP',
           buildTasks: 'pip install -r requirements.txt',
-          unitTestTasks: 'pytest',
-          deployTarget: 'VM',
+          unitTestTasks: 'pytest --junitxml=junit.xml',
           nodeBuildEnabled: false,
-          summaryMessage:
-            'Discovered stack: PIP (PYTHON), Runner: PYTEST, Framework: PIP, Target: VM',
         },
+        ['pip install -r requirements.txt', ''],
       ],
+      [
+        'an Angular project',
+        'NPM',
+        { buildTool: 'NPM', buildTasks: null, unitTestTasks: 'npm test', nodeBuildEnabled: true },
+        ['clean build', ''],
+      ],
+      [
+        'an iOS project',
+        'IOS',
+        { buildTool: 'IOS', buildTasks: null, unitTestTasks: null, nodeBuildEnabled: false },
+        ['clean build', ''],
+      ],
+      [
+        'an Android project',
+        'ANDROID',
+        {
+          buildTool: 'ANDROID',
+          buildTasks: 'clean build',
+          unitTestTasks: 'test',
+          nodeBuildEnabled: false,
+        },
+        ['clean build', 'test'],
+      ],
+    ])(
+      'takes the build tool of %s from the repository scan, and leaves the test command of a command line tool to the library',
+      async (_, tool, stack, commands) => {
+        await renderScanning({ ...stack, deployTarget: 'VM' }, service());
+        await scanRepository();
+
+        expect(form.controls.build.controls.tool.value).toBe(tool);
+        expect(toolCommands()).toEqual(commands);
+        expect(form.controls.nodeBuild.controls.enabled.value).toBe(false);
+      },
+    );
+
+    it.each([
       [
         'an npm project only',
         {
