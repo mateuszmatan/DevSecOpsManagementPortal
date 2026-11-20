@@ -42,6 +42,7 @@ import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.DOTNET;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.SQL;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
 import static com.bbh.itss.dso.portal.domain.catalog.NexusIqSettings.ONE_APPLICATION;
@@ -162,8 +163,12 @@ final class ServiceConfigReader {
         throw expected("CredentialsAuth with its credentials ID");
     };
 
+    private static final Set<String> SQL_NAMES = Set.of("plsql", "pl/sql", "pl-sql");
     private static final Conversion BUILD_TOOL = value -> choice(BuildTool.values(), Enum::name)
-            .apply("msbuild".equalsIgnoreCase(text(value).trim()) ? "dotnet" : value);
+            .apply("msbuild".equalsIgnoreCase(text(value).trim()) ? "dotnet"
+                    : SQL_NAMES.contains(text(value).trim().toLowerCase(ROOT)) ? "sql" : value);
+    private static final String SQL_WITH_CHANGELOG = "imported as Liquibase: buildTool sql is for SQL and PL/SQL files"
+            + " without a changelog, and the library runs this service as buildTool liquibase because %s is set";
 
     private static final List<Rule> DEFAULTED = List.of(
             rule("buildTool", "build.tool", BUILD_TOOL),
@@ -293,9 +298,17 @@ final class ServiceConfigReader {
                 }
             }
         }
-        BuildTool tool = BuildTool.valueOf(String.valueOf(request.get("build.tool")));
+        BuildTool named = BuildTool.valueOf(String.valueOf(request.get("build.tool")));
+        String own = named != SQL ? null
+                : Stream.of("database.changelogFile", "build.liquibase", "tests.unitTests.liquibase")
+                        .filter(project::unread).findFirst().orElse(null);
+        if (own != null) {
+            request.set("build.tool", LIQUIBASE.name());
+            project.note("buildTool", SQL_WITH_CHANGELOG.formatted(own));
+        }
+        BuildTool tool = own != null ? LIQUIBASE : named;
         DeployTarget target = DeployTarget.valueOf(String.valueOf(request.get("deployment.target")));
-        boolean database = tool == LIQUIBASE && project.take("database.changelogFile") != null;
+        boolean database = tool == SQL || tool == LIQUIBASE && project.take("database.changelogFile") != null;
         if (database) {
             readDatabase(project, request);
         } else {
@@ -360,14 +373,14 @@ final class ServiceConfigReader {
         for (Block block : blocks) {
             for (BuildTool blockTool : List.of(GRADLE, MAVEN, LIQUIBASE, DOTNET)) {
                 String key = block.key() + "." + blockTool.name().toLowerCase(ROOT);
-                if (blockTool == tool) {
-                    read(project, prefixed(key + ".", block.field() + ".", COMMANDS.get(tool)), request);
+                if (blockTool == (tool == SQL ? LIQUIBASE : tool)) {
+                    read(project, prefixed(key + ".", block.field() + ".", COMMANDS.get(blockTool)), request);
                 } else if (project.unread(key) && project.take(key) != null) {
                     project.note(key, "not imported: the service builds with " + tool.name().toLowerCase(ROOT));
                 }
             }
         }
-        if (tool == LIQUIBASE) {
+        if (tool == LIQUIBASE || tool == SQL) {
             readLiquibaseSonar(project, request);
         }
     }

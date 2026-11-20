@@ -31,6 +31,7 @@ public final class RepoStackDetector {
         String buildTasks = null;
         boolean liquibaseDetected = false;
         boolean dockerDetected = false;
+        String sqlFolder = null;
 
         if (tree.fileExists("Dockerfile") || tree.fileExists("Containerfile") || tree.directoryExists("openshift")
                 || tree.directoryExists("k8s") || tree.directoryExists("helm") || tree.fileExists("deployment.yaml")
@@ -167,6 +168,12 @@ public final class RepoStackDetector {
                 markers.add("pyproject.toml");
                 buildTasks = "pip install .";
             }
+        } else if (!packageJson.isPresent() && !tree.fileExists("angular.json") && !hasChangelog(tree) && !sqlFiles(tree).isEmpty()) {
+            buildTool = "SQL";
+            language = "SQL";
+            framework = "SQL";
+            sqlFolder = sqlFolder(sqlFiles(tree));
+            markers.add(sqlFiles(tree).get(0));
         }
 
         if (buildTool == null && nodeBuildEnabled) {
@@ -193,7 +200,7 @@ public final class RepoStackDetector {
                 sonarSources = "lib";
                 sonarTests = "test";
             } else if ("SQL".equals(language)) {
-                sonarSources = "db";
+                sonarSources = "SQL".equals(buildTool) ? (sqlFolder != null ? sqlFolder : ".") : "db";
                 sonarTests = "";
             } else if ("PYTHON".equals(language)) {
                 sonarSources = "src";
@@ -212,6 +219,10 @@ public final class RepoStackDetector {
 
         List<ResolvedParameter> resolved = new ArrayList<>();
         add(resolved, "buildTool", buildTool, buildToolReason(tree, buildTool));
+        if ("SQL".equals(buildTool)) {
+            add(resolved, "database.searchPath", sqlFolder, "the one top folder that holds every SQL and PL/SQL file");
+            add(resolved, "buildToolAutoSetup", "true", "no javaPath - Liquibase runs with the JDK of the auto setup");
+        }
         add(resolved, "build.javaVersion", javaVersion, "read from the build files");
         add(resolved, "build.gradle.version", gradleVersion, "distributionUrl of gradle-wrapper.properties");
         add(resolved, "build.node.enabled", nodeBuildEnabled ? "true" : null, "package.json found");
@@ -266,8 +277,40 @@ public final class RepoStackDetector {
             case "GRADLE" -> tree.fileExists("build.gradle.kts") ? "build.gradle.kts found (Kotlin DSL)" : "Gradle build script found";
             case "DOTNET" -> dotnetMarker(tree) + " found (C# / .NET)";
             case "LIQUIBASE" -> "Liquibase changelog found";
+            case "SQL" -> "only SQL and PL/SQL files found, no build file and no Liquibase changelog";
             default -> "Python project files found";
         };
+    }
+
+    private static final List<String> CHANGELOGS = List.of("liquibase.properties", "changelog.xml", "changelog.yaml",
+            "changelog.yml", "changelog.json", "changelog.sql", "db/changelog.xml", "db/changelog.yaml",
+            "db/changelog.sql", "db/changelog/db.changelog-master.xml", "db/changelog/db.changelog-master.yaml",
+            "sql/changelog.xml", "sql/changelog.sql", "liquibase/changelog.xml",
+            "src/main/resources/db/changelog/db.changelog-master.xml",
+            "src/main/resources/db/changelog/db.changelog-master.yaml", "src/main/resources/changelog.xml");
+    private static final List<String> SQL_EXTENSIONS = List.of(".sql", ".pks", ".pkb", ".pls", ".plb", ".pck", ".prc",
+            ".fnc", ".trg", ".tps", ".tpb", ".typ", ".bdy", ".vw");
+
+    /** Whether the repository has one of the files the library takes for a Liquibase changelog. */
+    private static boolean hasChangelog(RepoFileTree tree) {
+        return CHANGELOGS.stream().anyMatch(tree::fileExists);
+    }
+
+    /** The SQL and PL/SQL files of the repository, as the library lists them: none of a folder whose name starts with a dot. */
+    private static List<String> sqlFiles(RepoFileTree tree) {
+        return tree.listFiles("").stream()
+                .filter(file -> SQL_EXTENSIONS.stream().anyMatch(file.toLowerCase(java.util.Locale.ROOT)::endsWith))
+                .filter(file -> java.util.Arrays.stream(file.split("/")).noneMatch(part -> part.startsWith(".")))
+                .sorted().toList();
+    }
+
+    /** The one top folder that holds every file, which becomes the search folder; null when there is none. */
+    private static String sqlFolder(List<String> files) {
+        if (files.stream().anyMatch(file -> !file.contains("/"))) {
+            return null;
+        }
+        List<String> tops = files.stream().map(file -> file.substring(0, file.indexOf('/'))).distinct().toList();
+        return tops.size() == 1 ? tops.get(0) : null;
     }
 
     private static String dotnetMarker(RepoFileTree tree) {

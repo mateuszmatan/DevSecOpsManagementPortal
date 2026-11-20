@@ -727,8 +727,8 @@ class ProductCatalogRegressionSpec extends PortalSpecification {
         unknownTool.status == 400
         with(unknownTool.json) {
             title == 'Malformed request'
-            detail == 'services[0].build.tool must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE, DOTNET'
-            errors == [[field: 'services[0].build.tool', message: 'must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE, DOTNET']]
+            detail == 'services[0].build.tool must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE, DOTNET, SQL'
+            errors == [[field: 'services[0].build.tool', message: 'must be one of GRADLE, MAVEN, FLUTTER, LIQUIBASE, DOTNET, SQL']]
         }
         wrongType.status == 400
         wrongType.json.errors == [[field  : 'services[0].build.command.tasks',

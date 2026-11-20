@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.domain.settings
 
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
 import com.bbh.itss.dso.portal.domain.catalog.GoldenFixPolicy
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
@@ -207,6 +208,8 @@ class GlobalSettingsValuesSpec extends Specification {
                 ['database.utplsqlSha256', 'is required with the download URL: the 64 lower-case hexadecimal digits of'
                         + ' the file']]
         problems(copy(BBH, database: databaseDefaults())) == []
+        problems(copy(BBH, serviceDefaults: copy(BBH.serviceDefaults(), buildTool: BuildTool.SQL)))*.field() ==
+                ['serviceDefaults.buildTool']
     }
 
     private static List<FieldProblem> problems(GlobalSettingsValues values) {

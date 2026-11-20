@@ -43,6 +43,7 @@ import {
   VersionCatalogRepo,
   autoCommands,
   changesDatabase,
+  databaseTool,
   needsJdk,
   pipelineTypeLabel,
 } from '../core/models';
@@ -823,7 +824,8 @@ function requireDatabaseRules(form: ServiceForm): void {
     () => {
       const folder = optional(sonarFolder.value);
       const file = optional(d.changelogFile.value);
-      if (!folder || !file || !formChangesDatabase(form)) {
+      const sql = form.controls.build.controls.tool.value === 'SQL';
+      if (!folder || (!file && !sql) || !formChangesDatabase(form)) {
         return null;
       }
       if (!isFolder(folder)) {
@@ -833,7 +835,7 @@ function requireDatabaseRules(form: ServiceForm): void {
         return null;
       }
       const held = joinFolders(folder);
-      const sources = joinFolders(searchRoot(), packageFolder(file));
+      const sources = joinFolders(searchRoot(), file ? packageFolder(file) : null);
       const testPath = d.utplsql.value ? optional(d.utplsqlTestPath.value) : null;
       const tests = joinFolders(searchRoot(), testPath);
       const packagesOut = !holds(held, sources);
@@ -1556,7 +1558,8 @@ function syncApplicability(form: ServiceForm): void {
   const delivers = !deployment.nexusDeliveryDisabled.value;
   const flutter = tool === 'FLUTTER';
   const database = formChangesDatabase(form);
-  setEnabled(form.controls.build.controls.command, !flutter);
+  const sql = tool === 'SQL';
+  setEnabled(form.controls.build.controls.command, !flutter && !sql);
   if (flutter) {
     form.controls.build.controls.autoSetup.setValue(false);
   }
@@ -1569,7 +1572,7 @@ function syncApplicability(form: ServiceForm): void {
   Object.entries(node.controls).forEach(
     ([key, control]) => key === 'enabled' || setEnabled(control, node.controls.enabled.value),
   );
-  setEnabled(form.controls.unitTests.controls.command, !flutter);
+  setEnabled(form.controls.unitTests.controls.command, !flutter && !sql);
   setEnabled(form.controls.sonar.controls.command, !flutter);
   const appScan = form.controls.appScan.controls;
   setEnabled(appScan.compileCommand, !flutter && appScan.compile.value);
@@ -1606,7 +1609,7 @@ function syncApplicability(form: ServiceForm): void {
       !database && !vm && delivers,
     ),
   );
-  syncDatabase(form, tool === 'LIQUIBASE', database);
+  syncDatabase(form, tool, database);
   const f = form.controls.flutter.controls;
   [f.deliveryGroup, f.deliveryArtifact, f.deliveryPlugin].forEach((control) =>
     setEnabled(control, flutter && delivers),
@@ -1617,12 +1620,17 @@ function syncApplicability(form: ServiceForm): void {
  * Enables the changelog file of a Liquibase service, and the rest of its database block and its databases only once
  * the changelog file is set.
  */
-function syncDatabase(form: ServiceForm, liquibase: boolean, database: boolean): void {
+function syncDatabase(form: ServiceForm, tool: BuildTool, database: boolean): void {
   const d = form.controls.database.controls;
-  setEnabled(form.controls.database, liquibase);
+  const sql = tool === 'SQL';
+  setEnabled(form.controls.database, databaseTool(tool));
   Object.entries(d).forEach(
     ([key, control]) => key === 'changelogFile' || setEnabled(control, database),
   );
+  if (sql && d.changelogFile.value) {
+    d.changelogFile.setValue('');
+  }
+  setEnabled(d.changelogFile, tool === 'LIQUIBASE');
   setEnabled(form.controls.databaseTargets, database);
   [
     d.utplsqlPaths,
@@ -2042,7 +2050,7 @@ const onVm: ServiceSection['applies'] = (_, target, database) => !database && ta
 const onOpenShift: ServiceSection['applies'] = (_, target, database) =>
   !database && target === 'OPENSHIFT';
 const onFlutter: ServiceSection['applies'] = (tool) => tool === 'FLUTTER';
-const onLiquibase: ServiceSection['applies'] = (tool) => tool === 'LIQUIBASE';
+const onLiquibase: ServiceSection['applies'] = (tool) => databaseTool(tool);
 
 const section = (
   id: ServiceSectionId,
@@ -2096,7 +2104,7 @@ export function visibleSectionsForPipeline(
   if (form.controls.build.controls.tool.value === 'FLUTTER') {
     allowed.add('flutter');
   }
-  if (form.controls.build.controls.tool.value === 'LIQUIBASE') {
+  if (databaseTool(form.controls.build.controls.tool.value)) {
     allowed.add('database');
   }
 

@@ -12,6 +12,7 @@ import java.util.Map;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildSettings.DEFAULT_SOURCE_DIR;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.SQL;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
 import static com.bbh.itss.dso.portal.domain.settings.ReleaseGateSettings.STATE_FILE;
 import static com.bbh.itss.dso.portal.domain.settings.SeverityLimits.ZERO;
@@ -90,6 +91,9 @@ public record GlobalSettingsValues(@With PlatformSettings platform, DeploymentDe
         if (serviceDefaults.buildTool() == LIQUIBASE) {
             problems.add("serviceDefaults.buildTool", "must not be Liquibase (SQL / PL/SQL): a Liquibase service needs"
                     + " its own changelog, so every new service starts with Gradle, Maven or Flutter");
+        } else if (serviceDefaults.buildTool() == SQL) {
+            problems.add("serviceDefaults.buildTool", "must not be SQL / PL/SQL files: such a service needs its own"
+                    + " databases, so every new service starts with Gradle, Maven or Flutter");
         }
         database.validate(problems.at("database"));
     }

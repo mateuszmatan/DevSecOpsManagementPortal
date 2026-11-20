@@ -587,7 +587,7 @@ Designed for non-technical users, Product Owners, business analysts, and enginee
 </tr>
 </tbody>
 </table></div>
-<p>In the Portal the <strong>Build Tool</strong> of a service is Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL); npm can run as the Stage 0 Node.js build of such a service, except a service with database changes.</p>
+<p>In the Portal the <strong>Build Tool</strong> of a service is Gradle, Maven, Flutter, C# / .NET, Liquibase (SQL / PL/SQL) or SQL / PL/SQL files (no changelog); npm can run as the Stage 0 Node.js build of such a service, except a service with database changes.</p>
 <h3 id="plugins-from-the-bbh-nexus">Plugins from the BBH Nexus:</h3>
 <ul>
 <li>When a Gradle or Maven step (build, unit tests, SonarQube, SAST compile) fails because a plugin is not in the repositories of the build, the step runs once more with the plugin repository of the BBH Nexus: <em>Gradle plugin repository</em> and <em>Maven plugin repository</em> of the Global Settings (<code>pluginRepositories</code>). The console says which plugins came from it and where to add the repository; unticking <em>Retry a Gradle or Maven step with these repositories when a plugin is missing</em> switches the retry off.</li>
@@ -765,7 +765,7 @@ Provide <strong>either</strong> direct badge token OR Jenkins credentials ID. Do
 <tr>
 <td><strong>Build Tool</strong></td>
 <td>Technology build system</td>
-<td>Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL)</td>
+<td>Gradle, Maven, Flutter, C# / .NET, Liquibase (SQL / PL/SQL) or SQL / PL/SQL files (no changelog)</td>
 <td>Application runtime</td>
 <td style="text-align: center;"><span class="badge badge-required">YES</span></td>
 </tr>

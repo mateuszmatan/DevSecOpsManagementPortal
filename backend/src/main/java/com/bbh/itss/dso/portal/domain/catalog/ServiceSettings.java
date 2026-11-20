@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.SQL;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.OPENSHIFT;
 import static com.bbh.itss.dso.portal.domain.catalog.DeployTarget.VM;
@@ -83,9 +84,12 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         return withDatabase(database.withDefaultArtifact(serviceName));
     }
 
-    /** Whether Liquibase deploys the changes of the service to its databases: a Liquibase service with a changelog. */
+    /**
+     * Whether Liquibase deploys the changes of the service to its databases: a Liquibase service with a changelog, or
+     * a service of SQL and PL/SQL files, whose changelog the library writes.
+     */
     public boolean changesDatabase() {
-        return build.tool() == LIQUIBASE && database.changelogFile() != null;
+        return build.tool() == SQL || build.tool() == LIQUIBASE && database.changelogFile() != null;
     }
 
     /** The target the service deploys to; none for a service whose changes Liquibase deploys. */
@@ -179,10 +183,10 @@ public record ServiceSettings(BuildSettings build, NodeBuildSettings nodeBuild, 
         for (int i = 0; deploys && i < urbanCodeApplications.size(); i++) {
             urbanCodeApplications.get(i).validate(problems.at("urbanCodeApplications[" + i + "]"));
         }
-        if (database.isSet(databaseTargets) && tool != LIQUIBASE) {
+        if (database.isSet(databaseTargets) && !BuildTool.database(tool)) {
             problems.add("database", "is set for a service that does not build with Liquibase: only a Liquibase"
-                    + " service changes a database");
-        } else if (database.isSet(databaseTargets)) {
+                    + " service, or one of SQL and PL/SQL files, changes a database");
+        } else if (database.isSet(databaseTargets) || tool == SQL) {
             database.validate(problems, databaseTargets, build, sonar.command().directory());
         }
     }

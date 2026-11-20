@@ -152,14 +152,21 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
     public void validate(ValidationProblems problems, Map<DatabaseTarget, DatabaseTargetSettings> targets,
                          BuildSettings build, String sonarFolder) {
         ValidationProblems database = problems.at("database");
-        database.require("changelogFile", changelogFile, "is required once a database setting or database is set");
+        boolean sql = build.tool() == BuildTool.SQL;
+        if (!sql) {
+            database.require("changelogFile", changelogFile, "is required once a database setting or database is set");
+        } else if (changelogFile != null) {
+            database.add("changelogFile", "must be empty for SQL and PL/SQL files without a changelog: the library"
+                    + " writes the changelog dso-changelog.xml itself; choose the build tool Liquibase to deploy a"
+                    + " changelog of your own");
+        }
         validateBuild(problems.at("build"), build);
         if (changelogFile != null && packageFolder() == null && searchRoot(build) == null) {
             database.add("changelogFile", "has no folder and the search root is the repository root: put the"
                     + " changelog in a folder, or set the search folder or the source folder to the folder of the"
                     + " changelog");
         }
-        if (changelogFile != null && sonarFolder != null) {
+        if ((changelogFile != null || sql) && sonarFolder != null) {
             validateSonarFolder(problems.at("sonar.command"), build, sonarFolder);
         }
         checkParameters(database, "parameters", parameters);
@@ -225,6 +232,9 @@ public record DatabaseSettings(String changelogFile, String searchPath, String o
 
     /** The first folder of the changelog path, which the package holds; null for a changelog without a folder. */
     private String packageFolder() {
+        if (changelogFile == null) {
+            return null;
+        }
         int slash = changelogFile.indexOf('/');
         String first = slash > 0 ? changelogFile.substring(0, slash) : null;
         return ".".equals(first) ? null : first;

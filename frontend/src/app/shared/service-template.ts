@@ -91,6 +91,8 @@ export function buildDefaults(
       return { tasks: '', artifact: '', scanPattern: template?.flutterScanPattern ?? '' };
     case 'LIQUIBASE':
       return { tasks: 'updateSQL', artifact: '', scanPattern: '' };
+    case 'SQL':
+      return { tasks: '', artifact: '', scanPattern: '' };
     case 'DOTNET':
       return { tasks: '', artifact: '', scanPattern: '**/bin/Release/**/*.dll' };
     default:

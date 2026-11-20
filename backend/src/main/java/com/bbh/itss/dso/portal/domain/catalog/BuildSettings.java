@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.SQL;
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
@@ -16,6 +17,8 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
                             ToolCommand command) {
 
     public static final String DEFAULT_SOURCE_DIR = ".";
+    public static final String SQL_COMMAND = "must be empty for SQL and PL/SQL files without a changelog: the library"
+            + " writes the changelog and runs Liquibase itself; choose the build tool Liquibase for commands of your own";
 
     public BuildSettings {
         sourceDir = defaultIfBlank(trim(sourceDir), DEFAULT_SOURCE_DIR);
@@ -41,6 +44,9 @@ public record BuildSettings(BuildTool tool, String sourceDir, String javaPath, B
             problems.add("command.tasks", tool == MAVEN
                     ? "add the Maven goals of the build, for example clean verify"
                     : "add the Gradle tasks of the build, for example clean build");
+        }
+        if (tool == SQL && !command.isEmpty()) {
+            problems.add("command.tasks", SQL_COMMAND);
         }
         command.validate(problems.at("command"));
     }

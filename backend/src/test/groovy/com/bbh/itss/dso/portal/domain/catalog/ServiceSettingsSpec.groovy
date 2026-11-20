@@ -475,7 +475,31 @@ class ServiceSettingsSpec extends Specification {
                 ['database.changelogFile', 'databaseTargets[RD].url', 'databaseTargets[RD].credentialsId',
                  'database.utplsql']
         reported(databaseSettings(build: build())).collect { [it.field, it.message] } == [['database', 'is set for a'
-                + ' service that does not build with Liquibase: only a Liquibase service changes a database']]
+                + ' service that does not build with Liquibase: only a Liquibase service, or one of SQL and PL/SQL'
+                + ' files, changes a database']]
+    }
+
+    def "a service of SQL and PL/SQL files changes a database without a changelog file and without commands of its own"() {
+        given:
+        def files = database().toBuilder().changelogFile(null).searchPath('db').build()
+        def sql = { Map changes = [:] ->
+            databaseSettings([build: build(tool: BuildTool.SQL, command: NONE), database: files] + changes)
+        }
+        def config = written(sql()).toMap()
+
+        expect:
+        sql().changesDatabase()
+        sql().deployTarget() == null
+        reported(sql()) == []
+        reported(sql(database: DatabaseSettings.NONE, databaseTargets: [:])) == []
+        config.buildTool == 'sql'
+        config.database.searchPath == 'db'
+        !config.database.containsKey('changelogFile')
+        !config.containsKey('build')
+        !config.containsKey('deployTarget')
+        reported(sql(database: database()))*.field == ['database.changelogFile']
+        reported(sql(build: build(tool: BuildTool.SQL, command: command(['updateSQL']))))*.field == ['build.command.tasks']
+        reported(sql(build: build(tool: BuildTool.SQL, command: NONE, javaPath: null)))*.field == ['build.javaPath']
     }
 
     def "a database that sets only the library's defaults is dropped, and the package named after the service too"() {

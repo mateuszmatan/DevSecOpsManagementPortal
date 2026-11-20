@@ -214,4 +214,51 @@ kotlin {
         stack.sonarPropertiesDetected
         stack.detectedMarkers.contains('sonar-project.properties')
     }
+
+    def "detects a repository of SQL and PL/SQL files without a changelog as SQL, with its one top folder"() {
+        given:
+        def files = ['db/migrations/1_orders.sql', 'db/code/pkg_orders.pks', 'db/code/pkg_orders.pkb', 'README.md',
+                     '.github/setup.sql']
+        def tree = [
+                fileExists     : { String p -> p in files },
+                directoryExists: { String p -> p == 'db' },
+                listFiles      : { String p -> files },
+                readFile       : { String p -> Optional.empty() }
+        ] as RepoFileTree
+
+        when:
+        def stack = RepoStackDetector.detect(tree)
+
+        then:
+        stack.buildTool == 'SQL'
+        stack.primaryLanguage == 'SQL'
+        stack.sonarSources == 'db'
+        stack.resolvedParameters.collect { [it.field(), it.value()] }.containsAll([
+                ['buildTool', 'SQL'], ['database.searchPath', 'db'], ['buildToolAutoSetup', 'true']])
+        stack.resolvedParameters.find { it.field() == 'buildTool' }.reason() ==
+                'only SQL and PL/SQL files found, no build file and no Liquibase changelog'
+    }
+
+    def "SQL files next to #marker are not detected as SQL: #tool"() {
+        given:
+        def files = ['db/migrations/1_orders.sql', marker]
+        def tree = [
+                fileExists     : { String p -> p in files },
+                directoryExists: { String p -> false },
+                listFiles      : { String p -> files },
+                readFile       : { String p -> p == marker ? Optional.of('{}') : Optional.empty() }
+        ] as RepoFileTree
+
+        expect:
+        RepoStackDetector.detect(tree).buildTool == tool
+
+        where:
+        marker                 || tool
+        'pom.xml'              || 'MAVEN'
+        'build.gradle'         || 'GRADLE'
+        'db/changelog.sql'     || null
+        'changelog.xml'        || 'LIQUIBASE'
+        'package.json'         || null
+        'requirements.txt'     || 'PIP'
+    }
 }

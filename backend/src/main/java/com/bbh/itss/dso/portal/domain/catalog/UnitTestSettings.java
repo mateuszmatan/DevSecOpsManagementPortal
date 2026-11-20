@@ -55,6 +55,9 @@ public record UnitTestSettings(ToolCommand command, String resultPattern, String
                     ? "add the Maven goals of the unit tests, for example test jacoco:report"
                     : "add the Gradle tasks of the unit tests, for example test jacocoTestReport");
         }
+        if (tool == BuildTool.SQL && !command.isEmpty()) {
+            problems.add("command.tasks", BuildSettings.SQL_COMMAND);
+        }
         command.validate(problems.at("command"));
     }
 }

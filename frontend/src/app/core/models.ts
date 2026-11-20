@@ -1,15 +1,19 @@
 import { FieldProblem, Department as PortalDepartment } from '@common/core/models';
 import { labelOf } from '@common/shared/formatting';
 
-export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER' | 'LIQUIBASE' | 'DOTNET';
+export type BuildTool = 'GRADLE' | 'MAVEN' | 'FLUTTER' | 'LIQUIBASE' | 'DOTNET' | 'SQL';
 
 /** Build tools whose commands the library picks itself when the service gives none. */
 export const autoCommands = (tool: BuildTool | null | undefined): boolean =>
-  tool === 'LIQUIBASE' || tool === 'FLUTTER' || tool === 'DOTNET';
+  tool === 'LIQUIBASE' || tool === 'FLUTTER' || tool === 'DOTNET' || tool === 'SQL';
 
 /** Build tools that need a JDK on the agent. */
 export const needsJdk = (tool: BuildTool | null | undefined): boolean =>
-  tool !== 'LIQUIBASE' && tool !== 'DOTNET';
+  tool !== 'LIQUIBASE' && tool !== 'DOTNET' && tool !== 'SQL';
+
+/** Build tools that can change a database: Liquibase with a changelog, or SQL and PL/SQL files without one. */
+export const databaseTool = (tool: BuildTool | null | undefined): boolean =>
+  tool === 'LIQUIBASE' || tool === 'SQL';
 
 /** A setting the auto-discovery or the library filled in, with the value and why. */
 export interface ResolvedParameter {
@@ -460,12 +464,15 @@ export interface ServiceSettings {
   databaseTargets?: Partial<Record<DatabaseTarget, DatabaseTargetSettings>>;
 }
 
-/** Whether Liquibase deploys the changes of a service to its databases: a Liquibase service with a changelog. */
+/**
+ * Whether Liquibase deploys the changes of a service to its databases: a Liquibase service with a changelog, or a
+ * service of SQL and PL/SQL files, whose changelog the library writes.
+ */
 export function changesDatabase(
   tool: BuildTool,
   changelogFile: string | null | undefined,
 ): boolean {
-  return tool === 'LIQUIBASE' && !!changelogFile?.trim();
+  return tool === 'SQL' || (tool === 'LIQUIBASE' && !!changelogFile?.trim());
 }
 
 export interface Service extends ServiceSettings {

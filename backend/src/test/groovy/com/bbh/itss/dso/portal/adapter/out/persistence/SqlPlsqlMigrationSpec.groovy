@@ -98,6 +98,29 @@ class SqlPlsqlMigrationSpec extends MigrationSpecification {
         jdbc.queryForObject("SELECT COUNT(*) FROM $TARGETS" as String, Integer) == 0
     }
 
+    def "044 lets a service build with SQL, and its rollback gives the build tools of 038 back"() {
+        given:
+        liquibase.update('')
+        long product = insert('DSO_PRODUCT', [CODE: 'SQF', NAME: 'SQL files'])
+
+        when:
+        long files = service(product, 'orders-sql', 'SQL')
+
+        then:
+        jdbc.queryForObject('SELECT BUILD_TOOL FROM DSO_SERVICE WHERE ID = ?', String, files) == 'SQL'
+
+        when:
+        jdbc.update('DELETE FROM DSO_SERVICE WHERE ID = ?', files)
+        rollBackSince('044-')
+        service(product, 'orders-sql', 'SQL')
+
+        then:
+        thrown(DataIntegrityViolationException)
+
+        cleanup:
+        liquibase.update('')
+    }
+
     private long service(long productId, String name, String buildTool) {
         insert('DSO_SERVICE', [PRODUCT_ID: productId, NAME: name, DISPLAY_ORDER: 0, BUILD_TOOL: buildTool, SOURCE_DIR: '.',
                                DEPLOY_TARGET: 'VM', APPSCAN_APP_ID: '109f44ac-cc06-4ca0-884e-d944904f7019',

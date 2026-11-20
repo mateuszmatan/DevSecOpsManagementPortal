@@ -7,6 +7,7 @@ import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.NexusIqApplicationDto
 import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.NodeBuildSettingsDto
 import com.bbh.itss.dso.portal.adapter.in.web.ServiceDto.SshTargetDto
 import com.bbh.itss.dso.portal.domain.catalog.BuildSettings
+import com.bbh.itss.dso.portal.domain.catalog.BuildTool
 import com.bbh.itss.dso.portal.domain.catalog.DatabaseTarget
 import com.bbh.itss.dso.portal.domain.catalog.DatabaseTargetSettings
 import com.bbh.itss.dso.portal.domain.catalog.ScmSettings
@@ -214,6 +215,40 @@ class ServiceConfigReaderSpec extends Specification {
         where:
         project << [[buildTool: 'gradle', database: [changelogFile: 'db/changelog-master.xml']],
                     [buildTool: 'liquibase', database: [searchPath: 'db', rd: [credentialsId: 'orders-rd']]]]
+    }
+
+    def "buildTool #name is a service of SQL and PL/SQL files: its database block is read without a changelog file"() {
+        when:
+        def service = imported(new Yaml().dump([buildTool: name, sourceDir: 'db', buildToolAutoSetup: true,
+                                               database: [searchPath: 'src', rd: [url: 'jdbc:oracle:thin:@//rd-db.bbh.com:1521/ORDERS_RD',
+                                                                                  credentialsId: 'orders-db-rd']]])).services()[0]
+
+        then:
+        service.service().build().tool() == BuildTool.SQL
+        service.service().database().changelogFile() == null
+        service.service().database().searchPath() == 'src'
+        service.service().databaseTargets()[DatabaseTarget.RD].credentialsId() == 'orders-db-rd'
+        !service.notes().any { it.field() in ['buildTool', 'database'] }
+
+        where:
+        name << ['sql', 'plsql', 'PL/SQL', 'pl-sql']
+    }
+
+    def "buildTool sql with #key is imported as Liquibase, as the library runs it, with a note"() {
+        when:
+        def service = imported(new Yaml().dump([buildTool: 'sql'] + project)).services()[0]
+
+        then:
+        service.service().build().tool() == LIQUIBASE
+        service.notes().find { it.field() == 'buildTool' }.message() == ('imported as Liquibase: buildTool sql is for SQL'
+                + ' and PL/SQL files without a changelog, and the library runs this service as buildTool liquibase'
+                + " because ${key} is set")
+
+        where:
+        key                         | project
+        'database.changelogFile'    | [database: [changelogFile: 'db/changelog-master.xml']]
+        'build.liquibase'           | [build: [liquibase: [commands: ['updateSQL']]]]
+        'tests.unitTests.liquibase' | [tests: [unitTests: [liquibase: [commands: ['validate']]]]]
     }
 
     def "the Maven home of build.maven fills that of the package unless the package names its own: #maven"() {
@@ -771,7 +806,7 @@ class ServiceConfigReaderSpec extends Specification {
         then:
         result.notes() == [problem('other', UNKNOWN)]
         result.services()[0].notes() as Set == [
-                problem('buildTool', 'not imported: expected one of gradle, maven, flutter, liquibase, dotnet'),
+                problem('buildTool', 'not imported: expected one of gradle, maven, flutter, liquibase, dotnet, sql'),
                 problem('tests.maxParallel', 'not imported: expected a whole number'),
                 problem('tests.smoke.required', 'not imported: expected true or false'),
                 problem('tools.sonar.projectKey', 'not imported: expected a single value'),

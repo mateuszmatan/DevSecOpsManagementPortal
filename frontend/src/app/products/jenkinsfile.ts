@@ -93,7 +93,7 @@ export const RUN_IN_ORDER =
 export function buildBefore(services: readonly OrderedService[], index: number): string | null {
   const service = services[index];
   const key = repositoryKey(service?.repositoryUrl);
-  if (service?.tool !== 'LIQUIBASE' || !key) {
+  if ((service?.tool !== 'LIQUIBASE' && service?.tool !== 'SQL') || !key) {
     return null;
   }
   const build = services

@@ -115,7 +115,7 @@ The pipelines know these languages and build tools; the Portal offers Gradle, Ma
 | **SQL / PL-SQL** | Liquibase | `liquibase update` | Oracle & PostgreSQL migrations |
 | **Flutter / Dart** | flutter / pub | `flutter build` | Mobile & desktop applications |
 
-In the Portal the **Build Tool** of a service is Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL); npm can run as the Stage 0 Node.js build of such a service, except a service with database changes.
+In the Portal the **Build Tool** of a service is Gradle, Maven, Flutter, C# / .NET, Liquibase (SQL / PL/SQL) or SQL / PL/SQL files (no changelog); npm can run as the Stage 0 Node.js build of such a service, except a service with database changes.
 
 ### Plugins from the BBH Nexus:
 - When a Gradle or Maven step (build, unit tests, SonarQube, SAST compile) fails because a plugin is not in the repositories of the build, the step runs once more with the plugin repository of the BBH Nexus: *Gradle plugin repository* and *Maven plugin repository* of the Global Settings (`pluginRepositories`). The console says which plugins came from it and where to add the repository; unticking *Retry a Gradle or Maven step with these repositories when a plugin is missing* switches the retry off.
@@ -270,7 +270,7 @@ Every pipeline execution streams performance and quality data to InfluxDB:
 | **Service Name** | Unique component name | `backend-api` or `web-gui` | Team naming convention | <span class="badge badge-required">YES</span> |
 | **Bitbucket Repo URL** | Git repository SSH URL | `ssh://git@bitbucket.bbh.com/pay/api.git` | Bitbucket (Clone -> SSH) | <span class="badge badge-required">YES</span> |
 | **Git Branch** | Target build branch | `main` or `master` | Repository default branch | <span class="badge badge-required">YES</span> |
-| **Build Tool** | Technology build system | Gradle, Maven, Flutter or Liquibase (SQL / PL/SQL) | Application runtime | <span class="badge badge-required">YES</span> |
+| **Build Tool** | Technology build system | Gradle, Maven, Flutter, C# / .NET, Liquibase (SQL / PL/SQL) or SQL / PL/SQL files (no changelog) | Application runtime | <span class="badge badge-required">YES</span> |
 | **Build Tasks / Command** | Build invocation arguments | `clean package -DskipTests` | Build tool command | <span class="badge badge-required">YES</span> |
 | **Unit Test Tasks** | Test execution command | `test` or `test jacocoTestReport` | Build tool test task | <span class="badge badge-optional">OPTIONAL</span> |
 | **Cypress Tests Enabled** | Run Cypress unit/component tests | Checked `[X]` / Unchecked `[ ]` | Test suite config | <span class="badge badge-optional">OPTIONAL</span> |

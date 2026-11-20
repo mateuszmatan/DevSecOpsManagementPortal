@@ -23,6 +23,7 @@ import {
   REGIONS,
   Region,
   ResolvedParameter,
+  databaseTool,
 } from '../core/models';
 import { ProductsApi } from '../core/api';
 import {
@@ -72,7 +73,7 @@ import { ToolCommandFields, commandFields } from './tool-command-fields';
 import { URBAN_CODE_APPLICATION, URBAN_CODE_COMPONENT, UrbanCodeFields } from './urban-code-fields';
 
 /** The build tools of the portal: a repository scan may also find one it has none for, such as PIP, or none. */
-const KNOWN_TOOLS: readonly BuildTool[] = ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DOTNET'];
+const KNOWN_TOOLS: readonly BuildTool[] = ['GRADLE', 'MAVEN', 'FLUTTER', 'LIQUIBASE', 'DOTNET', 'SQL'];
 
 const REGION_NAMES: Record<Region, string> = {
   RD: 'RD, the lower test region',
@@ -879,7 +880,7 @@ export class ServiceFields {
 
   protected buildFields(): Field[] {
     const maven = this.tool() === 'MAVEN';
-    const liquibase = this.tool() === 'LIQUIBASE';
+    const liquibase = databaseTool(this.tool());
     const database = this.changesDatabase();
     const c = this.form().controls.build.controls;
     return [
@@ -929,8 +930,14 @@ export class ServiceFields {
     ];
   }
 
-  /** The changelog file, and the rest of the database block once it is set. */
+  /**
+   * The changelog file, and the rest of the database block once it is set. A service of SQL and PL/SQL files has no
+   * changelog file: the library writes it, so the block is shown at once.
+   */
   protected databaseFields(): Field[] {
+    if (this.tool() === 'SQL') {
+      return DATABASE;
+    }
     return [CHANGELOG_FILE, ...(this.changesDatabase() ? DATABASE : [])];
   }
 
@@ -1526,6 +1533,16 @@ export class ServiceFields {
       if (stack.nodeBuildEnabled) {
         c.nodeBuild.controls.enabled.setValue(true);
       }
+      if (tool === 'SQL') {
+        const resolved = stack.resolvedParameters ?? [];
+        const searchPath = resolved.find(({ field }) => field === 'database.searchPath')?.value;
+        if (searchPath && !c.database.controls.searchPath.value) {
+          c.database.controls.searchPath.setValue(searchPath);
+        }
+        if (!c.build.controls.javaPath.value) {
+          c.build.controls.autoSetup.setValue(true);
+        }
+      }
       if (tool && stack.buildTasks) {
         c.build.controls.command.controls.tasks.setValue(stack.buildTasks);
       }
@@ -1536,12 +1553,12 @@ export class ServiceFields {
     if (stack.sonarProjectKey && !c.sonar.controls.projectKey.value) {
       c.sonar.controls.projectKey.setValue(stack.sonarProjectKey);
     }
-    if (!database || !stack.buildTool || stack.buildTool === 'LIQUIBASE') {
+    if (!database || !stack.buildTool || stack.buildTool === 'LIQUIBASE' || stack.buildTool === 'SQL') {
       return null;
     }
     const found = tool ? TOOL_LABELS[tool] : stack.buildTool;
     return (
-      'The service keeps the build tool Liquibase with database changes; ' +
+      `The service keeps the build tool ${c.build.controls.tool.value === 'SQL' ? 'SQL / PL/SQL files' : 'Liquibase'} with database changes; ` +
       `the scan found the build tool ${found} at the repository root.`
     );
   }

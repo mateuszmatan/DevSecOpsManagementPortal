@@ -11,6 +11,7 @@ import java.util.Map;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.DOTNET;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE;
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.SQL;
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_1000;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_2000;
@@ -44,6 +45,12 @@ public record ToolCommand(List<String> tasks, List<String> flags, String directo
                 && label == null && !returnStdout;
     }
 
+    /**
+     * The blocks a service of SQL and PL/SQL files without a changelog never writes: the library runs Liquibase with
+     * the changelog it generates, and a build or unit test command would make the service a plain Liquibase service.
+     */
+    private static final java.util.Set<String> RUN_BY_THE_LIBRARY = java.util.Set.of("build", "tests.unitTests");
+
     public void writeTo(ConfigTree config, String path, BuildTool tool) {
         if (tool == GRADLE || tool == MAVEN) {
             boolean maven = tool == MAVEN;
@@ -55,7 +62,7 @@ public record ToolCommand(List<String> tasks, List<String> flags, String directo
                     .set(block + "env", environmentMap())
                     .set(block + "label", label)
                     .flag(block + "returnStdout", returnStdout);
-        } else if (tool == LIQUIBASE || tool == DOTNET) {
+        } else if (tool == LIQUIBASE || tool == DOTNET || tool == SQL && !RUN_BY_THE_LIBRARY.contains(path)) {
             String block = path + (tool == DOTNET ? ".dotnet." : ".liquibase.");
             config.set(block + "commands", tasks)
                     .set(block + "flags", flags)

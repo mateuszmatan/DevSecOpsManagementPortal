@@ -67,6 +67,7 @@ import {
   toTestJob,
   toToolCommand,
   unitTestsConfigured,
+  formChangesDatabase,
   visibleSections,
   visibleSectionsForPipeline,
   withDatabaseRules,
@@ -1857,6 +1858,31 @@ describe('Liquibase services with and without database changes', () => {
     form.controls.build.controls.tool.setValue('GRADLE');
 
     expect(toServiceRequest(form)).toEqual(before);
+  });
+
+  it('treats a service of SQL and PL/SQL files as database changes without a changelog file or commands', () => {
+    const form = gradle();
+    const c = form.controls;
+    c.build.controls.tool.setValue('LIQUIBASE');
+    c.database.controls.changelogFile.setValue('db/changelog-master.xml');
+    c.build.controls.tool.setValue('SQL');
+
+    expect(formChangesDatabase(form)).toBe(true);
+    expect(c.database.controls.changelogFile.disabled).toBe(true);
+    expect(c.database.controls.changelogFile.value).toBe('');
+    expect(c.database.controls.searchPath.enabled).toBe(true);
+    expect(c.databaseTargets.enabled).toBe(true);
+    expect(c.build.controls.command.disabled).toBe(true);
+    expect(c.unitTests.controls.command.disabled).toBe(true);
+    expect(c.deployment.disabled).toBe(true);
+    expect(visibleSections(form).map(({ id }) => id)).toContain('database');
+    expect(visibleSections(form).map(({ id }) => id)).not.toContain('deployment');
+
+    c.database.controls.searchPath.setValue('db');
+    const request = toServiceRequest(form);
+    expect(request.build.tool).toBe('SQL');
+    expect(request.database?.searchPath).toBe('db');
+    expect(request.database?.changelogFile ?? null).toBeNull();
   });
 
   it('offers the Nexus IQ application of the template to a Liquibase service as to any other', () => {

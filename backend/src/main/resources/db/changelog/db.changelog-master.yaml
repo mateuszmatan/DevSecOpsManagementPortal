@@ -50,3 +50,6 @@ databaseChangeLog:
   - include:
       file: oracle/043-plugin-repositories.sql
       relativeToChangelogFile: true
+  - include:
+      file: oracle/044-sql-build-tool.sql
+      relativeToChangelogFile: true

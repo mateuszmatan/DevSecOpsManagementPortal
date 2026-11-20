@@ -13,7 +13,7 @@ export function commandFields(
   liquibaseExample = 'updateSQL',
 ): Field[] {
   const maven = tool === 'MAVEN';
-  const liquibase = tool === 'LIQUIBASE';
+  const liquibase = tool === 'LIQUIBASE' || tool === 'SQL';
   const dotnet = tool === 'DOTNET';
   const toolName = dotnet ? 'dotnet' : liquibase ? 'liquibase' : maven ? 'maven' : 'gradle';
   const key = `${path}.${toolName}`;

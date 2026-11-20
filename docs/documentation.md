@@ -201,7 +201,7 @@ In a repository with Java and database code, add the Liquibase service first.
 2. To start from another service of the product, choose it in "Copy values from". To start from a file, click "Import devsecops_config.yaml". Both are optional. See [chapter 10](#10-import-a-devsecops_configyaml-and-copy-a-service).
 3. Alternatively, use **Repo Auto-Discovery / Smart Wizard (Scan & Auto-fill)**: Type the Bitbucket repository URL and branch, then click "Scan & Auto-fill". The portal reads the root folder of the branch through the Bitbucket REST API and fills in the build tool (Maven, Gradle, Liquibase or Flutter) and, for Maven, Gradle and Liquibase, its build and unit test commands; Flutter gets only the build tool. It ticks the Node.js build when it finds a `package.json` at the root, sets the deployment target, Virtual machine or OpenShift, and fills in the SonarQube project key when it is empty. It sets no Java or Node.js version and no test runner. A service with database changes keeps all of these except the SonarQube project key. See [chapter 16](#16-repo-auto-discovery-and-smart-wizard).
 4. In General, type the service name, for example `backend-api`. The portal then fills in, from the service template: the Bitbucket repository URL, the Nexus IQ application with its scan pattern and, on OpenShift, the application name and the image repositories. It offers the Nexus IQ application once: one you remove does not come back when you change the name. A new service starts with the Bitbucket credentials ID of the service template; the name never fills it in.
-5. In Build, choose or verify the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven, "The code has a pubspec.yaml file" means Flutter and "The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties" means Liquibase (SQL / PL/SQL); for its commands and its database changes see [chapter 7](#add-a-liquibase-service-in-the-wizard). The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
+5. In Build, choose or verify the build tool. The hint tells you how to recognise it: "The code has a build.gradle file" means Gradle, "The code has a pom.xml file" means Maven, "The code has a pubspec.yaml file" means Flutter and "The code has changelog files (changelog.xml/yaml/sql) or liquibase.properties" means Liquibase (SQL / PL/SQL) and "The code has only SQL and PL/SQL files (.sql, .pks, .pkb, ...) and no Liquibase changelog; the library writes the changelog" means SQL / PL/SQL files (no changelog); for their commands and database changes see [chapter 7](#add-a-liquibase-service-in-the-wizard). The tasks and the artifact path come from the service template. Leave "Set up the build tool automatically" on.
 6. If the repository holds a frontend that npm builds, for example an Angular application, tick "Build the frontend with Node.js first". Type the "Folder with package.json", for example `frontend`. Leave the other Node.js fields as they are. See [chapter 6](#6-build-the-frontend-with-nodejs-first-stage-0).
 7. In AppScan SAST and DAST, type the AppScan application ID. There is no API key to type: the library signs in with the key of the functional user.
 8. For the OSA pipeline, check the Nexus IQ application and the Bitbucket repository.
@@ -364,6 +364,20 @@ Many products keep SQL and PL/SQL code in a repository: tables, views, packages,
 | utPLSQL | The unit test framework of PL/SQL. Its test packages run inside the database. |
 | Test database | A schema that only the pipelines use, for the utPLSQL tests. RD and QC are the lower and the higher test region. |
 | Package (zip) | The zip of the changelog and the files it includes, which the pipelines upload to Nexus. It is not a PL/SQL package. |
+
+### SQL and PL/SQL files without a changelog
+
+A repository that holds only SQL and PL/SQL files, and no Liquibase changelog, has the build tool "SQL / PL/SQL files (no changelog)", written as `buildTool: sql`. The library also reads `plsql`, `pl/sql` and `pl-sql`, which an import takes as the same build tool. Such a service always has database changes: the library writes the changelog `dso-changelog.xml` into the search folder at the start of every run and then does everything the column "With database changes" of the table below lists.
+
+- The form shows the section Database changes at once, without the field "Changelog file". The Liquibase commands of Build and of Unit tests are switched off, because the library runs Liquibase itself; the SonarQube and AppScan commands stay.
+- Set "Search folder" (`database.searchPath`) or the Source folder to the folder of the files. The library packages the whole search folder, so it must not be the root of the repository. When both are empty and all files lie under one top folder, the library sets that folder itself.
+- The service needs the JDK path or "Set up the build tool automatically", as every service with database changes.
+- In the generated changelog a file that starts with `--liquibase formatted sql` is included as it is, `CREATE OR REPLACE` code (types, packages, views, functions, procedures, triggers, synonyms) runs again whenever its file changes, every other file runs once in the natural order of its path (`2_x.sql` before `10_x.sql`), and the files of the utPLSQL test folder go to the test database only.
+- A file named `dso-changelog.xml` of your own stops the build: rename it, or choose Liquibase (SQL / PL/SQL) with it as the Changelog file.
+- A `devsecops_config.yaml` with `buildTool: sql` and a changelog of its own (`database.changelogFile`, `build.liquibase` or `tests.unitTests.liquibase`) is imported as Liquibase (SQL / PL/SQL), as the library runs it, with a note.
+- *Scan & Auto-fill* chooses this build tool for a repository with SQL or PL/SQL files and no build file, no `package.json` and no Liquibase changelog, fills the Search folder with the one top folder of the files and ticks "Set up the build tool automatically".
+
+The guide of the library describes the generated changelog in its chapter 14, "The changelog of buildTool sql".
 
 ### Two ways to configure a Liquibase service
 
@@ -1316,6 +1330,8 @@ The detector (`RepoStackDetector`) inspects manifests in priority order:
   - Automatically selects `LIQUIBASE` as the primary build tool when the repository has no `pubspec.yaml`, `pom.xml` or Gradle build, setting the build command `validate` and the unit test commands `updateSQL validate`.
   - It fills only the Liquibase commands. To check, package and deploy the database changes, fill in "Database changes" with the changelog file yourself; see [chapter 7](#7-sql-and-plsql-changes-with-liquibase).
   - A service with database changes keeps its build tool, its commands and its deployment settings when it is scanned, also when the scan finds Gradle or Maven at the root of the repository, as in a multi-module build. The scan then fills in only an empty SonarQube project key, and its message says that the service keeps Liquibase and names the build tool found at the root.
+- **SQL / PL/SQL files (no changelog)**: Detected when the repository has a `.sql`, `.pks`, `.pkb`, `.pls`, `.plb`, `.pck`, `.prc`, `.fnc`, `.trg`, `.tps`, `.tpb`, `.typ`, `.bdy` or `.vw` file outside folders whose name starts with a dot, and no `pubspec.yaml`, `pom.xml`, Gradle build, .NET file, Liquibase changelog, Python file or `package.json`.
+  - Selects `SQL` as the build tool, fills "Search folder" with the one top folder that holds every such file and ticks "Set up the build tool automatically" when the service has no JDK path. It fills in no commands: the library writes the changelog and runs Liquibase itself.
 - **Flutter / Dart**: Detected via `pubspec.yaml`.
   - Selects `FLUTTER` as the build tool. It fills in no commands and no Flutter field, such as the platform.
 - **Python / pip**: Detected via `requirements.txt`, `pyproject.toml`, `setup.py`, or `Pipfile`.
@@ -2113,6 +2129,18 @@ The JDBC URL holds a user or a password, such as `scott/tiger@` or `password=`. 
 ### "must not be Liquibase (SQL / PL/SQL): a Liquibase service needs its own changelog, so every new service starts with Gradle, Maven or Flutter"
 
 The build tool of Service defaults in the Library defaults cannot be Liquibase. The page offers only Gradle, Maven and Flutter, and the API refuses the value. Choose Liquibase (SQL / PL/SQL) on each service instead.
+
+### "must not be SQL / PL/SQL files: such a service needs its own databases, so every new service starts with Gradle, Maven or Flutter"
+
+The build tool of Service defaults in the Library defaults cannot be SQL / PL/SQL files (no changelog) either, for the same reason. Choose it on each service instead.
+
+### "must be empty for SQL and PL/SQL files without a changelog: the library writes the changelog dso-changelog.xml itself; choose the build tool Liquibase to deploy a changelog of your own"
+
+A service with the build tool SQL / PL/SQL files (no changelog) was sent with a Changelog file. The form hides the field for this build tool; the API refuses the value. Choose Liquibase (SQL / PL/SQL) to deploy a changelog of your own.
+
+### "must be empty for SQL and PL/SQL files without a changelog: the library writes the changelog and runs Liquibase itself; choose the build tool Liquibase for commands of your own"
+
+A service with the build tool SQL / PL/SQL files (no changelog) was sent with Liquibase commands for Build or Unit tests. The form switches them off for this build tool; the API refuses them, because the library would run such a service as a plain Liquibase service.
 
 ### `[GOLDENFIX] The branch <branch> already exists in <repository>`
 

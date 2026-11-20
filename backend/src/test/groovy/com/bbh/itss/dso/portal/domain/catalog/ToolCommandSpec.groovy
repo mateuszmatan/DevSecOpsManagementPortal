@@ -5,6 +5,7 @@ import spock.lang.Specification
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.FLUTTER
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.GRADLE
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.LIQUIBASE
+import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.SQL
 import static com.bbh.itss.dso.portal.domain.catalog.BuildTool.MAVEN
 import static com.bbh.itss.dso.portal.domain.catalog.ToolCommand.NONE
 import static com.bbh.itss.dso.portal.domain.shared.Sections.written
@@ -53,6 +54,9 @@ class ToolCommandSpec extends Specification {
         FULL                                                                                            | 'tools.sonar'     | MAVEN     || [tools: [sonar: [maven: [goals: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', mvnPath: '/opt/maven-3.9', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]]
         FULL                                                                                            | 'build'           | LIQUIBASE || [build: [liquibase: [commands: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]
         FULL                                                                                            | 'build'           | FLUTTER   || [:]
+        FULL                                                                                            | 'build'           | SQL       || [:]
+        FULL                                                                                            | 'tests.unitTests' | SQL       || [:]
+        FULL                                                                                            | 'tools.sonar'     | SQL       || [tools: [sonar: [liquibase: [commands: ['clean', 'build'], flags: ['--no-daemon', '-x', 'test'], dir: 'gui', env: [JAVA_OPTS: '-Xmx2g', CI: 'true']]]]]
         NONE                                                                                            | 'build'           | GRADLE    || [:]
         NONE                                                                                            | 'build'           | MAVEN     || [:]
         NONE                                                                                            | 'build'           | LIQUIBASE || [:]

@@ -124,7 +124,10 @@ changes a database: its `database` block is rendered after `build`, it renders n
 `appName`, `artifactName`, `baseArtifactName`, `deploy`, `delivery`), and its Nexus IQ GoldenFix pipeline is refused.
 The Global Settings give every such service its tools, its allowed databases and its Nexus repositories under
 `defaults.tools.liquibase`, `defaults.tools.oracleJdbc`, `defaults.tools.utplsql` and `defaults.database`, rendered
-only while they are set. Chapter 7 of the guide describes both kinds of Liquibase service.
+only while they are set. Chapter 7 of the guide describes both kinds of Liquibase service. A service of SQL and
+PL/SQL files without a changelog (`buildTool: sql`) always changes a database: it renders the same `database` block
+without `changelogFile` and no `build.liquibase` or `tests.unitTests.liquibase` commands, because the library writes
+the changelog `dso-changelog.xml` and runs Liquibase itself.
 
 ## Importing a service from a config file
 
@@ -191,6 +194,9 @@ with who, what, when and the result, and shown under Action history.
   packages before the first service with database changes is saved; the Full, Security and Extended pipelines of a
   service that delivers its package need a group ID and those repositories. A rollback stops at the build tool checks
   while a service has the build tool `LIQUIBASE`: change or delete those services, then run the same rollback again.
+- Changeset 044 adds the build tool `SQL` (SQL and PL/SQL files without a changelog) to `CK_DSO_SERVICE_BUILD_TOOL`.
+  Every service keeps its build tool. A rollback stops at the build tool check while a service has the build tool
+  `SQL`: change or delete those services, then run the same rollback again.
 - Changeset 040 drops `APPSCAN_KEY_ID` and `APPSCAN_SECRET_CREDENTIALS_ID` from `DSO_SERVICE`: the library signs in to
   AppScan on Cloud with the one API key of the functional user from its own defaults. Set `asoc.keyId` and `asoc.token`
   in `resources/com/bbh/devsecops/defaults.yaml` of the library before the upgrade; a rollback brings the columns back
