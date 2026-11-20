@@ -5,6 +5,7 @@ All notable changes to the DevSecOps Management Portal are documented in this fi
 ## [Unreleased]
 
 ### Documentation
+- The user guides, `TODO.md` and `docs/MANAGEMENT_OVERVIEW.md` follow the library: the pipeline report ends with the table *Manual Actions vs DevSecOps* (one line per step in the order of the pipeline, the time by hand, the time with DevSecOps, the time gained in percent and a summary in seconds, minutes and percent), which replaces *Manual actions vs DevSecOps Automated Actions* and the table of the time one after another and in parallel. The minutes of the manual steps stay `report.manualEffort` of the library defaults and are no Global Settings value.
 - Review of the library branches `DSOEnhancedWithoutPortal` and `main` and of the portal of 2026-11-20: new `TODO.md`, the prioritised list of open work for the library and the portal, and `docs/MANAGEMENT_OVERVIEW.md`, the overview for senior management; both are the same file in the three sources. *Known gaps* of the README names the build tools npm, pip, Android and iOS that the service form lacks, the differences of the repository scan from the detection of the library, and the user guides that have drifted from the copies of the library.
 
 ### Added
