@@ -213,6 +213,16 @@ with who, what, when and the result, and shown under Action history.
 
 ## Known gaps
 
+The prioritised list of open work for the portal and the library is [TODO.md](TODO.md); the overview for senior
+management is [docs/MANAGEMENT_OVERVIEW.md](docs/MANAGEMENT_OVERVIEW.md).
+
+- The service form has no build tool npm, pip, Android or iOS. A service that is only Angular or Node.js, or only
+  Python, is configured in `devsecops_config.yaml` or `config.yaml` of its repository and runs without a pipeline
+  key; an import of such a file notes `buildTool` as not imported. An import of `msbuild` becomes `dotnet`.
+- The repository scan differs from the detection of the library: it has no iOS, Android and npm result, returns a
+  Python result that the form does not apply, and takes `gradlew`, not `settings.gradle` or the wrapper properties,
+  as a Gradle marker.
+- `docs/USER_GUIDE_PORTAL` and `docs/USER_GUIDE_WITHOUT_PORTAL` have drifted from the copies of the library.
 - The portal has no sign-in yet, so every action is recorded as the default administrator. BBH single sign-on and
   roles come later; until then the portal must stay inside the test network.
 - A new Liquibase service gets the build command `updateSQL` without flags, which fails unless flags or a
